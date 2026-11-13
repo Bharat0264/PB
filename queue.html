@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="PrintBee campus printing for SRM University. Save your A4 documents in your local print queue.">
+<title>Upload · PrintBee</title>
+<script src="preloader.js?v=1"></script>
+<link rel="stylesheet" href="studio.css?v=header-cart">
+<script src="profile.js?v=address-page" defer></script>
+<script src="studio.js?v=pages" defer></script>
+</head>
+<body>
+<a href="#main" class="skip">Skip to content</a>
+<header class="frame top" id="home">
+  <a class="brand" href="index.html"><img class="brand-logo" src="printbee-clay-logo.png" alt="PrintBee"></a>
+  <nav class="desktop-nav" aria-label="Main">
+    <a href="index.html">Home</a>
+    <a href="address.html">Address</a>
+    <a href="orders.html">Orders</a>
+    <a href="queue.html" aria-current="page">Upload</a>
+    <a href="profile.html">Profile</a>
+  </nav>
+  <a class="header-cart raised" href="queue.html#queue" aria-label="Cart — open print queue">
+    <svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M2.5 4h3l2.4 11h11.3l2.1-8H6.2"/>
+      <circle cx="9" cy="19.5" r="1.2"/><circle cx="18" cy="19.5" r="1.2"/>
+    </svg>
+  </a>
+</header>
+<main id="main" class="frame inner-page">
+  <section class="section rates" id="queue"><div><h1>Upload files</h1><p>Save your files, select the ones you want printed, and continue to checkout.</p></div><div class="raised table-card"><form id="queue-form"><label class="field-label" for="document-file">Any file type, up to 50 MB per file</label><input class="inset file-field" id="document-file" type="file" multiple required><section class="file-review" id="file-review" aria-labelledby="review-title" hidden>
+  <h3 id="review-title">Review your files</h3>
+  <label id="review-picker" hidden>File to preview <select id="review-file"></select></label>
+  <p class="review-filename" id="review-name"></p>
+  <p id="review-details"></p>
+  <div id="review-preview"></div>
+  <a class="subtle" id="review-open" target="_blank" rel="noopener" hidden>Open full preview ↗</a>
+  <p id="review-fallback" hidden>Preview unavailable for this format. You can still save the file.</p>
+  <div class="review-actions">
+    <button class="pill yellow" type="submit">Save to queue</button>
+    <button class="pill raised" type="button" id="review-change">Change files</button>
+  </div>
+</section></form><p id="queue-status" role="status"></p><ul id="queue-list" aria-label="Saved documents"></ul><div id="batch-order" hidden><button type="button" id="select-all">Select all</button><button type="button" class="pill yellow" id="order-selected" hidden></button></div></div></section>
+</main>
+<dialog id="checkout" aria-labelledby="checkout-title">
+  <form id="checkout-form">
+    <div class="checkout-heading"><h2 id="checkout-title">Print checkout</h2><button type="button" class="pill raised" id="checkout-close">Close</button></div>
+    <div id="checkout-files"></div>
+    <fieldset class="checkout-fields" id="checkout-delivery" hidden disabled>
+      <legend>Delivery details</legend>
+      <label>Full name<input name="customer" autocomplete="name" required maxlength="100"></label>
+      <label>Phone<input name="phone" type="tel" autocomplete="tel" pattern="[+0-9 \(\)\-]{7,20}" required maxlength="20"></label>
+      <label class="checkout-address">Delivery address<textarea name="address" autocomplete="street-address" required maxlength="500"></textarea></label>
+    </fieldset>
+    <p id="checkout-payment-note" hidden>Test payment only. No money is charged. Delivery fees are excluded.</p>
+    <p id="checkout-error" role="status"></p>
+    <div class="checkout-bar">
+      <div><span id="checkout-page-count"></span><p class="checkout-total">Print subtotal <output id="checkout-total"></output></p></div>
+      <button class="pill raised" type="button" id="checkout-back" hidden>Back</button>
+      <button class="pill yellow" type="submit">Proceed to payment</button>
+    </div>
+  </form>
+</dialog>
+<footer class="frame brand-footer" id="contact">
+  <div class="footer-surface">
+    <div class="footer-columns">
+      <div class="footer-intro"><a href="index.html" aria-label="PrintBee home"><img src="printbee-clay-logo.png" alt="PrintBee" width="90" height="67"></a><p>Your notes, assignments<br>and ideas, ready for print.</p></div>
+      <nav class="footer-explore" aria-label="Footer navigation"><h2>Explore</h2><a href="index.html#how">How it works</a><a href="pricing.html">Print prices</a><a href="queue.html">Print queue</a></nav>
+      <div class="footer-social"><h2>Contact us</h2><a href="mailto:printbee.co.in@gmail.com">printbee.co.in@gmail.com ↗</a><a href="https://www.instagram.com/print.bee_?igsh=MTkwM3lsZWFraHZrNQ%3D%3D">Instagram · @print.bee_ ↗</a><a href="https://wa.me/919347541419">WhatsApp · 9347541419 ↗</a></div>
+      <div class="footer-actions"><a href="queue.html">Start printing <span aria-hidden="true">↗</span></a><p>Bring your documents together.</p><a href="https://wa.me/919347541419">Talk to PrintBee <span aria-hidden="true">↗</span></a><p>Let’s help with your print.</p></div>
+    </div>
+    <div class="footer-wordmark-crop"><img class="footer-leather" src="printbee-clay-wordmark.png" width="2172" height="724" alt="PrintBee" loading="lazy"></div>
+  </div>
+  <div class="footer-bottom"><span>© 2026 PrintBee</span><a href="staff.html">Staff portal</a><a href="index.html">Back to top ↑</a></div>
+</footer>
+<nav class="mobile-dock raised" aria-label="Quick navigation">
+    <a href="index.html"><span aria-hidden="true">⌂</span>Home</a>
+    <a href="address.html"><span aria-hidden="true">⌖</span>Address</a>
+    <a href="orders.html"><span aria-hidden="true">▤</span>Orders</a>
+    <a href="queue.html" aria-current="page"><span aria-hidden="true">↑</span>Upload</a>
+    <a href="profile.html"><span aria-hidden="true">●</span>Profile</a>
+  </nav>
+</body>
+</html>

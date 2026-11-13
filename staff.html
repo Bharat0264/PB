@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PrintBee staff portal</title>
+<link rel="stylesheet" href="studio.css?v=binding-options">
+<script src="staff.js?v=binding-options" defer></script>
+</head>
+<body>
+<header class="frame top"><a href="/" class="brand">PrintBee</a></header>
+<main class="frame">
+<section class="section">
+<h1>Staff portal</h1>
+<form id="staff-login" class="checkout-fields">
+  <label>Staff key<input id="staff-key" type="password" required autocomplete="off"></label>
+  <button class="pill yellow" type="submit">Load orders</button>
+</form>
+<p id="staff-status" role="status"></p>
+<div id="staff-orders"></div>
+</section>
+</main>
+</body>
+</html>
