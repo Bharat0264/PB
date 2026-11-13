@@ -9,7 +9,13 @@
     repeat: 600,
     exit: 720,
     colours: { yellow: '#F5B82E', charcoal: '#3A3835', cream: '#F4EFE4', white: '#FFFFFF' },
-    sessionKey: 'printbee:preloader:seen:v1',
+    sessionKey: 'printbee:preloader:seen:v2',
+    modelDeadline: 3400,
+    models: {
+      main: 'public/models/bee_main.glb',
+      paper: 'public/models/paper_sheet.glb',
+      mini: 'public/models/bee_mini.glb',
+    },
   };
   if (window.PrintBeePreloader) return;
   const root = document.documentElement;
@@ -25,6 +31,7 @@
   let mode = 'full', loaded = 0, total = 0, failed = 0, progress = 0;
   let previousFocus = null;
   let observer;
+  const sceneLifetime = new AbortController();
   const oldBusy = root.getAttribute('aria-busy');
   try { if (sessionStorage.getItem(CONFIG.sessionKey)) mode = 'repeat'; } catch (_) { /* Private mode can block storage. */ }
   if (motion.matches && mode !== 'repeat') mode = 'reduced';
@@ -72,7 +79,7 @@
       document.head.append(element);
     });
   }
-  const styles = resource('preloader.css?v=1', 'style');
+  const styles = resource('preloader.css?v=2', 'style');
   const art = resource('preloader-art.js?v=1', 'script');
   const engine = resource('gsap-3.13.0.min.js', 'script');
   const domReady = document.readyState === 'loading'
@@ -99,14 +106,6 @@
       <span class="pb-sr-only" role="status" aria-live="polite">Loading PrintBee.</span>
     </div><div class="pb-wipe pb-wipe-yellow"></div><div class="pb-wipe pb-wipe-white"></div>`;
     document.body.prepend(loader);
-    // A delayed animation engine falls back to the quiet logo instead of flashing or restarting.
-    later(() => {
-      if (!finished && loader.hasAttribute('data-preparing')) {
-        mode = 'reduced';
-        loader.dataset.mode = mode;
-        loader.removeAttribute('data-preparing');
-      }
-    }, 1000);
     const lock = node => {
       if (node.nodeType === 1 && node !== loader && !['SCRIPT', 'STYLE', 'LINK'].includes(node.tagName)) {
         if (!inertElements.has(node)) inertElements.set(node, node.inert);
@@ -154,7 +153,7 @@
     });
   }
 
-  async function collectAssets() {
+  async function collectAssets(modelTasks = []) {
     const unique = new Map();
     document.querySelectorAll('img:not([loading="lazy"])').forEach(image => unique.set(image.currentSrc || image.src, image));
     const fonts = styles.then(async ok => {
@@ -171,7 +170,7 @@
       } catch (_) { return false; }
     });
     // Asset completion (including handled failures), never a simulated time counter.
-    const tasks = [styles, art, engine, fonts, ...[...unique.values()].map(loadImage), ...extraAssets.map(item => item.promise)];
+    const tasks = [styles, art, engine, fonts, ...modelTasks, ...[...unique.values()].map(loadImage), ...extraAssets.map(item => item.promise)];
     sealed = true;
     total = tasks.length;
     await Promise.all(tasks.map(task => Promise.resolve(task).then(ok => {
@@ -179,10 +178,13 @@
     }, () => { if (!finished) { loaded++; failed++; updateProgress(); } })));
   }
 
-  function showArt() {
-    if (finished || !loader || !window.PrintBeePreloaderArt) return;
-    loader.querySelector('.pb-art').innerHTML = window.PrintBeePreloaderArt;
-    loader.querySelector('.pb-tiny-bee').innerHTML = window.PrintBeeTinyBeeArt || '';
+  function showFallback() {
+    loader.removeAttribute('data-preparing');
+    loader.classList.add('pb-logo-fallback');
+    const image = document.createElement('img');
+    image.src = new URL('printbee-loading-logo.webp', base);
+    image.alt = 'PrintBee';
+    loader.querySelector('.pb-art').replaceChildren(image);
   }
 
   function startAnimation() {
@@ -253,6 +255,7 @@
   function finish(reason) {
     if (finished) return;
     finished = true;
+    sceneLifetime.abort();
     api.reason = reason;
     timers.forEach(clearTimeout);
     timers.clear();
@@ -270,7 +273,7 @@
   function exit(reason = 'ready') {
     if (finished || exiting) return;
     exiting = true;
-    if (!gsap || mode !== 'full') {
+    if (!gsap || mode !== 'full' || !loader.classList.contains('pb-webgl')) {
       if (loader && gsap) animate(gsap.to(loader, { opacity: 0, duration: .18, onComplete: () => finish(reason) }));
       else finish(reason);
       return;
@@ -306,19 +309,65 @@
   domReady.then(async () => {
     if (finished) return;
     mount();
-    art.then(showArt);
-    const assetsReady = collectAssets();
-    await Promise.all([styles, art, engine]);
-    if (finished) return;
-    showArt();
-    startAnimation();
-    if (mode === 'repeat') {
-      later(exit, CONFIG.repeat - 180 - (performance.now() - started));
+    if (mode !== 'full') {
+      showFallback();
+      const assetsReady = mode === 'reduced' ? collectAssets() : null;
+      await Promise.all([styles, engine]);
+      if (finished) return;
+      gsap = window.gsap;
+      if (gsap) animate(gsap.fromTo(loader.querySelector('.pb-content'), { opacity: 0 }, { opacity: 1, duration: .16 }));
+      if (mode === 'repeat') {
+        later(exit, CONFIG.repeat - 180 - (performance.now() - started));
+      } else {
+        await assetsReady;
+        if (!finished) later(exit, CONFIG.minimum - (performance.now() - started));
+      }
       return;
+    }
+
+    showFallback();
+    loader.classList.add('pb-pending-model');
+    const settled = new Map();
+    const modelTasks = Object.keys(CONFIG.models).map(name => new Promise(resolve => settled.set(name, resolve)));
+    const settleModel = (name, ok) => {
+      settled.get(name)?.(ok);
+      settled.delete(name);
+    };
+    const fallbackToLogo = () => {
+      sceneLifetime.abort();
+      loader.classList.remove('pb-pending-model', 'pb-webgl');
+      showFallback();
+      gsap = window.gsap;
+    };
+    const sceneReady = Promise.all([art, styles, engine, import(new URL('preloader-3d.bundle.js', base))])
+      .then(async ([hasArt, hasStyles, hasEngine, scene]) => {
+        if (finished || sceneLifetime.signal.aborted || !hasArt || !hasStyles || !hasEngine) return false;
+        // Keep the static logo visible until the 3D renderer can take over.
+        const fallback = loader.querySelector('.pb-art img');
+        fallback.className = 'pb-pending-logo';
+        loader.querySelector('.pb-art').innerHTML = window.PrintBeePreloaderArt;
+        loader.querySelector('.pb-art').append(fallback);
+        await scene.createBeeScene({ overlay: loader, paths: CONFIG.models, base, signal: sceneLifetime.signal,
+          onModelSettled: settleModel, onContextLost: fallbackToLogo,
+        });
+        if (finished || sceneLifetime.signal.aborted) return false;
+        loader.classList.remove('pb-logo-fallback', 'pb-pending-model');
+        fallback.remove();
+        startAnimation();
+        return true;
+      }).catch(() => false);
+    const sceneBudget = new Promise(resolve => later(() => resolve(false), CONFIG.modelDeadline - (performance.now() - started)));
+    const sceneResult = Promise.race([sceneReady, sceneBudget]);
+    const assetsReady = collectAssets([...modelTasks, sceneResult]);
+    const rendered = await sceneResult;
+    if (finished || exiting) return;
+    if (!rendered) {
+      fallbackToLogo();
+      for (const name of settled.keys()) settleModel(name, false);
     }
     await assetsReady;
     if (finished) return;
-    const target = mode === 'reduced' ? CONFIG.minimum : Math.max(CONFIG.minimum, CONFIG.duration - CONFIG.exit, animationStarted + 2270);
+    const target = mode === 'reduced' ? CONFIG.minimum : Math.max(CONFIG.minimum, CONFIG.duration - CONFIG.exit, animationStarted ? animationStarted + 2270 : 0);
     later(exit, target - (performance.now() - started));
     // Start the exit soon enough that slow assets never extend the six-second cap.
   }).catch(() => finish('fallback'));

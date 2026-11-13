@@ -104,3 +104,23 @@
 @media (prefers-reduced-motion: reduce) {
   .pb-stage::before { transition: none; }
 }
+
+.pb-art { position: relative; }
+.pb-canvas, .pb-pending-logo { position: absolute; inset: 0; width: 100%; height: 100%; }
+.pb-canvas { pointer-events: none; }
+.pb-tiny-bee canvas { width: 100%; animation: pb-mini-wiggle .3s ease-in-out 3 alternate; }
+.pb-webgl .pb-bee-pose { visibility: hidden; }
+.pb-logo-fallback .pb-illustration,
+.pb-logo-fallback .pb-wordmark,
+.pb-logo-fallback .pb-tagline,
+.pb-logo-fallback .pb-canvas { display: none; }
+.pb-logo-fallback .pb-art img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.pb-logo-fallback[data-mode="full"] .pb-art img { animation: pb-logo-bob 1.2s ease-in-out infinite alternate; }
+@keyframes pb-logo-bob { to { transform: translateY(-6px); } }
+@keyframes pb-mini-wiggle { to { transform: rotate(9deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .pb-logo-fallback .pb-art img, .pb-tiny-bee canvas { animation: none !important; }
+}
+
+.pb-webgl .pb-speed { visibility: visible; }
+.pb-webgl .pb-chip { visibility: hidden; }
