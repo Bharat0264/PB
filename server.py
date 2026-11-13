@@ -11,6 +11,8 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit
 
+import customer_auth as auth
+
 ROOT = Path(__file__).resolve().parent
 PRELOADER_BUNDLE = ROOT / "preloader-3d.bundle.js"
 DATA = Path(os.environ.get("LOCALAPPDATA", ROOT.parent)) / "PrintBeeLocal"
@@ -41,11 +43,13 @@ class PrintBee(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(ROOT), **kwargs)
 
-    def json_response(self, status, value):
+    def json_response(self, status, value, cookie=None):
         body = json.dumps(value).encode()
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Cache-Control", "no-store")
+        if cookie:
+            self.send_header("Set-Cookie", cookie)
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
@@ -56,9 +60,12 @@ class PrintBee(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         path = urlsplit(self.path).path
+        if path == "/api/auth/session":
+            with closing(connect()) as db:
+                return self.json_response(200, {"email": auth.session_email(db, self.headers)})
         if not path.startswith("/api/"):
             allowed = {"/", "/index.html", "/studio.js", "/studio.css", "/staff.html", "/staff.js",
-                       "/pricing.html", "/queue.html", "/orders.html", "/profile.html", "/profile.js", "/address.html",
+                       "/pricing.html", "/queue.html", "/orders.html", "/profile.html", "/profile.js", "/address.html", "/customer-login.js",
                        "/preloader.js", "/preloader.css", "/preloader-art.js", "/gsap-3.13.0.min.js"}
             if path == "/preloader-3d.bundle.js" and self.server.preloader_gzip:
                 encodings = self.headers.get("Accept-Encoding", "").lower().split(",")
@@ -117,7 +124,14 @@ class PrintBee(SimpleHTTPRequestHandler):
     def do_POST(self):
         path = urlsplit(self.path).path
         try:
+            if path.startswith("/api/auth/"):
+                return self.customer_auth(path)
             if path == "/api/orders":
+                with closing(connect()) as db:
+                    email = auth.session_email(db, self.headers)
+                if not email:
+                    self.close_connection = True
+                    return self.json_response(401, {"error": "Sign in by email from your Profile before placing an order."})
                 length = int(self.headers.get("Content-Length", "0"))
                 if not 0 < length <= 65536:
                     raise ValueError("Invalid order details.")
@@ -134,6 +148,31 @@ class PrintBee(SimpleHTTPRequestHandler):
             self.json_response(404, {"error": "Unknown request."})
         except (ValueError, KeyError, TypeError):
             self.json_response(400, {"error": "Check the order details and try again."})
+
+    def customer_auth(self, path):
+        origin = self.headers.get("Origin")
+        expected = auth.public_origin() or f"http://{self.headers.get('Host')}"
+        if origin != expected or self.headers.get_content_type() != "application/json":
+            return self.json_response(403, {"error": "Open PrintBee directly and try again."})
+        length = int(self.headers.get("Content-Length", "0"))
+        if not 0 < length <= 4096:
+            return self.json_response(400, {"error": "Invalid sign-in request."})
+        data = json.loads(self.rfile.read(length))
+        with closing(connect()) as db:
+            if path == "/api/auth/request":
+                return self.json_response(*auth.request_link(db, data["email"]))
+            if path == "/api/auth/verify":
+                result = auth.redeem(db, data["token"], auth.session_token(self.headers))
+                if result:
+                    email, cookie = result
+                    return self.json_response(200, {"email": email}, cookie)
+                return self.json_response(400, {"error": "This link has expired or was already used. Request a new one."})
+            if path == "/api/auth/logout":
+                with db:
+                    db.execute("DELETE FROM customer_sessions WHERE digest=?",
+                               (auth.digest(auth.session_token(self.headers)),))
+                return self.json_response(200, {"email": None}, auth.session_cookie("", 0))
+        return self.json_response(404, {"error": "Unknown sign-in request."})
 
     def create_order(self, data):
         order_id = data["id"]
@@ -254,6 +293,7 @@ if __name__ == "__main__":
             print(role.title(), key)
         raise SystemExit()
     with closing(connect()) as db, db:
+        db.executescript(auth.SCHEMA)
         db.executescript("""
             CREATE TABLE IF NOT EXISTS orders (id TEXT PRIMARY KEY, token TEXT, status TEXT, details TEXT);
             CREATE TABLE IF NOT EXISTS files (

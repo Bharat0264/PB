@@ -532,6 +532,9 @@ let pendingOrder;
 async function orderRequest(path, key, options = {}) {
   const response = await fetch(path, {...options, headers: {'X-Order-Key': key, ...options.headers}});
   const data = await response.json();
+  if (response.status === 401) {
+    throw Object.assign(new Error('Sign in by email before placing an order.'), {signInRequired: true});
+  }
   if (!response.ok) throw new Error(data.error || 'The order service is unavailable.');
   return data;
 }
@@ -594,6 +597,12 @@ checkoutForm.addEventListener('submit', async event => {
     await saveOrder(order, legacyOrder?.id);
   } catch (error) {
     checkoutError.textContent = error.message || 'Could not complete checkout. Try again.';
+    if (error.signInRequired) {
+      const link = document.createElement('a');
+      link.href = 'profile.html';
+      link.textContent = 'Sign in from your Profile';
+      checkoutError.append(' ', link);
+    }
     return;
   } finally {
     checkoutSubmit.disabled = false;
