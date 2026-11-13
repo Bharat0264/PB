@@ -607,7 +607,7 @@ body{background:var(--base)}
   position:absolute;
   top:0;
   left:50%;
-  width:105%;
+  width:90%;
   max-width:none;
   height:auto;
   margin:0;
@@ -620,6 +620,7 @@ body{background:var(--base)}
 }
 
 .footer-surface{
+ border:2px solid #fff;
  background:linear-gradient(140deg,#fff6dc,#f4e7c5);
  box-shadow:0 13px 26px #74623926,inset 7px 8px 16px #fffdf3,inset -7px -9px 16px #c7af734d;
 }
