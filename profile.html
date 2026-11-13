@@ -7,9 +7,9 @@
 <meta name="description" content="PrintBee campus printing for SRM University. Save your A4 documents in your local print queue.">
 <title>Profile · PrintBee</title>
 <script src="preloader.js?v=2"></script>
-<link rel="stylesheet" href="studio.css?v=footer-fit">
+<link rel="stylesheet" href="studio.css?v=profile-login">
 <script src="profile.js?v=address-page" defer></script>
-<script src="customer-login.js" defer></script>
+<script src="customer-login.js?v=profile-login" defer></script>
 </head>
 <body>
 <a href="#main" class="skip">Skip to content</a>
@@ -32,21 +32,38 @@
 <main id="main" class="frame inner-page">
   <section class="section rates" id="profile">
   <div><h1>Your profile</h1><p>Save your name and phone number for checkout.</p></div>
-  <div>
-  <section class="raised table-card" aria-labelledby="email-login-title">
-    <h2 id="email-login-title">Sign in by email</h2>
-    <p id="account-email"></p>
-    <form id="email-sign-in" class="checkout-fields">
-      <label>Email address<input name="email" type="email" autocomplete="email" required maxlength="254"></label>
-      <button class="pill yellow" type="submit">Email me a sign-in link</button>
-    </form>
-    <form id="email-sign-in-confirm" hidden>
-      <button class="pill yellow" type="submit">Confirm sign-in</button>
-    </form>
-    <form id="email-sign-out" hidden>
-      <button class="pill" type="submit">Sign out</button>
-    </form>
-    <p id="email-login-status" role="status"></p>
+  <div class="profile-cards">
+  <section class="profile-login" aria-labelledby="email-login-title">
+    <div class="profile-login-banner">
+      <h2 id="email-login-title">Sign in to PrintBee</h2>
+    </div>
+    <div class="profile-login-body">
+      <p id="account-email"></p>
+      <div id="google-sign-in">
+        <a class="pill google-login-button" href="/api/auth/google">
+          <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+            <path fill="#4285F4" d="M43.6 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h11a9.4 9.4 0 0 1-4.1 6.2v5h6.6c3.9-3.5 6.1-8.7 6.1-14.9z"/>
+            <path fill="#34A853" d="M24 44c5.5 0 10.2-1.8 13.5-4.6l-6.6-5a12.2 12.2 0 0 1-18.2-6.4H6v5.2A20 20 0 0 0 24 44z"/>
+            <path fill="#FBBC05" d="M12.7 28a12 12 0 0 1 0-8V14.8H6a20 20 0 0 0 0 18.4z"/>
+            <path fill="#EA4335" d="M24 12c3 0 5.6 1 7.7 3l5.7-5.7A19.2 19.2 0 0 0 24 4 20 20 0 0 0 6 14.8l6.7 5.2A12 12 0 0 1 24 12z"/>
+          </svg>
+          Continue with Google
+        </a>
+        <p class="profile-login-divider">or</p>
+      </div>
+      <form id="email-sign-in" class="profile-email-form">
+        <label for="login-email">Email address</label>
+        <input id="login-email" name="email" type="email" autocomplete="email" placeholder="you@example.com" required maxlength="254">
+        <button class="pill profile-email-submit" type="submit">Email me a sign-in link</button>
+      </form>
+      <form id="email-sign-in-confirm" hidden>
+        <button class="pill profile-email-submit" type="submit">Confirm sign-in</button>
+      </form>
+      <form id="email-sign-out" hidden>
+        <button class="pill profile-email-submit" type="submit">Sign out</button>
+      </form>
+      <p id="email-login-status" role="status"></p>
+    </div>
   </section>
   <form class="raised table-card" id="profile-form">
     <fieldset class="checkout-fields">

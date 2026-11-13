@@ -1,5 +1,7 @@
 """Email sign-in for PrintBee customers."""
+import base64
 import hashlib
+import json
 import os
 import re
 import secrets
@@ -8,7 +10,8 @@ import ssl
 import time
 from email.message import EmailMessage
 from http.cookies import CookieError, SimpleCookie
-from urllib.parse import urlsplit
+from urllib.parse import urlencode, urlsplit
+from urllib.request import Request, urlopen
 
 COOKIE = "printbee_session"
 SESSION_AGE = 7 * 86400
@@ -50,9 +53,9 @@ def public_origin():
     return os.environ.get("PRINTBEE_ORIGIN", "").rstrip("/")
 
 
-def session_cookie(token, age):
+def session_cookie(token, age, name=COOKIE):
     secure = "; Secure" if urlsplit(public_origin()).scheme == "https" else ""
-    return f"{COOKIE}={token}; Path=/; Max-Age={age}; HttpOnly; SameSite=Lax{secure}"
+    return f"{name}={token}; Path=/; Max-Age={age}; HttpOnly; SameSite=Lax{secure}"
 
 
 def send_link(email, token):
@@ -107,7 +110,55 @@ def redeem(db, token, old_token):
         if not row:
             return None
         db.execute("UPDATE login_links SET used=1 WHERE digest=?", (digest(token),))
-        db.execute("DELETE FROM customer_sessions WHERE digest=?", (digest(old_token),))
-        session = secrets.token_urlsafe(32)
-        db.execute("INSERT INTO customer_sessions VALUES (?,?,?)", (digest(session), row["email"], now + SESSION_AGE))
-        return row["email"], session_cookie(session, SESSION_AGE)
+        return row["email"], create_session(db, row["email"], old_token)
+
+
+def create_session(db, email, old_token):
+    db.execute("DELETE FROM customer_sessions WHERE digest=?", (digest(old_token),))
+    session = secrets.token_urlsafe(32)
+    db.execute("INSERT INTO customer_sessions VALUES (?,?,?)",
+               (digest(session), email, int(time.time()) + SESSION_AGE))
+    return session_cookie(session, SESSION_AGE)
+
+
+GOOGLE_COOKIE = "printbee_google_flow"
+GOOGLE_CALLBACK = "/api/auth/google/callback"
+
+
+def google_config():
+    origin = public_origin()
+    parsed = urlsplit(origin)
+    if not (parsed.scheme == "https" and parsed.hostname or
+            parsed.scheme == "http" and parsed.hostname in ("localhost", "127.0.0.1")):
+        return None
+    client = os.environ.get("PRINTBEE_GOOGLE_CLIENT_ID")
+    secret = os.environ.get("PRINTBEE_GOOGLE_CLIENT_SECRET")
+    if client and secret:
+        return {"client_id": client, "client_secret": secret, "redirect_uri": origin + GOOGLE_CALLBACK}
+    return None
+
+
+def google_authorization(config, verifier):
+    challenge = base64.urlsafe_b64encode(bytes.fromhex(digest(verifier))).decode().rstrip("=")
+    query = urlencode({
+        "client_id": config["client_id"], "redirect_uri": config["redirect_uri"],
+        "response_type": "code", "scope": "openid email",
+        "state": digest("state:" + verifier),
+        "code_challenge": challenge, "code_challenge_method": "S256",
+    })
+    return "https://accounts.google.com/o/oauth2/v2/auth?" + query
+
+
+def google_email(config, code, verifier):
+    body = urlencode({**config, "grant_type": "authorization_code", "code": code,
+                      "code_verifier": verifier}).encode()
+    with urlopen(Request("https://oauth2.googleapis.com/token", data=body), timeout=10) as response:
+        access_token = json.load(response)["access_token"]
+    request = Request("https://openidconnect.googleapis.com/v1/userinfo",
+                      headers={"Authorization": "Bearer " + access_token})
+    with urlopen(request, timeout=10) as response:
+        user = json.load(response)
+    email = user.get("email")
+    if user.get("email_verified") is not True or not user.get("sub") or not isinstance(email, str) or not email:
+        raise ValueError("Google account email is unavailable or unverified.")
+    return email.lower()

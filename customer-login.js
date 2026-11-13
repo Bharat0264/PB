@@ -1,4 +1,5 @@
 const signIn = document.querySelector('#email-sign-in');
+const googleSignIn = document.querySelector('#google-sign-in');
 const signOut = document.querySelector('#email-sign-out');
 const confirmSignIn = document.querySelector('#email-sign-in-confirm');
 const accountEmail = document.querySelector('#account-email');
@@ -20,6 +21,7 @@ function showAccount(email) {
   accountEmail.textContent = email ? 'Signed in as ' + email : '';
   signOut.hidden = !email;
   signIn.hidden = Boolean(email);
+  googleSignIn.hidden = Boolean(email);
 }
 
 async function submitLogin(form, action, update) {
@@ -30,6 +32,10 @@ async function submitLogin(form, action, update) {
     update(await action());
   } catch (error) {
     loginStatus.textContent = error.message;
+    if (form === confirmSignIn) {
+      signIn.hidden = false;
+      googleSignIn.hidden = false;
+    }
   } finally {
     button.disabled = false;
   }
@@ -47,9 +53,19 @@ signOut.addEventListener('submit', event => {
   submitLogin(signOut, () => authRequest('logout', {}), () => showAccount(null));
 });
 
+const googleMessages = {
+  '#google-unavailable': 'Google sign-in is unavailable. You can sign in by email.',
+  '#google-failed': 'Google sign-in could not be completed. Please try again.',
+};
+if (Object.hasOwn(googleMessages, location.hash)) {
+  loginStatus.textContent = googleMessages[location.hash];
+  history.replaceState(null, '', location.pathname + location.search);
+}
 const match = location.hash.match(/^#sign-in=([A-Za-z0-9_-]{43})$/);
 if (match) {
   history.replaceState(null, '', location.pathname + location.search);
+  signIn.hidden = true;
+  googleSignIn.hidden = true;
   confirmSignIn.hidden = false;
   confirmSignIn.addEventListener('submit', event => {
     event.preventDefault();

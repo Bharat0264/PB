@@ -641,3 +641,100 @@ body{background:var(--base)}
 .header-cart{display:grid;place-items:center;width:44px;height:44px;justify-self:end;margin-left:auto;border-radius:50%;background:#f8e4a6;color:#413719;flex:none}
 .header-cart:hover{background:#ffdb69}
 @media(min-width:701px) and (max-width:980px){.top{grid-template-columns:auto minmax(0,1fr) auto;gap:10px}}
+
+.profile-cards {
+  display: grid;
+  gap: 20px;
+  width: min(100%, 520px);
+  justify-self: center;
+}
+
+.profile-login {
+  overflow: hidden;
+  border-radius: clamp(24px, 5vw, 38px);
+  background: #f6c85b;
+  box-shadow: 0 16px 36px #44361b20;
+}
+
+.profile-login-banner {
+  padding: clamp(27px, 5vw, 44px) 18px clamp(47px, 7vw, 68px);
+  text-align: center;
+  background:
+    radial-gradient(circle at 0% 105%, #ffe894 0 25%, transparent 25.3%),
+    radial-gradient(circle at 105% 128%, #e5ebbc 0 29%, transparent 29.3%),
+    linear-gradient(130deg, #ffdb79, #edaa3a);
+}
+
+.profile-login-banner h2 {
+  margin: 0;
+  font-size: clamp(26px, 4vw, 38px);
+  color: #2d2619;
+}
+
+.profile-login-body {
+  position: relative;
+  margin-top: -25px;
+  padding: clamp(20px, 5vw, 34px);
+  border-radius: clamp(24px, 5vw, 38px) clamp(24px, 5vw, 38px) 0 0;
+  background: #fff;
+}
+
+.profile-login-body [hidden],
+.profile-login-body p:empty {
+  display: none;
+}
+
+.profile-login-body .google-login-button {
+  width: 100%;
+  min-height: 50px;
+  border: 1px solid #d9d7d0;
+  background: #fff;
+  color: #292824;
+}
+
+.google-login-button svg {
+  flex: none;
+}
+
+.profile-login-body .google-login-button:hover {
+  background: #faf8f2;
+}
+
+.profile-login-body .profile-login-divider {
+  margin: 13px 0;
+  text-align: center;
+  color: #66615a;
+}
+
+.profile-email-form {
+  display: grid;
+  gap: 8px;
+}
+
+.profile-email-form label {
+  font-size: .875rem;
+  font-weight: 700;
+}
+
+.profile-email-form input {
+  width: 100%;
+  min-height: 50px;
+  padding: 12px 18px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: #f3f2ef;
+  color: #292824;
+  font: inherit;
+}
+
+.profile-login-body .profile-email-submit {
+  width: 100%;
+  margin-top: 8px;
+  min-height: 50px;
+  background: #302d28;
+  color: #fff;
+}
+
+.profile-login-body .profile-email-submit:hover {
+  background: #464038;
+}

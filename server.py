@@ -9,7 +9,8 @@ import sqlite3
 from contextlib import closing
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
+from http.cookies import CookieError, SimpleCookie
 
 import customer_auth as auth
 
@@ -58,8 +59,50 @@ class PrintBee(SimpleHTTPRequestHandler):
         key = self.headers.get("X-Staff-Key", "")
         return next((role for role, secret in self.server.keys.items() if hmac.compare_digest(key, secret)), None)
 
+    def log_request(self, code="-", size="-"):
+        if urlsplit(self.path).path == auth.GOOGLE_CALLBACK:
+            self.log_message("Google sign-in callback %s", code)
+        else:
+            super().log_request(code, size)
+
+    def auth_redirect(self, location, *cookies):
+        self.send_response(303)
+        self.send_header("Location", location)
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Referrer-Policy", "no-referrer")
+        for cookie in cookies:
+            self.send_header("Set-Cookie", cookie)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def google_sign_in(self, path):
+        config = auth.google_config()
+        if not config:
+            return self.auth_redirect("/profile.html#google-unavailable")
+        if path != auth.GOOGLE_CALLBACK:
+            verifier = secrets.token_urlsafe(32)
+            return self.auth_redirect(auth.google_authorization(config, verifier),
+                                      auth.session_cookie(verifier, 600, auth.GOOGLE_COOKIE))
+        clear = auth.session_cookie("", 0, auth.GOOGLE_COOKIE)
+        try:
+            cookie = SimpleCookie(self.headers.get("Cookie", "")).get(auth.GOOGLE_COOKIE)
+            query = parse_qs(urlsplit(self.path).query, max_num_fields=20)
+            verifier = cookie.value if cookie else ""
+            if (not re.fullmatch(r"[A-Za-z0-9_-]{43}", verifier)
+                    or not hmac.compare_digest(query.get("state", [""])[0].encode(),
+                                               auth.digest("state:" + verifier).encode())):
+                raise ValueError("Invalid Google sign-in state")
+            email = auth.google_email(config, query["code"][0], verifier)
+            with closing(connect()) as db, db:
+                session = auth.create_session(db, email, auth.session_token(self.headers))
+        except (CookieError, OSError, ValueError, KeyError, TypeError):
+            return self.auth_redirect("/profile.html#google-failed", clear)
+        return self.auth_redirect("/profile.html", clear, session)
+
     def do_GET(self):
         path = urlsplit(self.path).path
+        if path in ("/api/auth/google", auth.GOOGLE_CALLBACK):
+            return self.google_sign_in(path)
         if path == "/api/auth/session":
             with closing(connect()) as db:
                 return self.json_response(200, {"email": auth.session_email(db, self.headers)})
