@@ -657,65 +657,43 @@ body{background:var(--base)}
 }
 
 .profile-login {
-  overflow: hidden;
-  border-radius: clamp(24px, 5vw, 38px);
-  background: #f6c85b;
-  box-shadow: 0 16px 36px #44361b20;
+  --profile-surface: #f8f0dd;
+  --profile-button-shadow: 6px 8px 16px #77542726, -4px -4px 12px #fffdf6,
+    inset 2px 2px 5px #fff9;
+  border-radius: clamp(24px, 4vw, 36px);
+  padding: clamp(24px, 3vw, 38px);
+  background: var(--profile-surface);
+  box-shadow: var(--raised), inset 2px 3px 8px #fffdf4;
 }
 
 .profile-login-banner {
-  padding: clamp(27px, 5vw, 44px) 18px clamp(47px, 7vw, 68px);
+  margin-bottom: 24px;
   text-align: center;
-  background:
-    radial-gradient(circle at 0% 105%, #ffe894 0 25%, transparent 25.3%),
-    radial-gradient(circle at 105% 128%, #e5ebbc 0 29%, transparent 29.3%),
-    linear-gradient(130deg, #ffdb79, #edaa3a);
 }
 
 .profile-login-banner h2 {
   margin: 0;
-  font-size: clamp(26px, 4vw, 38px);
-  color: #2d2619;
-}
-
-.profile-login-body {
-  position: relative;
-  margin-top: -25px;
-  padding: clamp(20px, 5vw, 34px);
-  border-radius: clamp(24px, 5vw, 38px) clamp(24px, 5vw, 38px) 0 0;
-  background: #fff;
+  font-size: clamp(26px, 3vw, 36px);
+  color: #2b2415;
 }
 
 .profile-login-body [hidden],
-.profile-login-body p:empty {
+.profile-login-body :is(#account-email, #email-login-status):empty {
   display: none;
 }
 
-.profile-login-body .google-login-button {
-  width: 100%;
-  min-height: 50px;
-  border: 1px solid #d9d7d0;
-  background: #fff;
-  color: #292824;
+.profile-login-body #account-email {
+  margin-bottom: 12px;
+  overflow-wrap: anywhere;
 }
 
-.google-login-button svg {
-  flex: none;
-}
-
-.profile-login-body .google-login-button:hover {
-  background: #faf8f2;
-}
-
-.profile-login-body .profile-login-divider {
-  margin: 13px 0;
-  text-align: center;
-  color: #66615a;
+.profile-login-body #email-login-status {
+  margin-top: 14px;
 }
 
 .profile-email-form {
   display: grid;
-  gap: 8px;
+  gap: 10px;
 }
 
 .profile-email-form label {
@@ -725,25 +703,57 @@ body{background:var(--base)}
 
 .profile-email-form input {
   width: 100%;
-  min-height: 50px;
-  padding: 12px 18px;
-  border: 1px solid transparent;
+  min-height: 54px;
+  padding: 12px 19px;
+  border: 0;
   border-radius: 999px;
-  background: #f3f2ef;
-  color: #292824;
+  background: #f1e8d3;
+  color: #2b2415;
+  box-shadow: inset 4px 5px 9px #65533128, inset -4px -4px 9px #fffaf1;
   font: inherit;
 }
 
-.profile-login-body .profile-email-submit {
+.profile-login-body :is(.profile-email-submit, .google-login-button) {
   width: 100%;
-  margin-top: 8px;
-  min-height: 50px;
-  background: #302d28;
-  color: #fff;
+  min-height: 52px;
+  border: 0;
+  color: #382911;
+  box-shadow: var(--profile-button-shadow);
 }
 
-.profile-login-body .profile-email-submit:hover {
-  background: #464038;
+.profile-login-body .profile-email-submit {
+  margin-top: 6px;
+  background: linear-gradient(145deg, #ffe49a, #ffc84c);
+}
+
+.profile-login-body .google-login-button {
+  gap: 12px;
+  background: #fffaf0;
+}
+
+.google-login-button svg {
+  flex: none;
+}
+
+.profile-login-body :is(.profile-email-submit, .google-login-button):active {
+  box-shadow: inset 3px 4px 8px #73522138;
+}
+
+.profile-login-body .profile-login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0;
+  color: #645540;
+  font-size: .875rem;
+}
+
+.profile-login-divider::before,
+.profile-login-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #79613a30;
 }
 
 #profile {
