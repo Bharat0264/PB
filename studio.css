@@ -786,15 +786,14 @@ body{background:var(--base)}
   }
 }
 
+/* Rounded wax cells sit under a soft honey-and-sage wash. */
 body.home-page {
-  background: #f7edda;
+  background-color: #f6ecd7;
   background-image:
-    linear-gradient(180deg, transparent 180px, #f7edda 760px),
-    linear-gradient(90deg, #fff3d5a8, #fff9edee 27%, #fff9edf5 70%, #fff3d591),
-    url("beeswax-backdrop.webp");
-  background-repeat: no-repeat;
-  background-position: top center;
-  background-size: 100% 100%, 100% 760px, max(100%, 1080px) auto;
+    radial-gradient(ellipse at 50% 39%, #fff9ed 0%, #fff9edca 37%, transparent 82%),
+    radial-gradient(ellipse at 100% 5%, #dce6b9d9, transparent 52%),
+    url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2296%22%20height%3D%2256%22%20viewBox%3D%220%200%2096%2056%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22clay%22%20x2%3D%22.75%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%23fff9e6%22/%3E%3Cstop%20offset%3D%22.46%22%20stop-color%3D%22%23f6e8c8%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23e9d6ab%22/%3E%3C/linearGradient%3E%3Cpath%20id%3D%22cell%22%20d%3D%22M-14-23Q-12-26-8-26H8Q12-26%2014-23L26-3Q28%200%2026%203L14%2023Q12%2026%208%2026H-8Q-12%2026-14%2023L-26%203Q-28%200-26-3Z%22/%3E%3C/defs%3E%3Cg%20opacity%3D%22.65%22%20stroke-linejoin%3D%22round%22%3E%3Cg%20fill%3D%22%23ad8944%22%20opacity%3D%22.19%22%3E%3Cuse%20href%3D%22%23cell%22%20x%3D%2217%22%20y%3D%2230%22/%3E%3Cuse%20href%3D%22%23cell%22%20x%3D%2265%22%20y%3D%222%22/%3E%3Cuse%20href%3D%22%23cell%22%20x%3D%2265%22%20y%3D%2258%22/%3E%3Cuse%20href%3D%22%23cell%22%20x%3D%22113%22%20y%3D%2230%22/%3E%3C/g%3E%3Cg%20fill%3D%22url%28%23clay%29%22%20stroke%3D%22%23fff9e9%22%20stroke-opacity%3D%22.8%22%3E%3Cuse%20href%3D%22%23cell%22%20x%3D%2216%22%20y%3D%2228%22/%3E%3Cuse%20href%3D%22%23cell%22%20x%3D%2264%22/%3E%3Cuse%20href%3D%22%23cell%22%20x%3D%2264%22%20y%3D%2256%22/%3E%3Cuse%20href%3D%22%23cell%22%20x%3D%22112%22%20y%3D%2228%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"),
+    linear-gradient(155deg, #f4ddb0, #f9f0da 60%, #efe5c9);
 }
 
 .home-page .top,
