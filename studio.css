@@ -1174,3 +1174,7 @@ body {
 }
 .text-link { text-decoration:underline; text-underline-offset:3px; }
 .embedded-tab body { padding-bottom:16px; }
+
+/* Horizontal header logo: bee + "PrintBee" wordmark + tagline in one row. */
+.top .brand-logo { height:58px; max-width:min(210px, 46vw); }
+@media (max-width: 700px) { .top .brand-logo { height:46px; } }
