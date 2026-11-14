@@ -10,6 +10,8 @@
 <script src="embedded-tab.js" defer></script>
 <script type="module" src="bottom-nav.js"></script>
 <link rel="stylesheet" href="studio.css?v=mobile-dock">
+<link rel="stylesheet" href="footer.css">
+<script src="footer.js" defer></script>
 <script src="profile.js?v=delivery-details" defer></script>
 </head>
 <body>
@@ -53,17 +55,44 @@
   </form>
 </section>
 </main>
-<footer class="frame brand-footer" id="contact">
-  <div class="footer-surface">
-    <div class="footer-columns">
-      <div class="footer-intro"><a href="index.html" aria-label="PrintBee home"><img src="printbee-loading-logo.webp" alt="PrintBee" width="90" height="67"></a><p>Your notes, assignments<br>and ideas, ready for print.</p></div>
-      <nav class="footer-explore" aria-label="Footer navigation"><h2>Explore</h2><a href="index.html#how">How it works</a><a href="index.html#pricing">Print prices</a><a href="queue.html">Print queue</a></nav>
-      <div class="footer-social"><h2>Contact us</h2><a href="mailto:printbee.co.in@gmail.com">printbee.co.in@gmail.com ↗</a><a href="https://www.instagram.com/print.bee_?igsh=MTkwM3lsZWFraHZrNQ%3D%3D">Instagram · @print.bee_ ↗</a><a href="https://wa.me/919347541419">WhatsApp · 9347541419 ↗</a></div>
-      <div class="footer-actions"><a href="queue.html">Start printing <span aria-hidden="true">↗</span></a><p>Bring your documents together.</p><a href="https://wa.me/919347541419">Talk to PrintBee <span aria-hidden="true">↗</span></a><p>Let’s help with your print.</p></div>
+<footer class="brand-footer printbee-footer" id="contact" data-status="Printing now · Delivered in your campus">
+  <div class="printbee-footer-inner">
+    <div class="printbee-footer-grid">
+      <div class="printbee-footer-brand" data-footer-reveal>
+        <a class="printbee-footer-logo" href="index.html"><img src="printbee-loading-logo.webp" alt="PrintBee. Upload. Print. Delivered." width="560" height="422" loading="lazy" decoding="async"></a>
+        <p class="printbee-footer-tagline">Your notes, assignments and ideas, ready for print.</p>
+        <p class="printbee-footer-status" hidden><span></span></p>
+      </div>
+      <div class="printbee-footer-actions">
+        <a class="footer-cta footer-cta-primary" href="queue.html" data-footer-reveal>
+          <span class="footer-cta-label"><strong>Start printing</strong><span>Bring your documents together.</span></span><span class="footer-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7 17 17 7M7 7h10v10"/></svg></span>
+        </a>
+        <a class="footer-cta footer-cta-secondary" href="https://wa.me/919347541419" rel="noopener" data-footer-reveal>
+          <span class="footer-cta-label"><strong>Talk to PrintBee</strong><span>Let’s help with your print.</span></span><span class="footer-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7 17 17 7M7 7h10v10"/></svg></span>
+        </a>
+      </div>
+      <nav class="printbee-footer-links printbee-footer-explore" aria-label="Footer" data-footer-reveal>
+        <h2>Explore</h2>
+        <a href="index.html#how"><span>How it works</span></a>
+        <a href="index.html#pricing"><span>Print prices</span></a>
+        <a href="queue.html"><span>Print queue</span></a>
+      </nav>
+      <section class="printbee-footer-links printbee-footer-contact" aria-label="Contact us" data-footer-reveal>
+        <h2>Contact us</h2>
+        <a href="mailto:printbee.co.in@gmail.com" rel="noopener"><span>printbee.co.in@gmail.com</span><span class="footer-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7 17 17 7M7 7h10v10"/></svg></span></a>
+        <a href="https://www.instagram.com/print.bee_?igsh=MTkwM3lsZWFraHZrNQ%3D%3D" rel="noopener"><span>Instagram · @print.bee_</span><span class="footer-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7 17 17 7M7 7h10v10"/></svg></span></a>
+        <a href="https://wa.me/919347541419" rel="noopener"><span>WhatsApp · 9347541419</span><span class="footer-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7 17 17 7M7 7h10v10"/></svg></span></a>
+      </section>
     </div>
-    <div class="footer-wordmark-panel"><img class="footer-relief" src="printbee-cream-wordmark.webp" width="1800" height="600" alt="PrintBee" loading="lazy"></div>
+    <div class="printbee-footer-wordmark" aria-hidden="true">
+      <img src="printbee-footer-wordmark.webp" alt="" width="1440" height="480" loading="lazy" decoding="async">
+    </div>
+    <div class="printbee-footer-bottom">
+      <span>© 2026 PrintBee</span>
+      <a class="printbee-footer-staff" href="staff.html">Staff portal</a>
+      <a class="printbee-footer-top" href="#home" aria-label="Back to top"><span>Back to top</span><span class="footer-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 19V5m-7 7 7-7 7 7"/></svg></span></a>
+    </div>
   </div>
-  <div class="footer-bottom"><span>© 2026 PrintBee</span><a href="staff.html">Staff portal</a><a href="index.html">Back to top ↑</a></div>
 </footer>
 <nav class="mobile-dock" aria-label="Quick navigation">
     <a href="index.html"><span class="dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="m3 10 9-7 9 7v10H3zM9 20v-6h6v6"/></svg></span>Home</a>
