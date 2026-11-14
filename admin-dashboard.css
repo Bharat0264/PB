@@ -7,6 +7,10 @@ button,select { cursor:pointer }
 button:disabled { opacity:.55; cursor:default }
 [hidden] { display:none !important }
 :focus-visible { outline:3px solid var(--focus); outline-offset:3px }
+@media (any-pointer: coarse) {
+  :root { -webkit-tap-highlight-color: transparent; }
+  input:is([type="checkbox"], [type="radio"]) { accent-color: var(--focus); }
+}
 .sr-only,.skip:not(:focus) { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%) }
 .skip { position:fixed; z-index:10; top:10px; left:10px; padding:10px; background:var(--surface) }
 .workspace { display:grid; grid-template-columns:218px minmax(0,1fr); gap:26px; max-width:1700px; margin:auto; padding:24px }
