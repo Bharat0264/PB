@@ -512,16 +512,17 @@ body{background:var(--base)}
 #order-history > li + li{margin-top:12px}
 #order-history summary{cursor:pointer;font-weight:800}
 
-.orders-layout {
+.section.orders-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 2.35fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.9fr);
   align-items: start;
-  gap: clamp(24px, 4vw, 54px);
-  padding-block: clamp(28px, 4vw, 54px);
+  gap: clamp(24px, 3.5vw, 48px);
+  max-width: 1120px;
+  margin-inline: auto;
+  padding-block: clamp(24px, 3vw, 42px);
 }
 .orders-card {
   min-width: 0;
-  margin-top: clamp(12px, 3vw, 42px);
   background: #fbf8ef;
   box-shadow: 0 14px 25px #64563324, inset 2px 3px 8px #fffdf6;
 }
@@ -529,19 +530,21 @@ body{background:var(--base)}
 .orders-error:not([hidden]) {
   display: grid;
   justify-items: center;
-  gap: 14px;
-  padding: 4px 0 8px;
+  gap: 12px;
+  padding-block: clamp(6px, 1.2vw, 16px);
   text-align: center;
 }
 .orders-error-art {
-  width: clamp(82px, 10vw, 126px);
+  width: clamp(74px, 8vw, 96px);
   height: auto;
   color: #898576;
 }
 .orders-error h2 {
   color: var(--ink);
-  font-size: clamp(20px, 2.2vw, 29px);
+  font-size: clamp(20px, 2vw, 26px);
+  letter-spacing: -.035em;
   line-height: 1.2;
+  text-wrap: balance;
 }
 .orders-error p { margin-top: 6px; color: var(--muted); }
 #orders-refresh {
@@ -549,8 +552,8 @@ body{background:var(--base)}
   align-items: center;
   justify-content: center;
   gap: 10px;
-  min-height: 46px;
-  padding: 10px 26px;
+  min-height: 48px;
+  padding: 10px 24px;
   border: 0;
   border-radius: 999px;
   background: #343328;
@@ -562,8 +565,7 @@ body{background:var(--base)}
 #orders-refresh:disabled { cursor: wait; }
 #orders-refresh svg { width: 20px; height: 20px; flex: none; }
 @media (max-width: 760px) {
-  .orders-layout { grid-template-columns: minmax(0, 1fr); gap: 18px; }
-  .orders-card { margin-top: 0; }
+  .section.orders-layout { grid-template-columns: minmax(0, 1fr); gap: 18px; }
 }
 
 .print-options{display:block;background:#fffdf6}
