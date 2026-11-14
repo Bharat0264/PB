@@ -207,7 +207,7 @@ class PrintBee(SimpleHTTPRequestHandler):
             allowed = {"/", "/index.html", "/studio.js", "/studio.css", "/clay.css", "/staff.html", "/staff.js", "/delivery-map.js",
                        "/footer-wave.css", "/footer-wave.js",
                        "/partner.html", "/admin.html", "/operations.js", "/partner.webmanifest", "/portal-login.js",
-                       "/pricing.html", "/queue.html", "/orders.html", "/profile.html", "/profile.js", "/address.html", "/customer-login.js",
+                       "/pricing.html", "/terms.html", "/queue.html", "/orders.html", "/profile.html", "/profile.js", "/address.html", "/customer-login.js",
                        "/preloader.js", "/preloader.css", "/preloader-art.js", "/gsap-3.13.0.min.js",
                        "/navigation.html", "/navigation.css", "/bottom-nav.js", "/nav-tokens.js", "/embedded-tab.js"}
             if path == "/preloader-3d.bundle.js" and self.server.preloader_gzip:
