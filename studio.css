@@ -800,3 +800,53 @@ body {
 .section {
   border-color: #78654335;
 }
+
+.hero .campus {
+  display: inline-flex;
+  padding: 5px 13px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #fff2cc, #f7e2a0);
+  color: #493725;
+}
+
+.hero .campus svg {
+  color: #ac471e;
+  flex: none;
+}
+
+.hero h1 {
+  font-size: clamp(32px, 4.1vw, 59px);
+  line-height: 1.12;
+  margin-bottom: 26px;
+}
+
+.hero h1 em {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  padding: .035em .23em .12em;
+  margin-top: .1em;
+  border-radius: .31em;
+  background: linear-gradient(125deg, #be5a20, #a94318 58%, #ba581e);
+  box-shadow: -.08em .12em 0 #f3c149, inset 0 .05em .11em #fbb35c80;
+  color: #fffaf0;
+  font-style: italic;
+  transform: rotate(-2deg);
+}
+
+.hero h1 em::after {
+  content: "";
+  position: absolute;
+  width: 29%;
+  height: .085em;
+  left: 44%;
+  bottom: -.25em;
+  border-radius: 100%;
+  background: #eab136;
+}
+
+@media (max-width: 380px) {
+  .hero h1 {
+    font-size: 30px;
+  }
+}
