@@ -966,73 +966,73 @@ body {
   }
 }
 
+/* Workflow tiles sit directly on the shared honeycomb backdrop. */
 .section.how {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  align-items: center;
-  gap: 24px;
-  padding: clamp(18px, 2.6vw, 34px);
-  margin-bottom: 28px;
-  border: 1px solid #fff6da;
-  border-radius: 28px;
-  background: radial-gradient(ellipse at bottom left, #fae3a6, transparent 55%),
-    linear-gradient(115deg, #fff6de, #f3f1d8);
-  box-shadow: 5px 8px 22px #866b2b22, inset 2px 3px 8px #fff8;
+  padding-block: clamp(28px, 4vw, 52px);
+  border-top: 0;
 }
 
 .how h2 {
-  font-size: clamp(26px, 2.8vw, 38px);
+  font-size: clamp(28px, 3.4vw, 44px);
 }
 
 .how h2 span {
-  color: #8c5710;
-  text-decoration: underline #e4b84e;
-  text-underline-offset: .19em;
+  color: #8e451f;
 }
 
 .how ol {
-  margin: 0;
-  gap: 22px;
+  gap: clamp(14px, 2.1vw, 28px);
+  margin-top: 22px;
 }
 
 .how li {
-  position: relative;
+  --tile-tint: #fae4a5;
+  --tile-shadow: #be97434d;
+  --tile-ink: #6d471a;
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: 14px;
   min-width: 0;
-  padding: 10px;
-  border-radius: 23px;
-  background: #fffaf0;
-  box-shadow: 3px 5px 13px #99783c23, inset 0 1px 3px #fff;
+  padding: clamp(16px, 2.2vw, 28px);
+  border-radius: 26px;
+  background: linear-gradient(150deg, #fffaf0, #f4e8ce);
+  box-shadow: 6px 9px 18px #7e603426, inset 2px 3px 6px #fffaf1, inset -3px -4px 8px #b6985a23;
 }
 
-.how li:not(:last-child)::after {
-  content: "";
-  position: absolute;
-  right: -14px;
-  top: calc(50% - 4px);
-  width: 7px;
-  height: 7px;
-  border-right: 2px solid #a87626;
-  border-top: 2px solid #a87626;
-  transform: rotate(45deg);
+.how li:nth-child(2) {
+  --tile-tint: #e5edc7;
+  --tile-shadow: #8b9b574d;
+  --tile-ink: #46542b;
+}
+
+.how li:nth-child(3) {
+  --tile-tint: #f6dac8;
+  --tile-shadow: #bd86664d;
+  --tile-ink: #853c22;
 }
 
 .how .step {
-  background: linear-gradient(135deg, #f8efb5, #e1eab5);
-  color: #4a562d;
-  box-shadow: inset 2px 2px 5px #fff9, 2px 3px 7px #77784a24;
+  width: 58px;
+  height: 58px;
+  background: linear-gradient(140deg, #ffffff70, transparent 70%), var(--tile-tint);
+  color: var(--tile-ink);
+  box-shadow: 3px 5px 9px var(--tile-shadow), inset 2px 3px 5px #fff8, inset -2px -3px 6px var(--tile-shadow);
 }
 
-@media (min-width: 1080px) {
-  .section.how {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
+.how h3 {
+  font-size: clamp(16px, 1.6vw, 21px);
+  line-height: 1.35;
 }
 
 @media (max-width: 700px) {
-  .how li:not(:last-child)::after {
-    right: calc(50% - 4px);
-    top: auto;
-    bottom: -14px;
-    transform: rotate(135deg);
+  .how li {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+  }
+
+  .how .step {
+    width: 46px;
+    height: 46px;
   }
 }
