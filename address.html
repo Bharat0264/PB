@@ -8,7 +8,7 @@
 <title>Address · PrintBee</title>
 <script src="preloader.js?v=3"></script>
 <link rel="stylesheet" href="studio.css?v=footer-fit">
-<script src="profile.js?v=address-page" defer></script>
+<script src="profile.js?v=delivery-details" defer></script>
 </head>
 <body>
 <a href="#main" class="skip">Skip to content</a>
@@ -34,7 +34,17 @@
   <form class="raised table-card" id="address-form">
     <fieldset class="checkout-fields">
       <legend>Delivery details</legend>
-      <label class="checkout-address">Delivery address<textarea name="address" autocomplete="street-address" required maxlength="500"></textarea></label>
+      <label class="checkout-address">House, flat or hostel room<input name="building" autocomplete="address-line1" required maxlength="500" placeholder="Flat 204 or Hostel B, Room 12"></label>
+      <label class="checkout-address">Street or locality<input name="locality" autocomplete="address-line2" required maxlength="100"></label>
+      <label>City<input name="city" autocomplete="address-level2" required maxlength="60"></label>
+      <label>State<input name="region" autocomplete="address-level1" required maxlength="60"></label>
+      <label>PIN code<input name="pin" autocomplete="postal-code" inputmode="numeric" pattern="[1-9][0-9]{5}" maxlength="6" required></label>
+      <label>Landmark (optional)<input name="landmark" maxlength="100" placeholder="Near the main gate"></label>
+      <div class="checkout-address">
+        <button class="pill raised" type="button" id="use-location">Use current location</button>
+        <button class="pill" type="button" id="clear-location" hidden>Remove location</button>
+        <p id="location-status" role="status">Optional. Add a location pin for delivery.</p>
+      </div>
     </fieldset>
     <button class="pill yellow" type="submit">Save address</button>
     <p id="profile-status" role="status"></p>
