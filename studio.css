@@ -597,7 +597,8 @@ body{background:var(--base)}
 
 .footer-wordmark-panel {
   overflow: hidden;
-  margin: 0 clamp(16px, 3vw, 40px) clamp(16px, 3vw, 36px);
+  width: min(94%, 960px);
+  margin: 0 auto clamp(16px, 3vw, 36px);
   border-radius: clamp(16px, 3vw, 32px);
   background: #efe8d0;
   box-shadow: 0 5px 14px #84602429;
