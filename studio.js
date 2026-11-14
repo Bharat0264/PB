@@ -53,7 +53,7 @@ async function showQueue() {
   cartCount.textContent = fileCount(entries);
   cartCheckout.querySelector('button').onclick = () => {
     if (saveButton.disabled) return;
-    if (fileInput.files.length) {
+    if (draftFiles.length) {
       status.textContent = 'Add the files you’re reviewing to the cart before checking out.';
       return;
     }
@@ -93,11 +93,8 @@ async function showQueue() {
 
 const fileInput = document.querySelector('#document-file');
 const review = document.querySelector('#file-review');
-const preview = document.querySelector('#review-preview');
-const reviewFile = document.querySelector('#review-file');
-const reviewPicker = document.querySelector('#review-picker');
-const openPreview = document.querySelector('#review-open');
-const previewFallback = document.querySelector('#review-fallback');
+const reviewGrid = document.querySelector('#review-grid');
+const reviewSettings = document.querySelector('#review-settings');
 const saveButton = review?.querySelector('button[type="submit"]');
 const maxFileSize = 50 * 1024 * 1024;
 const imageFormats = new Map([
@@ -105,105 +102,129 @@ const imageFormats = new Map([
   ['gif', 'image/gif'], ['webp', 'image/webp'], ['bmp', 'image/bmp'],
   ['avif', 'image/avif'],
 ]);
-let previewUrl;
+let draftFiles = [];
+let nextDraftId = 0;
 
-function clearPreview() {
-  preview.replaceChildren();
-  openPreview.hidden = true;
-  openPreview.removeAttribute('href');
-  if (previewUrl) URL.revokeObjectURL(previewUrl);
-  previewUrl = undefined;
+function updateDraftTotal() {
+  const items = readPrintItems(form, draftFiles);
+  document.querySelector('#review-count').textContent = fileCount(draftFiles);
+  document.querySelector('#review-total').textContent = items.includes(null)
+    ? 'Check print settings'
+    : rupees.format(items.reduce((sum, item) => sum + item.subtotal, 0) / 100);
 }
 
-function clearReview() {
-  clearPreview();
-  review.hidden = true;
-  reviewFile.replaceChildren();
-}
-
-function previewFile(file) {
-  clearPreview();
-  const extension = file.name.split('.').pop().toLowerCase();
+function addDraft(file) {
+  const id = 'draft-' + nextDraftId++;
+  const extension = file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : '';
   const isPdf = file.type === 'application/pdf' || extension === 'pdf';
-  const imageType = imageFormats.get(extension);
-  document.querySelector('#review-name').textContent = file.name;
-  document.querySelector('#review-details').textContent = file.size >= 1024 * 1024
-    ? (file.size / (1024 * 1024)).toFixed(2) + ' MB'
-    : Math.max(1, Math.ceil(file.size / 1024)) + ' KB';
-  previewFallback.hidden = Boolean(isPdf || imageType);
-  if (isPdf || imageType) {
-    previewUrl = URL.createObjectURL(file.slice(0, file.size, isPdf ? 'application/pdf' : imageType));
-    const visual = document.createElement(isPdf ? 'iframe' : 'img');
+  const previewType = isPdf ? 'application/pdf' : imageFormats.get(extension);
+  const tile = document.createElement('article');
+  tile.className = 'review-tile';
+  const visual = document.createElement('div');
+  visual.className = 'review-tile-visual';
+  const fallback = document.createElement('span');
+  fallback.textContent = (extension ? extension.slice(0, 8).toUpperCase() + ' file' : 'Document') + ' · Preview unavailable';
+  visual.append(fallback);
+  let url;
+  if (previewType) {
+    url = URL.createObjectURL(file.slice(0, file.size, previewType));
+    const media = document.createElement(isPdf ? 'iframe' : 'img');
     if (isPdf) {
-      visual.title = 'PDF preview for ' + file.name;
+      media.title = 'PDF preview of ' + file.name;
+      media.src = url + '#toolbar=0&navpanes=0&view=Fit';
     } else {
-      visual.alt = 'Preview of ' + file.name;
-      visual.addEventListener('error', () => {
-        if (!preview.contains(visual)) return;
-        visual.remove();
-        openPreview.hidden = true;
-        previewFallback.hidden = false;
-      });
+      media.alt = 'Preview of ' + file.name;
+      media.src = url;
     }
-    visual.src = previewUrl;
-    preview.append(visual);
-    openPreview.href = previewUrl;
-    openPreview.hidden = false;
+    media.loading = 'lazy';
+    fallback.hidden = true;
+    media.addEventListener('error', () => {
+      media.remove();
+      fallback.hidden = false;
+    });
+    visual.append(media);
   }
+  const title = document.createElement('strong');
+  title.textContent = file.name;
+  const options = createPrintOptions(id, {file}, updateDraftTotal);
+  const remove = queueButton('×', () => {
+    draftFiles = draftFiles.filter(([key]) => key !== id);
+    tile.remove();
+    options.remove();
+    if (url) URL.revokeObjectURL(url);
+    review.hidden = draftFiles.length === 0;
+    if (review.hidden) fileInput.focus();
+    else addMore.focus();
+    updateDraftTotal();
+  });
+  remove.className = 'review-remove';
+  remove.setAttribute('aria-label', 'Remove ' + file.name);
+  tile.append(visual, remove, title);
+  if (url) {
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.textContent = 'Open preview ↗';
+    tile.append(link);
+  }
+  reviewGrid.insertBefore(tile, addMore);
+  reviewSettings.append(options);
+  draftFiles.push([id, {file, url}]);
 }
 
+const addMore = queueList ? queueButton('＋ Add files', () => fileInput.click()) : null;
+if (addMore) {
+  addMore.className = 'review-add';
+  reviewGrid.append(addMore);
+}
 fileInput?.addEventListener('change', () => {
-  clearReview();
-  status.textContent = '';
   const files = Array.from(fileInput.files);
+  fileInput.value = '';
   if (!files.length) return;
   const invalid = files.find(file => !file.size || file.size > maxFileSize);
-  if (invalid) {
-    status.textContent = invalid.name + ' must be non-empty and no larger than 50 MB. Choose the files again.';
+  if (invalid || draftFiles.length + files.length > maxOrderFiles) {
+    status.textContent = invalid ? invalid.name + ' must be non-empty and no larger than 50 MB.' : 'You can review up to 100 files at a time.';
     return;
   }
-  files.forEach((file, index) => reviewFile.add(new Option(file.name, String(index))));
-  reviewPicker.hidden = files.length < 2;
-  previewFile(files[0]);
+  for (const file of files) addDraft(file);
   review.hidden = false;
-  status.textContent = files.length + (files.length === 1 ? ' file ready to review.' : ' files ready to review.');
+  status.textContent = '';
+  updateDraftTotal();
 });
-
-reviewFile?.addEventListener('change', () => previewFile(fileInput.files[reviewFile.selectedIndex]));
-
-document.querySelector('#review-change')?.addEventListener('click', () => fileInput.click());
+reviewSettings?.addEventListener('input', updateDraftTotal);
 
 form?.addEventListener('submit', async event => {
   event.preventDefault();
-  const files = Array.from(fileInput.files);
-  if (!files.length || files.some(file => !file.size || file.size > maxFileSize)) {
-    status.textContent = 'Choose non-empty files up to 50 MB each.';
+  if (saveButton.disabled || !draftFiles.length) return;
+  const items = readPrintItems(form, draftFiles);
+  if (items.includes(null)) {
+    form.reportValidity();
     return;
   }
-  saveButton.disabled = true;
-  fileInput.disabled = true;
-  review.querySelector('#review-change').disabled = true;
-  const settings = 'Saved document';
+  saveButton.disabled = fileInput.disabled = addMore.disabled = true;
+  const removeButtons = [...reviewGrid.querySelectorAll('.review-remove')];
+  removeButtons.forEach(button => { button.disabled = true; });
   try {
     await queueAction('readwrite', store => {
-      const requests = files.map(file => store.add({file, settings}));
+      const requests = items.map(({id, file, subtotal, ...printOptions}) =>
+        store.add({file, settings: 'Saved document', printOptions}));
       return requests.at(-1);
     });
-    form.reset();
-    clearReview();
+    for (const [, {url}] of draftFiles) if (url) URL.revokeObjectURL(url);
+    draftFiles = [];
+    reviewGrid.replaceChildren(addMore);
+    reviewSettings.replaceChildren();
+    review.hidden = true;
     await showQueue();
-    status.textContent = files.length === 1 ? 'Document saved locally.' : files.length + ' documents saved locally.';
+    status.textContent = fileCount(items) + ' added to cart.';
   } catch {
-    status.textContent = 'Could not save this document in the browser.';
+    status.textContent = 'Could not update your cart. Try again.';
   } finally {
-    saveButton.disabled = false;
-    fileInput.disabled = false;
-    review.querySelector('#review-change').disabled = false;
+    saveButton.disabled = fileInput.disabled = addMore.disabled = false;
+    removeButtons.forEach(button => { button.disabled = false; });
   }
 });
-
-
-
 
 const checkout = document.querySelector('#checkout');
 const checkoutForm = document.querySelector('#checkout-form');
@@ -297,39 +318,59 @@ function openCheckout(entries) {
   pendingOrder = undefined;
   checkoutFiles.replaceChildren();
   for (const [id, entry] of entries) {
-    const group = document.createElement('fieldset');
-    group.className = 'checkout-fields print-options';
-    const title = document.createElement('legend');
-    title.textContent = entry.file.name;
-    group.append(title);
-    const quantity = document.createElement('div');
-    quantity.className = 'print-quantity';
-    quantity.innerHTML = `
-      <label>Pages per copy<input name="pages-${id}" type="number" min="1" max="10000" value="1" required></label>
-      <div><label for="copies-${id}">Number of copies</label>
-        <div class="copy-stepper">
-          <button type="button" aria-label="Decrease copies">−</button>
-          <input id="copies-${id}" name="copies-${id}" type="number" min="1" max="100" value="1" required>
-          <button type="button" aria-label="Increase copies">+</button>
-        </div>
-      </div>`;
-    const copies = quantity.querySelector('.copy-stepper input');
-    quantity.querySelectorAll('button').forEach((button, index) => {
-      button.addEventListener('click', () => {
-        copies.value = Math.min(100, Math.max(1, (copies.valueAsNumber || 1) + (index ? 1 : -1)));
-        updateCheckoutTotal();
-      });
-    });
-    group.append(quantity,
-      printChoices('Choose print colour', 'ink-' + id, ['Black & white', 'Colour', 'Select colour pages']),
-      colourPageField(id),
-      printChoices('Choose print orientation', 'orientation-' + id, ['Portrait', 'Landscape']),
-      printChoices('Choose print sides', 'sides-' + id, ['Single-sided', 'Double-sided']), bindingChoices(id));
-    checkoutFiles.append(group);
+    checkoutFiles.append(createPrintOptions(id, entry, updateCheckoutTotal));
   }
   checkoutFiles.insertAdjacentHTML('beforeend', '<p>Enter the number of pages you want printed in each file. A4 rates apply.</p>');
   setCheckoutStep(false);
   checkout.showModal();
+}
+
+function createPrintOptions(id, entry, onChange) {
+  const group = document.createElement('fieldset');
+  group.className = 'checkout-fields print-options';
+  const title = document.createElement('legend');
+  title.textContent = entry.file.name;
+  group.append(title);
+  const quantity = document.createElement('div');
+  quantity.className = 'print-quantity';
+  quantity.innerHTML = `
+    <label>Pages per copy<input name="pages-${id}" type="number" min="1" max="10000" value="1" required></label>
+    <div><label for="copies-${id}">Number of copies</label>
+      <div class="copy-stepper">
+        <button type="button" aria-label="Decrease copies">−</button>
+        <input id="copies-${id}" name="copies-${id}" type="number" min="1" max="100" value="1" required>
+        <button type="button" aria-label="Increase copies">+</button>
+      </div>
+    </div>`;
+  const copies = quantity.querySelector('.copy-stepper input');
+  quantity.querySelectorAll('button').forEach((button, index) => {
+    button.addEventListener('click', () => {
+      copies.value = Math.min(100, Math.max(1, (copies.valueAsNumber || 1) + (index ? 1 : -1)));
+      onChange();
+    });
+  });
+  group.append(quantity,
+    printChoices('Choose print colour', 'ink-' + id, ['Black & white', 'Colour', 'Select colour pages']),
+    colourPageField(id),
+    printChoices('Choose print orientation', 'orientation-' + id, ['Portrait', 'Landscape']),
+    printChoices('Choose print sides', 'sides-' + id, ['Single-sided', 'Double-sided']), bindingChoices(id));
+  const saved = entry.printOptions;
+  if (saved) {
+    for (const [key, value] of Object.entries({
+      pages: saved.pages, copies: saved.copies, 'colour-pages': saved.colourPages?.join(', ') || '',
+    })) group.querySelector(`[name="${key}-${id}"]`).value = value;
+    const choices = {
+      ink: saved.colourPages ? 2 : Number(saved.colour),
+      orientation: Number(saved.orientation === 'Landscape'),
+      sides: Number(saved.duplex),
+      binding: saved.binding,
+    };
+    for (const input of group.querySelectorAll('input[type="radio"]')) {
+      const key = input.name.slice(0, -String(id).length - 1);
+      input.checked = input.value === String(choices[key]);
+    }
+  }
+  return group;
 }
 
 function printChoices(title, name, options) {
@@ -396,12 +437,16 @@ function parseColourPages(text, pages) {
 }
 
 function checkoutItems() {
-  const data = new FormData(checkoutForm);
-  return checkoutEntries.map(([id, entry]) => {
+  return readPrintItems(checkoutForm, checkoutEntries);
+}
+
+function readPrintItems(settingsForm, entries) {
+  const data = new FormData(settingsForm);
+  return entries.map(([id, entry]) => {
     const pages = Number(data.get('pages-' + id));
     const copies = Number(data.get('copies-' + id));
     const ink = data.get('ink-' + id);
-    const field = checkoutForm.elements.namedItem('colour-pages-' + id);
+    const field = settingsForm.elements.namedItem('colour-pages-' + id);
     field.closest('label').hidden = ink !== '2';
     field.setCustomValidity('');
     let colourPages = null;
@@ -413,6 +458,7 @@ function checkoutItems() {
         return null;
       }
     }
+    if (!Number.isInteger(pages) || pages < 1 || pages > 10000 || !Number.isInteger(copies) || copies < 1 || copies > 100) return null;
     const colour = ink === '1';
     const binding = data.get('binding-' + id);
     const duplex = Number(data.get('sides-' + id));
@@ -426,7 +472,7 @@ function checkoutItems() {
 function updateCheckoutTotal() {
   const items = checkoutItems();
   if (items.includes(null)) {
-    checkoutTotal.value = 'Check colour pages';
+    checkoutTotal.value = 'Check print settings';
     document.querySelector('#checkout-page-count').textContent = '';
     return;
   }

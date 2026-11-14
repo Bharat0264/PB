@@ -7,9 +7,9 @@
 <meta name="description" content="PrintBee campus printing for SRM University. Save your A4 documents in your local print queue.">
 <title>Upload · PrintBee</title>
 <script src="preloader.js?v=3"></script>
-<link rel="stylesheet" href="studio.css?v=soft-clay-backdrop">
+<link rel="stylesheet" href="studio.css?v=upload-review">
 <script src="profile.js?v=delivery-details" defer></script>
-<script src="studio.js?v=cart-checkout" defer></script>
+<script src="studio.js?v=upload-review" defer></script>
 </head>
 <body>
 <a href="#main" class="skip">Skip to content</a>
@@ -30,19 +30,28 @@
   </a>
 </header>
 <main id="main" class="frame inner-page">
-  <section class="section rates" id="queue"><div><h1>Upload files</h1><p>Add all the files you want printed, then check out together.</p></div><div class="raised table-card"><form id="queue-form"><label class="field-label" for="document-file">Any file type, up to 50 MB per file</label><input class="inset file-field" id="document-file" type="file" multiple required><section class="file-review" id="file-review" aria-labelledby="review-title" hidden>
-  <h3 id="review-title">Review your files</h3>
-  <label id="review-picker" hidden>File to preview <select id="review-file"></select></label>
-  <p class="review-filename" id="review-name"></p>
-  <p id="review-details"></p>
-  <div id="review-preview"></div>
-  <a class="subtle" id="review-open" target="_blank" rel="noopener" hidden>Open full preview ↗</a>
-  <p id="review-fallback" hidden>Preview unavailable for this format. You can still save the file.</p>
-  <div class="review-actions">
-    <button class="pill yellow" type="submit">Add to cart</button>
-    <button class="pill raised" type="button" id="review-change">Change files</button>
-  </div>
-</section></form><p id="queue-status" role="status"></p><ul id="queue-list" aria-label="Saved documents"></ul><div id="cart-checkout" hidden><span id="cart-count"></span><button type="button" class="pill yellow">Checkout all files</button></div></div></section>
+  <section class="section upload-section" id="queue">
+    <div><h1>Upload files</h1><p>Add all the files you want printed, then check out together.</p></div>
+    <div class="raised table-card upload-card">
+      <form id="queue-form">
+        <label class="field-label" for="document-file">Any file type, up to 50 MB per file</label>
+        <input class="inset file-field" id="document-file" type="file" multiple>
+        <section class="file-review" id="file-review" aria-labelledby="review-title" hidden>
+          <h2 id="review-title">Review your files</h2>
+          <p class="review-note">Files stay in your browser until you place your order.</p>
+          <div id="review-grid" class="review-grid"></div>
+          <div id="review-settings"></div>
+          <div class="review-actions review-summary">
+            <div><span id="review-count"></span><strong id="review-total"></strong></div>
+            <button class="pill yellow" type="submit">Add to cart</button>
+          </div>
+        </section>
+      </form>
+      <p id="queue-status" role="status"></p>
+      <ul id="queue-list" aria-label="Saved documents"></ul>
+      <div id="cart-checkout" hidden><span id="cart-count"></span><button type="button" class="pill yellow">Checkout all files</button></div>
+    </div>
+  </section>
 </main>
 <dialog id="checkout" aria-labelledby="checkout-title">
   <form id="checkout-form">
