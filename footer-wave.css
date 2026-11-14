@@ -113,3 +113,9 @@
 .footer-wave-word span:nth-child(n+6) {
   color: #ffce78;
 }
+
+/* Horizontal logo (bee, wordmark and tagline in one row) above the footer intro. */
+.brand-footer .footer-intro img {
+  width: min(190px, 100%);
+  height: auto;
+}
