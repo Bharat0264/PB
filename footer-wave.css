@@ -70,7 +70,7 @@
 }
 
 .footer-directory-group a + a { border-top: 1px solid #77572e30; }
-.footer-directory-group small { display: block; color: #645039; font-size: 12px; font-weight: 400; }
+.footer-directory-contact span { min-width: 0; font-size: 13px; font-weight: 400; }
 .footer-directory-contact a { justify-content: flex-start; gap: 8px; }
 .footer-directory-contact svg { flex: 0 0 18px; width: 18px; height: 18px; color: #76501f; }
 
