@@ -97,7 +97,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                 session = auth.create_session(db, email, auth.session_token(self.headers))
         except (CookieError, OSError, ValueError, KeyError, TypeError):
             return self.auth_redirect("/profile.html#google-failed", clear)
-        return self.auth_redirect("/profile.html", clear, session)
+        return self.auth_redirect("/", clear, session)
 
     def do_GET(self):
         path = urlsplit(self.path).path

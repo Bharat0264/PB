@@ -69,10 +69,8 @@ if (match) {
   confirmSignIn.hidden = false;
   confirmSignIn.addEventListener('submit', event => {
     event.preventDefault();
-    submitLogin(confirmSignIn, () => authRequest('verify', {token: match[1]}), ({email}) => {
-      confirmSignIn.hidden = true;
-      showAccount(email);
-      loginStatus.textContent = 'You’re signed in. Return to Upload to place an order.';
+    submitLogin(confirmSignIn, () => authRequest('verify', {token: match[1]}), () => {
+      location.replace('/');
     });
   });
 } else {
