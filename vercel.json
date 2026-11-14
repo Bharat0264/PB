@@ -1,0 +1,9 @@
+{
+  "rewrites": [
+    {"source": "/profile", "destination": "/navigation.html"},
+    {"source": "/saved", "destination": "/navigation.html"},
+    {"source": "/add", "destination": "/navigation.html"},
+    {"source": "/track", "destination": "/navigation.html"},
+    {"source": "/more", "destination": "/navigation.html"}
+  ]
+}

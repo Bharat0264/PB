@@ -802,7 +802,8 @@ async function showOrders() {
           entries.push({file, settings: 'Saved document', printOptions: item});
         }
         await addToCart(entries);
-        location.assign('queue.html#queue');
+        if (window.parent !== window) window.parent.location.assign('/saved');
+        else location.assign('queue.html#queue');
       } catch {
         status.textContent = 'Could not add this order to the cart. Its files may no longer be available.';
         reorder.disabled = false;
@@ -1046,9 +1047,18 @@ checkoutForm?.addEventListener('submit', async event => {
     checkoutForm.elements.coupon.readOnly = false;
   }
   checkout.close();
-  location.assign('orders.html?placed=' + placedId + '#orders');
+  if (window.parent !== window) window.parent.location.assign('/track?placed=' + placedId + '#orders');
+  else location.assign('orders.html?placed=' + placedId + '#orders');
 });
 
 Promise.all([showQueue(), showOrders()]).catch(() => {
   status.textContent = 'Local file storage is unavailable in this browser.';
 });
+
+if (window.parent !== window && queueList) {
+  window.addEventListener('message', event => {
+    if (event.origin === location.origin && event.source === window.parent && event.data === 'printbee:tab-shown') {
+      showQueue().catch(() => {});
+    }
+  });
+}

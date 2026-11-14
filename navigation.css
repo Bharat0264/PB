@@ -1,0 +1,113 @@
+.nav-app {
+  --nav-width: 430px;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.tab-screens, .sheet-layer {
+  position: relative;
+  width: min(100%, var(--nav-width));
+  height: 100%;
+  margin-inline: auto;
+  overflow: hidden;
+}
+
+.tab-panel {
+  position: absolute;
+  inset: 0 0 var(--nav-height) 0;
+  background: var(--page-clay);
+}
+
+.tab-panel iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.tab-panel[hidden], .sheet-layer[hidden] { display: none; }
+
+.tab-panel.is-closing { pointer-events: none; }
+
+.sheet-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: var(--page-clay);
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.sheet-layer .tab-panel { inset: calc(52px + env(safe-area-inset-top, 0px)) 0 0; }
+.sheet-header {
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-inline: 16px;
+  border-bottom: 1px solid #78654335;
+}
+.sheet-header button { min-height: 48px; border: 0; background: transparent; font-weight: 800; }
+
+.bottom-nav {
+  position: fixed;
+  z-index: 4;
+  inset: auto 0 0;
+  width: min(100%, var(--nav-width));
+  margin-inline: auto;
+  height: var(--nav-height);
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  color: var(--nav-ink);
+  isolation: isolate;
+}
+.bottom-nav .nav-shape {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  fill: var(--nav-surface);
+  filter: drop-shadow(var(--nav-shadow));
+}
+.bottom-nav [role="tab"] {
+  display: grid;
+  grid-template-rows: 29px auto;
+  justify-items: center;
+  align-items: center;
+  align-content: start;
+  gap: 3px;
+  min-height: 48px;
+  padding: 9px 0 0;
+  font-weight: 800;
+  font-size: 12px;
+  white-space: nowrap;
+  border-radius: 8px;
+}
+.bottom-nav [role="tab"]:focus-visible { outline: 2px solid #805800; outline-offset: -4px; }
+.bottom-nav [aria-selected="true"] .tab-icon { visibility: hidden; }
+.tab-icon svg, .nav-bubble svg { width: 23px; height: 23px; vertical-align: middle; }
+.nav-bubble, .nav-ghost {
+  position: absolute;
+  top: calc(-1 * var(--nav-lift));
+  left: 0;
+  width: var(--nav-size);
+  height: var(--nav-size);
+  margin-left: calc(-.5 * var(--nav-size));
+  border: 5px solid var(--nav-ink);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background: var(--nav-bubble);
+}
+.nav-bubble { z-index: 2; box-shadow: inset 0 2px 5px #ffffff70; }
+.nav-ghost { border-color: transparent; }
+.nav-bubble svg { grid-area: 1 / 1; }
+.more-panel { overflow: auto; padding: 22px 16px; }
+.more-panel h1 { margin-bottom: 18px; }
+.more-panel a { display: block; padding: 14px; min-height: 48px; border-bottom: 1px solid #78654335; font-weight: 800; }
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-ghost { display: none; }
+}

@@ -179,6 +179,9 @@ class PrintBee(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         path = urlsplit(self.path).path
+        if path in ("/profile", "/saved", "/add", "/track", "/more"):
+            self.path = "/navigation.html"
+            return super().do_GET()
         pages = {"/warehouse": "/staff.html", "/partner": "/partner.html", "/admin": "/admin.html"}
         if path in pages:
             return self.auth_redirect(pages[path])
@@ -204,7 +207,8 @@ class PrintBee(SimpleHTTPRequestHandler):
             allowed = {"/", "/index.html", "/studio.js", "/studio.css", "/clay.css", "/staff.html", "/staff.js", "/delivery-map.js",
                        "/partner.html", "/admin.html", "/operations.js", "/partner.webmanifest", "/portal-login.js",
                        "/pricing.html", "/queue.html", "/orders.html", "/profile.html", "/profile.js", "/address.html", "/customer-login.js",
-                       "/preloader.js", "/preloader.css", "/preloader-art.js", "/gsap-3.13.0.min.js"}
+                       "/preloader.js", "/preloader.css", "/preloader-art.js", "/gsap-3.13.0.min.js",
+                       "/navigation.html", "/navigation.css", "/bottom-nav.js", "/nav-tokens.js", "/embedded-tab.js"}
             if path == "/preloader-3d.bundle.js" and self.server.preloader_gzip:
                 encodings = self.headers.get("Accept-Encoding", "").lower().split(",")
                 if any(encoding.strip() == "gzip" for encoding in encodings):

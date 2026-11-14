@@ -17,7 +17,7 @@
       mini: 'public/models/bee_mini.glb',
     },
   };
-  if (window.PrintBeePreloader) return;
+  if (window.PrintBeePreloader || window.parent !== window) return;
   // Let internal page switches paint immediately. Direct visits and reloads keep the loader.
   if (document.referrer && performance.getEntriesByType('navigation')[0]?.type === 'navigate') {
     const previous = new URL(document.referrer);

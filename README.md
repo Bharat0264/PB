@@ -76,6 +76,22 @@ Production provider accounts, deployment settings, and warehouse printer details
 are still needed for live integrations. Keep credentials outside Git. Existing
 browser-local carts and saved orders need a migration plan before changing storage.
 
+## Mobile bottom navigation
+
+Open `/profile`, `/saved`, `/add`, `/track`, or `/more` to enter the
+persistent tab layout. Saved uses the existing print cart. Add opens file
+upload as a sheet, and Track uses the existing order history. The layout
+keeps each same-origin screen mounted so unsaved inputs and scroll position
+survive tab changes. The Vercel rewrites serve these routes for frontend
+previews. Account and order data require the Python API.
+
+Adjust colors, bar height, bubble size, notch radius and fillet, spring
+stiffness/damping/mass, and transition durations in `nav-tokens.js`.
+`bottom-nav.js` exports `BottomNav` and `notchPath()`. The spring's
+position drives both the SVG notch and the bubble. The screen slide uses
+24px of travel. Reduced motion snaps the bubble to the active tab and
+crossfades screens for 150ms.
+
 ## Local operations
 
 Use Python with SQLite 3.35 or later. Open `/warehouse`, `/partner` or

@@ -70,7 +70,8 @@ if (match) {
   confirmSignIn.addEventListener('submit', event => {
     event.preventDefault();
     submitLogin(confirmSignIn, () => authRequest('verify', {token: match[1]}), () => {
-      location.replace('/');
+      if (window.parent !== window) window.parent.location.replace('/');
+      else location.replace('/');
     });
   });
 } else {

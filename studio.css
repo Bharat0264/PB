@@ -1106,3 +1106,7 @@ body {
 @keyframes dock-lift {
   from { transform: translateY(-12px) scale(.92); }
 }
+
+.embedded-tab .mobile-dock { display: none; }
+.embedded-tab .brand-footer { margin-bottom: 20px; }
+.embedded-tab[data-tab="saved"] #queue-form { display: none; }
