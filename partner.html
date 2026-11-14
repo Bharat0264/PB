@@ -4,14 +4,21 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Delivery partner · PrintBee</title>
+<link rel="manifest" href="/partner.webmanifest">
 <link rel="stylesheet" href="studio.css">
 <link rel="stylesheet" href="clay.css">
-<script src="operations.js" defer></script>
+<script src="operations.js?v=partner-phone" defer></script>
 </head>
 <body data-portal="partner">
 <header class="frame top"><a href="/">PrintBee</a></header>
 <main class="frame section staff-console">
 <h1>Delivery partner</h1>
+<form id="partner-phone-login" class="clay-card staff-login-fields" hidden>
+  <label>Phone number<input class="clay-input" name="phone" type="tel" autocomplete="tel" placeholder="+91" required></label>
+  <button class="clay-button" type="button" id="partner-send">Send code</button>
+  <label>Verification code<input class="clay-input" name="code" inputmode="numeric" autocomplete="one-time-code" required></label>
+  <button class="clay-button">Sign in</button>
+</form>
 <form id="ops-login" class="clay-card staff-login-fields">
   <label>Delivery key<input class="clay-input" type="password" required autocomplete="off"></label>
   <button class="clay-button">View deliveries</button>

@@ -1,4 +1,5 @@
 import sqlite3
+import time
 import unittest
 
 import fulfillment as ops
@@ -28,6 +29,14 @@ class FulfillmentTest(unittest.TestCase):
         self.assertEqual(retry["id"], job["id"])
         self.assertFalse(ops.finish_job(self.db, retry["id"], "claim-one", "done", None))
         self.assertTrue(ops.finish_job(self.db, retry["id"], "retry", "done", None))
+
+    def test_dispatch_selects_an_enrolled_available_partner(self):
+        self.db.execute("UPDATE orders SET status='packed'")
+        now = int(time.time())
+        self.db.executemany("INSERT INTO partner_availability VALUES (?, 1, ?)",
+                            [("removed", now), ("available", now)])
+        ops.dispatch_available(self.db, "sample", {"available"})
+        self.assertEqual(self.db.execute("SELECT partner FROM deliveries").fetchone()["partner"], "available")
 
     def test_delivery_code_lock_and_recovery(self):
         self.db.execute("UPDATE orders SET status='packed'")

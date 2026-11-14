@@ -15,7 +15,7 @@ async function api(path, data) {
   const post = data !== undefined;
   const response = await fetch(path, {
     method: post ? 'POST' : 'GET',
-    headers: {'X-Staff-Key': key, 'Content-Type': 'application/json'},
+    headers: {...(key ? {'X-Staff-Key': key} : {}), 'Content-Type': 'application/json'},
     body: post ? JSON.stringify(data) : undefined,
   });
   const result = await response.json();
@@ -38,7 +38,7 @@ function action(label, run) {
 }
 
 async function partnerOrders() {
-  const {orders} = await api('/api/partner/orders');
+  const {orders, available} = await api('/api/partner/orders');
   const cards = orders.map(order => {
     const card = element('article');
     card.className = 'clay-card';
@@ -91,7 +91,17 @@ async function partnerOrders() {
     }
     return card;
   });
-  content.replaceChildren(action('Refresh deliveries', partnerOrders),
+  const controls = [action('Refresh deliveries', partnerOrders),
+    action(available ? 'Go offline' : 'Go online', async () => {
+      await api('/api/partner/availability', {available: !available});
+      await partnerOrders();
+    })];
+  if (!key) controls.push(action('Sign out', async () => {
+    await api('/api/partner/auth/logout', {});
+    stopSharing();
+    location.reload();
+  }));
+  content.replaceChildren(...controls,
     ...(cards.length ? cards : [element('p', 'No deliveries available.')]));
 }
 
@@ -122,6 +132,19 @@ async function admin() {
       await api('/api/admin/orders/' + order.id + '/renew-code', {});
       statusLine.textContent = 'The customer can refresh their order to see the new code.';
     }));
+    if (order.status === 'paid' && !order.captured) row.append(action('Cancel order', async () => {
+      if (!window.confirm('Cancel this unprinted order?')) return;
+      await api('/api/admin/orders/' + order.id + '/cancel', {});
+      await admin();
+    }));
+    if (order.captured && ['paid', 'refund_pending'].includes(order.status)) {
+      row.append(action(order.status === 'paid' ? 'Refund order' : 'Reconcile refund', async () => {
+        if (order.status === 'paid' && !window.confirm('Request a full refund and stop fulfilment?')) return;
+        const result = await api('/api/admin/orders/' + order.id + '/refund', {});
+        await admin();
+        statusLine.textContent = 'Refund ' + result.state + '.';
+      }));
+    }
     list.append(row);
   }
   const csv = action('Export recent orders CSV', () => {
@@ -169,3 +192,42 @@ login.addEventListener('submit', async event => {
   try { await (portal === 'partner' ? partnerOrders() : admin()); }
   catch (error) { statusLine.textContent = error.message; }
 });
+
+if (portal === 'partner') {
+  const phoneLogin = document.querySelector('#partner-phone-login');
+  const send = document.querySelector('#partner-send');
+  send.addEventListener('click', async () => {
+    send.disabled = true;
+    try {
+      await api('/api/partner/auth/send', {phone: phoneLogin.elements.phone.value});
+      statusLine.textContent = 'If your phone is enrolled, check your messages for a code.';
+      phoneLogin.elements.code.focus();
+    } catch (error) {
+      statusLine.textContent = error.message;
+    } finally {
+      send.disabled = false;
+    }
+  });
+  phoneLogin.addEventListener('submit', async event => {
+    event.preventDefault();
+    const submit = phoneLogin.querySelector('button[type="submit"], button:not([type])');
+    submit.disabled = true;
+    try {
+      key = undefined;
+      await api('/api/partner/auth/check', Object.fromEntries(new FormData(phoneLogin)));
+      phoneLogin.hidden = true;
+      login.hidden = true;
+      statusLine.textContent = '';
+      await partnerOrders();
+    } catch (error) {
+      statusLine.textContent = error.message;
+    } finally {
+      submit.disabled = false;
+    }
+  });
+  api('/api/partner/auth').then(({sms, signedIn}) => {
+    phoneLogin.hidden = !sms || signedIn;
+    login.hidden = signedIn;
+    if (signedIn) return partnerOrders();
+  }).catch(error => { statusLine.textContent = error.message; });
+}

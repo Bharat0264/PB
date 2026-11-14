@@ -9,6 +9,7 @@ import time
 from pathlib import Path
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
+from document_pages import render_docx
 
 
 def print_command(item, file, printer, sumatra=None):
@@ -46,7 +47,19 @@ def run(origin, key, printer, sumatra, once):
         try:
             body = request(path + "/file", claim=job["claim"])
             if not body.startswith(b"%PDF-"):
-                raise ValueError("Convert this file to PDF for automated printing or print it manually.")
+                suffix = Path(job["item"]["name"]).suffix.lower()
+                if suffix == ".docx":
+                    body = render_docx(body)
+                elif suffix in (".jpg", ".jpeg", ".png"):
+                    from io import BytesIO
+                    from PIL import Image
+                    with Image.open(BytesIO(body)) as image:
+                        image = image.convert("RGB")
+                        output = BytesIO()
+                        image.save(output, format="PDF")
+                        body = output.getvalue()
+                if not body or not body.startswith(b"%PDF-"):
+                    raise ValueError("Convert this file to PDF for automated printing or print it manually.")
             with tempfile.TemporaryDirectory(prefix="printbee-job-") as directory:
                 file = Path(directory) / "document.pdf"
                 file.write_bytes(body)

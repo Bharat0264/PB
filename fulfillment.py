@@ -25,6 +25,9 @@ CREATE TABLE IF NOT EXISTS pricing_versions (
 CREATE TABLE IF NOT EXISTS workstations (
     role TEXT PRIMARY KEY, seen INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS partner_availability (
+    partner TEXT PRIMARY KEY, available INTEGER NOT NULL, updated INTEGER NOT NULL
+);
 """
 
 
@@ -81,6 +84,28 @@ def assign_delivery(db, order_id, partner):
     if not changed:
         raise Conflict("Another partner has accepted this order.")
     audit(db, partner, "delivery_accepted", order_id)
+
+
+def dispatch_available(db, order_id, eligible):
+    available = [row["partner"] for row in db.execute(
+        "SELECT partner FROM partner_availability WHERE available=1 AND updated>? "
+        "AND NOT EXISTS(SELECT 1 FROM deliveries JOIN orders ON orders.id=deliveries.order_id "
+        "WHERE deliveries.partner=partner_availability.partner AND orders.status IN ('packed','out_for_delivery')) "
+        "ORDER BY updated DESC", (int(time.time()) - 900,)
+    ) if row["partner"] in eligible]
+    if available:
+        assign_delivery(db, order_id, available[0])
+
+
+def cancel_order(db, order_id):
+    changed = db.execute(
+        "UPDATE orders SET status='cancelled' WHERE id=? AND status='paid' "
+        "AND NOT EXISTS(SELECT 1 FROM razorpay_orders WHERE order_id=? AND payment_id IS NOT NULL)",
+        (order_id, order_id),
+    ).rowcount
+    if not changed:
+        raise Conflict("Only unprinted orders without a captured Razorpay payment can be cancelled here.")
+    audit(db, "admin", "order_cancelled", order_id)
 
 
 def pickup(db, order_id, partner):

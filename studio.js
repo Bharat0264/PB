@@ -634,6 +634,25 @@ async function saveOrder(order) {
 
 async function showOrders() {
   if (!orderHistory) return;
+  const shared = location.hash.match(/^#track=([a-f0-9]{32})\.([a-f0-9]{64})$/);
+  if (shared) {
+    const row = document.createElement('li');
+    const line = document.createElement('p');
+    async function refreshShared() {
+      try {
+        const {number, status} = await orderRequest('/api/orders/' + shared[1], null, {
+          headers: {'X-Tracking-Key': shared[2]},
+        });
+        line.textContent = (number || 'PB-' + shared[1].slice(0, 8).toUpperCase()) + ' · ' + orderStates[status];
+      } catch {
+        line.textContent = 'This tracking link is unavailable.';
+      }
+    }
+    row.append(line, queueButton('Refresh tracking', refreshShared));
+    orderHistory.replaceChildren(row);
+    await refreshShared();
+    return;
+  }
   let accountOrders = [];
   try {
     const response = await fetch('/api/orders');
@@ -671,6 +690,23 @@ async function showOrders() {
     const steps = document.createElement('ol');
     steps.className = 'order-timeline';
     const deliveryInfo = document.createElement('div');
+    function showDelivery(delivery) {
+      deliveryInfo.replaceChildren();
+      if (delivery?.code) {
+        const code = document.createElement('p');
+        code.className = 'raised table-card';
+        code.textContent = 'Delivery code · ' + delivery.code;
+        deliveryInfo.append(code);
+      }
+      if (delivery?.location) {
+        const pin = document.createElement('a');
+        pin.textContent = 'View latest delivery location';
+        pin.href = 'https://www.google.com/maps/search/?' + new URLSearchParams({api: 1, query: delivery.location.join(',')});
+        pin.rel = 'noopener noreferrer';
+        pin.target = '_blank';
+        deliveryInfo.append(pin);
+      }
+    }
     const stages = {paid: 'Order received', printing: 'Printing', packed: 'Packed',
       out_for_delivery: 'Out for delivery', delivered: 'Delivered'};
     function renderStage(currentStatus) {
@@ -691,21 +727,7 @@ async function showOrders() {
       try {
         const {status: currentStatus, delivery} = await orderRequest('/api/orders/' + order.id, order.orderKey);
         if (state.textContent !== orderStates[currentStatus]) renderStage(currentStatus);
-        deliveryInfo.replaceChildren();
-        if (delivery?.code) {
-          const code = document.createElement('p');
-          code.className = 'raised table-card';
-          code.textContent = 'Delivery code · ' + delivery.code;
-          deliveryInfo.append(code);
-        }
-        if (delivery?.location) {
-          const pin = document.createElement('a');
-          pin.textContent = 'View latest delivery location';
-          pin.href = 'https://www.google.com/maps/search/?' + new URLSearchParams({api: 1, query: delivery.location.join(',')});
-          pin.rel = 'noopener noreferrer';
-          pin.target = '_blank';
-          deliveryInfo.append(pin);
-        }
+        showDelivery(delivery);
       } catch {
         deliveryInfo.replaceChildren();
         state.textContent = 'Could not refresh delivery status.';
@@ -714,11 +736,27 @@ async function showOrders() {
       }
     }
     let timer;
+    let stream;
     details.addEventListener('toggle', () => {
       clearInterval(timer);
+      stream?.close();
       if (!details.open) return;
       refreshStatus();
-      timer = setInterval(() => { if (!document.hidden) refreshStatus(); }, 15000);
+      if (accountIds.has(order.id) && window.EventSource) {
+        stream = new EventSource('/api/orders/' + order.id + '/events');
+        stream.onmessage = event => {
+          const update = JSON.parse(event.data);
+          if (state.textContent !== orderStates[update.status]) renderStage(update.status);
+          showDelivery(update.delivery);
+        };
+        stream.onerror = () => {
+          if (stream.readyState === EventSource.CLOSED && !timer) {
+            timer = setInterval(() => { if (!document.hidden) refreshStatus(); }, 15000);
+          }
+        };
+      } else {
+        timer = setInterval(() => { if (!document.hidden) refreshStatus(); }, 15000);
+      }
     });
     details.append(queueButton('Refresh status', refreshStatus));
     const files = document.createElement('ul');
@@ -738,6 +776,16 @@ async function showOrders() {
       invoice.href = '/api/orders/' + order.id + '/invoice';
       invoice.textContent = 'Download order PDF';
       actions.append(invoice);
+      actions.append(queueButton('Copy tracking link', async () => {
+        try {
+          const {trackingKey} = await orderRequest('/api/orders/' + order.id);
+          const url = new URL('orders.html#track=' + order.id + '.' + trackingKey, location.href);
+          await navigator.clipboard.writeText(url.href);
+          status.textContent = 'Tracking link copied.';
+        } catch {
+          status.textContent = 'Could not copy the tracking link.';
+        }
+      }));
     }
     const reorder = queueButton('Add order to cart', async () => {
       reorder.disabled = true;
@@ -799,6 +847,8 @@ const orderStates = {
   paid: 'Order received · With warehouse',
   printing: 'Printing', packed: 'Packed · Awaiting delivery',
   out_for_delivery: 'Out for delivery', delivered: 'Delivered',
+  cancelled: 'Cancelled',
+  refund_pending: 'Refund pending', refund_failed: 'Refund needs assistance', refunded: 'Refunded',
 };
 const checkoutDraftKey = 'printbee-checkout-attempt';
 let razorpayScript;

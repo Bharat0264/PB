@@ -41,6 +41,9 @@ def validate_terms(raw):
         raise ValueError("Provide integer paise rates for supported bindings.")
     terms["paperRates"] = {"A4": RATES, **paper}
     terms["bindingRates"] = {**BINDING_RATES, **binding}
+    terms["autoDispatch"] = raw.get("autoDispatch", False)
+    if type(terms["autoDispatch"]) is not bool:
+        raise ValueError("autoDispatch must be true or false.")
     return terms
 
 

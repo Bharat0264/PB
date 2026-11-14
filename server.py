@@ -17,6 +17,7 @@ from threading import BoundedSemaphore
 
 import customer_auth as auth
 import fulfillment as ops
+import partner_auth
 import razorpay_checkout
 from checkout_terms import bill_for, configured_terms, validate_terms
 from document_pages import count_pages
@@ -79,8 +80,18 @@ class PrintBee(SimpleHTTPRequestHandler):
 
     def get_partner(self):
         key = self.headers.get("X-Staff-Key", "").encode()
-        return next((name for name, secret in self.server.partners.items()
-                     if hmac.compare_digest(key, secret.encode())), None)
+        partner = next((name for name, secret in self.server.partners.items()
+                        if hmac.compare_digest(key, secret.encode())), None)
+        if partner:
+            return partner
+        cookie = auth.session_token(self.headers, "printbee_partner")
+        if cookie:
+            with closing(connect()) as db:
+                row = db.execute("SELECT partner FROM partner_sessions WHERE digest=? AND expires>?",
+                                 (auth.digest(cookie), int(time.time()))).fetchone()
+            if row and row["partner"] in self.server.partner_phones.values():
+                return row["partner"]
+        return None
 
     def checkout_terms(self, db=None):
         if db is None:
@@ -152,7 +163,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                                            "maps": self.server.maps})
         if not path.startswith("/api/"):
             allowed = {"/", "/index.html", "/studio.js", "/studio.css", "/clay.css", "/staff.html", "/staff.js", "/delivery-map.js",
-                       "/partner.html", "/admin.html", "/operations.js",
+                       "/partner.html", "/admin.html", "/operations.js", "/partner.webmanifest",
                        "/pricing.html", "/queue.html", "/orders.html", "/profile.html", "/profile.js", "/address.html", "/customer-login.js",
                        "/preloader.js", "/preloader.css", "/preloader-art.js", "/gsap-3.13.0.min.js"}
             if path == "/preloader-3d.bundle.js" and self.server.preloader_gzip:
@@ -173,11 +184,17 @@ class PrintBee(SimpleHTTPRequestHandler):
             if re.fullmatch(r"/[a-z0-9.-]+\.(png|webp|woff2)", path):
                 return super().do_GET()
             return self.send_error(404)
+        match = re.fullmatch(r"/api/orders/([a-f0-9]{32})/events", path)
+        if match:
+            return self.order_events(match[1])
         with closing(connect()) as db:
             if path == "/api/admin":
                 return self.admin_snapshot(db)
             if path == "/api/partner/orders":
                 return self.partner_orders(db)
+            if path == "/api/partner/auth":
+                return self.json_response(200, {"sms": bool(self.server.partner_verify),
+                                                "signedIn": bool(self.get_partner())})
             label = re.fullmatch(r"/api/staff/orders/([a-f0-9]{32})/label", path)
             if label and self.get_role() == "warehouse":
                 row = db.execute(
@@ -241,15 +258,20 @@ class PrintBee(SimpleHTTPRequestHandler):
                     "ON orders.id=razorpay_orders.order_id WHERE orders.id=?", match.groups()
                 ).fetchone()
                 token = self.headers.get("X-Order-Key", "")
+                share = self.headers.get("X-Tracking-Key", "")
+                owner = row and row["email"] and row["email"] == auth.session_email(db, self.headers)
                 if row and (
-                    hmac.compare_digest(row["token"], token)
-                    or (row["email"] and row["email"] == auth.session_email(db, self.headers)
-                        and row["status"] != "pending")
+                    hmac.compare_digest(row["token"].encode(), token.encode())
+                    or (row["status"] != "pending" and (
+                        owner or hmac.compare_digest(self.tracking_key(match[1]).encode(), share.encode())
+                    ))
                 ):
                     result = {"status": row["status"], "number": row["order_number"],
                               "paymentStarted": bool(row["provider_id"])}
-                    if row["email"] and row["email"] == auth.session_email(db, self.headers):
+                    if owner:
                         result["delivery"] = self.customer_delivery(db, match[1], row["status"])
+                        if row["status"] != "pending":
+                            result["trackingKey"] = self.tracking_key(match[1])
                     return self.json_response(200, result)
             match = re.fullmatch(r"/api/staff/files/([a-f0-9]{32})/(\d+)", path)
             if match and self.get_role() == "warehouse":
@@ -265,6 +287,47 @@ class PrintBee(SimpleHTTPRequestHandler):
 
     def do_HEAD(self):
         self.send_error(405, "Use GET.")
+
+    def tracking_key(self, order_id):
+        secret = self.server.keys["delivery-code"].encode()
+        return hmac.digest(secret, ("tracking:" + order_id).encode(), "sha256").hex()
+
+    def order_events(self, order_id):
+        def snapshot(db):
+            row = db.execute(
+                "SELECT status, email FROM orders JOIN order_owners ON orders.id=order_owners.order_id "
+                "WHERE orders.id=? AND status!='pending'", (order_id,)
+            ).fetchone()
+            if not row or row["email"] != auth.session_email(db, self.headers):
+                return None
+            return {"status": row["status"], "delivery": self.customer_delivery(db, order_id, row["status"])}
+
+        with closing(connect()) as db:
+            current = snapshot(db)
+        if current is None:
+            return self.json_response(404, {"error": "Order unavailable."})
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Accel-Buffering", "no")
+        self.end_headers()
+        previous = None
+        try:
+            for _ in range(12):
+                if current is None:
+                    break
+                if current != previous:
+                    self.wfile.write(b"data: " + json.dumps(current).encode() + b"\n\n")
+                    self.wfile.flush()
+                    previous = current
+                else:
+                    self.wfile.write(b": keep-alive\n\n")
+                    self.wfile.flush()
+                time.sleep(2)
+                with closing(connect()) as db:
+                    current = snapshot(db)
+        except (OSError, ConnectionError):
+            pass
 
     def send_download(self, body, content_type, disposition="attachment"):
         self.send_response(200)
@@ -312,6 +375,8 @@ class PrintBee(SimpleHTTPRequestHandler):
     def do_POST(self):
         path = urlsplit(self.path).path
         try:
+            if path in ("/api/partner/auth/send", "/api/partner/auth/check", "/api/partner/auth/logout"):
+                return self.verify_partner_phone(path.rsplit("/", 1)[1])
             if path.startswith(("/api/print-agent/", "/api/partner/", "/api/admin/")):
                 return self.operations_post(path)
             match = re.fullmatch(r"/api/staff/orders/([a-f0-9]{32})/print/(all|\d+)", path)
@@ -563,11 +628,18 @@ class PrintBee(SimpleHTTPRequestHandler):
         if not gateway.valid_signature(body, self.headers.get("X-Razorpay-Signature", "")):
             return self.json_response(403, {"error": "Invalid webhook signature."})
         event = json.loads(body)
-        if event["event"] != "payment.captured":
+        event_type = event["event"]
+        if event_type not in ("payment.captured", "refund.processed", "refund.failed"):
             return self.json_response(200, {"received": True})
         with closing(connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
-            recorded = razorpay_checkout.record_capture(db, event["payload"]["payment"]["entity"])
+            if event_type == "payment.captured":
+                recorded = razorpay_checkout.record_capture(db, event["payload"]["payment"]["entity"])
+            else:
+                refund = event["payload"]["refund"]["entity"]
+                if razorpay_checkout.record_refund(db, refund):
+                    ops.audit(db, "razorpay", event_type, refund["receipt"][5:])
+                recorded = None
         if recorded is False:
             return self.json_response(409, {"error": "Payment does not match the order."})
         self.json_response(200, {"received": True})
@@ -619,7 +691,61 @@ class PrintBee(SimpleHTTPRequestHandler):
                 details = json.loads(row["details"])
                 record.update({key: details.get(key) for key in ("customer", "address", "phone", "slot", "notes")})
             orders.append(record)
-        return self.json_response(200, {"orders": orders})
+        availability = db.execute("SELECT available, updated FROM partner_availability WHERE partner=?",
+                                  (partner,)).fetchone()
+        return self.json_response(200, {"orders": orders, "available": bool(
+            availability and availability["available"] and availability["updated"] > time.time() - 900
+        )})
+
+    def verify_partner_phone(self, action):
+        origin = auth.public_origin() or f"http://{self.headers.get('Host')}"
+        if self.headers.get("Origin") != origin or self.headers.get_content_type() != "application/json":
+            return self.json_response(403, {"error": "Open PrintBee directly and try again."})
+        if action == "logout":
+            with closing(connect()) as db, db:
+                db.execute("DELETE FROM partner_sessions WHERE digest=?",
+                           (auth.digest(auth.session_token(self.headers, "printbee_partner")),))
+            return self.json_response(200, {"saved": True}, auth.session_cookie("", 0, "printbee_partner"))
+        provider = self.server.partner_verify
+        if not provider:
+            return self.json_response(503, {"error": "Phone sign-in is unavailable."})
+        length = int(self.headers.get("Content-Length", "0"))
+        if not 0 < length <= 1024:
+            raise ValueError()
+        data = json.loads(self.rfile.read(length))
+        phone = data["phone"].strip()
+        if not re.fullmatch(r"\+[1-9][0-9]{7,14}", phone):
+            return self.json_response(400, {"error": "Enter a phone number with its country code."})
+        now = int(time.time())
+        scope = action + ":" + auth.digest(phone)
+        with closing(connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            db.execute("DELETE FROM partner_auth_limits WHERE created<=?", (now - 600,))
+            count, last = db.execute("SELECT count(*), max(created) FROM partner_auth_limits WHERE scope=?",
+                                     (scope,)).fetchone()
+            total = db.execute("SELECT count(*) FROM partner_auth_limits").fetchone()[0]
+            if total >= 150 or count >= 5 or (action == "send" and last and last > now - 60):
+                return self.json_response(429, {"error": "Try again in a few minutes."})
+            db.execute("INSERT INTO partner_auth_limits VALUES (?,?)", (scope, now))
+        partner = self.server.partner_phones.get(phone)
+        try:
+            if action == "send":
+                if partner and not provider.send(phone):
+                    raise OSError()
+                return self.json_response(200, {"sent": True})
+            code = data["code"].strip()
+            approved = partner and re.fullmatch(r"[0-9]{4,10}", code) and provider.approved(phone, code)
+        except (OSError, KeyError):
+            return self.json_response(503, {"error": "Phone verification is temporarily unavailable."})
+        if not approved:
+            return self.json_response(400, {"error": "The verification code is invalid or expired."})
+        token = secrets.token_urlsafe(32)
+        age = 43200
+        with closing(connect()) as db, db:
+            db.execute("DELETE FROM partner_sessions WHERE expires<=? OR digest=?",
+                       (now, auth.digest(auth.session_token(self.headers, "printbee_partner"))))
+            db.execute("INSERT INTO partner_sessions VALUES (?,?,?)", (auth.digest(token), partner, now + age))
+        return self.json_response(200, {"signedIn": True}, auth.session_cookie(token, age, "printbee_partner"))
 
     def customer_delivery(self, db, order_id, status):
         if status != "out_for_delivery":
@@ -639,8 +765,9 @@ class PrintBee(SimpleHTTPRequestHandler):
             return self.json_response(403, {"error": "Admin access is required."})
         orders = [dict(row) for row in db.execute(
             "SELECT orders.id, status, order_number, CAST(COALESCE(json_extract(details,'$.bill.total'), "
-            "json_extract(details,'$.subtotal')) AS INTEGER) AS total FROM orders LEFT JOIN order_owners "
-            "ON orders.id=order_owners.order_id ORDER BY orders.rowid DESC LIMIT 500"
+            "json_extract(details,'$.subtotal')) AS INTEGER) AS total, payment_id IS NOT NULL AS captured "
+            "FROM orders LEFT JOIN order_owners ON orders.id=order_owners.order_id "
+            "LEFT JOIN razorpay_orders ON orders.id=razorpay_orders.order_id ORDER BY orders.rowid DESC LIMIT 500"
         )]
         counts = {row["status"]: row["count"] for row in db.execute(
             "SELECT status, count(*) AS count FROM orders GROUP BY status"
@@ -656,12 +783,19 @@ class PrintBee(SimpleHTTPRequestHandler):
         area = path.split("/")[2]
         role = {"admin": "admin", "partner": "delivery", "print-agent": "print-agent"}[area]
         partner = self.get_partner() if area == "partner" else None
+        if area == "partner" and not self.headers.get("X-Staff-Key"):
+            origin = auth.public_origin() or f"http://{self.headers.get('Host')}"
+            if self.headers.get("Origin") != origin or self.headers.get_content_type() != "application/json":
+                return self.json_response(403, {"error": "Open PrintBee directly and try again."})
         if not (partner if area == "partner" else self.get_role() == role):
             return self.json_response(403, {"error": "This account cannot perform this action."})
         length = int(self.headers.get("Content-Length", "0"))
         if length < 0 or length > 65536:
             raise ValueError()
         data = json.loads(self.rfile.read(length)) if length else {}
+        refund = re.fullmatch(r"/api/admin/orders/([a-f0-9]{32})/refund", path)
+        if refund:
+            return self.refund_order(refund[1])
         with closing(connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
             if path == "/api/admin/pricing":
@@ -674,6 +808,9 @@ class PrintBee(SimpleHTTPRequestHandler):
                 result = {"version": cursor.lastrowid}
             elif role == "admin" and (reset := re.fullmatch(r"/api/admin/orders/([a-f0-9]{32})/renew-code", path)):
                 ops.renew_delivery_code(db, reset[1])
+                result = {"saved": True}
+            elif role == "admin" and (cancel := re.fullmatch(r"/api/admin/orders/([a-f0-9]{32})/cancel", path)):
+                ops.cancel_order(db, cancel[1])
                 result = {"saved": True}
             elif role == "admin" and (recover := re.fullmatch(r"/api/admin/print-jobs/(\d+)/recover", path)):
                 row = db.execute("UPDATE print_jobs SET state='failed', error='Recovered by admin' "
@@ -699,6 +836,13 @@ class PrintBee(SimpleHTTPRequestHandler):
                 if not ops.finish_job(db, int(path.split("/")[4]), self.headers.get("X-Print-Claim", ""),
                                       state, str(data.get("error", ""))[:300]):
                     raise ops.Conflict("This print job is no longer active.")
+                result = {"saved": True}
+            elif path == "/api/partner/availability":
+                if type(data.get("available")) is not bool:
+                    raise ValueError()
+                db.execute("INSERT INTO partner_availability VALUES (?,?,?) ON CONFLICT(partner) DO UPDATE "
+                           "SET available=excluded.available, updated=excluded.updated",
+                           (partner, data["available"], int(time.time())))
                 result = {"saved": True}
             else:
                 match = re.fullmatch(r"/api/partner/orders/([a-f0-9]{32})/(accept|pickup|deliver|location)", path)
@@ -728,6 +872,33 @@ class PrintBee(SimpleHTTPRequestHandler):
                                (lat, lng, int(time.time()), order_id, partner, order_id))
         self.json_response(409 if "error" in result else 200, result)
 
+    def refund_order(self, order_id):
+        gateway = self.server.razorpay
+        if not gateway:
+            return self.json_response(503, {"error": "Razorpay is unavailable."})
+        with closing(connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute(
+                "SELECT status, amount, payment_id FROM orders JOIN razorpay_orders "
+                "ON orders.id=razorpay_orders.order_id WHERE orders.id=?", (order_id,)
+            ).fetchone()
+            if not row or not row["payment_id"] or row["status"] not in ("paid", "refund_pending"):
+                raise ops.Conflict("Only a paid, unprinted order can be refunded.")
+            if row["status"] == "paid":
+                db.execute("UPDATE orders SET status='refund_pending' WHERE id=?", (order_id,))
+                db.execute("INSERT INTO razorpay_refunds(order_id,state) VALUES (?, 'requested')", (order_id,))
+                ops.audit(db, "admin", "refund_requested", order_id)
+        try:
+            result = gateway.refund(row["payment_id"], "PB-R-" + order_id, row["amount"])
+        except (OSError, ValueError, KeyError):
+            return self.json_response(502, {"error": "Refund awaiting reconciliation. Retry from the dashboard."})
+        with closing(connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            if razorpay_checkout.record_refund(db, result) is False:
+                raise ops.Conflict("Razorpay refund response needs reconciliation.")
+            state = db.execute("SELECT state FROM razorpay_refunds WHERE order_id=?", (order_id,)).fetchone()["state"]
+        self.json_response(200, {"state": state})
+
     def advance(self, order_id):
         role = self.get_role()
         if not role:
@@ -746,6 +917,8 @@ class PrintBee(SimpleHTTPRequestHandler):
             next_status = advance_order(db, order_id, role, expected)
             if next_status:
                 ops.audit(db, role, next_status, order_id)
+                if next_status == "packed" and self.checkout_terms(db).get("autoDispatch"):
+                    ops.dispatch_available(db, order_id, set(self.server.partners) | set(self.server.partner_phones.values()))
         if not next_status:
             return self.json_response(409, {"error": "The order changed. Refresh your list."})
         self.json_response(200, {"status": next_status})
@@ -766,6 +939,14 @@ if __name__ == "__main__":
     bucket = os.environ.get("PRINTBEE_S3_BUCKET")
     keys = staff_keys()
     partners = json.loads(os.environ.get("PRINTBEE_PARTNER_KEYS", "{}"))
+    phones = json.loads(os.environ.get("PRINTBEE_PARTNER_PHONES", "{}"))
+    verify = partner_auth.Verify.from_environment()
+    if not isinstance(phones, dict) or any(
+        not re.fullmatch(r"\+[1-9][0-9]{7,14}", phone) or not isinstance(name, str)
+        or not re.fullmatch(r"[a-zA-Z0-9_-]{1,40}", name) or name == "delivery"
+        for phone, name in phones.items()
+    ) or len(set(phones.values())) != len(phones):
+        raise SystemExit("Provide a unique partner ID for each enrolled E.164 phone number.")
     if not isinstance(partners, dict) or any(
         not re.fullmatch(r"[a-zA-Z0-9_-]{1,40}", name) or name == "delivery" or
         not isinstance(key, str) or not re.fullmatch(r"[a-zA-Z0-9_-]{24,100}", key)
@@ -781,6 +962,7 @@ if __name__ == "__main__":
         db.executescript(auth.SCHEMA)
         db.executescript(razorpay_checkout.SCHEMA)
         db.executescript(ops.SCHEMA)
+        db.executescript(partner_auth.SCHEMA)
         db.executescript("""
             CREATE TABLE IF NOT EXISTS orders (id TEXT PRIMARY KEY, token TEXT, status TEXT, details TEXT);
             CREATE TABLE IF NOT EXISTS files (
@@ -797,6 +979,8 @@ if __name__ == "__main__":
     with ThreadingHTTPServer(("127.0.0.1", args.port), PrintBee) as server:
         server.keys = keys
         server.partners = {"delivery": keys["delivery"], **partners}
+        server.partner_phones = phones
+        server.partner_verify = verify
         server.payment_mode = payment_mode
         server.razorpay = gateway
         server.checkout_terms = checkout_terms

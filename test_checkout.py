@@ -7,10 +7,25 @@ from unittest.mock import Mock
 
 from checkout_terms import bill_for
 from order_rules import quote_items
-from razorpay_checkout import Razorpay, SCHEMA, record_capture
+from razorpay_checkout import Razorpay, SCHEMA, record_capture, record_refund
 
 
 class CheckoutTest(unittest.TestCase):
+    def test_refund_matches_the_captured_payment_and_is_idempotent(self):
+        order_id = "a" * 32
+        refund = {"id": "rfnd_Test1", "receipt": "PB-R-" + order_id, "status": "processed",
+                  "payment_id": "pay_Test1", "amount": 175, "currency": "INR"}
+        with closing(sqlite3.connect(":memory:")) as db:
+            db.row_factory = sqlite3.Row
+            db.executescript(SCHEMA + "CREATE TABLE orders(id TEXT PRIMARY KEY, status TEXT);")
+            db.execute("INSERT INTO orders VALUES (?, 'refund_pending')", (order_id,))
+            db.execute("INSERT INTO razorpay_orders VALUES (?, 'order_Test1', 175, 'pay_Test1')", (order_id,))
+            db.execute("INSERT INTO razorpay_refunds VALUES (?, NULL, 'requested')", (order_id,))
+            self.assertFalse(record_refund(db, {**refund, "amount": 174}))
+            self.assertTrue(record_refund(db, refund))
+            self.assertIsNone(record_refund(db, refund))
+            self.assertEqual(db.execute("SELECT status FROM orders").fetchone()["status"], "refunded")
+
     def test_paper_and_binding_rates_are_validated(self):
         item = dict(name="worksheet.pdf", size=15, pages=2, copies=2, colour=False,
                     duplex=False, orientation="Portrait", paper="A3", binding="spiral")

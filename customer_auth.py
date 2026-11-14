@@ -33,9 +33,9 @@ def digest(token):
     return hashlib.sha256(token.encode()).hexdigest()
 
 
-def session_token(headers):
+def session_token(headers, name=COOKIE):
     try:
-        cookie = SimpleCookie(headers.get("Cookie", "")).get(COOKIE)
+        cookie = SimpleCookie(headers.get("Cookie", "")).get(name)
         if cookie and re.fullmatch(r"[A-Za-z0-9_-]{43}", cookie.value):
             return cookie.value
     except CookieError:

@@ -1,0 +1,13 @@
+{
+  "id": "/partner.html",
+  "name": "PrintBee Delivery",
+  "short_name": "PrintBee",
+  "start_url": "/partner.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#fff9e8",
+  "theme_color": "#ffc83d",
+  "icons": [
+    {"src": "/printbee-loading-logo.webp", "sizes": "any", "type": "image/webp"}
+  ]
+}
