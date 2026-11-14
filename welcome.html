@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f6c84e">
+<title>Welcome · PrintBee</title>
+<link rel="icon" href="/printbee-tab-bee.png" type="image/png">
+<link rel="stylesheet" href="/studio.css?v=mobile-touch">
+<link rel="stylesheet" href="/welcome.css">
+<script src="/customer-login.js?v=welcome-entry" defer></script>
+</head>
+<body class="welcome-page">
+<main class="welcome-card" aria-labelledby="welcome-title">
+  <section class="welcome-sign-in" aria-labelledby="signin-title">
+    <h2 id="signin-title">Sign in</h2>
+    <p id="account-email"></p>
+    <a id="google-sign-in" class="welcome-button welcome-google" href="/api/auth/google?portal=welcome">
+      <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+        <path fill="#4285F4" d="M43.6 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h11a9.4 9.4 0 0 1-4.1 6.2v5h6.6c3.9-3.5 6.1-8.7 6.1-14.9z"/>
+        <path fill="#34A853" d="M24 44c5.5 0 10.2-1.8 13.5-4.6l-6.6-5a12.2 12.2 0 0 1-18.2-6.4H6v5.2A20 20 0 0 0 24 44z"/>
+        <path fill="#FBBC05" d="M12.7 28c-.9-2.6-.9-5.4 0-8V15H6a20 20 0 0 0 0 18z"/>
+        <path fill="#EA4335" d="M24 12c3 0 5.6 1 7.7 3l5.7-5.7A19.4 19.4 0 0 0 24 4 20 20 0 0 0 6 15l6.7 5A12 12 0 0 1 24 12z"/>
+      </svg>
+      Continue with Google
+    </a>
+    <form id="email-sign-in" class="welcome-email">
+      <p class="welcome-divider">or</p>
+      <label for="welcome-email">Email address</label>
+      <input id="welcome-email" name="email" type="email" autocomplete="email" placeholder="you@example.com" required maxlength="254">
+      <button class="welcome-button welcome-google" type="submit">Email me a sign-in link</button>
+    </form>
+    <form id="email-sign-in-confirm" hidden>
+      <button class="welcome-button welcome-google" type="submit">Confirm sign-in</button>
+    </form>
+    <form id="email-sign-out" hidden>
+      <button class="welcome-button welcome-google" type="submit">Sign out</button>
+    </form>
+    <p id="email-login-status" role="status"></p>
+  </section>
+  <section class="welcome-intro">
+    <img src="/printbee-header-bee.webp" width="288" height="228" alt="">
+    <h1 id="welcome-title">Welcome to PrintBee</h1>
+    <p>Your local print studio.</p>
+    <a class="welcome-button welcome-guest" href="/index.html">Continue as guest <span aria-hidden="true">→</span></a>
+  </section>
+</main>
+</body>
+</html>

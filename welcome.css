@@ -1,0 +1,112 @@
+.welcome-page {
+  min-height: 100vh;
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: clamp(14px, 4vw, 56px);
+  background: linear-gradient(90deg, #faca56 50%, #f5efe2 50%);
+  color: #2b2415;
+}
+
+.welcome-card {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: min(100%, 900px);
+  border-radius: clamp(24px, 4vw, 36px);
+  box-shadow: 0 18px 34px #543c173d, 0 3px 8px #543c172b;
+}
+
+.welcome-card section {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  min-height: 390px;
+  padding: clamp(26px, 5vw, 64px);
+  text-align: center;
+}
+
+.welcome-sign-in {
+  border-radius: 36px 0 0 36px;
+  background: #f9f5ea;
+  box-shadow: inset 4px 4px 14px #fffefa;
+}
+
+.welcome-sign-in h2,
+.welcome-intro h1 {
+  margin: 0;
+  color: inherit;
+  font-size: clamp(30px, 5vw, 47px);
+  line-height: 1.08;
+  letter-spacing: -.05em;
+}
+
+.welcome-intro {
+  border-radius: 0 36px 36px 0;
+  background: radial-gradient(ellipse at top left, #ffdf82, transparent 72%), #ffc83d;
+  box-shadow: inset -6px -7px 18px #af74132c;
+}
+
+.welcome-intro img {
+  width: 96px;
+  height: auto;
+  margin-bottom: 12px;
+}
+
+.welcome-intro p { margin-top: 8px; }
+.welcome-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: min(100%, 285px);
+  min-height: 52px;
+  margin-top: 24px;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 999px;
+  font-weight: 800;
+}
+
+.welcome-google {
+  background: #fcf8ee;
+  box-shadow: 5px 6px 14px #62503128, -4px -4px 12px #fffdf8, inset 2px 2px 5px #fff;
+}
+
+.welcome-google svg { flex: none; }
+
+.welcome-guest {
+  background: #ffe18a;
+  box-shadow: 5px 6px 14px #7e520a34, inset 2px 2px 6px #fff1b7;
+}
+
+.welcome-button:active { box-shadow: inset 3px 3px 9px #60451939; }
+.welcome-divider { margin: 14px 0 3px; color: #62543c; }
+.welcome-sign-in [hidden] { display: none; }
+.welcome-email {
+  display: grid;
+  justify-items: stretch;
+  gap: 7px;
+  width: min(100%, 285px);
+}
+.welcome-email label { text-align: left; font-size: .875rem; font-weight: 700; }
+.welcome-email input {
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: #f0eadc;
+  box-shadow: inset 3px 4px 8px #57431f25, inset -3px -3px 7px #fffc;
+}
+.welcome-email button { margin-top: 6px; }
+.welcome-sign-in #account-email { overflow-wrap: anywhere; min-width: 0; max-width: 100%; }
+.welcome-sign-in #email-login-status:not(:empty) { margin-top: 12px; color: #70401e; }
+
+@media (max-width:660px) {
+  .welcome-page { background: linear-gradient(#faca56 50%, #f5efe2 50%); }
+  .welcome-card { grid-template-columns: minmax(0, 1fr); max-width: 440px; }
+  .welcome-card section { min-height: 0; }
+  .welcome-sign-in { border-radius: 28px 28px 0 0; }
+  .welcome-intro { border-radius: 0 0 28px 28px; }
+  .welcome-intro img { width: 72px; }
+}

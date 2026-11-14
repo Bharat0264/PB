@@ -94,6 +94,12 @@ require the Python API.
   Reduced motion snaps the bubble and crossfades screens over 150ms.
 - The route determines the active tab on load and browser history navigation.
 
+The site root opens the welcome page. Continue as guest enters the customer
+site. Google sign-in from the welcome page routes verified emails by the
+configured lists in Admin, Warehouse, Partner order. Other accounts enter
+the customer site. Google staff sessions are scoped to one portal. After
+upgrading, existing Google staff sessions require sign-in again.
+
 ## Local operations
 
 Use Python with SQLite 3.35 or later. Open `/warehouse`, `/partner` or

@@ -82,14 +82,17 @@ class PrintBee(SimpleHTTPRequestHandler):
         role = "admin" if path.startswith("/api/admin") else "warehouse" if path.startswith("/api/staff/") else None
         if role and self.google_portal_access(role):
             return role
-        if role == "warehouse" and self.google_portal_access("admin"):
-            return "admin"
         return None
 
     def google_portal_access(self, portal):
         with closing(connect()) as db:
-            email = auth.portal_google_email(db, self.headers)
+            email = auth.portal_google_email(db, self.headers, portal)
         return self.server.google_access[portal].get(email)
+
+    def google_destination(self, mode):
+        if mode == "welcome":
+            return "/"
+        return auth.GOOGLE_PORTALS.get(mode, "/profile.html")
 
     def same_origin(self):
         origin = auth.public_origin() or f"http://{self.headers.get('Host')}"
@@ -140,10 +143,10 @@ class PrintBee(SimpleHTTPRequestHandler):
         config = auth.google_config()
         if path != auth.GOOGLE_CALLBACK:
             portal = parse_qs(urlsplit(self.path).query, max_num_fields=20).get("portal", [""])[0]
-            if portal and portal not in auth.GOOGLE_PORTALS:
+            if portal and portal != "welcome" and portal not in auth.GOOGLE_PORTALS:
                 return self.send_error(400)
             if not config:
-                return self.auth_redirect(auth.GOOGLE_PORTALS.get(portal, "/profile.html") + "#google-unavailable")
+                return self.auth_redirect(self.google_destination(portal) + "#google-unavailable")
             verifier = secrets.token_urlsafe(32)
             return self.auth_redirect(auth.google_authorization(config, verifier, portal),
                                       auth.session_cookie(verifier + "." + portal if portal else verifier,
@@ -154,26 +157,41 @@ class PrintBee(SimpleHTTPRequestHandler):
             cookie = SimpleCookie(self.headers.get("Cookie", "")).get(auth.GOOGLE_COOKIE)
             query = parse_qs(urlsplit(self.path).query, max_num_fields=20)
             verifier, _, portal = (cookie.value if cookie else "").partition(".")
-            destination = auth.GOOGLE_PORTALS.get(portal, destination)
-            if (not config or portal and portal not in auth.GOOGLE_PORTALS
+            destination = self.google_destination(portal)
+            if (not config or (portal and portal != "welcome" and portal not in auth.GOOGLE_PORTALS)
                     or not re.fullmatch(r"[A-Za-z0-9_-]{43}", verifier)
                     or not hmac.compare_digest(query.get("state", [""])[0].encode(),
                                                auth.google_state(verifier, portal).encode())):
                 raise ValueError("Invalid Google sign-in state")
             email = auth.google_email(config, query["code"][0], verifier)
+            from_welcome = portal == "welcome"
+            if from_welcome:
+                portal = next((role for role in ("admin", "warehouse", "partner")
+                               if email in self.server.google_access[role]), "")
+            cleared_sessions = []
             with closing(connect()) as db, db:
                 if portal:
-                    access = email in self.server.google_access[portal] or (
-                        portal == "warehouse" and email in self.server.google_access["admin"]
-                    )
-                    if not access:
+                    if email not in self.server.google_access[portal]:
                         return self.auth_redirect(destination + "#google-denied", clear)
-                    session = auth.portal_session(db, self.headers, email)
+                    session = auth.portal_session(db, self.headers, email, portal)
+                    destination = auth.GOOGLE_PORTALS[portal]
                 else:
                     session = auth.create_session(db, email, auth.session_token(self.headers))
+                    destination = "/index.html"
+                if from_welcome:
+                    # A new identity on the welcome page replaces the other login context.
+                    for table, name in (
+                        ("partner_sessions", "printbee_partner"),
+                        ("customer_sessions", auth.COOKIE) if portal
+                        else ("google_portal_sessions", auth.GOOGLE_PORTAL_COOKIE),
+                    ):
+                        token = auth.session_token(self.headers, name)
+                        if token:
+                            db.execute(f"DELETE FROM {table} WHERE digest=?", (auth.digest(token),))
+                            cleared_sessions.append(auth.session_cookie("", 0, name))
         except (CookieError, OSError, ValueError, KeyError, TypeError):
             return self.auth_redirect(destination + "#google-failed", clear)
-        return self.auth_redirect(destination if portal else "/", clear, session)
+        return self.auth_redirect(destination, clear, *cleared_sessions, session)
 
     def end_headers(self):
         # Revalidate page markup so all pages use the current navigation.
@@ -184,6 +202,9 @@ class PrintBee(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         path = urlsplit(self.path).path
+        if path == "/":
+            self.path = "/welcome.html"
+            return super().do_GET()
         if path.rstrip("/") in ("/home", "/orders", "/upload", "/address", "/profile"):
             self.path = "/navigation.html"
             return super().do_GET()
@@ -202,9 +223,7 @@ class PrintBee(SimpleHTTPRequestHandler):
             portal = parse_qs(urlsplit(self.path).query).get("portal", [""])[0]
             if portal not in auth.GOOGLE_PORTALS:
                 return self.send_error(400)
-            signed_in = self.google_portal_access(portal) or (
-                portal == "warehouse" and self.google_portal_access("admin")
-            ) or (portal == "partner" and self.get_partner())
+            signed_in = self.google_portal_access(portal) or (portal == "partner" and self.get_partner())
             return self.json_response(200, {"signedIn": bool(signed_in)})
         if path == "/api/orders/notifications":
             return self.customer_notifications()
@@ -213,7 +232,7 @@ class PrintBee(SimpleHTTPRequestHandler):
             return self.json_response(200, {"mode": self.server.payment_mode, "terms": terms,
                                            "maps": self.server.maps})
         if not path.startswith("/api/"):
-            allowed = {"/", "/index.html", "/studio.js", "/studio.css", "/clay.css", "/staff.html", "/staff.js", "/warehouse.css", "/warehouse.js", "/delivery-map.js",
+            allowed = {"/welcome.html", "/welcome.css", "/index.html", "/studio.js", "/studio.css", "/clay.css", "/staff.html", "/staff.js", "/warehouse.css", "/warehouse.js", "/delivery-map.js",
                        "/footer-wave.css", "/footer-wave.js",
                        "/partner.html", "/partner.css", "/partner.js", "/partner-sw.js", "/admin.html", "/admin-preview.html", "/admin-dashboard.css", "/admin-tokens.css",
                        "/admin-dashboard.js", "/admin-data.js", "/operations.js", "/partner.webmanifest", "/portal-login.js",
@@ -1120,6 +1139,8 @@ if __name__ == "__main__":
         raise SystemExit()
     with closing(connect()) as db, db:
         db.executescript(auth.SCHEMA)
+        if "portal" not in {column["name"] for column in db.execute("PRAGMA table_info(google_portal_sessions)")}:
+            db.execute("ALTER TABLE google_portal_sessions ADD COLUMN portal TEXT")
         db.executescript(razorpay_checkout.SCHEMA)
         db.executescript(ops.SCHEMA)
         db.executescript(partner_auth.SCHEMA)

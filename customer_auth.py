@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS customer_sessions (
     digest TEXT PRIMARY KEY, email TEXT NOT NULL, expires INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS google_portal_sessions (
-    digest TEXT PRIMARY KEY, email TEXT NOT NULL, expires INTEGER NOT NULL
+    digest TEXT PRIMARY KEY, email TEXT NOT NULL, expires INTEGER NOT NULL, portal TEXT
 );
 """
 
@@ -130,22 +130,23 @@ GOOGLE_PORTAL_COOKIE = "printbee_google_portal"
 GOOGLE_PORTALS = {"warehouse": "/warehouse", "partner": "/partner", "admin": "/admin"}
 
 
-def portal_session(db, headers, email):
+def portal_session(db, headers, email, portal):
     token = secrets.token_urlsafe(32)
     age = 43200
     now = int(time.time())
     db.execute("DELETE FROM google_portal_sessions WHERE expires<=? OR digest=?",
                (now, digest(session_token(headers, GOOGLE_PORTAL_COOKIE))))
-    db.execute("INSERT INTO google_portal_sessions VALUES (?,?,?)", (digest(token), email, now + age))
+    db.execute("INSERT INTO google_portal_sessions (digest, email, expires, portal) VALUES (?,?,?,?)",
+               (digest(token), email, now + age, portal))
     return session_cookie(token, age, GOOGLE_PORTAL_COOKIE)
 
 
-def portal_google_email(db, headers):
+def portal_google_email(db, headers, portal):
     token = session_token(headers, GOOGLE_PORTAL_COOKIE)
     if not token:
         return None
-    row = db.execute("SELECT email FROM google_portal_sessions WHERE digest=? AND expires>?",
-                     (digest(token), int(time.time()))).fetchone()
+    row = db.execute("SELECT email FROM google_portal_sessions WHERE digest=? AND expires>? AND portal=?",
+                     (digest(token), int(time.time()), portal)).fetchone()
     return row["email"] if row else None
 
 

@@ -70,12 +70,12 @@ if (match) {
   confirmSignIn.addEventListener('submit', event => {
     event.preventDefault();
     submitLogin(confirmSignIn, () => authRequest('verify', {token: match[1]}), () => {
-      if (window.parent !== window) window.parent.location.replace('/');
-      else location.replace('/');
+      if (window.parent !== window) window.parent.location.replace('/index.html');
+      else location.replace('/index.html');
     });
   });
 } else {
   authRequest('session').then(({email}) => showAccount(email)).catch(() => {
-    loginStatus.textContent = 'Could not check your sign-in status.';
+    if (!loginStatus.textContent) loginStatus.textContent = 'Could not check your sign-in status.';
   });
 }
