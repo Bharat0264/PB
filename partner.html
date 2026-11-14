@@ -2,22 +2,40 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#ffc83d">
 <title>Delivery partner · PrintBee</title>
 <link rel="manifest" href="/partner.webmanifest">
-<link rel="stylesheet" href="studio.css?v=solid-clay">
-<link rel="stylesheet" href="clay.css">
-<script src="portal-login.js" defer></script>
-<script src="operations.js?v=google" defer></script>
+<link rel="icon" href="/printbee-tab-bee.png">
+<link rel="stylesheet" href="/studio.css?v=solid-clay">
+<link rel="stylesheet" href="/clay.css">
+<link rel="stylesheet" href="/partner.css">
+<script src="/portal-login.js" defer></script>
+<script src="/partner.js" defer></script>
 </head>
-<body data-portal="partner">
-<header class="frame top"><a href="/">PrintBee</a></header>
-<main class="frame section staff-console">
-<h1>Delivery partner</h1>
-<div id="portal-login" class="clay-card"><a class="clay-button" href="/api/auth/google?portal=partner">Continue with Google</a></div>
-<button id="portal-logout" class="clay-button" type="button" hidden>Sign out</button>
-<p id="ops-status" role="status"></p>
-<div id="ops-content"></div>
-</main>
+<body class="rider">
+<a href="#main" class="skip">Skip to deliveries</a>
+<div class="rider-frame">
+  <header class="rider-header">
+    <a href="/" class="rider-brand"><img src="/printbee-header-bee.webp" alt="" width="58" height="46"><span>PrintBee<small>Delivery partner</small></span></a>
+    <div class="rider-actions"><span id="preview-chip" class="clay-badge" hidden>Sample data</span><button id="night-mode" class="rider-secondary" type="button" aria-pressed="false">Night mode</button><button id="portal-logout" class="rider-secondary" type="button" hidden>Sign out</button></div>
+  </header>
+  <main id="main">
+    <div id="portal-login" class="clay-card rider-login">
+      <h1>Delivery partner</h1>
+      <a class="clay-button" href="/api/auth/google?portal=partner">Continue with Google</a>
+      <details><summary>Sign in by phone</summary>
+        <form id="phone-login"><label>Phone with country code<input name="phone" class="clay-input" type="tel" autocomplete="tel" required placeholder="+91"></label><label id="login-code" hidden>SMS code<input name="code" class="clay-input" inputmode="numeric" autocomplete="one-time-code" maxlength="10"></label><button class="clay-button" type="submit">Send code</button></form>
+      </details>
+      <a href="/partner?preview=1">Open sample dashboard</a>
+    </div>
+    <p id="network" class="rider-banner" hidden>Connection lost. Your progress will refresh when you're back online.</p>
+    <p id="ops-status" role="status"></p>
+    <div id="rider-app" hidden>
+      <nav id="rider-nav" class="rider-tabs" aria-label="Partner sections"></nav>
+      <div id="rider-content"><p class="clay-card" role="status">Loading deliveries…</p></div>
+    </div>
+  </main>
+</div>
 </body>
 </html>

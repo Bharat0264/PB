@@ -187,10 +187,10 @@ class PrintBee(SimpleHTTPRequestHandler):
         if path in ("/profile", "/saved", "/add", "/track", "/more"):
             self.path = "/navigation.html"
             return super().do_GET()
-        if path == "/warehouse":
-            self.path = "/staff.html"
+        if path in ("/warehouse", "/partner"):
+            self.path = "/staff.html" if path == "/warehouse" else "/partner.html"
             return super().do_GET()
-        pages = {"/partner": "/partner.html", "/admin": "/admin.html"}
+        pages = {"/admin": "/admin.html"}
         if path in pages:
             return self.auth_redirect(pages[path])
         if path in ("/api/auth/google", auth.GOOGLE_CALLBACK):
@@ -215,7 +215,7 @@ class PrintBee(SimpleHTTPRequestHandler):
         if not path.startswith("/api/"):
             allowed = {"/", "/index.html", "/studio.js", "/studio.css", "/clay.css", "/staff.html", "/staff.js", "/warehouse.css", "/warehouse.js", "/delivery-map.js",
                        "/footer-wave.css", "/footer-wave.js",
-                       "/partner.html", "/admin.html", "/admin-preview.html", "/admin-dashboard.css", "/admin-tokens.css",
+                       "/partner.html", "/partner.css", "/partner.js", "/partner-sw.js", "/admin.html", "/admin-preview.html", "/admin-dashboard.css", "/admin-tokens.css",
                        "/admin-dashboard.js", "/admin-data.js", "/operations.js", "/partner.webmanifest", "/portal-login.js",
                        "/pricing.html", "/terms.html", "/queue.html", "/orders.html", "/profile.html", "/profile.js", "/address.html", "/customer-login.js",
                        "/preloader.js", "/preloader.css", "/preloader-art.js", "/gsap-3.13.0.min.js",
@@ -806,8 +806,9 @@ class PrintBee(SimpleHTTPRequestHandler):
         orders = []
         for row in rows:
             record = {key: row[key] for key in ("id", "status", "order_number", "partner")}
-            if row["partner"] and row["status"] != "delivered":
-                details = json.loads(row["details"])
+            details = json.loads(row["details"])
+            record["payout"] = details.get("partnerPayout", 0)
+            if row["partner"] and row["status"] == "out_for_delivery":
                 record.update({key: details.get(key) for key in ("customer", "address", "phone", "slot", "notes")})
             orders.append(record)
         availability = db.execute("SELECT available, updated FROM partner_availability WHERE partner=?",
@@ -985,6 +986,16 @@ class PrintBee(SimpleHTTPRequestHandler):
                 order_id, action = match.groups()
                 result = {"saved": True}
                 if action == "accept":
+                    if not db.execute(
+                        "SELECT 1 FROM partner_availability WHERE partner=? AND available=1 AND updated>?",
+                        (partner, int(time.time()) - 900),
+                    ).fetchone():
+                        raise ops.Conflict("Go online before accepting a delivery.")
+                    if db.execute(
+                        "SELECT 1 FROM deliveries JOIN orders ON orders.id=deliveries.order_id "
+                        "WHERE partner=? AND status IN ('packed','out_for_delivery')", (partner,),
+                    ).fetchone():
+                        raise ops.Conflict("Finish your current delivery first.")
                     ops.assign_delivery(db, order_id, partner)
                 elif action == "pickup":
                     ops.pickup(db, order_id, partner)
@@ -1002,8 +1013,9 @@ class PrintBee(SimpleHTTPRequestHandler):
                     ):
                         raise ValueError()
                     db.execute("UPDATE deliveries SET lat=?, lng=?, located_at=? WHERE order_id=? AND partner=? "
+                               "AND (located_at IS NULL OR located_at<=?) "
                                "AND EXISTS(SELECT 1 FROM orders WHERE id=? AND status='out_for_delivery')",
-                               (lat, lng, int(time.time()), order_id, partner, order_id))
+                               (lat, lng, int(time.time()), order_id, partner, int(time.time()) - 5, order_id))
         self.json_response(409 if "error" in result else 200, result)
 
     def refund_order(self, order_id):

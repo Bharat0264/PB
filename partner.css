@@ -1,0 +1,53 @@
+.rider { background:var(--clay-bg); color:var(--clay-ink); }
+.rider [hidden] { display:none !important; }
+.rider-frame { width:min(1380px,calc(100% - 32px)); margin:auto; padding-bottom:max(30px,env(safe-area-inset-bottom)); }
+.rider-header,.rider-actions,.rider-brand,.rider-card-head { display:flex; align-items:center; gap:12px; }
+.rider-header,.rider-card-head { justify-content:space-between; flex-wrap:wrap; }
+.rider-header { padding-block:18px; }
+.rider-brand { font-size:22px; font-weight:800; line-height:1.15; }
+.rider-brand img { object-fit:contain; }
+.rider-brand small { display:block; font-size:12px; color:var(--clay-muted); }
+.rider-actions { flex-wrap:wrap; gap:8px; }
+.rider .clay-button,.rider-secondary { min-height:56px; display:inline-flex; align-items:center; justify-content:center; text-align:center; padding:9px 17px; }
+.rider-secondary { border:none; border-radius:18px; box-shadow:var(--clay-raised); color:var(--clay-ink); background:var(--clay-surface); font-weight:800; cursor:pointer; }
+.rider-secondary:active { transform:scale(.97); }
+.rider-secondary[aria-current],.rider-secondary[aria-pressed=true] { background:#ffe7a1; color:#2b2415; box-shadow:inset 2px 3px 7px #93651532; }
+.rider-tabs { display:flex; gap:8px; overflow:auto; padding:5px 5px 14px; }
+.rider h1 { margin:4px 0 8px; font-size:clamp(34px,5vw,59px); }
+.rider h2 { font-size:23px; line-height:1.2; letter-spacing:-.035em; }
+.rider h3 { font-size:17px; }
+.rider #ops-status:not(:empty),.rider-banner { padding:10px 14px; border-radius:15px; background:#ffe8ac; color:#4a330f; margin-bottom:12px; }
+.rider-login { display:grid; justify-items:start; gap:14px; max-width:550px; }
+.rider-login a:last-child:not(.clay-button),.rider-contact { text-decoration:underline; }
+.rider-login form { display:grid; gap:10px; margin-top:10px; }
+.rider-layout { display:grid; gap:18px; }
+.rider-stack { display:grid; align-content:start; gap:14px; min-width:0; }
+.rider .clay-card { padding:clamp(15px,3vw,27px); overflow-wrap:anywhere; }
+.rider .rider-muted { color:var(--clay-muted); }
+.rider-metrics { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:13px; }
+.rider-metrics div,.rider-order { border-radius:17px; background:var(--clay-bg); padding:13px; }
+.rider-metrics strong { display:block; font-size:21px; }
+.rider-offers { display:grid; gap:8px; margin-top:14px; }
+.rider-order { display:grid; gap:7px; }
+.rider-main-action { width:100%; margin-top:12px; }
+.rider-map { min-width:0; }
+.rider-map svg { display:block; width:100%; height:auto; border-radius:19px; margin-block:12px; }
+.rider-map .route-dot { animation:rider-drive 2.6s ease-in-out infinite alternate; }
+@keyframes rider-drive { to { transform:translate(58px,-35px); } }
+.rider-progress { position:sticky; top:6px; z-index:1; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); list-style:none; margin:0 0 12px; padding:8px; border-radius:15px; background:var(--clay-bg); gap:4px; font-size:11px; text-align:center; }
+.rider-progress li { padding:6px 1px; border-radius:10px; }
+.rider-progress [aria-current] { background:#ffc83d; color:#2b2415; font-weight:800; }
+.rider-checks { display:grid; gap:6px; margin-block:12px; }
+.rider-checks label { min-height:44px; display:flex; align-items:center; gap:8px; }
+.rider-checks input { width:21px; height:21px; accent-color:#926006; }
+.rider-code { position:relative; display:grid; gap:9px; margin-block:12px; }
+.rider-code input { font-size:22px; letter-spacing:.28em; }
+.rider-digits { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; max-width:330px; }
+.rider-digits span { border-radius:14px; background:var(--clay-bg); min-height:48px; display:grid; place-items:center; font-size:25px; font-weight:800; box-shadow:inset 2px 2px 6px #8a642130; }
+.rider-success { text-align:center; }
+.rider-success img { width:82px; height:auto; margin:auto; }
+.rider-success .clay-badge { margin-block:8px; }
+.rider-night { --clay-bg:#252017; --clay-surface:#383024; --clay-ink:#fff3db; --clay-muted:#e5cfad; --clay-raised:5px 6px 14px #100c0699,inset 2px 2px 6px #fff3db15; }
+.rider-night .clay-button { color:#2b2415; }
+@media(min-width:768px) { .rider-layout { grid-template-columns:minmax(0,1.12fr) minmax(0,.88fr); } .rider-map { position:sticky; top:14px; align-self:start; } }
+@media(prefers-reduced-motion:reduce) { .rider-map .route-dot { animation:none; } }
