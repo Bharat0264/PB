@@ -8,8 +8,7 @@
 <title>Orders · PrintBee</title>
 <script src="preloader.js?v=3"></script>
 <link rel="stylesheet" href="studio.css?v=stitched-footer">
-<script src="profile.js?v=delivery-details" defer></script>
-<script src="studio.js?v=upload-review" defer></script>
+<script src="studio.js?v=placed-orders" defer></script>
 </head>
 <body>
 <a href="#main" class="skip">Skip to content</a>
@@ -22,39 +21,13 @@
     <a href="address.html?v=nav-order">Address</a>
     <a href="profile.html">Profile</a>
   </nav>
-  <a class="header-cart raised" href="queue.html#queue" aria-label="Cart — open print queue">
-    <svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="M2.5 4h3l2.4 11h11.3l2.1-8H6.2"/>
-      <circle cx="9" cy="19.5" r="1.2"/><circle cx="18" cy="19.5" r="1.2"/>
-    </svg>
-  </a>
 </header>
 <main id="main" class="frame inner-page">
   <section class="section rates" id="orders">
-    <div><h1>Orders on this device</h1><p>Review your saved orders and payment status.</p></div>
+    <div><h1>Orders on this device</h1><p>See what you ordered and track your delivery.</p></div>
     <div class="raised table-card"><p id="order-status" role="status"></p><ul id="order-history"></ul></div>
   </section>
 </main>
-<dialog id="checkout" aria-labelledby="checkout-title">
-  <form id="checkout-form">
-    <div class="checkout-heading"><h2 id="checkout-title">Print checkout</h2><button type="button" class="pill raised" id="checkout-close">Close</button></div>
-    <div id="checkout-files"></div>
-    <fieldset class="checkout-fields" id="checkout-delivery" hidden disabled>
-      <legend>Delivery details</legend>
-      <label>Full name<input name="customer" autocomplete="name" required maxlength="100"></label>
-      <label>Phone<input name="phone" type="tel" autocomplete="tel" pattern="[+0-9 \(\)\-]{7,20}" required maxlength="20"></label>
-      <label class="checkout-address">Delivery address<textarea name="address" autocomplete="street-address" required maxlength="500"></textarea></label>
-    </fieldset>
-    <section id="checkout-bill" aria-label="Order bill" hidden><h3>Order bill</h3><ul></ul></section>
-    <p id="checkout-payment-note" hidden>Test payment only. No money is charged. Delivery fees are excluded.</p>
-    <p id="checkout-error" role="status"></p>
-    <div class="checkout-bar">
-      <div><span id="checkout-page-count"></span><p class="checkout-total">Order total <output id="checkout-total"></output></p></div>
-      <button class="pill raised" type="button" id="checkout-back" hidden>Back</button>
-      <button class="pill yellow" type="submit">Review order</button>
-    </div>
-  </form>
-</dialog>
 <footer class="frame brand-footer" id="contact">
   <div class="footer-surface">
     <div class="footer-columns">

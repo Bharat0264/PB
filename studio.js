@@ -232,14 +232,12 @@ const checkoutFiles = document.querySelector('#checkout-files');
 const checkoutTotal = document.querySelector('#checkout-total');
 const checkoutError = document.querySelector('#checkout-error');
 const checkoutClose = document.querySelector('#checkout-close');
-const checkoutSubmit = checkoutForm.querySelector('[type="submit"]');
+const checkoutSubmit = checkoutForm?.querySelector('[type="submit"]');
 const orderHistory = document.querySelector('#order-history');
-const orderStatus = document.querySelector('#order-status');
 const rates = [175, 300, 850, 1400];
 const bindingRates = {none: 0, glossy: 5000, blue: 4000};
 const rupees = new Intl.NumberFormat('en-IN', {style: 'currency', currency: 'INR'});
 let checkoutEntries = [];
-let legacyOrder;
 let paymentStep = false;
 
 function fileCount(files) {
@@ -267,50 +265,26 @@ function setCheckoutStep(payment) {
   paymentStep = payment;
   checkoutFiles.hidden = payment;
   document.querySelector('#checkout-bill').hidden = !payment;
-  if (payment) showOrderBill(legacyOrder ? legacyItems(legacyOrder) : checkoutItems());
+  if (payment) showOrderBill(checkoutItems());
   else updateCheckoutTotal();
   const delivery = document.querySelector('#checkout-delivery');
   delivery.hidden = !payment;
   delivery.disabled = !payment;
   document.querySelector('#checkout-payment-note').hidden = !payment;
-  document.querySelector('#checkout-back').hidden = !payment || Boolean(legacyOrder);
+  document.querySelector('#checkout-back').hidden = !payment;
   document.querySelector('#checkout-title').textContent = payment ? 'Delivery and payment' : 'Print settings';
   checkoutSubmit.textContent = payment ? 'Place test order' : 'Review order';
   checkoutError.textContent = '';
 }
 
-document.querySelector('#checkout-back').addEventListener('click', () => {
+document.querySelector('#checkout-back')?.addEventListener('click', () => {
   setCheckoutStep(false);
   checkout.scrollTop = 0;
   checkoutFiles.querySelector('input')?.focus();
 });
 
-function legacyItems(order) {
-  return order.items.map(item => {
-    const colourCount = item.colourPages?.length ?? (item.colour ? item.pages : 0);
-    const sides = Number(Boolean(item.duplex));
-    const subtotal = item.copies * ((item.pages - colourCount) * rates[sides]
-      + colourCount * rates[2 + sides] + (bindingRates[item.binding] ?? 0));
-    return {...item, orientation: item.orientation || 'Portrait', subtotal};
-  });
-}
-
-function resumeOrder(order) {
-  if (checkout.open) return;
-  legacyOrder = order;
-  checkoutEntries = [];
-  pendingOrder = undefined;
-  checkoutForm.reset();
-  fillProfile(checkoutForm);
-  checkoutFiles.replaceChildren();
-  setCheckoutStep(true);
-  checkout.showModal();
-  checkoutForm.elements.customer.focus();
-}
-
 function openCheckout(entries) {
   if (!entries.length || checkout.open) return;
-  legacyOrder = undefined;
   checkoutEntries = entries;
   checkoutForm.reset();
   fillProfile(checkoutForm);
@@ -482,35 +456,27 @@ function updateCheckoutTotal() {
   checkoutTotal.value = rupees.format(subtotal / 100);
 }
 
-checkoutFiles.addEventListener('input', updateCheckoutTotal);
-checkoutClose.addEventListener('click', () => checkout.close());
-checkout.addEventListener('cancel', event => {
+checkoutFiles?.addEventListener('input', updateCheckoutTotal);
+checkoutClose?.addEventListener('click', () => checkout.close());
+checkout?.addEventListener('cancel', event => {
   if (checkoutSubmit.disabled) event.preventDefault();
 });
 
-async function saveOrder(order, previousOrderId) {
+async function saveOrder(order) {
   const db = await database;
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(['documents', 'orders'], 'readwrite');
     const documents = transaction.objectStore('documents');
     transaction.oncomplete = resolve;
     transaction.onabort = () => reject(transaction.error);
-    if (previousOrderId) {
-      const orders = transaction.objectStore('orders');
-      const previous = orders.getKey(previousOrderId);
-      previous.onsuccess = () => {
-        if (previous.result === undefined) transaction.abort();
-        else orders.delete(previousOrderId);
-      };
-    }
-    for (const item of previousOrderId ? [] : order.items) {
+    for (const item of order.items) {
       const check = documents.getKey(item.id);
       check.onsuccess = () => {
         if (check.result === undefined) transaction.abort();
         else documents.delete(item.id);
       };
     }
-    transaction.objectStore('orders').add(order);
+    transaction.objectStore('orders').add({...order, placed: true});
   });
 }
 
@@ -522,36 +488,37 @@ async function showOrders() {
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
+  const placedOrders = await Promise.all(orders.filter(order => order.orderKey).map(async order => {
+    try {
+      const {status} = await orderRequest('/api/orders/' + order.id, order.orderKey);
+      return Object.hasOwn(orderStates, status) ? {order, status} : null;
+    } catch {
+      return order.placed ? {order, status: null} : null;
+    }
+  }));
+  const visible = placedOrders.filter(Boolean).sort((a, b) => b.order.createdAt - a.order.createdAt);
   orderHistory.replaceChildren();
-  if (!orders.length) {
+  if (!visible.length) {
     const empty = document.createElement('li');
-    empty.textContent = 'Your orders will appear here.';
+    empty.textContent = 'Your placed orders will appear here.';
     orderHistory.append(empty);
   }
-  orders.sort((a, b) => b.createdAt - a.createdAt);
-  for (const order of orders) {
+  for (const {order, status} of visible) {
     const row = document.createElement('li');
     const details = document.createElement('details');
     const summary = document.createElement('summary');
-    const reference = order.id.slice(0, 8).toUpperCase();
-    const label = order.orderKey ? 'PB-' + reference : order.id;
+    summary.textContent = 'PB-' + order.id.slice(0, 8).toUpperCase();
     const state = document.createElement('p');
-    summary.textContent = label + ' · ' + rupees.format(order.subtotal / 100);
-    state.textContent = 'Payment pending';
-    if (order.orderKey) {
-      const refresh = async () => {
-        try {
-          const result = await orderRequest('/api/orders/' + order.id, order.orderKey);
-          state.textContent = orderStates[result.status] || result.status;
-        } catch {
-          state.textContent = 'Status unavailable. Try refreshing.';
-        }
-      };
-      void refresh();
-      details.append(summary, state, queueButton('Refresh status', refresh));
-    } else {
-      details.append(summary, state, queueButton('Proceed to payment', () => resumeOrder(order)));
-    }
+    state.textContent = orderStates[status] || 'Delivery status unavailable.';
+    details.append(summary, state);
+    details.append(queueButton('Refresh status', async () => {
+      try {
+        const result = await orderRequest('/api/orders/' + order.id, order.orderKey);
+        state.textContent = orderStates[result.status] || 'Delivery status unavailable.';
+      } catch {
+        state.textContent = 'Delivery status unavailable.';
+      }
+    }));
     const files = document.createElement('ul');
     for (const item of order.items) {
       const line = document.createElement('li');
@@ -567,7 +534,7 @@ async function showOrders() {
 }
 
 const orderStates = {
-  pending: 'Payment pending', paid: 'Test payment confirmed · With warehouse',
+  paid: 'Order received · With warehouse',
   printing: 'Printing', packed: 'Packed · Awaiting delivery',
   out_for_delivery: 'Out for delivery', delivered: 'Delivered',
 };
@@ -602,7 +569,7 @@ async function submitTestOrder(order) {
   await orderRequest(path + '/test-payment', order.orderKey, {method: 'POST'});
 }
 
-checkoutForm.addEventListener('submit', async event => {
+checkoutForm?.addEventListener('submit', async event => {
   event.preventDefault();
   if (checkoutSubmit.disabled) return;
   if (!paymentStep) {
@@ -620,7 +587,7 @@ checkoutForm.addEventListener('submit', async event => {
     checkoutError.textContent = 'Enter your name, a valid phone number and a delivery address.';
     return;
   }
-  const items = legacyOrder ? legacyItems(legacyOrder) : checkoutItems();
+  const items = checkoutItems();
   if (items.includes(null)) {
     setCheckoutStep(false);
     checkoutForm.reportValidity();
@@ -639,7 +606,7 @@ checkoutForm.addEventListener('submit', async event => {
   checkoutError.textContent = '';
   try {
     await submitTestOrder(order);
-    await saveOrder(order, legacyOrder?.id);
+    await saveOrder(order);
   } catch (error) {
     checkoutError.textContent = error.message || 'Could not complete checkout. Try again.';
     if (error.signInRequired) {
@@ -654,15 +621,7 @@ checkoutForm.addEventListener('submit', async event => {
     checkoutClose.disabled = false;
   }
   checkout.close();
-  if (!orderHistory) {
-    location.assign('orders.html#orders');
-    return;
-  }
-  orderStatus.textContent = 'Test order placed and sent to the warehouse.';
-  document.querySelector('#orders').scrollIntoView();
-  await Promise.all([showQueue(), showOrders()]).catch(() => {
-    orderStatus.textContent = 'Order ' + order.id + ' was saved. Reload to refresh your orders.';
-  });
+  location.assign('orders.html#orders');
 });
 
 Promise.all([showQueue(), showOrders()]).catch(() => {
