@@ -78,10 +78,17 @@ browser-local carts and saved orders need a migration plan before changing stora
 
 ## Local operations
 
-Use Python with SQLite 3.35 or later and run `python server.py --show-staff-keys`
-to obtain distinct warehouse, delivery, admin and agent credentials. Existing
-warehouse and delivery keys are preserved. Open `/warehouse`, `/partner` or
-`/admin` on the local server and enter the corresponding key.
+Use Python with SQLite 3.35 or later. Open `/warehouse`, `/partner` or
+`/admin` and choose **Continue with Google**. Use the same OAuth client and
+callback as the customer login in `EMAIL-SIGN-IN.md`. Set the comma-separated
+staff email lists in `PRINTBEE_GOOGLE_WAREHOUSE_EMAILS` and
+`PRINTBEE_GOOGLE_ADMIN_EMAILS`. Set `PRINTBEE_GOOGLE_PARTNERS` to a JSON object
+mapping Google email addresses to partner IDs. To preserve partner order
+history, use the existing partner ID, including `delivery` for the default
+operator. Customer sign-in sessions do not grant portal access.
+
+Run `python server.py --show-staff-keys` to obtain the Print-agent credential
+for the warehouse workstation. Existing API credentials continue to work.
 
 The warehouse can queue individual files or print all, retry failed
 jobs, or confirm a manually printed file. Packing requires every file to be

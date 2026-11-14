@@ -6,7 +6,8 @@
 <title>PrintBee staff portal</title>
 <link rel="stylesheet" href="studio.css?v=even-honeycomb">
 <link rel="stylesheet" href="clay.css?v=1">
-<script src="staff.js?v=warehouse-jobs" defer></script>
+<script src="portal-login.js" defer></script>
+<script src="staff.js?v=google" defer></script>
 </head>
 <body>
 <header class="frame top"><a href="/" class="brand">PrintBee</a></header>
@@ -14,10 +15,8 @@
 <section class="section staff-console">
 <h1>Warehouse</h1>
 <nav aria-label="Staff portals"><a href="/partner">Delivery partner</a> · <a href="/admin">Admin</a></nav>
-<form id="staff-login" class="clay-card staff-login-fields">
-  <label>Staff key<input class="clay-input" id="staff-key" type="password" required autocomplete="off"></label>
-  <button class="clay-button" type="submit">Load orders</button>
-</form>
+<div id="portal-login" class="clay-card"><a class="clay-button" href="/api/auth/google?portal=warehouse">Continue with Google</a></div>
+<button id="portal-logout" class="clay-button" type="button" hidden>Sign out</button>
 <p id="staff-status" class="clay-toast" role="status"></p>
 <div id="warehouse-filters" class="staff-login-fields" hidden>
   <label>Find an order<input class="clay-input" id="warehouse-search" type="search" placeholder="Order number"></label>

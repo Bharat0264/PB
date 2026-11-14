@@ -1,8 +1,6 @@
 const portal = document.body.dataset.portal;
-const login = document.querySelector('#ops-login');
 const statusLine = document.querySelector('#ops-status');
 const content = document.querySelector('#ops-content');
-let key;
 let locationWatch;
 
 function element(tag, text) {
@@ -15,7 +13,7 @@ async function api(path, data) {
   const post = data !== undefined;
   const response = await fetch(path, {
     method: post ? 'POST' : 'GET',
-    headers: {...(key ? {'X-Staff-Key': key} : {}), 'Content-Type': 'application/json'},
+    headers: {'Content-Type': 'application/json'},
     body: post ? JSON.stringify(data) : undefined,
   });
   const result = await response.json();
@@ -96,11 +94,6 @@ async function partnerOrders() {
       await api('/api/partner/availability', {available: !available});
       await partnerOrders();
     })];
-  if (!key) controls.push(action('Sign out', async () => {
-    await api('/api/partner/auth/logout', {});
-    stopSharing();
-    location.reload();
-  }));
   const money = value => new Intl.NumberFormat('en-IN', {style: 'currency', currency: 'INR'}).format(value / 100);
   content.replaceChildren(...controls, element('p', money(earnings.lifetime) + ' earned · ' +
     money(earnings.outstanding) + ' awaiting settlement'),
@@ -204,51 +197,4 @@ async function admin() {
   content.replaceChildren(action('Refresh dashboard', admin), totals, orders, pricing, settlements, audit);
 }
 
-login.addEventListener('submit', async event => {
-  event.preventDefault();
-  stopSharing();
-  key = login.querySelector('input').value;
-  content.replaceChildren();
-  statusLine.textContent = '';
-  try { await (portal === 'partner' ? partnerOrders() : admin()); }
-  catch (error) { statusLine.textContent = error.message; }
-});
-
-if (portal === 'partner') {
-  const phoneLogin = document.querySelector('#partner-phone-login');
-  const send = document.querySelector('#partner-send');
-  send.addEventListener('click', async () => {
-    send.disabled = true;
-    try {
-      await api('/api/partner/auth/send', {phone: phoneLogin.elements.phone.value});
-      statusLine.textContent = 'If your phone is enrolled, check your messages for a code.';
-      phoneLogin.elements.code.focus();
-    } catch (error) {
-      statusLine.textContent = error.message;
-    } finally {
-      send.disabled = false;
-    }
-  });
-  phoneLogin.addEventListener('submit', async event => {
-    event.preventDefault();
-    const submit = phoneLogin.querySelector('button[type="submit"], button:not([type])');
-    submit.disabled = true;
-    try {
-      key = undefined;
-      await api('/api/partner/auth/check', Object.fromEntries(new FormData(phoneLogin)));
-      phoneLogin.hidden = true;
-      login.hidden = true;
-      statusLine.textContent = '';
-      await partnerOrders();
-    } catch (error) {
-      statusLine.textContent = error.message;
-    } finally {
-      submit.disabled = false;
-    }
-  });
-  api('/api/partner/auth').then(({sms, signedIn}) => {
-    phoneLogin.hidden = !sms || signedIn;
-    login.hidden = signedIn;
-    if (signedIn) return partnerOrders();
-  }).catch(error => { statusLine.textContent = error.message; });
-}
+connectPortal(portal, statusLine, portal === 'partner' ? partnerOrders : admin, stopSharing);

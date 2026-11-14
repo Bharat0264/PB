@@ -75,13 +75,31 @@ class PrintBee(SimpleHTTPRequestHandler):
 
     def get_role(self):
         key = self.headers.get("X-Staff-Key", "").encode()
-        return next((role for role, secret in self.server.keys.items()
-                     if role != "delivery-code" and hmac.compare_digest(key, secret.encode())), None)
+        if key:
+            return next((role for role, secret in self.server.keys.items()
+                         if role != "delivery-code" and hmac.compare_digest(key, secret.encode())), None)
+        path = urlsplit(self.path).path
+        role = "admin" if path.startswith("/api/admin") else "warehouse" if path.startswith("/api/staff/") else None
+        if role and self.google_portal_access(role):
+            return role
+        return None
+
+    def google_portal_access(self, portal):
+        with closing(connect()) as db:
+            email = auth.portal_google_email(db, self.headers)
+        return self.server.google_access[portal].get(email)
+
+    def same_origin(self):
+        origin = auth.public_origin() or f"http://{self.headers.get('Host')}"
+        return self.headers.get("Origin") == origin
 
     def get_partner(self):
         key = self.headers.get("X-Staff-Key", "").encode()
         partner = next((name for name, secret in self.server.partners.items()
                         if hmac.compare_digest(key, secret.encode())), None)
+        if partner:
+            return partner
+        partner = self.google_portal_access("partner")
         if partner:
             return partner
         cookie = auth.session_token(self.headers, "printbee_partner")
@@ -118,27 +136,39 @@ class PrintBee(SimpleHTTPRequestHandler):
 
     def google_sign_in(self, path):
         config = auth.google_config()
-        if not config:
-            return self.auth_redirect("/profile.html#google-unavailable")
         if path != auth.GOOGLE_CALLBACK:
+            portal = parse_qs(urlsplit(self.path).query, max_num_fields=20).get("portal", [""])[0]
+            if portal and portal not in auth.GOOGLE_PORTALS:
+                return self.send_error(400)
+            if not config:
+                return self.auth_redirect(auth.GOOGLE_PORTALS.get(portal, "/profile.html") + "#google-unavailable")
             verifier = secrets.token_urlsafe(32)
-            return self.auth_redirect(auth.google_authorization(config, verifier),
-                                      auth.session_cookie(verifier, 600, auth.GOOGLE_COOKIE))
+            return self.auth_redirect(auth.google_authorization(config, verifier, portal),
+                                      auth.session_cookie(verifier + "." + portal if portal else verifier,
+                                                          600, auth.GOOGLE_COOKIE))
         clear = auth.session_cookie("", 0, auth.GOOGLE_COOKIE)
+        destination = "/profile.html"
         try:
             cookie = SimpleCookie(self.headers.get("Cookie", "")).get(auth.GOOGLE_COOKIE)
             query = parse_qs(urlsplit(self.path).query, max_num_fields=20)
-            verifier = cookie.value if cookie else ""
-            if (not re.fullmatch(r"[A-Za-z0-9_-]{43}", verifier)
+            verifier, _, portal = (cookie.value if cookie else "").partition(".")
+            destination = auth.GOOGLE_PORTALS.get(portal, destination)
+            if (not config or portal and portal not in auth.GOOGLE_PORTALS
+                    or not re.fullmatch(r"[A-Za-z0-9_-]{43}", verifier)
                     or not hmac.compare_digest(query.get("state", [""])[0].encode(),
-                                               auth.digest("state:" + verifier).encode())):
+                                               auth.google_state(verifier, portal).encode())):
                 raise ValueError("Invalid Google sign-in state")
             email = auth.google_email(config, query["code"][0], verifier)
             with closing(connect()) as db, db:
-                session = auth.create_session(db, email, auth.session_token(self.headers))
+                if portal:
+                    if email not in self.server.google_access[portal]:
+                        return self.auth_redirect(destination + "#google-denied", clear)
+                    session = auth.portal_session(db, self.headers, email)
+                else:
+                    session = auth.create_session(db, email, auth.session_token(self.headers))
         except (CookieError, OSError, ValueError, KeyError, TypeError):
-            return self.auth_redirect("/profile.html#google-failed", clear)
-        return self.auth_redirect("/", clear, session)
+            return self.auth_redirect(destination + "#google-failed", clear)
+        return self.auth_redirect(destination if portal else "/", clear, session)
 
     def end_headers(self):
         # Revalidate page markup so all pages use the current navigation.
@@ -157,6 +187,13 @@ class PrintBee(SimpleHTTPRequestHandler):
         if path == "/api/auth/session":
             with closing(connect()) as db:
                 return self.json_response(200, {"email": auth.session_email(db, self.headers)})
+        if path == "/api/auth/portal":
+            portal = parse_qs(urlsplit(self.path).query).get("portal", [""])[0]
+            if portal not in auth.GOOGLE_PORTALS:
+                return self.send_error(400)
+            return self.json_response(200, {"signedIn": bool(self.google_portal_access(portal) or (
+                portal == "partner" and self.get_partner()
+            ))})
         if path == "/api/orders/notifications":
             return self.customer_notifications()
         if path == "/api/checkout":
@@ -165,7 +202,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                                            "maps": self.server.maps})
         if not path.startswith("/api/"):
             allowed = {"/", "/index.html", "/studio.js", "/studio.css", "/clay.css", "/staff.html", "/staff.js", "/delivery-map.js",
-                       "/partner.html", "/admin.html", "/operations.js", "/partner.webmanifest",
+                       "/partner.html", "/admin.html", "/operations.js", "/partner.webmanifest", "/portal-login.js",
                        "/pricing.html", "/queue.html", "/orders.html", "/profile.html", "/profile.js", "/address.html", "/customer-login.js",
                        "/preloader.js", "/preloader.css", "/preloader-art.js", "/gsap-3.13.0.min.js"}
             if path == "/preloader-3d.bundle.js" and self.server.preloader_gzip:
@@ -403,6 +440,18 @@ class PrintBee(SimpleHTTPRequestHandler):
     def do_POST(self):
         path = urlsplit(self.path).path
         try:
+            if path == "/api/auth/portal/logout":
+                if not self.same_origin():
+                    return self.json_response(403, {"error": "Open PrintBee directly and try again."})
+                with closing(connect()) as db, db:
+                    for table, cookie in (("google_portal_sessions", auth.GOOGLE_PORTAL_COOKIE),
+                                          ("partner_sessions", "printbee_partner")):
+                        db.execute(f"DELETE FROM {table} WHERE digest=?",
+                                   (auth.digest(auth.session_token(self.headers, cookie)),))
+                return self.json_response(200, {"saved": True}, auth.session_cookie("", 0, auth.GOOGLE_PORTAL_COOKIE))
+            if path.startswith(("/api/staff/", "/api/admin/")) and not self.headers.get("X-Staff-Key"):
+                if not self.same_origin():
+                    return self.json_response(403, {"error": "Open PrintBee directly and try again."})
             if path == "/api/orders/notifications/read":
                 return self.customer_notifications(mark_read=True)
             if path in ("/api/partner/auth/send", "/api/partner/auth/check", "/api/partner/auth/logout"):
@@ -970,7 +1019,9 @@ class PrintBee(SimpleHTTPRequestHandler):
             if next_status:
                 ops.audit(db, role, next_status, order_id)
                 if next_status == "packed" and self.checkout_terms(db).get("autoDispatch"):
-                    ops.dispatch_available(db, order_id, set(self.server.partners) | set(self.server.partner_phones.values()))
+                    ops.dispatch_available(db, order_id, set(self.server.partners) |
+                                           set(self.server.partner_phones.values()) |
+                                           set(self.server.google_access["partner"].values()))
         if not next_status:
             return self.json_response(409, {"error": "The order changed. Refresh your list."})
         self.json_response(200, {"status": next_status})
@@ -993,6 +1044,18 @@ if __name__ == "__main__":
     partners = json.loads(os.environ.get("PRINTBEE_PARTNER_KEYS", "{}"))
     phones = json.loads(os.environ.get("PRINTBEE_PARTNER_PHONES", "{}"))
     verify = partner_auth.Verify.from_environment()
+    google_access = {
+        role: {email.strip().lower(): role for email in
+               os.environ.get("PRINTBEE_GOOGLE_" + role.upper() + "_EMAILS", "").split(",") if email.strip()}
+        for role in ("warehouse", "admin")
+    }
+    google_partners = json.loads(os.environ.get("PRINTBEE_GOOGLE_PARTNERS", "{}"))
+    if not isinstance(google_partners, dict) or any(
+        "@" not in email or not isinstance(partner, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,40}", partner)
+        for email, partner in google_partners.items()
+    ):
+        raise SystemExit("Set PRINTBEE_GOOGLE_PARTNERS to a JSON object mapping emails to partner IDs.")
+    google_access["partner"] = {email.strip().lower(): partner for email, partner in google_partners.items()}
     if not isinstance(phones, dict) or any(
         not re.fullmatch(r"\+[1-9][0-9]{7,14}", phone) or not isinstance(name, str)
         or not re.fullmatch(r"[a-zA-Z0-9_-]{1,40}", name) or name == "delivery"
@@ -1030,6 +1093,7 @@ if __name__ == "__main__":
             db.execute("ALTER TABLE files ADD COLUMN object_key TEXT")
     with ThreadingHTTPServer(("127.0.0.1", args.port), PrintBee) as server:
         server.keys = keys
+        server.google_access = google_access
         server.partners = {"delivery": keys["delivery"], **partners}
         server.partner_phones = phones
         server.partner_verify = verify

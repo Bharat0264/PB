@@ -1,7 +1,5 @@
-const login = document.querySelector('#staff-login');
 const statusLine = document.querySelector('#staff-status');
 const orders = document.querySelector('#staff-orders');
-const keyField = document.querySelector('#staff-key');
 const filters = document.querySelector('#warehouse-filters');
 const search = document.querySelector('#warehouse-search');
 const stateFilter = document.querySelector('#warehouse-state');
@@ -14,14 +12,14 @@ const labels = {
   out_for_delivery: 'Out for delivery', delivered: 'Delivered',
 };
 
-async function request(path, key, options = {}) {
-  const response = await fetch(path, {...options, headers: {'X-Staff-Key': key, ...options.headers}});
+async function request(path, options = {}) {
+  const response = await fetch(path, options);
   if (!response.ok) throw new Error((await response.json()).error);
   return response;
 }
 
-async function downloadFile(path, key, filename) {
-  const response = await request(path, key);
+async function downloadFile(path, filename) {
+  const response = await request(path);
   const url = URL.createObjectURL(await response.blob());
   const link = document.createElement('a');
   link.href = url;
@@ -48,8 +46,8 @@ function button(text, action) {
   return control;
 }
 
-async function loadOrders(key) {
-  const response = await request('/api/staff/orders', key);
+async function loadOrders() {
+  const response = await request('/api/staff/orders');
   const data = await response.json();
   orders.replaceChildren();
   filters.hidden = false;
@@ -86,7 +84,7 @@ async function loadOrders(key) {
             spiral: 'Spiral binding', staple: 'Staple binding'}[item.binding] || 'No binding',
         ].filter(Boolean).join(' · ');
         row.append(spec, button('Download print file', () =>
-          downloadFile('/api/staff/files/' + order.id + '/' + index, key, item.name)));
+          downloadFile('/api/staff/files/' + order.id + '/' + index, item.name)));
         const job = order.jobs.find(entry => entry.position === index);
         if (job) {
           const result = document.createElement('p');
@@ -95,30 +93,30 @@ async function loadOrders(key) {
         }
         if (['paid', 'printing'].includes(order.status) && (!job || job.state === 'failed')) {
           row.append(button(job ? 'Retry print' : 'Print file', async () => {
-            await request('/api/staff/orders/' + order.id + '/print/' + index, key, {method: 'POST'});
-            await loadOrders(key);
+            await request('/api/staff/orders/' + order.id + '/print/' + index, {method: 'POST'});
+            await loadOrders();
           }));
           row.append(button('Confirm manually printed', async () => {
-            await request('/api/staff/orders/' + order.id + '/printed/' + index, key, {method: 'POST'});
-            await loadOrders(key);
+            await request('/api/staff/orders/' + order.id + '/printed/' + index, {method: 'POST'});
+            await loadOrders();
           }));
         }
         files.append(row);
       });
       card.append(files);
       if (['paid', 'printing'].includes(order.status)) card.append(button('Print all', async () => {
-        await request('/api/staff/orders/' + order.id + '/print/all', key, {method: 'POST'});
-        await loadOrders(key);
+        await request('/api/staff/orders/' + order.id + '/print/all', {method: 'POST'});
+        await loadOrders();
       }));
       if (order.status === 'packed') card.append(button('Download packing label', () =>
-        downloadFile('/api/staff/orders/' + order.id + '/label', key, title.textContent + '-packing.pdf')));
+        downloadFile('/api/staff/orders/' + order.id + '/label', title.textContent + '-packing.pdf')));
     }
     const action = actions[data.role][order.status];
     if (action) card.append(button(action, async () => {
-      await request('/api/staff/orders/' + order.id + '/advance', key, {
+      await request('/api/staff/orders/' + order.id + '/advance', {
         method: 'POST', headers: {'X-Order-Status': order.status},
       });
-      await loadOrders(key);
+      await loadOrders();
     }));
     orders.append(card);
   }
@@ -135,21 +133,11 @@ function filterOrders() {
 
 filters.addEventListener('input', filterOrders);
 
-let refresh;
-login.addEventListener('submit', async event => {
-  event.preventDefault();
-  clearInterval(refresh);
-  const key = keyField.value;
-  try {
-    await loadOrders(key);
-    refresh = setInterval(() => {
-      if (!document.hidden && !orders.contains(document.activeElement)) {
-        loadOrders(key).catch(() => { statusLine.textContent = 'Could not refresh orders.'; });
-      }
-    }, 10000);
-  } catch (error) {
-    orders.replaceChildren();
-    filters.hidden = true;
-    statusLine.textContent = error.message || 'Could not load orders.';
-  }
+connectPortal('warehouse', statusLine, async () => {
+  await loadOrders();
+  setInterval(() => {
+    if (!document.hidden && !orders.contains(document.activeElement)) {
+      loadOrders().catch(() => { statusLine.textContent = 'Could not refresh orders.'; });
+    }
+  }, 10000);
 });

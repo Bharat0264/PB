@@ -26,6 +26,9 @@ CREATE INDEX IF NOT EXISTS login_links_email_time ON login_links(email, created)
 CREATE TABLE IF NOT EXISTS customer_sessions (
     digest TEXT PRIMARY KEY, email TEXT NOT NULL, expires INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS google_portal_sessions (
+    digest TEXT PRIMARY KEY, email TEXT NOT NULL, expires INTEGER NOT NULL
+);
 """
 
 
@@ -123,6 +126,27 @@ def create_session(db, email, old_token):
 
 GOOGLE_COOKIE = "printbee_google_flow"
 GOOGLE_CALLBACK = "/api/auth/google/callback"
+GOOGLE_PORTAL_COOKIE = "printbee_google_portal"
+GOOGLE_PORTALS = {"warehouse": "/warehouse", "partner": "/partner", "admin": "/admin"}
+
+
+def portal_session(db, headers, email):
+    token = secrets.token_urlsafe(32)
+    age = 43200
+    now = int(time.time())
+    db.execute("DELETE FROM google_portal_sessions WHERE expires<=? OR digest=?",
+               (now, digest(session_token(headers, GOOGLE_PORTAL_COOKIE))))
+    db.execute("INSERT INTO google_portal_sessions VALUES (?,?,?)", (digest(token), email, now + age))
+    return session_cookie(token, age, GOOGLE_PORTAL_COOKIE)
+
+
+def portal_google_email(db, headers):
+    token = session_token(headers, GOOGLE_PORTAL_COOKIE)
+    if not token:
+        return None
+    row = db.execute("SELECT email FROM google_portal_sessions WHERE digest=? AND expires>?",
+                     (digest(token), int(time.time()))).fetchone()
+    return row["email"] if row else None
 
 
 def google_config():
@@ -138,12 +162,17 @@ def google_config():
     return None
 
 
-def google_authorization(config, verifier):
+def google_state(verifier, portal=""):
+    return digest("state:" + verifier + ("." + portal if portal else ""))
+
+
+def google_authorization(config, verifier, portal=""):
     challenge = base64.urlsafe_b64encode(bytes.fromhex(digest(verifier))).decode().rstrip("=")
     query = urlencode({
         "client_id": config["client_id"], "redirect_uri": config["redirect_uri"],
         "response_type": "code", "scope": "openid email",
-        "state": digest("state:" + verifier),
+        "state": google_state(verifier, portal),
+        **({"prompt": "select_account"} if portal else {}),
         "code_challenge": challenge, "code_challenge_method": "S256",
     })
     return "https://accounts.google.com/o/oauth2/v2/auth?" + query

@@ -6,16 +6,15 @@
 <title>Admin · PrintBee</title>
 <link rel="stylesheet" href="studio.css">
 <link rel="stylesheet" href="clay.css">
-<script src="operations.js?v=settlements" defer></script>
+<script src="portal-login.js" defer></script>
+<script src="operations.js?v=google" defer></script>
 </head>
 <body data-portal="admin">
 <header class="frame top"><a href="/">PrintBee</a></header>
 <main class="frame section staff-console">
 <h1>Admin</h1>
-<form id="ops-login" class="clay-card staff-login-fields">
-  <label>Admin key<input class="clay-input" type="password" required autocomplete="off"></label>
-  <button class="clay-button">Open dashboard</button>
-</form>
+<div id="portal-login" class="clay-card"><a class="clay-button" href="/api/auth/google?portal=admin">Continue with Google</a></div>
+<button id="portal-logout" class="clay-button" type="button" hidden>Sign out</button>
 <p id="ops-status" role="status"></p>
 <div id="ops-content"></div>
 </main>
