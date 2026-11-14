@@ -14,11 +14,23 @@
 <script src="/partner.js" defer></script>
 </head>
 <body class="rider">
+<script>try { document.body.classList.toggle('rider-night', localStorage.getItem('printbee-rider-night') === '1'); } catch {}</script>
 <a href="#main" class="skip">Skip to deliveries</a>
 <div class="rider-frame">
-  <header class="rider-header">
+  <aside id="rider-sidebar" class="rider-sidebar">
     <a href="/" class="rider-brand"><img src="/printbee-header-bee.webp" alt="" width="58" height="46"><span>PrintBee<small>Delivery partner</small></span></a>
-    <div class="rider-actions"><span id="preview-chip" class="clay-badge" hidden>Sample data</span><button id="night-mode" class="rider-secondary" type="button" aria-pressed="false">Night mode</button><button id="portal-logout" class="rider-secondary" type="button" hidden>Sign out</button></div>
+    <nav id="rider-nav" class="rider-tabs" aria-label="Partner sections" hidden></nav>
+    <div class="rider-sidebar-footer"><span id="sidebar-shift" hidden></span><a href="mailto:printbee.co.in@gmail.com">Contact support</a></div>
+  </aside>
+  <div class="rider-workspace">
+  <header class="rider-header">
+    <div class="rider-actions"><button id="rider-collapse" class="rider-secondary" type="button" aria-controls="rider-sidebar" aria-expanded="true">‹</button><span class="rider-breadcrumb">Delivery partner <span aria-hidden="true">/</span> <strong id="rider-current">Sign in</strong></span></div>
+    <div class="rider-actions"><span id="preview-chip" class="clay-badge" title="Illustrative orders and earnings" hidden>Sample data</span>
+      <button id="rider-search" class="rider-secondary rider-icon-button" type="button" aria-label="Search portal" hidden></button>
+      <button id="rider-notifications" class="rider-secondary rider-icon-button" type="button" aria-label="Notifications" aria-haspopup="dialog" hidden></button>
+      <button id="night-mode" class="rider-secondary rider-icon-button" type="button" aria-label="Night mode" aria-pressed="false"></button>
+      <button id="rider-avatar" class="rider-secondary rider-icon-button" type="button" aria-label="Partner account" aria-haspopup="dialog" hidden>PB</button>
+    </div>
   </header>
   <main id="main">
     <div id="portal-login" class="clay-card rider-login">
@@ -32,10 +44,15 @@
     <p id="network" class="rider-banner" hidden>Connection lost. Your progress will refresh when you're back online.</p>
     <p id="ops-status" role="status"></p>
     <div id="rider-app" hidden>
-      <nav id="rider-nav" class="rider-tabs" aria-label="Partner sections"></nav>
       <div id="rider-content"><p class="clay-card" role="status">Loading deliveries…</p></div>
     </div>
   </main>
+  </div>
 </div>
+<dialog id="rider-dialog" class="clay-card" aria-labelledby="rider-dialog-title">
+  <div class="rider-card-head"><h2 id="rider-dialog-title"></h2><form method="dialog"><button class="rider-secondary" type="submit">Close</button></form></div>
+  <div id="rider-dialog-body"></div>
+  <button id="portal-logout" class="rider-secondary" type="button" hidden>Sign out</button>
+</dialog>
 </body>
 </html>

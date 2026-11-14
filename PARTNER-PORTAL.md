@@ -9,3 +9,12 @@ For the full live phone flow, deploy the existing backend behind an HTTPS origin
 ## Remaining production work
 
 The project still uses its existing Python and SQLite stack. The live maps embed, provider-specific directions/ETAs, push credentials, signature-protected photo proof, onboarding and approval UI, QR or warehouse pickup verification, OTP resend and fallback, detailed earnings/payouts, persistent location trails, and nearest-rider offers remain open. Live SMS and GPS were not tested with provider credentials or a physical phone.
+
+## Portal UI refresh
+
+The cockpit, earnings, and profile now share a desktop sidebar, tablet rail,
+mobile bottom tabs, and the same content grid. Press Ctrl or Cmd + K to
+search. The sample workspace includes the trend chart, settlement controls,
+and editable profile. Live earnings and profile use the existing API fields.
+Report exports contain the displayed delivery history. The sample route is
+illustrative, while live navigation uses the existing Google Maps link.
