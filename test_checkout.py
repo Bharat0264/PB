@@ -6,10 +6,20 @@ from contextlib import closing
 from unittest.mock import Mock
 
 from checkout_terms import bill_for
+from order_rules import quote_items
 from razorpay_checkout import Razorpay, SCHEMA, record_capture
 
 
 class CheckoutTest(unittest.TestCase):
+    def test_paper_and_binding_rates_are_validated(self):
+        item = dict(name="worksheet.pdf", size=15, pages=2, copies=2, colour=False,
+                    duplex=False, orientation="Portrait", paper="A3", binding="spiral")
+        with self.assertRaises(ValueError):
+            quote_items([item])
+        rows, total = quote_items([item], {"A3": (350, 600, 1700, 2800)}, {"spiral": 500})
+        self.assertEqual(rows[0]["paper"], "A3")
+        self.assertEqual(total, 2400)
+
     def test_one_bill_with_fees_coupon_and_rounded_tax(self):
         terms = {"packing": 100, "platform": 0, "delivery": 200, "taxBasisPoints": 500,
                  "coupons": {"WELCOME": 100}}

@@ -523,6 +523,16 @@ body{background:var(--base)}
 #checkout-bill li{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line)}
 #checkout-bill li span{min-width:0;overflow-wrap:anywhere}
 #checkout-bill li strong{white-space:nowrap}
+#delivery-map{height:clamp(220px,36vh,340px);margin-top:12px;border-radius:16px;overflow:hidden}
+#delivery-place-search gmp-place-autocomplete{width:100%;margin-top:12px}
+.order-timeline{display:flex;flex-wrap:wrap;gap:8px;padding:0;list-style:none}
+.order-timeline li{border:1px solid var(--line);border-radius:100px;padding:3px 10px}
+.order-timeline [aria-current="step"]{background:#e9edce;border-color:#a4af78;font-weight:700}
+.order-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:12px}
+@media (prefers-reduced-motion:no-preference){
+  #order-confirmation:not([hidden]){animation:order-confirmation-in .35s ease-out}
+}
+@keyframes order-confirmation-in{from{opacity:0;transform:translateY(6px)}}
 
 #checkout{width:min(620px,calc(100% - 24px));max-height:calc(100dvh - 24px);padding:clamp(16px,4vw,28px);border:0;border-radius:24px;background:var(--base);color:var(--ink);box-shadow:var(--raised)}
 #checkout::backdrop{background:#28261970}

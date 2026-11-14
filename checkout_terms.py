@@ -3,6 +3,8 @@
 import json
 import os
 
+from order_rules import BINDING_RATES, RATES
+
 
 def configured_terms():
     raw = json.loads(os.environ.get("PRINTBEE_CHECKOUT_TERMS", "{}"))
@@ -20,6 +22,21 @@ def configured_terms():
     ):
         raise ValueError("Coupons must map uppercase codes to positive integer paise discounts.")
     terms["coupons"] = coupons
+    paper = raw.get("paperRates", {})
+    binding = raw.get("bindingRates", {})
+    if not isinstance(paper, dict) or any(
+        key not in ("A4", "A3", "A5") or not isinstance(rates, list) or len(rates) != 4
+        or any(type(rate) is not int or rate < 100 for rate in rates)
+        for key, rates in paper.items()
+    ):
+        raise ValueError("Provide four integer paise rates per supported paper size.")
+    if not isinstance(binding, dict) or any(
+        key not in ("glossy", "blue", "spiral", "staple") or type(rate) is not int or rate < 0
+        for key, rate in binding.items()
+    ):
+        raise ValueError("Provide integer paise rates for supported bindings.")
+    terms["paperRates"] = {"A4": RATES, **paper}
+    terms["bindingRates"] = {**BINDING_RATES, **binding}
     return terms
 
 

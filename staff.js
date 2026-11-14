@@ -65,8 +65,9 @@ async function loadOrders(key) {
           item.name, item.pages + ' pages × ' + item.copies + ' copies',
           item.pageRange && 'Print pages ' + item.pageRange.join(', '),
           item.colourPages ? 'Colour pages ' + item.colourPages.join(', ') + ' · remaining B&W' : item.colour ? 'Colour' : 'Black & white',
-          item.duplex ? 'Double-sided' : 'Single-sided', item.orientation,
-          {glossy: 'Glossy binding · White transparent sheet', blue: 'Blue sheet binding'}[item.binding] || 'No binding',
+          item.duplex ? 'Double-sided' : 'Single-sided', item.orientation, item.paper || 'A4',
+          {glossy: 'Glossy binding · White transparent sheet', blue: 'Blue sheet binding',
+            spiral: 'Spiral binding', staple: 'Staple binding'}[item.binding] || 'No binding',
         ].filter(Boolean).join(' · ');
         row.append(spec, button('Download print file', async () => {
           const response = await request('/api/staff/files/' + order.id + '/' + index, key);

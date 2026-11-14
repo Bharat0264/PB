@@ -18,13 +18,14 @@ import customer_auth as auth
 import razorpay_checkout
 from checkout_terms import bill_for, configured_terms
 from document_pages import count_pages
-from order_rules import BINDING_RATES, LIMIT, TRANSITIONS, advance_order, quote_items
+from order_documents import PrivateFiles, invoice_pdf
+from order_rules import LIMIT, TRANSITIONS, advance_order, quote_items
 
 ROOT = Path(__file__).resolve().parent
 PRELOADER_BUNDLE = ROOT / "preloader-3d.bundle.js"
 DATA = Path(os.environ.get("LOCALAPPDATA", ROOT.parent)) / "PrintBeeLocal"
 DATA.mkdir(exist_ok=True)
-PDF_READERS = BoundedSemaphore(2)
+DOCUMENT_READERS = BoundedSemaphore(2)
 
 
 def connect():
@@ -123,9 +124,10 @@ class PrintBee(SimpleHTTPRequestHandler):
                 return self.json_response(200, {"email": auth.session_email(db, self.headers)})
         if path == "/api/checkout":
             terms = {key: value for key, value in self.server.checkout_terms.items() if key != "coupons"}
-            return self.json_response(200, {"mode": self.server.payment_mode, "terms": terms})
+            return self.json_response(200, {"mode": self.server.payment_mode, "terms": terms,
+                                           "maps": self.server.maps})
         if not path.startswith("/api/"):
-            allowed = {"/", "/index.html", "/studio.js", "/studio.css", "/clay.css", "/staff.html", "/staff.js",
+            allowed = {"/", "/index.html", "/studio.js", "/studio.css", "/clay.css", "/staff.html", "/staff.js", "/delivery-map.js",
                        "/pricing.html", "/queue.html", "/orders.html", "/profile.html", "/profile.js", "/address.html", "/customer-login.js",
                        "/preloader.js", "/preloader.css", "/preloader-art.js", "/gsap-3.13.0.min.js"}
             if path == "/preloader-3d.bundle.js" and self.server.preloader_gzip:
@@ -160,7 +162,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                     {"id": row["id"], "number": row["order_number"], "status": row["status"],
                      "items": [{key: item[key] for key in (
                          "name", "pages", "copies", "colour", "duplex", "orientation",
-                         "binding", "colourPages", "pageRange"
+                         "binding", "colourPages", "pageRange", "paper"
                      ) if key in item} for item in json.loads(row["details"])["items"]]}
                     for row in rows
                 ]})
@@ -194,20 +196,60 @@ class PrintBee(SimpleHTTPRequestHandler):
                                                     "paymentStarted": bool(row["provider_id"])})
             match = re.fullmatch(r"/api/staff/files/([a-f0-9]{32})/(\d+)", path)
             if match and self.get_role() == "warehouse":
-                row = db.execute("SELECT content FROM files JOIN orders ON orders.id=files.order_id "
+                row = db.execute("SELECT content, object_key FROM files JOIN orders ON orders.id=files.order_id "
                                  "WHERE order_id=? AND position=? AND status IN ('paid','printing','packed')",
                                  match.groups()).fetchone()
                 if row:
-                    body = row["content"]
-                    self.send_response(200)
-                    self.send_header("Content-Type", "application/octet-stream")
-                    self.send_header("Content-Disposition", "attachment")
-                    self.send_header("X-Content-Type-Options", "nosniff")
-                    self.send_header("Cache-Control", "no-store")
-                    self.send_header("Content-Length", str(len(body)))
-                    self.end_headers()
-                    self.wfile.write(body)
-                    return
+                    return self.send_file(row)
+            match = re.fullmatch(r"/api/orders/([a-f0-9]{32})/(invoice|files/(\d+))", path)
+            if match:
+                return self.order_download(db, match[1], match[3])
+        self.json_response(404, {"error": "Order or file unavailable."})
+
+    def do_HEAD(self):
+        self.send_error(405, "Use GET.")
+
+    def send_download(self, body, content_type, disposition="attachment"):
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Disposition", disposition)
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def send_file(self, row, signed=False):
+        if row["object_key"]:
+            storage = self.server.files
+            if not storage:
+                return self.json_response(503, {"error": "File storage is unavailable."})
+            try:
+                if signed:
+                    return self.auth_redirect(storage.signed_download(row["object_key"]))
+                body = storage.read(row["object_key"])
+            except storage.errors:
+                return self.json_response(502, {"error": "Could not retrieve the file. Please retry."})
+        else:
+            body = row["content"]
+        return self.send_download(body, "application/octet-stream")
+
+    def order_download(self, db, order_id, position):
+        row = db.execute(
+            "SELECT details, order_number, provider_id FROM order_owners JOIN orders "
+            "ON orders.id=order_owners.order_id LEFT JOIN razorpay_orders "
+            "ON orders.id=razorpay_orders.order_id WHERE orders.id=? AND email=? AND status!='pending'",
+            (order_id, auth.session_email(db, self.headers)),
+        ).fetchone()
+        if row and position is None:
+            number = row["order_number"] or "PB-" + order_id[:8].upper()
+            body = invoice_pdf(number, json.loads(row["details"]), "razorpay" if row["provider_id"] else "test")
+            return self.send_download(body, "application/pdf", f'attachment; filename="{number}.pdf"')
+        if row:
+            file = db.execute("SELECT content, object_key FROM files WHERE order_id=? AND position=?",
+                              (order_id, int(position))).fetchone()
+            if file:
+                return self.send_file(file, signed=urlsplit(self.path).query == "download=1")
         self.json_response(404, {"error": "Order or file unavailable."})
 
     def do_POST(self):
@@ -283,7 +325,8 @@ class PrintBee(SimpleHTTPRequestHandler):
                 len(re.sub(r"\D", "", details["phone"])) < 7 or
                 not details["address"] or len(details["address"]) > 500):
             raise ValueError()
-        documents, total = quote_items(data["items"])
+        terms = self.server.checkout_terms
+        documents, total = quote_items(data["items"], terms["paperRates"], terms["bindingRates"])
         coupon = data.get("coupon", "").strip().upper()
         notes = data.get("notes", "").strip()
         slot = data.get("slot", "")
@@ -313,12 +356,11 @@ class PrintBee(SimpleHTTPRequestHandler):
                 if stored != details:
                     return self.json_response(409, {"error": "Order details changed. Reopen checkout to try again."})
             else:
-                terms = self.server.checkout_terms
                 if (terms["slots"] or slot) and slot not in terms["slots"]:
                     return self.json_response(409, {"error": "Choose an available delivery slot."})
                 if coupon and coupon not in terms["coupons"]:
                     return self.json_response(409, {"error": "This coupon is unavailable."})
-                binding_total = sum(BINDING_RATES[item["binding"]] * item["copies"] for item in documents)
+                binding_total = sum(terms["bindingRates"][item["binding"]] * item["copies"] for item in documents)
                 bill = bill_for(total, binding_total, coupon, terms)
                 if type(data.get("expectedTotal")) is not int or data["expectedTotal"] != bill["total"]:
                     return self.json_response(409, {"error": "Prices changed. Refresh and review your order."})
@@ -333,12 +375,12 @@ class PrintBee(SimpleHTTPRequestHandler):
         if not 0 < length <= 65536:
             raise ValueError("Invalid quote length.")
         data = json.loads(self.rfile.read(length))
-        documents, total = quote_items(data["items"])
         coupon = data.get("coupon", "").strip().upper()
         terms = self.server.checkout_terms
+        documents, total = quote_items(data["items"], terms["paperRates"], terms["bindingRates"])
         if coupon and coupon not in terms["coupons"]:
             return self.json_response(400, {"error": "This coupon is unavailable."})
-        binding_total = sum(BINDING_RATES[item["binding"]] * item["copies"] for item in documents)
+        binding_total = sum(terms["bindingRates"][item["binding"]] * item["copies"] for item in documents)
         bill = bill_for(total, binding_total, coupon, terms)
         self.json_response(200, bill)
 
@@ -346,16 +388,19 @@ class PrintBee(SimpleHTTPRequestHandler):
         length = int(self.headers.get("Content-Length", "0"))
         if not 0 < length <= LIMIT:
             raise ValueError("Invalid file size.")
-        if not PDF_READERS.acquire(blocking=False):
+        if not DOCUMENT_READERS.acquire(blocking=False):
             self.close_connection = True
             return self.json_response(503, {"error": "Page counting is busy. Try again."})
         try:
             body = self.rfile.read(length)
             if len(body) != length:
                 raise ValueError("Incomplete upload.")
-            pages = count_pages("document.pdf", body)
+            kind = parse_qs(urlsplit(self.path).query).get("format", ["pdf"])[0]
+            if kind not in ("pdf", "docx"):
+                raise ValueError("Unsupported document format.")
+            pages = count_pages("document." + kind, body)
         finally:
-            PDF_READERS.release()
+            DOCUMENT_READERS.release()
         self.json_response(200, {"pages": pages})
 
     def upload(self, order_id, position):
@@ -372,7 +417,12 @@ class PrintBee(SimpleHTTPRequestHandler):
             if len(body) != length:
                 raise ValueError()
             item = items[position]
-            pages = count_pages(item["name"], body)
+            if not DOCUMENT_READERS.acquire(blocking=False):
+                return self.json_response(503, {"error": "Page counting is busy. Try again."})
+            try:
+                pages = count_pages(item["name"], body)
+            finally:
+                DOCUMENT_READERS.release()
             requested = item.get("pageRange", [item["pages"]])[-1]
             if pages is not None and requested > pages:
                 return self.json_response(422, {"error": "The selected print pages exceed the file's page count."})
@@ -382,7 +432,16 @@ class PrintBee(SimpleHTTPRequestHandler):
                     "SELECT 1 FROM razorpay_orders WHERE order_id=?", (order_id,)
                 ).fetchone():
                     return self.json_response(409, {"error": "Payment has already started."})
-                db.execute("INSERT OR REPLACE INTO files VALUES (?, ?, ?)", (order_id, position, body))
+                storage = self.server.files
+                if storage:
+                    try:
+                        object_key = storage.put(order_id, position, body)
+                    except storage.errors:
+                        return self.json_response(502, {"error": "Could not store the file. Please retry."})
+                else:
+                    object_key = None
+                db.execute("INSERT OR REPLACE INTO files (order_id, position, content, object_key) VALUES (?, ?, ?, ?)",
+                           (order_id, position, None if object_key else body, object_key))
         self.json_response(200, {"saved": True})
 
     def customer_order(self, db, order_id):
@@ -472,6 +531,7 @@ if __name__ == "__main__":
         raise SystemExit("Test payments require a local origin.")
     gateway = razorpay_checkout.Razorpay.from_environment() if payment_mode == "razorpay" else None
     checkout_terms = configured_terms()
+    bucket = os.environ.get("PRINTBEE_S3_BUCKET")
     keys = staff_keys()
     if args.show_staff_keys:
         for role, key in keys.items():
@@ -491,11 +551,17 @@ if __name__ == "__main__":
         if "order_number" not in {column["name"] for column in db.execute("PRAGMA table_info(order_owners)")}:
             db.execute("ALTER TABLE order_owners ADD COLUMN order_number TEXT")
         db.execute("CREATE UNIQUE INDEX IF NOT EXISTS order_owners_number ON order_owners(order_number)")
+        if "object_key" not in {column["name"] for column in db.execute("PRAGMA table_info(files)")}:
+            db.execute("ALTER TABLE files ADD COLUMN object_key TEXT")
     with ThreadingHTTPServer(("127.0.0.1", args.port), PrintBee) as server:
         server.keys = keys
         server.payment_mode = payment_mode
         server.razorpay = gateway
         server.checkout_terms = checkout_terms
+        maps_key = os.environ.get("PRINTBEE_MAPS_BROWSER_KEY")
+        maps_id = os.environ.get("PRINTBEE_MAPS_MAP_ID")
+        server.maps = {"key": maps_key, "id": maps_id} if maps_key and maps_id else None
+        server.files = PrivateFiles(bucket) if bucket else None
         server.preloader_gzip = gzip.compress(PRELOADER_BUNDLE.read_bytes()) if PRELOADER_BUNDLE.is_file() else None
         print(f"PrintBee at http://127.0.0.1:{args.port}/ (payments: {payment_mode})", flush=True)
         server.serve_forever()

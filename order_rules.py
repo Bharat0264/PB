@@ -4,7 +4,9 @@ BINDING_RATES = {"none": 0, "glossy": 5000, "blue": 4000}
 LIMIT = 50 * 1024 * 1024
 
 
-def quote_items(items):
+def quote_items(items, paper_rates=None, binding_rates=None):
+    paper_rates = paper_rates or {"A4": RATES}
+    binding_rates = binding_rates or BINDING_RATES
     if not isinstance(items, list) or not 1 <= len(items) <= 100:
         raise ValueError("Choose between one and 100 files.")
     documents = []
@@ -19,8 +21,12 @@ def quote_items(items):
                 and isinstance(item["name"], str) and 1 <= len(item["name"]) <= 255):
             raise ValueError("Invalid file options.")
         binding = item.get("binding", "none")
-        if not isinstance(binding, str) or binding not in BINDING_RATES:
+        if not isinstance(binding, str) or binding not in binding_rates:
             raise ValueError("Invalid binding.")
+        paper = item.get("paper", "A4")
+        if not isinstance(paper, str) or paper not in paper_rates:
+            raise ValueError("Invalid paper size.")
+        rates = paper_rates[paper]
         selected = item.get("colourPages")
         if selected is not None and (
             colour or not isinstance(selected, list) or not selected or
@@ -29,11 +35,13 @@ def quote_items(items):
         ):
             raise ValueError("Invalid colour page selection.")
         colour_count = len(selected) if selected is not None else pages if colour else 0
-        subtotal = copies * ((pages - colour_count) * RATES[duplex]
-                             + colour_count * RATES[2 + duplex] + BINDING_RATES[binding])
+        subtotal = copies * ((pages - colour_count) * rates[duplex]
+                             + colour_count * rates[2 + duplex] + binding_rates[binding])
         document = {key: item[key] for key in (
             "name", "size", "pages", "copies", "colour", "duplex", "orientation"
         )} | {"subtotal": subtotal, "binding": binding, "colourPages": selected}
+        if paper != "A4":
+            document["paper"] = paper
         page_range = item.get("pageRange")
         if page_range is not None:
             if (not isinstance(page_range, list) or len(page_range) != pages

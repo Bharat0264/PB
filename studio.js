@@ -33,6 +33,13 @@ const cartCheckout = document.querySelector('#cart-checkout');
 const cartCount = document.querySelector('#cart-count');
 const maxOrderFiles = 100;
 
+async function addToCart(entries) {
+  await queueAction('readwrite', store => {
+    const requests = entries.map(entry => store.add(entry));
+    return requests.at(-1);
+  });
+}
+
 async function showQueue() {
   if (!queueList) return;
   const db = await database;
@@ -51,7 +58,7 @@ async function showQueue() {
   queueList.replaceChildren();
   cartCheckout.hidden = entries.length === 0;
   cartCount.textContent = fileCount(entries);
-  cartCheckout.querySelector('button').onclick = () => {
+  cartCheckout.querySelector('button').onclick = async () => {
     if (saveButton.disabled) return;
     if (draftFiles.length) {
       status.textContent = 'Add the files you’re reviewing to the cart before checking out.';
@@ -61,6 +68,7 @@ async function showQueue() {
       status.textContent = 'An order can contain up to 100 files. Remove files to continue.';
       return;
     }
+    await paymentConfig;
     openCheckout(entries);
   };
   for (const [id, entry] of entries) {
@@ -148,22 +156,26 @@ function addDraft(file) {
   const title = document.createElement('strong');
   title.textContent = file.name;
   const options = createPrintOptions(id, {file}, updateDraftTotal);
-  if (extension === 'pdf') {
+  if (['pdf', 'docx'].includes(extension)) {
     const pagesInput = options.querySelector(`[name="pages-${id}"]`);
     const hint = document.createElement('small');
-    hint.textContent = 'Counting PDF pages…';
+    hint.textContent = 'Counting document pages…';
     pagesInput.after(hint);
     let manuallyEdited = false;
     pagesInput.addEventListener('input', () => { manuallyEdited = true; });
     pdfPageQueue = pdfPageQueue.then(async () => {
       if (!options.isConnected) return;
-      const {pages} = await orderRequest('/api/checkout/pages', null, {method: 'POST', body: file});
+      const {pages} = await orderRequest('/api/checkout/pages?format=' + extension, null, {method: 'POST', body: file});
       if (!options.isConnected) return;
+      if (pages === null) {
+        hint.textContent = 'Enter the page count from your document.';
+        return;
+      }
       pagesInput.max = pages;
       if (!manuallyEdited) pagesInput.value = pages;
       hint.textContent = pages + (pages === 1 ? ' page detected' : ' pages detected');
       updateDraftTotal();
-    }).catch(() => { hint.textContent = 'Could not count pages. Check that the PDF opens.'; });
+    }).catch(() => { hint.textContent = 'Could not count pages. Check that the file opens.'; });
   }
   const remove = queueButton('×', () => {
     draftFiles = draftFiles.filter(([key]) => key !== id);
@@ -209,17 +221,21 @@ function reviewFiles(files) {
   status.textContent = '';
   updateDraftTotal();
 }
-fileInput?.addEventListener('change', () => {
-  reviewFiles(Array.from(fileInput.files));
+fileInput?.addEventListener('change', async () => {
+  const files = Array.from(fileInput.files);
   fileInput.value = '';
+  await paymentConfig;
+  reviewFiles(files);
 });
 form?.addEventListener('dragover', event => {
   if (event.dataTransfer.types.includes('Files')) event.preventDefault();
 });
-form?.addEventListener('drop', event => {
+form?.addEventListener('drop', async event => {
   if (!event.dataTransfer.types.includes('Files')) return;
   event.preventDefault();
-  reviewFiles(Array.from(event.dataTransfer.files));
+  const files = Array.from(event.dataTransfer.files);
+  await paymentConfig;
+  reviewFiles(files);
 });
 reviewSettings?.addEventListener('input', updateDraftTotal);
 
@@ -235,11 +251,8 @@ form?.addEventListener('submit', async event => {
   const removeButtons = [...reviewGrid.querySelectorAll('.review-remove')];
   removeButtons.forEach(button => { button.disabled = true; });
   try {
-    await queueAction('readwrite', store => {
-      const requests = items.map(({id, file, subtotal, ...printOptions}) =>
-        store.add({file, settings: 'Saved document', printOptions}));
-      return requests.at(-1);
-    });
+    await addToCart(items.map(({id, file, subtotal, ...printOptions}) =>
+      ({file, settings: 'Saved document', printOptions})));
     for (const [, {url}] of draftFiles) if (url) URL.revokeObjectURL(url);
     draftFiles = [];
     reviewGrid.replaceChildren(addMore);
@@ -263,20 +276,25 @@ const checkoutError = document.querySelector('#checkout-error');
 const checkoutClose = document.querySelector('#checkout-close');
 const checkoutSubmit = checkoutForm?.querySelector('[type="submit"]');
 const orderHistory = document.querySelector('#order-history');
-const rates = [175, 300, 850, 1400];
-const bindingRates = {none: 0, glossy: 5000, blue: 4000};
+let paperRates = {A4: [175, 300, 850, 1400]};
+let bindingRates = {none: 0, glossy: 5000, blue: 4000};
+const bindingNames = {none: 'No binding', glossy: 'Glossy soft binding', blue: 'Blue sheet binding',
+  spiral: 'Spiral binding', staple: 'Staple binding'};
 const rupees = new Intl.NumberFormat('en-IN', {style: 'currency', currency: 'INR'});
 let checkoutEntries = [];
 let paymentStep = false;
 let paymentMode = 'disabled';
 const paymentConfig = checkout ? fetch('/api/checkout').then(async response => {
   if (!response.ok) return;
-  const {mode, terms} = await response.json();
+  const {mode, terms, maps} = await response.json();
+  paperRates = terms.paperRates;
+  bindingRates = terms.bindingRates;
   paymentMode = mode;
   const slot = checkoutForm.elements.slot;
   slot.replaceChildren(...terms.slots.map(label => new Option(label, label)));
   slot.disabled = terms.slots.length === 0;
   slot.closest('label').hidden = slot.disabled;
+  setupDeliveryMap(maps);
 }).catch(() => {}) : null;
 let activeBill;
 let appliedCoupon = '';
@@ -393,7 +411,7 @@ function openCheckout(entries) {
   for (const [id, entry] of entries) {
     checkoutFiles.append(createPrintOptions(id, entry, updateCheckoutTotal));
   }
-  checkoutFiles.insertAdjacentHTML('beforeend', '<p>Enter the number of pages you want printed in each file. A4 rates apply.</p>');
+  checkoutFiles.insertAdjacentHTML('beforeend', '<p>Enter the number of pages you want printed in each file.</p>');
   setCheckoutStep(false);
   checkout.showModal();
 }
@@ -422,7 +440,13 @@ function createPrintOptions(id, entry, onChange) {
       onChange();
     });
   });
-  group.append(quantity,
+  const paper = document.createElement('label');
+  paper.textContent = 'Paper size';
+  const paperSelect = document.createElement('select');
+  paperSelect.name = 'paper-' + id;
+  paperSelect.append(...Object.keys(paperRates).map(size => new Option(size, size)));
+  paper.append(paperSelect);
+  group.append(quantity, paper,
     pageRangeField(id),
     printChoices('Choose print colour', 'ink-' + id, ['Black & white', 'Colour', 'Select colour pages']),
     colourPageField(id),
@@ -430,6 +454,7 @@ function createPrintOptions(id, entry, onChange) {
     printChoices('Choose print sides', 'sides-' + id, ['Single-sided', 'Double-sided']), bindingChoices(id));
   const saved = entry.printOptions;
   if (saved) {
+    paperSelect.value = Object.hasOwn(paperRates, saved.paper) ? saved.paper : 'A4';
     for (const [key, value] of Object.entries({
       pages: saved.pages, copies: saved.copies, 'colour-pages': saved.colourPages?.join(', ') || '',
       'page-range': saved.pageRange?.join(', ') || '',
@@ -440,6 +465,7 @@ function createPrintOptions(id, entry, onChange) {
       sides: Number(saved.duplex),
       binding: saved.binding,
     };
+    if (!Object.hasOwn(bindingRates, choices.binding)) choices.binding = 'none';
     for (const input of group.querySelectorAll('input[type="radio"]')) {
       const key = input.name.slice(0, -String(id).length - 1);
       input.checked = input.value === String(choices[key]);
@@ -489,15 +515,15 @@ function colourPageField(id) {
 }
 
 function bindingChoices(id) {
-  const group = printChoices('Binding', 'binding-' + id, ['No binding', 'Soft Binding Glossy paper SRM', 'Soft Binding Blue Sheet SRM']);
+  const keys = Object.keys(bindingRates);
+  const group = printChoices('Binding', 'binding-' + id, keys.map(key => bindingNames[key]));
   group.classList.add('binding-options');
-  const descriptions = ['', 'White transparent sheet', 'Blue sheet'];
   group.querySelectorAll('label').forEach((label, index) => {
-    const key = Object.keys(bindingRates)[index];
+    const key = keys[index];
     label.querySelector('input').value = key;
     if (key === 'none') return;
     const detail = document.createElement('small');
-    detail.textContent = descriptions[index] + ' · +' + rupees.format(bindingRates[key] / 100) + ' per copy';
+    detail.textContent = '+' + rupees.format(bindingRates[key] / 100) + ' per copy';
     label.querySelector('span').append(detail);
   });
   return group;
@@ -559,10 +585,12 @@ function readPrintItems(settingsForm, entries) {
     if (!Number.isInteger(pages) || pages < 1 || pages > pageLimit || !Number.isInteger(copies) || copies < 1 || copies > 100) return null;
     const colour = ink === '1';
     const binding = data.get('binding-' + id);
+    const paper = data.get('paper-' + id);
+    const rates = paperRates[paper];
     const duplex = Number(data.get('sides-' + id));
     const colourCount = colourPages?.length ?? (colour ? pages : 0);
     const subtotal = copies * ((pages - colourCount) * rates[duplex] + colourCount * rates[2 + duplex] + bindingRates[binding]);
-    return {id, file: entry.file, pages, copies, colour, binding, colourPages, pageRange,
+    return {id, file: entry.file, pages, copies, colour, binding, colourPages, pageRange, paper,
       duplex: Boolean(duplex), orientation: data.get('orientation-' + id) === '1' ? 'Landscape' : 'Portrait', subtotal};
   });
 }
@@ -639,26 +667,83 @@ async function showOrders() {
     summary.textContent = displayOrderNumber(order);
     details.open = confirmedId === order.id;
     const state = document.createElement('p');
-    state.textContent = orderStates[order.status] || 'Delivery status unavailable.';
-    details.append(summary, state);
-    details.append(queueButton('Refresh status', async () => {
+    state.className = 'order-state';
+    const steps = document.createElement('ol');
+    steps.className = 'order-timeline';
+    const stages = {paid: 'Order received', printing: 'Printing', packed: 'Packed',
+      out_for_delivery: 'Out for delivery', delivered: 'Delivered'};
+    function renderStage(currentStatus) {
+      state.textContent = orderStates[currentStatus] || 'Delivery status unavailable.';
+      steps.replaceChildren(...Object.entries(stages).map(([key, label]) => {
+        const step = document.createElement('li');
+        step.textContent = label;
+        if (currentStatus === key) step.setAttribute('aria-current', 'step');
+        return step;
+      }));
+    }
+    renderStage(order.status);
+    details.append(summary, state, steps);
+    let updating = false;
+    async function refreshStatus() {
+      if (updating) return;
+      updating = true;
       try {
         const {status: currentStatus} = await orderRequest('/api/orders/' + order.id, order.orderKey);
-        state.textContent = orderStates[currentStatus] || 'Delivery status unavailable.';
+        if (state.textContent !== orderStates[currentStatus]) renderStage(currentStatus);
       } catch {
-        state.textContent = 'Delivery status unavailable.';
+        state.textContent = 'Could not refresh delivery status.';
+      } finally {
+        updating = false;
       }
-    }));
+    }
+    let timer;
+    details.addEventListener('toggle', () => {
+      clearInterval(timer);
+      if (!details.open) return;
+      refreshStatus();
+      timer = setInterval(() => { if (!document.hidden) refreshStatus(); }, 15000);
+    });
+    details.append(queueButton('Refresh status', refreshStatus));
     const files = document.createElement('ul');
     for (const item of order.items) {
       const line = document.createElement('li');
       line.textContent = (item.name || item.file.name) + ' · ' + item.pages + ' pages × ' + item.copies + ' copies · '
         + (item.pageRange ? 'Print pages ' + item.pageRange.join(', ') + ' · ' : '')
         + (item.colourPages ? 'Colour pages ' + item.colourPages.join(', ') : item.colour ? 'Colour' : 'Black & white') + ' · ' + (item.duplex ? 'Double-sided' : 'Single-sided') + (item.orientation ? ' · ' + item.orientation : '')
-        + ({glossy: ' · Glossy binding', blue: ' · Blue sheet binding'}[item.binding] || '');
+        + ' · ' + (item.paper || 'A4') + (item.binding && item.binding !== 'none' ? ' · ' + bindingNames[item.binding] : '');
       files.append(line);
     }
     details.append(files);
+    const actions = document.createElement('div');
+    actions.className = 'order-actions';
+    if (accountIds.has(order.id)) {
+      const invoice = document.createElement('a');
+      invoice.href = '/api/orders/' + order.id + '/invoice';
+      invoice.textContent = 'Download order PDF';
+      actions.append(invoice);
+    }
+    const reorder = queueButton('Add order to cart', async () => {
+      reorder.disabled = true;
+      try {
+        const entries = [];
+        for (const [index, item] of order.items.entries()) {
+          let file = item.file;
+          if (!file) {
+            const response = await fetch('/api/orders/' + order.id + '/files/' + index);
+            if (!response.ok) throw new Error('File unavailable');
+            file = new File([await response.blob()], item.name);
+          }
+          entries.push({file, settings: 'Saved document', printOptions: item});
+        }
+        await addToCart(entries);
+        location.assign('queue.html#queue');
+      } catch {
+        status.textContent = 'Could not add this order to the cart. Its files may no longer be available.';
+        reorder.disabled = false;
+      }
+    });
+    actions.append(reorder);
+    details.append(actions);
     row.append(details);
     orderHistory.append(row);
   }
@@ -750,8 +835,8 @@ async function orderRequest(path, key, options = {}) {
 }
 
 function orderDocuments(items) {
-  return items.map(({file, pages, copies, colour, duplex, orientation, binding, colourPages, pageRange}) => ({
-    name: file.name, size: file.size, pages, copies, colour, duplex, orientation, binding, colourPages, pageRange,
+  return items.map(({file, pages, copies, colour, duplex, orientation, binding, colourPages, pageRange, paper}) => ({
+    name: file.name, size: file.size, pages, copies, colour, duplex, orientation, binding, colourPages, pageRange, paper,
   }));
 }
 

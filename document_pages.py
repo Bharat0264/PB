@@ -1,5 +1,10 @@
 """Read physical page counts for supported print files."""
 
+import os
+import shutil
+import subprocess
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from io import BytesIO
 from pathlib import PurePath
 
@@ -9,6 +14,27 @@ from pypdf.errors import PyPdfError
 
 def count_pages(name, content):
     suffix = PurePath(name).suffix.lower()
+    if suffix == ".docx":
+        executable = os.environ.get("PRINTBEE_SOFFICE") or shutil.which("soffice")
+        if not executable:
+            return None
+        with TemporaryDirectory(prefix="printbee-docx-") as directory:
+            folder = Path(directory)
+            source = folder / "document.docx"
+            source.write_bytes(content)
+            try:
+                subprocess.run(
+                    [executable, "-env:UserInstallation=" + (folder / "profile").as_uri(),
+                     "--headless", "--convert-to", "pdf", "--outdir", str(folder), str(source)],
+                    stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                    timeout=30, check=True,
+                )
+                result = folder / "document.pdf"
+                if result.stat().st_size > 50 * 1024 * 1024:
+                    raise ValueError("The rendered document is too large.")
+                return count_pages(result.name, result.read_bytes())
+            except (OSError, subprocess.SubprocessError) as error:
+                raise ValueError("Use a readable DOCX or export it as PDF.") from error
     if suffix == ".pdf" or content.startswith(b"%PDF-"):
         try:
             pdf = PdfReader(BytesIO(content))

@@ -22,13 +22,36 @@ same account. Orders placed before account history was added remain visible
 on the original browser. Pending checkouts are excluded from order history.
 
 The upload page counts PDF pages and validates selected ranges against the file
-at checkout. JPG and PNG are single-page formats. DOCX still uses manual page
-counts because pagination depends on document rendering.
+at checkout. JPG and PNG are single-page formats. Install LibreOffice and set
+`PRINTBEE_SOFFICE` to its executable path for DOCX page counts. Without a
+renderer, buyers can enter the DOCX page count manually. Run document conversion
+on an isolated service account with limited filesystem and network access when
+accepting files from the public.
 
 Checkout quotes come from the server. Set `PRINTBEE_CHECKOUT_TERMS` to configure
 delivery slot labels, fees and fixed-value coupon codes using integer paise.
 Tax is expressed in basis points. Defaults preserve the existing print prices
 without charging additional fees. The bill is saved before payment starts.
+Optional `paperRates` entries for A3 and A5 take four integer paise values
+in the order B&W single-sided, B&W double-sided, colour single-sided and colour
+double-sided. Optional `bindingRates` enables `spiral` and `staple`. Set the
+rates and confirm availability with the print shop before offering them.
+
+Set `PRINTBEE_MAPS_BROWSER_KEY` and `PRINTBEE_MAPS_MAP_ID` for address search
+and map pins. Enable Maps JavaScript API and Places API (New), and restrict the
+browser key to the site's origins. Manual address entry works without a map key.
+
+Set `PRINTBEE_S3_BUCKET` to a private bucket with S3 public access blocked.
+Use IAM credentials from the AWS SDK environment and grant access to the
+`printbee/orders/` prefix. An optional S3-compatible endpoint is configurable.
+The application checks order ownership before returning a file or creating a
+one-minute signed link. Without S3, the local app stores files in SQLite.
+Existing SQLite files remain readable with either configuration.
+
+Placed orders show delivery stages and refresh while open. Customers can
+download an order PDF or copy its files and print settings into the cart to
+review them at current prices. The PDF is an order receipt or local test
+summary. Merchant tax registration details are needed for GST invoices.
 
 Payments default to disabled. For a local demo, export
 `PRINTBEE_PAYMENT_MODE=test`. For Razorpay, export the settings in
@@ -43,7 +66,7 @@ for the same cart and details reuses its order reference.
 
 | Phase | Scope and dependencies |
 | --- | --- |
-| 2 | Provider-side verification with Razorpay test keys and a public webhook, Google Places and a map picker, private object storage, DOCX rendering for page counts, paper-size and additional binding rates, reorder, and invoice downloads. |
+| 2 | Verify Razorpay test checkout against a public webhook, configure and verify Google Maps and the private bucket, and test DOCX pagination with the production renderer. Configure merchant details for tax invoices. |
 | 3 | Warehouse dashboard, durable print jobs, printer agent, packing labels, and per-user audit logs. Validate the agent on the actual warehouse printer before rollout. |
 | 4 | Partner accounts and assignment, Google Maps, location tracking, and OTP delivery confirmation with a configured SMS provider. |
 | 5 | Admin roles, versioned pricing, partner management, reporting, refunds, and payouts. |
