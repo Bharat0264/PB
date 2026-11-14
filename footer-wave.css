@@ -39,7 +39,7 @@
   display: flex;
   align-items: end;
   /* Reserve space for the script font's overhang and the layered shadow. */
-  gap: .165em;
+  gap: .125em;
   padding: .11em .16em .24em .1em;
   font-family: Lobster, Georgia, serif;
   font-size: clamp(28px, 18cqw, 170px);
@@ -58,6 +58,11 @@
     -.025em .057em 0 #53251c, -.032em .073em 0 #3b1b15,
     -.04em .09em .018em #4d2e2355;
   transform-origin: 50% 100%;
+}
+
+/* The n's left overhang needs a little more room beside the i. */
+.footer-wave-word span:nth-child(4) {
+  margin-inline-start: .035em;
 }
 
 .footer-wave-word span:nth-child(n+6) {
