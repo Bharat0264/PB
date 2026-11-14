@@ -809,7 +809,7 @@ async function showOrders() {
           entries.push({file, settings: 'Saved document', printOptions: item});
         }
         await addToCart(entries);
-        if (window.parent !== window) window.parent.location.assign('/saved');
+        if (window.parent !== window) window.parent.location.assign('/upload');
         else location.assign('queue.html#queue');
       } catch {
         status.textContent = 'Could not add this order to the cart. Its files may no longer be available.';
@@ -1057,7 +1057,7 @@ checkoutForm?.addEventListener('submit', async event => {
     checkoutForm.elements.coupon.readOnly = false;
   }
   checkout.close();
-  if (window.parent !== window) window.parent.location.assign('/track?placed=' + placedId + '#orders');
+  if (window.parent !== window) window.parent.location.assign('/orders?placed=' + placedId + '#orders');
   else location.assign('orders.html?placed=' + placedId + '#orders');
 });
 

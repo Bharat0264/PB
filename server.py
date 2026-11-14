@@ -184,7 +184,7 @@ class PrintBee(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         path = urlsplit(self.path).path
-        if path in ("/profile", "/saved", "/add", "/track", "/more"):
+        if path.rstrip("/") in ("/home", "/orders", "/upload", "/address", "/profile"):
             self.path = "/navigation.html"
             return super().do_GET()
         if path in ("/warehouse", "/partner"):

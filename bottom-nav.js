@@ -1,27 +1,31 @@
 import {navTokens as theme} from './nav-tokens.js';
 
-const tabs = [
-  ['profile', 'Profile', '/profile.html', '<circle cx="12" cy="8" r="3.5"/><path d="M5 20v-1a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v1"/>'],
-  ['saved', 'Saved', '/queue.html?embedded=saved', '<path d="M6 4h12v16l-6-4-6 4z"/>'],
-  ['add', 'Add', '/queue.html', '<path d="M12 5v14M5 12h14"/>'],
-  ['track', 'Track', '/orders.html', '<path d="M20 10c0 5-8 10-8 10S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/>'],
-  ['more', 'More', null, '<path d="M5 6h14M5 12h14M5 18h14"/>'],
+export const tabs = [
+  {key:'home', label:'Home', path:'/home', page:'/index.html', icon:'<path d="m3 10 9-7 9 7v10h-6v-6H9v6H3z"/>'},
+  {key:'orders', label:'Orders', path:'/orders', page:'/orders.html', icon:'<path d="m3 7 9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10M7.5 5l9 4"/>'},
+  {key:'upload', label:'Upload', path:'/upload', page:'/queue.html', icon:'<path d="M12 16V4m-5 5 5-5 5 5M4 15v5h16v-5"/>'},
+  {key:'address', label:'Address', path:'/address', page:'/address.html', icon:'<path d="M20 10c0 5-8 10-8 10s-8-5-8-10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/>'},
+  {key:'profile', label:'Profile', path:'/profile', page:'/profile.html', icon:'<circle cx="12" cy="8" r="3.5"/><path d="M5 20v-1a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v1"/>'},
 ];
-const addIndex = 2;
+const uploadIndex = tabs.findIndex(tab => tab.key === 'upload');
 const svgNS = 'http://www.w3.org/2000/svg';
 const motion = matchMedia('(prefers-reduced-motion: reduce)');
 const easing = 'cubic-bezier(.215,.61,.355,1)';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 export function notchPath(width, height, cx, radius, fillet) {
-  const r = Math.max(0, Math.min(radius, cx, width - cx));
-  const f = Math.max(0, Math.min(fillet, cx - r, width - cx - r));
-  const depth = radius + 6;
-  const k = .55228475;
-  return `M0 0 H${cx-r-f} C${cx-r} 0 ${cx-r} 3 ${cx-r} 6
-    C${cx-r} ${6+radius*k} ${cx-r*k} ${depth} ${cx} ${depth}
-    C${cx+r*k} ${depth} ${cx+r} ${6+radius*k} ${cx+r} 6
-    C${cx+r} 3 ${cx+r} 0 ${cx+r+f} 0 H${width} V${height} H0 Z`;
+  const edge = Math.min(cx, width - cx);
+  const y = theme.diameter / 2 - theme.lift;
+  const r = Math.min(radius, edge);
+  if (r <= y) return `M0 0 H${width} V${height} H0 Z`;
+  // The outer arcs are tangent to the top edge and the circular cut-out.
+  const f = clamp((edge * edge + y * y - r * r) / (2 * (r + y)), 0, fillet);
+  const offset = Math.sqrt((r + f) ** 2 - (y - f) ** 2);
+  const x = offset * r / (r + f);
+  const join = y + (f - y) * r / (r + f);
+  const left = f ? `A${f} ${f} 0 0 1 ${cx-x} ${join}` : '';
+  const right = f ? `A${f} ${f} 0 0 1 ${cx+offset} 0` : '';
+  return `M0 0 H${cx-offset} ${left} A${r} ${r} 0 ${join < y ? 1 : 0} 0 ${cx+x} ${join} ${right} H${width} V${height} H0 Z`;
 }
 
 function icon(index) {
@@ -31,13 +35,13 @@ function icon(index) {
     'stroke-width': '1.75', 'stroke-linecap': 'round', 'stroke-linejoin': 'round',
     'aria-hidden': 'true', focusable: 'false',
   })) svg.setAttribute(key, value);
-  svg.innerHTML = tabs[index][3];
+  svg.innerHTML = tabs[index].icon;
   return svg;
 }
 
 function routeIndex() {
   const path = location.pathname.replace(/\/$/, '');
-  const index = tabs.findIndex(([route]) => path === '/' + route);
+  const index = tabs.findIndex(tab => path === tab.path || path === tab.page);
   return index < 0 ? 0 : index;
 }
 
@@ -45,10 +49,11 @@ export class BottomNav {
   constructor(bar) {
     this.bar = bar;
     this.bar.setAttribute('role', 'tablist');
-    this.links = tabs.map(([route, label], index) => {
+    this.links = tabs.map(({key:route, label, path}, index) => {
       const tab = document.createElement('a');
       tab.id = 'tab-' + route;
-      tab.href = '/' + route;
+      tab.href = path;
+      tab.setAttribute('aria-label', label);
       tab.setAttribute('role', 'tab');
       tab.setAttribute('aria-controls', 'panel-' + route);
       const picture = document.createElement('span');
@@ -70,13 +75,10 @@ export class BottomNav {
     this.bubble = document.createElement('div');
     this.bubble.className = 'nav-bubble';
     this.bubble.setAttribute('aria-hidden', 'true');
-    this.ghosts = [.25, .12].map(() => {
-      const ghost = document.createElement('div');
-      ghost.className = 'nav-ghost';
-      ghost.setAttribute('aria-hidden', 'true');
-      return ghost;
-    });
-    bar.replaceChildren(this.shape, ...this.links, ...this.ghosts, this.bubble);
+    this.ghost = document.createElement('div');
+    this.ghost.className = 'nav-ghost';
+    this.ghost.setAttribute('aria-hidden', 'true');
+    bar.replaceChildren(this.shape, ...this.links, this.ghost, this.bubble);
     const style = document.documentElement.style;
     const variables = {ink: theme.ink, surface: theme.bar, bubble: theme.bubble, shadow: theme.shadow,
       size: theme.diameter + 'px', lift: theme.lift + 'px',
@@ -102,33 +104,38 @@ export class BottomNav {
     });
   }
 
-  center() { return this.width * (this.index + .5) / 5; }
+  center() { return this.width * (this.index + .5) / tabs.length; }
 
   measure() {
     cancelAnimationFrame(this.frame);
     this.width = this.bar.clientWidth;
     this.height = this.bar.clientHeight;
+    if (!this.width) return;
     this.x = this.center();
     this.velocity = 0;
     this.trail = [];
     this.paint();
+    this.bar.classList.add('is-ready');
   }
 
   paint(time) {
-    const margin = this.width / 10;
-    const x = clamp(this.x, margin - 5, this.width - margin + 5);
-    const stretch = motion.matches ? 0 : Math.min(.25, Math.abs(this.velocity) / 3600);
-    this.path.setAttribute('d', notchPath(this.width, this.height, x, theme.radius * (1 + stretch * .7), theme.fillet));
+    const margin = this.width / (2 * tabs.length);
+    const x = clamp(this.x, margin, this.width - margin);
+    const edge = Math.min(x, this.width - x);
+    const stretch = motion.matches ? 0 : Math.min(.2, Math.abs(this.velocity) / 3600, Math.max(0, (edge - 3) / 28 - 1));
+    if (this.bar.classList.contains('off-tab')) {
+      this.path.setAttribute('d', `M0 0 H${this.width} V${this.height} H0 Z`);
+      return;
+    }
+    this.path.setAttribute('d', notchPath(this.width, this.height, x, theme.radius * (1 + stretch), theme.fillet));
     this.bubble.style.transform = `translate3d(${x}px,0,0) scale(${1+stretch},${1-.6*stretch})`;
     if (time) {
       this.trail.push({x, time});
       while (time - this.trail[0].time >= 120) this.trail.shift();
     }
-    this.ghosts.forEach((ghost, index) => {
-      const point = this.trail.findLast(entry => time - entry.time >= 20 + index * 24);
-      ghost.style.opacity = point && stretch > .015 ? (index ? .12 : .25) : 0;
-      ghost.style.transform = `translate3d(${point?.x ?? x}px,0,0)`;
-    });
+    const point = this.trail.findLast(entry => time - entry.time >= 24);
+    this.ghost.style.opacity = point && stretch > .015 ? .15 : 0;
+    this.ghost.style.transform = `translate3d(${point?.x ?? x}px,0,0)`;
   }
 
   slide() {
@@ -167,17 +174,18 @@ export class BottomNav {
     const previous = this.bubble.lastElementChild;
     this.bubble.getAnimations({subtree: true}).forEach(animation => animation.cancel());
     const next = icon(index);
-    const rotation = index === addIndex ? 45 : 0;
+    const rotation = index === uploadIndex ? -8 : 0;
     next.style.transform = `rotate(${rotation}deg)`;
     this.bubble.replaceChildren(next);
-    if (animate && !motion.matches) {
+    if (animate && !motion.matches && this.width) {
       if (previous) {
         this.bubble.prepend(previous);
-        previous.animate([{scale: 1, opacity: 1}, {scale: .65, opacity: 0}],
+        previous.animate([{scale: 1}, {scale: .65}],
           {duration: 90, fill: 'forwards'}).finished.then(() => previous.remove(), () => {});
       }
       next.animate([{opacity: 0, transform: `rotate(${rotation-18}deg) scale(.65)`},
-        {opacity: 1, transform: `rotate(${rotation}deg) scale(1)`}], {duration: 125, delay: 85, fill: 'backwards'});
+        {opacity: 1, transform: `rotate(${rotation}deg) scale(.74)`, offset: .18},
+        {opacity: 1, transform: `rotate(${rotation}deg) scale(1)`}], {duration: 110, delay: 70, fill: 'backwards'});
       this.slide();
     } else {
       this.measure();
@@ -190,161 +198,141 @@ export class BottomNav {
   }
 }
 
+if (window.parent !== window && document.documentElement.classList.contains('embedded-tab')) {
+  document.addEventListener('click', event => {
+    const link = event.target.closest('a[href]');
+    if (!link || event.defaultPrevented || event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey ||
+        link.hasAttribute('download') || (link.target && link.target !== '_top') || link.getAttribute('href').startsWith('#')) return;
+    const url = new URL(link.href);
+    if (url.origin !== location.origin) return;
+    const tab = tabs.find(tab => tab.page === url.pathname || tab.path === url.pathname);
+    if (!tab) return;
+    event.preventDefault();
+    url.searchParams.delete('embedded');
+    window.parent.postMessage({printbeeNavigate:tab.path + url.search + url.hash}, location.origin);
+  });
+}
+
+const canonical = tabs.find(tab => tab.page === location.pathname || (tab.key === 'home' && location.pathname === '/'));
+if (window.parent === window && canonical && matchMedia('(max-width: 700px)').matches) {
+  location.replace(canonical.path + location.search + location.hash);
+}
 const bar = document.querySelector('#bottom-nav');
 if (bar) mountLayout(bar);
-else {
+else if (window.parent === window) {
   const dock = document.querySelector('.mobile-dock');
-  if (dock && window.parent === window) {
-    const label = dock.getAttribute('aria-label');
-    dock.innerHTML = tabs.map(([route, name], i) =>
-      `<a href="/${route}"><span class="dock-icon" aria-hidden="true">${icon(i).outerHTML}</span>${name}</a>`).join('');
-    dock.setAttribute('aria-label', label);
+  if (dock) {
+    dock.className = 'bottom-nav direct-nav';
+    const css = document.createElement('link');
+    css.rel = 'stylesheet';
+    css.href = '/navigation.css?v=customer-tabs';
+    document.head.append(css);
+    const nav = new BottomNav(dock);
+    document.body.classList.add('has-direct-nav');
+    for (const link of nav.links) link.removeAttribute('aria-controls');
+    if (!tabs.some(tab => tab.page === location.pathname || tab.path === location.pathname || (tab.key === 'home' && location.pathname === '/'))) {
+      nav.links.forEach((link, i) => {
+        link.setAttribute('aria-selected', 'false');
+        link.tabIndex = i === 0 ? 0 : -1;
+      });
+      dock.classList.add('off-tab');
+    }
+    nav.onSelect = index => {
+      if (nav.links[index].getAttribute('aria-selected') === 'true') {
+        window.scrollTo(0, 0);
+        nav.pulse();
+      } else location.assign(tabs[index].path);
+    };
   }
 }
 
 function mountLayout(bar) {
   const nav = new BottomNav(bar);
   const screens = document.querySelector('#tab-screens');
-  const sheet = document.querySelector('#sheet-layer');
-  const close = document.querySelector('#close-sheet');
   const panels = new Map();
-  let active = routeIndex();
-  let underlying = active === addIndex ? (history.state?.underlying ?? 1) : active;
-  let outgoing = [];
+  let previousIndex = routeIndex();
+  let activePanel;
+  let animations = [];
 
   function panelFor(index) {
-    if (panels.has(index)) return panels.get(index);
-    const [route, label, source] = tabs[index];
+    const tab = tabs[index];
+    const url = new URL(tab.page, location.origin);
+    if (index === routeIndex()) {
+      url.search = location.search;
+      url.hash = location.hash;
+    }
+    url.searchParams.set('embedded', tab.key);
+    const key = url.href;
+    if (panels.has(key)) return panels.get(key);
     const panel = document.createElement('section');
     panel.className = 'tab-panel';
+    panel.id = 'panel-' + tab.key;
     panel.setAttribute('role', 'tabpanel');
-    panel.setAttribute('aria-labelledby', 'tab-' + route);
-    panel.id = 'panel-' + route;
-    if (source) {
-      const frame = document.createElement('iframe');
-      frame.title = label;
-      const url = new URL(source, location.origin);
-      url.searchParams.set('embedded', route);
-      if (index === routeIndex()) {
-        for (const [key, value] of new URLSearchParams(location.search)) {
-          if (key !== 'embedded') url.searchParams.set(key, value);
-        }
-        url.hash = location.hash;
-      }
-      frame.src = url;
-      panel.append(frame);
-    } else {
-      panel.classList.add('more-panel');
-      panel.innerHTML = '<h1>More</h1><a href="/index.html">Home</a><a href="/address.html">Delivery address</a><a href="/pricing.html">Print prices</a><a href="https://wa.me/919347541419">Help on WhatsApp</a>';
-    }
-    panel.hidden = true;
-    panel.inert = true;
-    (index === addIndex ? sheet : screens).append(panel);
-    panels.set(index, panel);
+    panel.setAttribute('aria-labelledby', 'tab-' + tab.key);
+    panel.hidden = panel.inert = true;
+    const frame = document.createElement('iframe');
+    frame.title = tab.label;
+    frame.src = url;
+    panel.append(frame);
+    screens.append(panel);
+    panels.set(key, panel);
     return panel;
   }
 
-  function show(index, initial = false) {
-    for (const animation of outgoing) animation.cancel();
-    outgoing = [];
-    const prior = active;
-    const wasSheet = prior === addIndex;
-    const isSheet = index === addIndex;
-    const previous = panelFor(underlying);
-    const next = panelFor(isSheet ? underlying : index);
-    panels.forEach((panel, key) => {
-      panel.hidden = key !== (isSheet ? underlying : index) && key !== addIndex;
-      panel.inert = panel.hidden || (isSheet && key !== addIndex);
-    });
-    const options = {duration: motion.matches ? theme.reducedTransition : theme.transition, easing};
-    if (!initial && previous !== next && !isSheet && !wasSheet) {
-      const distance = motion.matches ? 0 : (index > prior ? 24 : -24);
+  function show(initial = false) {
+    animations.forEach(animation => animation.cancel());
+    animations = [];
+    const index = routeIndex();
+    const next = panelFor(index);
+    const previous = activePanel;
+    const panelId = 'panel-' + tabs[index].key;
+    for (const panel of panels.values()) {
+      panel.hidden = panel.inert = panel !== next;
+      if (panel !== next && panel.id === panelId) panel.removeAttribute('id');
+    }
+    next.id = panelId;
+    activePanel = next;
+    if (!initial && previous !== next) {
+      const distance = motion.matches || index === previousIndex ? 0 : index > previousIndex ? 24 : -24;
+      const options = {duration: motion.matches ? theme.reducedTransition : theme.transition, easing};
       previous.hidden = false;
-      previous.inert = true;
-      previous.classList.add('is-closing');
-      const exit = previous.animate([{opacity: 1, transform: 'none'},
-        {opacity: 0, transform: `translateX(${-distance}px)`}], options);
-      exit.finished.then(() => {
-        if (active !== prior) previous.hidden = true;
-        previous.classList.remove('is-closing');
-      }, () => previous.classList.remove('is-closing'));
-      outgoing.push(exit, next.animate([{opacity: 0, transform: `translateX(${distance}px)`},
-        {opacity: 1, transform: 'none'}], options));
+      const exit = previous.animate([{opacity: 1}, {opacity: 0, transform: `translateX(${-distance}px)`}], options);
+      exit.finished.then(() => { if (activePanel !== previous) previous.hidden = true; }, () => {});
+      animations.push(exit, next.animate([{opacity: 0, transform: `translateX(${distance}px)`}, {opacity: 1, transform:'none'}], options));
     }
-    if (isSheet) {
-      const add = panelFor(addIndex);
-      add.hidden = false;
-      add.inert = false;
-      add.querySelector('iframe').contentWindow?.postMessage('printbee:tab-shown', location.origin);
-      sheet.hidden = false;
-      sheet.inert = false;
-      if (!initial && !wasSheet) {
-        outgoing.push(sheet.animate([{opacity: 0, transform: motion.matches ? 'none' : 'translateY(100%)'},
-          {opacity: 1, transform: 'none'}], options));
-      }
-      close.focus({preventScroll: true});
-    } else if (!initial && wasSheet) {
-      sheet.inert = true;
-      const exit = sheet.animate([{opacity: 1, transform: 'none'},
-        {opacity: 0, transform: motion.matches ? 'none' : 'translateY(100%)'}], options);
-      exit.finished.then(() => { if (active !== addIndex) sheet.hidden = true; }, () => {});
-      outgoing.push(exit);
-    } else {
-      sheet.hidden = true;
-    }
-    if (!initial && isSheet !== wasSheet) {
-      outgoing.push(bar.animate(isSheet
-        ? [{translate: '0 0', opacity: 1}, {translate: motion.matches ? '0 0' : '0 115%', opacity: 0}]
-        : [{translate: motion.matches ? '0 0' : '0 115%', opacity: 0}, {translate: '0 0', opacity: 1}],
-      {...options, fill: 'both'}));
-    }
-    bar.inert = isSheet;
-    bar.style.visibility = initial && isSheet ? 'hidden' : '';
-    if (!isSheet) {
-      underlying = index;
-      next.querySelector('iframe')?.contentWindow?.postMessage('printbee:tab-shown', location.origin);
-    }
-    active = index;
-    nav.select(index, !initial);
-    document.title = tabs[index][1] + ' · PrintBee';
+    next.querySelector('iframe').contentWindow?.postMessage('printbee:tab-shown', location.origin);
+    const changed = previousIndex !== index;
+    previousIndex = index;
+    nav.select(index, !initial && changed);
+    document.title = tabs[index].label + ' · PrintBee';
+  }
+
+  function navigate(url) {
+    if (url === location.pathname + location.search + location.hash) return;
+    history.pushState(null, '', url);
+    show();
   }
 
   nav.onSelect = index => {
-    if (index === active) {
-      const panel = panelFor(index);
-      panel.scrollTop = 0;
-      try { panel.querySelector('iframe')?.contentWindow.scrollTo(0, 0); } catch {}
+    if (index === routeIndex()) {
+      try { activePanel.querySelector('iframe').contentWindow.scrollTo(0, 0); } catch {}
       nav.pulse();
       return;
     }
     if (!motion.matches) navigator.vibrate?.(8);
-    history.pushState({underlying}, '', '/' + tabs[index][0]);
-    show(index);
+    navigate(tabs[index].path);
   };
-  close.addEventListener('click', () => {
-    if (history.state?.underlying !== undefined) history.back();
-    else {
-      history.replaceState(null, '', '/' + tabs[underlying][0]);
-      show(underlying);
-    }
-  });
-  document.addEventListener('keydown', event => {
-    if (active === addIndex && event.key === 'Escape') close.click();
-  });
   addEventListener('message', event => {
-    if (event.origin !== location.origin ||
-        event.source !== panelFor(active).querySelector('iframe')?.contentWindow) return;
-    if (event.data === 'printbee:close-sheet' && active === addIndex) close.click();
+    if (event.origin !== location.origin || event.source !== activePanel?.querySelector('iframe').contentWindow) return;
+    const href = event.data?.printbeeNavigate;
+    if (typeof href !== 'string') return;
+    const url = new URL(href, location.origin);
+    const tab = tabs.find(tab => tab.path === url.pathname);
+    if (tab && url.origin === location.origin) navigate(tab.path + url.search + url.hash);
   });
-  addEventListener('popstate', () => {
-    const exitingSheet = active === addIndex && routeIndex() !== addIndex;
-    show(routeIndex());
-    if (exitingSheet) nav.links[active].focus({preventScroll: true});
-  });
-  show(active, true);
-  const warmPanels = () => {
-    for (const index of [0, 1, 3]) panelFor(index);
-  };
-  if ('requestIdleCallback' in window) window.requestIdleCallback(warmPanels, {timeout: 1500});
-  else window.setTimeout(warmPanels, 500);
+  addEventListener('popstate', () => show());
+  show(true);
+  const warm = () => tabs.forEach((_, i) => { if (i !== routeIndex()) panelFor(i); });
+  if ('requestIdleCallback' in window) requestIdleCallback(warm, {timeout:1500});
+  else setTimeout(warm, 500);
 }

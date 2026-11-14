@@ -41,17 +41,73 @@ if (profileForm) {
 const addressForm = document.querySelector('#address-form');
 if (addressForm) {
   const saved = readProfile();
+  const addresses = saved.addresses || (saved.address ? [
+    {address: saved.address, delivery: saved.delivery}
+  ] : []);
+  let defaultIndex = saved.defaultAddressIndex ?? 0;
+  let editing = addresses.length ? defaultIndex : -1;
   const fields = ['building', 'locality', 'city', 'region', 'pin', 'landmark'];
   const locationStatus = document.querySelector('#location-status');
   const useLocation = document.querySelector('#use-location');
   const clearLocation = document.querySelector('#clear-location');
-  let locationPin = saved.delivery?.locationPin || '';
-  for (const name of fields) {
-    addressForm.elements[name].value = saved.delivery?.[name] || '';
+  const list = document.querySelector('#saved-addresses');
+  const status = document.querySelector('#profile-status');
+  let locationPin = '';
+
+  function editAddress(index) {
+    editing = index;
+    const entry = addresses[index];
+    for (const name of fields) addressForm.elements[name].value = entry?.delivery?.[name] || '';
+    if (entry && !entry.delivery) addressForm.elements.building.value = entry.address;
+    locationPin = entry?.delivery?.locationPin || '';
+    showLocation();
   }
-  if (!saved.delivery && saved.address) {
-    addressForm.elements.building.value = saved.address;
+
+  function persistAddresses(entries, index) {
+    const selected = entries[index];
+    localStorage.setItem(profileKey, JSON.stringify({...readProfile(),
+      addresses: entries, defaultAddressIndex:index, address:selected.address, delivery:selected.delivery}));
   }
+
+  function renderAddresses() {
+    list.replaceChildren();
+    addresses.forEach((entry, index) => {
+      const card = document.createElement('article');
+      card.className = 'raised table-card';
+      const description = document.createElement('p');
+      description.textContent = entry.address + (index === defaultIndex ? ' (Default)' : '');
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.className = 'pill raised';
+      edit.textContent = 'Edit address';
+      edit.onclick = () => { editAddress(index); addressForm.elements.building.focus(); };
+      card.append(description, edit);
+      if (index !== defaultIndex) {
+        const use = document.createElement('button');
+        use.type = 'button';
+        use.className = 'pill raised';
+        use.textContent = 'Set as default';
+        use.onclick = () => {
+          try {
+            persistAddresses(addresses, index);
+            defaultIndex = index;
+            renderAddresses();
+            document.querySelector('#add-address').focus();
+            status.textContent = 'Default address updated.';
+          } catch {
+            status.textContent = 'Your browser could not save the default address.';
+          }
+        };
+        card.append(use);
+      }
+      list.append(card);
+    });
+  }
+
+  document.querySelector('#add-address').onclick = () => {
+    editAddress(-1);
+    addressForm.elements.building.focus();
+  };
 
   function showLocation() {
     clearLocation.hidden = !locationPin;
@@ -60,7 +116,8 @@ if (addressForm) {
       : 'Optional. Add a location pin for delivery.';
   }
 
-  showLocation();
+  editAddress(editing);
+  renderAddresses();
   useLocation.addEventListener('click', () => {
     if (!navigator.geolocation) {
       locationStatus.textContent = 'Location is unavailable here. Enter your address manually.';
@@ -87,7 +144,6 @@ if (addressForm) {
 
   addressForm.addEventListener('submit', event => {
     event.preventDefault();
-    const status = document.querySelector('#profile-status');
     const delivery = Object.fromEntries(fields.map(name => [name, addressForm.elements[name].value.trim()]));
     const {building, locality, city, region, pin, landmark} = delivery;
     const address = [
@@ -104,8 +160,14 @@ if (addressForm) {
       return;
     }
     try {
-      localStorage.setItem(profileKey, JSON.stringify({...readProfile(), address, delivery: {...delivery, locationPin}}));
-      status.textContent = 'Address saved for checkout on this browser.';
+      const index = editing < 0 ? addresses.length : editing;
+      const entries = [...addresses];
+      entries[index] = {address, delivery: {...delivery, locationPin}};
+      persistAddresses(entries, defaultIndex);
+      addresses[index] = entries[index];
+      editing = index;
+      renderAddresses();
+      status.textContent = 'Address saved on this browser.';
     } catch {
       status.textContent = 'Your browser could not save the address.';
     }

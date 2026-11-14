@@ -78,19 +78,21 @@ browser-local carts and saved orders need a migration plan before changing stora
 
 ## Mobile bottom navigation
 
-Open `/profile`, `/saved`, `/add`, `/track`, or `/more` to enter the
-persistent tab layout. Saved uses the existing print cart. Add opens file
-upload as a sheet, and Track uses the existing order history. The layout
-keeps each same-origin screen mounted so unsaved inputs and scroll position
-survive tab changes. The Vercel rewrites serve these routes for frontend
-previews. Account and order data require the Python API.
+The customer tabs are Home (`/home`), Orders (`/orders`), Upload
+(`/upload`), Address (`/address`), and Profile (`/profile`). Orders includes
+tracking. Profile includes Help & Contact, and Home and Upload link to
+Pricing. The layout keeps same-origin screens mounted to retain their
+scroll and form state between tab switches. Account and order data
+require the Python API.
 
-Adjust colors, bar height, bubble size, notch radius and fillet, spring
-stiffness/damping/mass, and transition durations in `nav-tokens.js`.
-`bottom-nav.js` exports `BottomNav` and `notchPath()`. The spring's
-position drives both the SVG notch and the bubble. The screen slide uses
-24px of travel. Reduced motion snaps the bubble to the active tab and
-crossfades screens for 150ms.
+- Touch feedback uses icon compression with a dark keyboard focus ring.
+- The raised bubble sits above a visible fixed bar with room around its edges.
+- One SVG path draws the circular notch and tangent fillets at the bubble's x.
+- The path stays solid white across the full bar and safe-area inset.
+- The existing JavaScript spring uses the shared constants in `nav-tokens.js`.
+  It drives the notch and bubble together. Screens slide 24px over 280ms.
+  Reduced motion snaps the bubble and crossfades screens over 150ms.
+- The route determines the active tab on load and browser history navigation.
 
 ## Local operations
 

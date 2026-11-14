@@ -7,12 +7,12 @@
 <meta name="description" content="PrintBee campus printing for SRM University. Save your A4 documents in your local print queue.">
 <title>Address · PrintBee</title>
 <script src="preloader.js?v=4"></script>
-<script src="embedded-tab.js" defer></script>
-<script type="module" src="bottom-nav.js"></script>
-<link rel="stylesheet" href="studio.css?v=header-bee-size">
+<script src="embedded-tab.js?v=customer-tabs" defer></script>
+<script type="module" src="bottom-nav.js?v=customer-tabs"></script>
+<link rel="stylesheet" href="studio.css?v=customer-tabs">
 <link rel="stylesheet" href="footer-wave.css?v=stacked-brand">
 <script src="footer-wave.js?v=letter-spacing" defer></script>
-<script src="profile.js?v=delivery-details" defer></script>
+<script src="profile.js?v=address-book" defer></script>
 </head>
 <body>
 <a href="#main" class="skip">Skip to content</a>
@@ -34,7 +34,10 @@
 </header>
 <main id="main" class="frame inner-page">
   <section class="section rates" id="address">
-  <div><h1>Delivery address</h1><p>Save your delivery address for checkout on this browser.</p></div>
+  <div><h1>Delivery address</h1><p>Manage your saved delivery addresses on this browser.</p>
+    <div id="saved-addresses" class="order-actions"></div>
+    <button class="pill raised" id="add-address" type="button">Add address</button>
+  </div>
   <form class="raised table-card" id="address-form">
     <fieldset class="checkout-fields">
       <legend>Delivery details</legend>
