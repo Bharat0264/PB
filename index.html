@@ -7,7 +7,7 @@
 <meta name="description" content="PrintBee campus printing for SRM University. Save your A4 documents in your local print queue.">
 <title>Home · PrintBee</title>
 <script src="preloader.js?v=3"></script>
-<link rel="stylesheet" href="studio.css?v=even-honeycomb">
+<link rel="stylesheet" href="studio.css?v=print-and-binding">
 
 </head>
 <body>
@@ -67,9 +67,30 @@
       </li>
     </ol>
   </section>
-  <section class="section rates" id="pricing" aria-labelledby="pricing-title">
-    <div><h2 id="pricing-title">A4 print prices</h2><p>Rates per page. Double-sided availability depends on the store.</p></div>
-    <div class="raised table-card"><table><thead><tr><th scope="col">Ink</th><th scope="col">Single-sided</th><th scope="col">Double-sided</th></tr></thead><tbody><tr><th scope="row">Black &amp; white</th><td data-print-rate="175">₹1.75</td><td data-print-rate="300">₹3</td></tr><tr><th scope="row">Colour</th><td data-print-rate="850">₹8.50</td><td data-print-rate="1400">₹14</td></tr></tbody></table></div>
+  <section class="section price-section" id="pricing" aria-labelledby="pricing-title">
+    <h2 id="pricing-title">Print &amp; binding <span>prices</span></h2>
+    <div class="price-grid">
+      <div class="price-panel price-print">
+        <h3 id="print-rates-title">A4 printing</h3>
+        <p>Per page</p>
+        <table aria-labelledby="print-rates-title">
+          <thead><tr><th scope="col">Ink</th><th scope="col">Single-sided</th><th scope="col">Double-sided</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Black &amp; white</th><td data-print-rate="175">₹1.75</td><td data-print-rate="300">₹3</td></tr>
+            <tr><th scope="row">Colour</th><td data-print-rate="850">₹8.50</td><td data-print-rate="1400">₹14</td></tr>
+          </tbody>
+        </table>
+        <p class="price-note">Double-sided availability depends on the store.</p>
+      </div>
+      <div class="price-panel price-binding">
+        <h3>Soft binding</h3>
+        <p>Added per copy</p>
+        <dl>
+          <div><dt>Glossy binding <small>White transparent cover</small></dt><dd data-binding-rate="5000">+₹50</dd></div>
+          <div><dt>Blue binding <small>Blue sheet cover</small></dt><dd data-binding-rate="4000">+₹40</dd></div>
+        </dl>
+      </div>
+    </div>
   </section>
 </main>
 <footer class="frame brand-footer" id="contact">

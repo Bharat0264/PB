@@ -1036,3 +1036,39 @@ body {
     height: 46px;
   }
 }
+
+.price-section h2 span { color: #8e451f; }
+
+.price-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: clamp(14px, 2.1vw, 28px);
+  margin-top: 20px;
+}
+
+.price-panel {
+  padding: clamp(14px, 2.3vw, 30px);
+  border-radius: 26px;
+  box-shadow: 6px 9px 18px #7e603426, inset 2px 3px 6px #fffaf1, inset -3px -4px 8px #b6985a23;
+}
+
+.price-print { background: linear-gradient(145deg, #fffaf0, #f4e8ce); }
+.price-binding { background: linear-gradient(145deg, #f9faea, #e9edcf); }
+.price-panel h3 { font-size: clamp(19px, 2vw, 24px); }
+.price-panel p { margin: 0; color: var(--muted); font-size: .875rem; }
+.price-panel table, .price-panel dl { margin: 14px 0 0; }
+.price-panel table th, .price-panel table td { padding: 9px 4px; font-size: .875rem; }
+.price-panel table :is(th, td):not(:first-child) { text-align: right; }
+.price-panel .price-note { margin-top: 10px; }
+.price-binding dl > div { display: flex; justify-content: space-between; gap: 12px; border-top: 1px solid #57623636; padding: 9px 0; }
+.price-binding dt, .price-binding dd { font-weight: 800; }
+.price-binding dt small { display: block; font-weight: 400; color: var(--muted); }
+.price-binding dd { margin: 0; white-space: nowrap; color: #445029; }
+
+@media (max-width: 700px) {
+  .price-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 360px) {
+  .price-panel table th, .price-panel table td { font-size: .77rem; }
+}
