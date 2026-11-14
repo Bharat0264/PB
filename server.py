@@ -7,18 +7,24 @@ import re
 import secrets
 import sqlite3
 from contextlib import closing
+from datetime import datetime, timedelta, timezone
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 from http.cookies import CookieError, SimpleCookie
+from threading import BoundedSemaphore
 
 import customer_auth as auth
-from order_rules import LIMIT, TRANSITIONS, advance_order, quote_items
+import razorpay_checkout
+from checkout_terms import bill_for, configured_terms
+from document_pages import count_pages
+from order_rules import BINDING_RATES, LIMIT, TRANSITIONS, advance_order, quote_items
 
 ROOT = Path(__file__).resolve().parent
 PRELOADER_BUNDLE = ROOT / "preloader-3d.bundle.js"
 DATA = Path(os.environ.get("LOCALAPPDATA", ROOT.parent)) / "PrintBeeLocal"
 DATA.mkdir(exist_ok=True)
+PDF_READERS = BoundedSemaphore(2)
 
 
 def connect():
@@ -32,6 +38,14 @@ def staff_keys():
     if not path.exists():
         path.write_text(json.dumps({role: secrets.token_urlsafe(24) for role in TRANSITIONS}), encoding="utf-8")
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def order_number(db):
+    date = datetime.now(timezone(timedelta(hours=5, minutes=30))).strftime("%y%m%d")
+    while True:
+        value = f"PB-{date}-{secrets.token_hex(2).upper()}"
+        if not db.execute("SELECT 1 FROM order_owners WHERE order_number=?", (value,)).fetchone():
+            return value
 
 
 class PrintBee(SimpleHTTPRequestHandler):
@@ -107,6 +121,9 @@ class PrintBee(SimpleHTTPRequestHandler):
         if path == "/api/auth/session":
             with closing(connect()) as db:
                 return self.json_response(200, {"email": auth.session_email(db, self.headers)})
+        if path == "/api/checkout":
+            terms = {key: value for key, value in self.server.checkout_terms.items() if key != "coupons"}
+            return self.json_response(200, {"mode": self.server.payment_mode, "terms": terms})
         if not path.startswith("/api/"):
             allowed = {"/", "/index.html", "/studio.js", "/studio.css", "/clay.css", "/staff.html", "/staff.js",
                        "/pricing.html", "/queue.html", "/orders.html", "/profile.html", "/profile.js", "/address.html", "/customer-login.js",
@@ -135,16 +152,16 @@ class PrintBee(SimpleHTTPRequestHandler):
                 if not email:
                     return self.json_response(401, {"error": "Sign in to see your orders."})
                 rows = db.execute(
-                    "SELECT orders.id, status, details FROM order_owners JOIN orders "
+                    "SELECT orders.id, status, details, order_number FROM order_owners JOIN orders "
                     "ON orders.id=order_owners.order_id WHERE email=? AND status!='pending' "
                     "ORDER BY orders.rowid DESC", (email,)
                 )
                 return self.json_response(200, {"orders": [
-                    {"id": row["id"], "status": row["status"],
+                    {"id": row["id"], "number": row["order_number"], "status": row["status"],
                      "items": [{key: item[key] for key in (
                          "name", "pages", "copies", "colour", "duplex", "orientation",
-                         "binding", "colourPages"
-                     )} for item in json.loads(row["details"])["items"]]}
+                         "binding", "colourPages", "pageRange"
+                     ) if key in item} for item in json.loads(row["details"])["items"]]}
                     for row in rows
                 ]})
             if path == "/api/staff/orders":
@@ -153,16 +170,19 @@ class PrintBee(SimpleHTTPRequestHandler):
                     return self.json_response(403, {"error": "Enter your staff key."})
                 states = ("paid", "printing", "packed") if role == "warehouse" else ("packed", "out_for_delivery", "delivered")
                 rows = db.execute(
-                    "SELECT id, status, details FROM orders WHERE status IN (?, ?, ?) ORDER BY rowid DESC", states
+                    "SELECT orders.id, status, details, order_number FROM orders LEFT JOIN order_owners "
+                    "ON orders.id=order_owners.order_id WHERE status IN (?, ?, ?) ORDER BY orders.rowid DESC", states
                 )
                 return self.json_response(200, {"role": role, "orders": [
-                    {"id": row["id"], "status": row["status"], **json.loads(row["details"])} for row in rows
+                    {"id": row["id"], "number": row["order_number"], "status": row["status"],
+                     **json.loads(row["details"])} for row in rows
                 ]})
             match = re.fullmatch(r"/api/orders/([a-f0-9]{32})", path)
             if match:
                 row = db.execute(
-                    "SELECT status, token, email FROM orders LEFT JOIN order_owners "
-                    "ON orders.id=order_owners.order_id WHERE orders.id=?", match.groups()
+                    "SELECT status, token, email, provider_id, order_number FROM orders LEFT JOIN order_owners "
+                    "ON orders.id=order_owners.order_id LEFT JOIN razorpay_orders "
+                    "ON orders.id=razorpay_orders.order_id WHERE orders.id=?", match.groups()
                 ).fetchone()
                 token = self.headers.get("X-Order-Key", "")
                 if row and (
@@ -170,7 +190,8 @@ class PrintBee(SimpleHTTPRequestHandler):
                     or (row["email"] and row["email"] == auth.session_email(db, self.headers)
                         and row["status"] != "pending")
                 ):
-                    return self.json_response(200, {"status": row["status"]})
+                    return self.json_response(200, {"status": row["status"], "number": row["order_number"],
+                                                    "paymentStarted": bool(row["provider_id"])})
             match = re.fullmatch(r"/api/staff/files/([a-f0-9]{32})/(\d+)", path)
             if match and self.get_role() == "warehouse":
                 row = db.execute("SELECT content FROM files JOIN orders ON orders.id=files.order_id "
@@ -194,6 +215,12 @@ class PrintBee(SimpleHTTPRequestHandler):
         try:
             if path.startswith("/api/auth/"):
                 return self.customer_auth(path)
+            if path == "/api/webhooks/razorpay":
+                return self.razorpay_webhook()
+            if path == "/api/checkout/quote":
+                return self.checkout_quote()
+            if path == "/api/checkout/pages":
+                return self.inspect_document()
             if path == "/api/orders":
                 with closing(connect()) as db:
                     email = auth.session_email(db, self.headers)
@@ -209,12 +236,15 @@ class PrintBee(SimpleHTTPRequestHandler):
                 return self.upload(*match.groups())
             match = re.fullmatch(r"/api/orders/([a-f0-9]{32})/test-payment", path)
             if match:
-                return self.pay(match[1])
+                return self.start_payment(match[1], test_only=True)
+            match = re.fullmatch(r"/api/orders/([a-f0-9]{32})/payment", path)
+            if match:
+                return self.start_payment(match[1])
             match = re.fullmatch(r"/api/staff/orders/([a-f0-9]{32})/advance", path)
             if match:
                 return self.advance(match[1])
             self.json_response(404, {"error": "Unknown request."})
-        except (ValueError, KeyError, TypeError):
+        except (ValueError, KeyError, TypeError, AttributeError):
             self.json_response(400, {"error": "Check the order details and try again."})
 
     def customer_auth(self, path):
@@ -254,8 +284,18 @@ class PrintBee(SimpleHTTPRequestHandler):
                 not details["address"] or len(details["address"]) > 500):
             raise ValueError()
         documents, total = quote_items(data["items"])
+        coupon = data.get("coupon", "").strip().upper()
+        notes = data.get("notes", "").strip()
+        slot = data.get("slot", "")
+        if len(notes) > 500 or not isinstance(slot, str) or len(coupon) > 30:
+            raise ValueError()
         details.update(items=documents, subtotal=total)
-        encoded = json.dumps(details, sort_keys=True)
+        if notes:
+            details["notes"] = notes
+        if slot:
+            details["slot"] = slot
+        if coupon:
+            details["coupon"] = coupon
         with closing(connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
             existing = db.execute(
@@ -263,14 +303,60 @@ class PrintBee(SimpleHTTPRequestHandler):
                 "ON orders.id=order_owners.order_id WHERE orders.id=?", (order_id,)
             ).fetchone()
             if existing and (
-                not hmac.compare_digest(token, existing["token"]) or existing["details"] != encoded
+                not hmac.compare_digest(token, existing["token"])
                 or existing["email"] not in (None, email)
             ):
                 return self.json_response(409, {"error": "Order details changed. Reopen checkout to try again."})
-            if not existing:
+            if existing:
+                stored = json.loads(existing["details"])
+                bill = stored.pop("bill", None)
+                if stored != details:
+                    return self.json_response(409, {"error": "Order details changed. Reopen checkout to try again."})
+            else:
+                terms = self.server.checkout_terms
+                if (terms["slots"] or slot) and slot not in terms["slots"]:
+                    return self.json_response(409, {"error": "Choose an available delivery slot."})
+                if coupon and coupon not in terms["coupons"]:
+                    return self.json_response(409, {"error": "This coupon is unavailable."})
+                binding_total = sum(BINDING_RATES[item["binding"]] * item["copies"] for item in documents)
+                bill = bill_for(total, binding_total, coupon, terms)
+                if type(data.get("expectedTotal")) is not int or data["expectedTotal"] != bill["total"]:
+                    return self.json_response(409, {"error": "Prices changed. Refresh and review your order."})
+                encoded = json.dumps({**details, "bill": bill}, sort_keys=True)
                 db.execute("INSERT INTO orders VALUES (?, ?, 'pending', ?)", (order_id, token, encoded))
-                db.execute("INSERT INTO order_owners VALUES (?, ?)", (order_id, email))
-        self.json_response(200, {"subtotal": total})
+                db.execute("INSERT INTO order_owners (order_id, email, order_number) VALUES (?, ?, ?)",
+                           (order_id, email, order_number(db)))
+        self.json_response(200, {"subtotal": total, "total": bill["total"] if bill else total})
+
+    def checkout_quote(self):
+        length = int(self.headers.get("Content-Length", "0"))
+        if not 0 < length <= 65536:
+            raise ValueError("Invalid quote length.")
+        data = json.loads(self.rfile.read(length))
+        documents, total = quote_items(data["items"])
+        coupon = data.get("coupon", "").strip().upper()
+        terms = self.server.checkout_terms
+        if coupon and coupon not in terms["coupons"]:
+            return self.json_response(400, {"error": "This coupon is unavailable."})
+        binding_total = sum(BINDING_RATES[item["binding"]] * item["copies"] for item in documents)
+        bill = bill_for(total, binding_total, coupon, terms)
+        self.json_response(200, bill)
+
+    def inspect_document(self):
+        length = int(self.headers.get("Content-Length", "0"))
+        if not 0 < length <= LIMIT:
+            raise ValueError("Invalid file size.")
+        if not PDF_READERS.acquire(blocking=False):
+            self.close_connection = True
+            return self.json_response(503, {"error": "Page counting is busy. Try again."})
+        try:
+            body = self.rfile.read(length)
+            if len(body) != length:
+                raise ValueError("Incomplete upload.")
+            pages = count_pages("document.pdf", body)
+        finally:
+            PDF_READERS.release()
+        self.json_response(200, {"pages": pages})
 
     def upload(self, order_id, position):
         position = int(position)
@@ -285,10 +371,17 @@ class PrintBee(SimpleHTTPRequestHandler):
             body = self.rfile.read(length)
             if len(body) != length:
                 raise ValueError()
+            item = items[position]
+            pages = count_pages(item["name"], body)
+            requested = item.get("pageRange", [item["pages"]])[-1]
+            if pages is not None and requested > pages:
+                return self.json_response(422, {"error": "The selected print pages exceed the file's page count."})
             with db:
                 db.execute("BEGIN IMMEDIATE")
-                if self.customer_order(db, order_id)["status"] != "pending":
-                    return self.json_response(409, {"error": "Payment was already recorded."})
+                if self.customer_order(db, order_id)["status"] != "pending" or db.execute(
+                    "SELECT 1 FROM razorpay_orders WHERE order_id=?", (order_id,)
+                ).fetchone():
+                    return self.json_response(409, {"error": "Payment has already started."})
                 db.execute("INSERT OR REPLACE INTO files VALUES (?, ?, ?)", (order_id, position, body))
         self.json_response(200, {"saved": True})
 
@@ -298,20 +391,60 @@ class PrintBee(SimpleHTTPRequestHandler):
             return row
         return None
 
-    def pay(self, order_id):
+    def start_payment(self, order_id, test_only=False):
+        mode = self.server.payment_mode
+        if mode == "disabled" or (test_only and mode != "test"):
+            return self.json_response(503, {"error": "Checkout payments are unavailable."})
         with closing(connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
             row = self.customer_order(db, order_id)
             if not row:
                 return self.json_response(404, {"error": "Order unavailable."})
-            status = row["status"]
-            if status == "pending":
-                count = db.execute("SELECT count(*) FROM files WHERE order_id=?", (order_id,)).fetchone()[0]
-                if count != len(json.loads(row["details"])["items"]):
-                    return self.json_response(409, {"error": "Upload all files before payment."})
+            if row["status"] != "pending":
+                return self.json_response(200, {"status": row["status"]})
+            details = json.loads(row["details"])
+            count = db.execute("SELECT count(*) FROM files WHERE order_id=?", (order_id,)).fetchone()[0]
+            if count != len(details["items"]):
+                return self.json_response(409, {"error": "Upload all files before payment."})
+            existing = db.execute("SELECT * FROM razorpay_orders WHERE order_id=?", (order_id,)).fetchone()
+            if mode == "test":
+                if existing:
+                    return self.json_response(409, {"error": "Resume this order in Razorpay."})
                 db.execute("UPDATE orders SET status='paid' WHERE id=?", (order_id,))
-                status = "paid"
-        self.json_response(200, {"status": status})
+                result = {"status": "paid"}
+            else:
+                gateway = self.server.razorpay
+                amount = details.get("bill", {}).get("total", details["subtotal"])
+                try:
+                    provider_id = existing["provider_id"] if existing else gateway.order(order_id, amount)
+                except (OSError, ValueError, KeyError, TypeError):
+                    return self.json_response(502, {"error": "Could not start Razorpay. Please retry."})
+                if not existing:
+                    db.execute("INSERT INTO razorpay_orders(order_id, provider_id, amount) VALUES (?,?,?)",
+                               (order_id, provider_id, amount))
+                result = {"status": "pending", "key": gateway.key, "order_id": provider_id,
+                          "amount": amount, "currency": "INR"}
+        self.json_response(200, result)
+
+    def razorpay_webhook(self):
+        gateway = self.server.razorpay
+        if not gateway:
+            return self.json_response(404, {"error": "Payment webhook unavailable."})
+        length = int(self.headers.get("Content-Length", "0"))
+        if not 0 < length <= 65536:
+            raise ValueError("Invalid webhook length.")
+        body = self.rfile.read(length)
+        if not gateway.valid_signature(body, self.headers.get("X-Razorpay-Signature", "")):
+            return self.json_response(403, {"error": "Invalid webhook signature."})
+        event = json.loads(body)
+        if event["event"] != "payment.captured":
+            return self.json_response(200, {"received": True})
+        with closing(connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            recorded = razorpay_checkout.record_capture(db, event["payload"]["payment"]["entity"])
+        if recorded is False:
+            return self.json_response(409, {"error": "Payment does not match the order."})
+        self.json_response(200, {"received": True})
 
     def advance(self, order_id):
         role = self.get_role()
@@ -332,6 +465,13 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=4188)
     parser.add_argument("--show-staff-keys", action="store_true")
     args = parser.parse_args()
+    payment_mode = os.environ.get("PRINTBEE_PAYMENT_MODE", "disabled")
+    if payment_mode not in ("disabled", "test", "razorpay"):
+        raise SystemExit("Set PRINTBEE_PAYMENT_MODE to disabled, test or razorpay.")
+    if payment_mode == "test" and urlsplit(auth.public_origin()).hostname not in (None, "localhost", "127.0.0.1"):
+        raise SystemExit("Test payments require a local origin.")
+    gateway = razorpay_checkout.Razorpay.from_environment() if payment_mode == "razorpay" else None
+    checkout_terms = configured_terms()
     keys = staff_keys()
     if args.show_staff_keys:
         for role, key in keys.items():
@@ -339,6 +479,7 @@ if __name__ == "__main__":
         raise SystemExit()
     with closing(connect()) as db, db:
         db.executescript(auth.SCHEMA)
+        db.executescript(razorpay_checkout.SCHEMA)
         db.executescript("""
             CREATE TABLE IF NOT EXISTS orders (id TEXT PRIMARY KEY, token TEXT, status TEXT, details TEXT);
             CREATE TABLE IF NOT EXISTS files (
@@ -347,8 +488,14 @@ if __name__ == "__main__":
             CREATE TABLE IF NOT EXISTS order_owners (order_id TEXT PRIMARY KEY, email TEXT NOT NULL);
             CREATE INDEX IF NOT EXISTS order_owners_email ON order_owners(email);
         """)
+        if "order_number" not in {column["name"] for column in db.execute("PRAGMA table_info(order_owners)")}:
+            db.execute("ALTER TABLE order_owners ADD COLUMN order_number TEXT")
+        db.execute("CREATE UNIQUE INDEX IF NOT EXISTS order_owners_number ON order_owners(order_number)")
     with ThreadingHTTPServer(("127.0.0.1", args.port), PrintBee) as server:
         server.keys = keys
+        server.payment_mode = payment_mode
+        server.razorpay = gateway
+        server.checkout_terms = checkout_terms
         server.preloader_gzip = gzip.compress(PRELOADER_BUNDLE.read_bytes()) if PRELOADER_BUNDLE.is_file() else None
-        print(f"PrintBee test checkout at http://127.0.0.1:{args.port}/", flush=True)
+        print(f"PrintBee at http://127.0.0.1:{args.port}/ (payments: {payment_mode})", flush=True)
         server.serve_forever()

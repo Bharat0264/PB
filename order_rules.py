@@ -31,9 +31,17 @@ def quote_items(items):
         colour_count = len(selected) if selected is not None else pages if colour else 0
         subtotal = copies * ((pages - colour_count) * RATES[duplex]
                              + colour_count * RATES[2 + duplex] + BINDING_RATES[binding])
-        documents.append({key: item[key] for key in (
+        document = {key: item[key] for key in (
             "name", "size", "pages", "copies", "colour", "duplex", "orientation"
-        )} | {"subtotal": subtotal, "binding": binding, "colourPages": selected})
+        )} | {"subtotal": subtotal, "binding": binding, "colourPages": selected}
+        page_range = item.get("pageRange")
+        if page_range is not None:
+            if (not isinstance(page_range, list) or len(page_range) != pages
+                    or any(type(page) is not int or not 1 <= page <= 10000 for page in page_range)
+                    or sorted(set(page_range)) != page_range):
+                raise ValueError("Invalid print page range.")
+            document["pageRange"] = page_range
+        documents.append(document)
     return documents, sum(item["subtotal"] for item in documents)
 
 

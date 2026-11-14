@@ -44,13 +44,18 @@ async function loadOrders(key) {
     const card = document.createElement('article');
     card.className = 'clay-card';
     const title = document.createElement('h2');
-    title.textContent = 'PB-' + order.id.slice(0, 8).toUpperCase();
+    title.textContent = order.number || 'PB-' + order.id.slice(0, 8).toUpperCase();
     const badge = document.createElement('span');
     badge.className = 'clay-badge';
     badge.textContent = labels[order.status];
     const customer = document.createElement('p');
     customer.textContent = [order.customer, order.phone, order.address].join(' · ');
     card.append(title, badge, customer);
+    if (order.slot || order.notes) {
+      const delivery = document.createElement('p');
+      delivery.textContent = [order.slot, order.notes].filter(Boolean).join(' · ');
+      card.append(delivery);
+    }
     if (data.role === 'warehouse') {
       const files = document.createElement('ul');
       order.items.forEach((item, index) => {
@@ -58,10 +63,11 @@ async function loadOrders(key) {
         const spec = document.createElement('p');
         spec.textContent = [
           item.name, item.pages + ' pages × ' + item.copies + ' copies',
+          item.pageRange && 'Print pages ' + item.pageRange.join(', '),
           item.colourPages ? 'Colour pages ' + item.colourPages.join(', ') + ' · remaining B&W' : item.colour ? 'Colour' : 'Black & white',
           item.duplex ? 'Double-sided' : 'Single-sided', item.orientation,
           {glossy: 'Glossy binding · White transparent sheet', blue: 'Blue sheet binding'}[item.binding] || 'No binding',
-        ].join(' · ');
+        ].filter(Boolean).join(' · ');
         row.append(spec, button('Download print file', async () => {
           const response = await request('/api/staff/files/' + order.id + '/' + index, key);
           const url = URL.createObjectURL(await response.blob());

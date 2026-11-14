@@ -104,6 +104,7 @@ const imageFormats = new Map([
 ]);
 let draftFiles = [];
 let nextDraftId = 0;
+let pdfPageQueue = Promise.resolve();
 
 function updateDraftTotal() {
   const items = readPrintItems(form, draftFiles);
@@ -147,6 +148,23 @@ function addDraft(file) {
   const title = document.createElement('strong');
   title.textContent = file.name;
   const options = createPrintOptions(id, {file}, updateDraftTotal);
+  if (extension === 'pdf') {
+    const pagesInput = options.querySelector(`[name="pages-${id}"]`);
+    const hint = document.createElement('small');
+    hint.textContent = 'Counting PDF pages…';
+    pagesInput.after(hint);
+    let manuallyEdited = false;
+    pagesInput.addEventListener('input', () => { manuallyEdited = true; });
+    pdfPageQueue = pdfPageQueue.then(async () => {
+      if (!options.isConnected) return;
+      const {pages} = await orderRequest('/api/checkout/pages', null, {method: 'POST', body: file});
+      if (!options.isConnected) return;
+      pagesInput.max = pages;
+      if (!manuallyEdited) pagesInput.value = pages;
+      hint.textContent = pages + (pages === 1 ? ' page detected' : ' pages detected');
+      updateDraftTotal();
+    }).catch(() => { hint.textContent = 'Could not count pages. Check that the PDF opens.'; });
+  }
   const remove = queueButton('×', () => {
     draftFiles = draftFiles.filter(([key]) => key !== id);
     tile.remove();
@@ -178,9 +196,8 @@ if (addMore) {
   addMore.className = 'review-add';
   reviewGrid.append(addMore);
 }
-fileInput?.addEventListener('change', () => {
-  const files = Array.from(fileInput.files);
-  fileInput.value = '';
+function reviewFiles(files) {
+  if (fileInput.disabled) return;
   if (!files.length) return;
   const invalid = files.find(file => !file.size || file.size > maxFileSize);
   if (invalid || draftFiles.length + files.length > maxOrderFiles) {
@@ -191,6 +208,18 @@ fileInput?.addEventListener('change', () => {
   review.hidden = false;
   status.textContent = '';
   updateDraftTotal();
+}
+fileInput?.addEventListener('change', () => {
+  reviewFiles(Array.from(fileInput.files));
+  fileInput.value = '';
+});
+form?.addEventListener('dragover', event => {
+  if (event.dataTransfer.types.includes('Files')) event.preventDefault();
+});
+form?.addEventListener('drop', event => {
+  if (!event.dataTransfer.types.includes('Files')) return;
+  event.preventDefault();
+  reviewFiles(Array.from(event.dataTransfer.files));
 });
 reviewSettings?.addEventListener('input', updateDraftTotal);
 
@@ -239,6 +268,20 @@ const bindingRates = {none: 0, glossy: 5000, blue: 4000};
 const rupees = new Intl.NumberFormat('en-IN', {style: 'currency', currency: 'INR'});
 let checkoutEntries = [];
 let paymentStep = false;
+let paymentMode = 'disabled';
+const paymentConfig = checkout ? fetch('/api/checkout').then(async response => {
+  if (!response.ok) return;
+  const {mode, terms} = await response.json();
+  paymentMode = mode;
+  const slot = checkoutForm.elements.slot;
+  slot.replaceChildren(...terms.slots.map(label => new Option(label, label)));
+  slot.disabled = terms.slots.length === 0;
+  slot.closest('label').hidden = slot.disabled;
+}).catch(() => {}) : null;
+let activeBill;
+let appliedCoupon = '';
+let quoteVersion = 0;
+let placingOrder = false;
 
 function fileCount(files) {
   return files.length + (files.length === 1 ? ' file' : ' files');
@@ -257,12 +300,60 @@ function showOrderBill(items) {
     row.append(name, price);
     list.append(row);
   }
+  for (const [key, label] of Object.entries({
+    printing: 'Printing', binding: 'Binding', packing: 'Packing fee',
+    platform: 'Platform fee', delivery: 'Delivery fee', discount: 'Coupon discount', tax: 'Taxes',
+  })) {
+    if (!activeBill || (!activeBill[key] && key === 'discount')) continue;
+    const row = document.createElement('li');
+    const name = document.createElement('span');
+    const price = document.createElement('strong');
+    name.textContent = label;
+    price.textContent = rupees.format(activeBill[key] / (key === 'discount' ? -100 : 100));
+    row.append(name, price);
+    list.append(row);
+  }
   document.querySelector('#checkout-page-count').textContent = fileCount(items);
-  checkoutTotal.value = rupees.format(items.reduce((sum, item) => sum + item.subtotal, 0) / 100);
+  checkoutTotal.value = activeBill ? rupees.format(activeBill.total / 100) : 'Updating total…';
 }
+
+async function refreshBill() {
+  const version = ++quoteVersion;
+  const items = checkoutItems();
+  activeBill = null;
+  checkoutSubmit.disabled = true;
+  checkoutError.textContent = '';
+  showOrderBill(items);
+  try {
+    const coupon = checkoutForm.elements.coupon.value.trim().toUpperCase();
+    const bill = await orderRequest('/api/checkout/quote', null, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({items: orderDocuments(items), coupon}),
+    });
+    if (version !== quoteVersion) return;
+    activeBill = bill;
+    appliedCoupon = coupon;
+    showOrderBill(items);
+    checkoutSubmit.disabled = paymentMode === 'disabled';
+  } catch (error) {
+    if (version !== quoteVersion) return;
+    checkoutTotal.value = 'Check your order';
+    checkoutError.textContent = error.message;
+  }
+}
+
+const applyCoupon = document.querySelector('#apply-coupon');
+applyCoupon?.addEventListener('click', refreshBill);
+checkoutForm?.elements.coupon.addEventListener('input', () => {
+  quoteVersion++;
+  checkoutSubmit.disabled = true;
+  checkoutError.textContent = 'Apply the coupon code to update your total.';
+});
 
 function setCheckoutStep(payment) {
   paymentStep = payment;
+  quoteVersion++;
+  activeBill = null;
   checkoutFiles.hidden = payment;
   document.querySelector('#checkout-bill').hidden = !payment;
   if (payment) showOrderBill(checkoutItems());
@@ -270,11 +361,19 @@ function setCheckoutStep(payment) {
   const delivery = document.querySelector('#checkout-delivery');
   delivery.hidden = !payment;
   delivery.disabled = !payment;
-  document.querySelector('#checkout-payment-note').hidden = !payment;
+  const paymentNote = document.querySelector('#checkout-payment-note');
+  paymentNote.hidden = !payment;
+  paymentNote.textContent = {
+    test: 'Local test payment. No money is charged.',
+    razorpay: 'Pay once for all files using Razorpay.',
+    disabled: 'Payments are currently unavailable.',
+  }[paymentMode];
   document.querySelector('#checkout-back').hidden = !payment;
   document.querySelector('#checkout-title').textContent = payment ? 'Delivery and payment' : 'Print settings';
-  checkoutSubmit.textContent = payment ? 'Place test order' : 'Review order';
+  checkoutSubmit.textContent = payment ? (paymentMode === 'test' ? 'Place test order' : 'Pay for order') : 'Review order';
+  checkoutSubmit.disabled = payment;
   checkoutError.textContent = '';
+  if (payment) refreshBill();
 }
 
 document.querySelector('#checkout-back')?.addEventListener('click', () => {
@@ -284,7 +383,7 @@ document.querySelector('#checkout-back')?.addEventListener('click', () => {
 });
 
 function openCheckout(entries) {
-  if (!entries.length || checkout.open) return;
+  if (!entries.length || checkout.open || placingOrder) return;
   checkoutEntries = entries;
   checkoutForm.reset();
   fillProfile(checkoutForm);
@@ -324,6 +423,7 @@ function createPrintOptions(id, entry, onChange) {
     });
   });
   group.append(quantity,
+    pageRangeField(id),
     printChoices('Choose print colour', 'ink-' + id, ['Black & white', 'Colour', 'Select colour pages']),
     colourPageField(id),
     printChoices('Choose print orientation', 'orientation-' + id, ['Portrait', 'Landscape']),
@@ -332,6 +432,7 @@ function createPrintOptions(id, entry, onChange) {
   if (saved) {
     for (const [key, value] of Object.entries({
       pages: saved.pages, copies: saved.copies, 'colour-pages': saved.colourPages?.join(', ') || '',
+      'page-range': saved.pageRange?.join(', ') || '',
     })) group.querySelector(`[name="${key}-${id}"]`).value = value;
     const choices = {
       ink: saved.colourPages ? 2 : Number(saved.colour),
@@ -344,7 +445,17 @@ function createPrintOptions(id, entry, onChange) {
       input.checked = input.value === String(choices[key]);
     }
   }
+  if (/\.(?:png|jpe?g)$/i.test(entry.file.name)) {
+    quantity.querySelector(`[name="pages-${id}"]`).max = 1;
+  }
   return group;
+}
+
+function pageRangeField(id) {
+  const label = document.createElement('label');
+  label.innerHTML = '<strong>Print page range (optional)</strong><input placeholder="1–5, 8, 12" maxlength="300"><small>Leave blank to print from page 1. Colour page numbers refer to positions in the selected range.</small>';
+  label.querySelector('input').name = 'page-range-' + id;
+  return label;
 }
 
 function printChoices(title, name, options) {
@@ -417,7 +528,20 @@ function checkoutItems() {
 function readPrintItems(settingsForm, entries) {
   const data = new FormData(settingsForm);
   return entries.map(([id, entry]) => {
-    const pages = Number(data.get('pages-' + id));
+    let pages = Number(data.get('pages-' + id));
+    const range = settingsForm.elements.namedItem('page-range-' + id);
+    const pageLimit = Number(settingsForm.elements.namedItem('pages-' + id).max);
+    let pageRange;
+    range.setCustomValidity('');
+    if (range.value.trim()) {
+      try {
+        pageRange = parseColourPages(range.value.replaceAll('–', '-'), pageLimit);
+        pages = pageRange.length;
+      } catch {
+        range.setCustomValidity('Enter print pages within the document page count.');
+        return null;
+      }
+    }
     const copies = Number(data.get('copies-' + id));
     const ink = data.get('ink-' + id);
     const field = settingsForm.elements.namedItem('colour-pages-' + id);
@@ -432,13 +556,13 @@ function readPrintItems(settingsForm, entries) {
         return null;
       }
     }
-    if (!Number.isInteger(pages) || pages < 1 || pages > 10000 || !Number.isInteger(copies) || copies < 1 || copies > 100) return null;
+    if (!Number.isInteger(pages) || pages < 1 || pages > pageLimit || !Number.isInteger(copies) || copies < 1 || copies > 100) return null;
     const colour = ink === '1';
     const binding = data.get('binding-' + id);
     const duplex = Number(data.get('sides-' + id));
     const colourCount = colourPages?.length ?? (colour ? pages : 0);
     const subtotal = copies * ((pages - colourCount) * rates[duplex] + colourCount * rates[2 + duplex] + bindingRates[binding]);
-    return {id, file: entry.file, pages, copies, colour, binding, colourPages,
+    return {id, file: entry.file, pages, copies, colour, binding, colourPages, pageRange,
       duplex: Boolean(duplex), orientation: data.get('orientation-' + id) === '1' ? 'Landscape' : 'Portrait', subtotal};
   });
 }
@@ -476,7 +600,7 @@ async function saveOrder(order) {
         else documents.delete(item.id);
       };
     }
-    transaction.objectStore('orders').add({...order, placed: true, accountOrder: true});
+    transaction.objectStore('orders').put({id: order.id, placed: true, accountOrder: true});
   });
 }
 
@@ -501,11 +625,19 @@ async function showOrders() {
   const accountIds = new Set(accountOrders.map(order => order.id));
   const legacyOrders = await getLegacyOrders(accountIds).catch(() => []);
   orderHistory.replaceChildren();
+  const confirmedId = new URLSearchParams(location.search).get('placed');
+  const confirmed = accountOrders.find(order => order.id === confirmedId);
+  if (confirmed) {
+    const banner = document.querySelector('#order-confirmation');
+    banner.textContent = 'Order placed · ' + displayOrderNumber(confirmed);
+    banner.hidden = false;
+  }
   for (const order of [...accountOrders, ...legacyOrders]) {
     const row = document.createElement('li');
     const details = document.createElement('details');
     const summary = document.createElement('summary');
-    summary.textContent = 'PB-' + order.id.slice(0, 8).toUpperCase();
+    summary.textContent = displayOrderNumber(order);
+    details.open = confirmedId === order.id;
     const state = document.createElement('p');
     state.textContent = orderStates[order.status] || 'Delivery status unavailable.';
     details.append(summary, state);
@@ -521,6 +653,7 @@ async function showOrders() {
     for (const item of order.items) {
       const line = document.createElement('li');
       line.textContent = (item.name || item.file.name) + ' · ' + item.pages + ' pages × ' + item.copies + ' copies · '
+        + (item.pageRange ? 'Print pages ' + item.pageRange.join(', ') + ' · ' : '')
         + (item.colourPages ? 'Colour pages ' + item.colourPages.join(', ') : item.colour ? 'Colour' : 'Black & white') + ' · ' + (item.duplex ? 'Double-sided' : 'Single-sided') + (item.orientation ? ' · ' + item.orientation : '')
         + ({glossy: ' · Glossy binding', blue: ' · Blue sheet binding'}[item.binding] || '');
       files.append(line);
@@ -534,6 +667,10 @@ async function showOrders() {
     empty.textContent = 'Your placed orders will appear here.';
     orderHistory.append(empty);
   }
+}
+
+function displayOrderNumber(order) {
+  return order.number || 'PB-' + order.id.slice(0, 8).toUpperCase();
 }
 
 async function getLegacyOrders(accountIds) {
@@ -561,7 +698,44 @@ const orderStates = {
   printing: 'Printing', packed: 'Packed · Awaiting delivery',
   out_for_delivery: 'Out for delivery', delivered: 'Delivered',
 };
-let pendingOrder;
+const checkoutDraftKey = 'printbee-checkout-attempt';
+let razorpayScript;
+
+function loadRazorpay() {
+  if (!razorpayScript) {
+    razorpayScript = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      const failed = () => {
+        script.remove();
+        razorpayScript = null;
+        reject(new Error('Could not load Razorpay. Please retry.'));
+      };
+      script.onload = () => window.Razorpay ? resolve(window.Razorpay) : failed();
+      script.onerror = failed;
+      document.head.append(script);
+    });
+  }
+  return razorpayScript;
+}
+
+async function payWithRazorpay(payment) {
+  const Razorpay = await loadRazorpay();
+  checkout.close();
+  try {
+    await new Promise((resolve, reject) => {
+      const instance = new Razorpay({
+        key: payment.key, order_id: payment.order_id, amount: payment.amount, currency: payment.currency,
+        name: 'PrintBee', retry: {enabled: true},
+        handler: resolve,
+        modal: {ondismiss: () => reject(new Error('Payment window closed. Retry this checkout or check Orders.'))},
+      });
+      instance.open();
+    });
+  } finally {
+    checkout.showModal();
+  }
+}
 
 async function orderRequest(path, key, options = {}) {
   const headers = new Headers(options.headers);
@@ -575,23 +749,45 @@ async function orderRequest(path, key, options = {}) {
   return data;
 }
 
-async function submitTestOrder(order) {
-  const items = order.items.map(({file, pages, copies, colour, duplex, orientation, binding, colourPages}) => ({
-    name: file.name, size: file.size, pages, copies, colour, duplex, orientation, binding, colourPages,
+function orderDocuments(items) {
+  return items.map(({file, pages, copies, colour, duplex, orientation, binding, colourPages, pageRange}) => ({
+    name: file.name, size: file.size, pages, copies, colour, duplex, orientation, binding, colourPages, pageRange,
   }));
+}
+
+async function submitOrder(order) {
+  const items = orderDocuments(order.items);
   const quote = await orderRequest('/api/orders', order.orderKey, {
     method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({id: order.id, customer: order.customer, phone: order.phone, address: order.address, items}),
+    body: JSON.stringify({id: order.id, customer: order.customer, phone: order.phone, address: order.address,
+      slot: order.slot, notes: order.notes, coupon: order.coupon, items, expectedTotal: order.total}),
   });
-  if (quote.subtotal !== order.subtotal) throw new Error('The print price changed. Review the current rates before paying.');
+  if (quote.total !== order.total) throw new Error('The price changed. Review the current rates before paying.');
   const path = '/api/orders/' + order.id;
   const current = await orderRequest(path, order.orderKey);
   if (current.status !== 'pending') return;
-  for (const [index, item] of order.items.entries()) {
-    checkoutError.textContent = 'Uploading file ' + (index + 1) + ' of ' + order.items.length + '…';
-    await orderRequest(path + '/files/' + index, order.orderKey, {method: 'POST', body: item.file});
+  if (!current.paymentStarted) {
+    const progress = document.querySelector('#checkout-progress');
+    progress.max = order.items.length;
+    progress.value = 0;
+    progress.hidden = false;
+    for (const [index, item] of order.items.entries()) {
+      checkoutError.textContent = 'Uploading file ' + (index + 1) + ' of ' + order.items.length + '…';
+      await orderRequest(path + '/files/' + index, order.orderKey, {method: 'POST', body: item.file});
+      progress.value = index + 1;
+    }
+    progress.hidden = true;
   }
-  await orderRequest(path + '/test-payment', order.orderKey, {method: 'POST'});
+  const payment = await orderRequest(path + '/payment', order.orderKey, {method: 'POST'});
+  if (payment.status !== 'pending') return;
+  await payWithRazorpay(payment);
+  checkoutError.textContent = 'Waiting for payment confirmation…';
+  for (let attempt = 0; attempt < 15; attempt++) {
+    const {status} = await orderRequest(path, order.orderKey);
+    if (status !== 'pending') return;
+    await new Promise(resolve => setTimeout(resolve, 1200));
+  }
+  throw new Error('Payment confirmation is pending. Check Orders before retrying this checkout.');
 }
 
 checkoutForm?.addEventListener('submit', async event => {
@@ -599,12 +795,15 @@ checkoutForm?.addEventListener('submit', async event => {
   if (checkoutSubmit.disabled) return;
   if (!paymentStep) {
     if (checkoutItems().includes(null)) return;
+    checkoutSubmit.disabled = true;
+    await paymentConfig;
     setCheckoutStep(true);
     checkout.scrollTop = 0;
     checkoutForm.elements.customer.focus();
     return;
   }
   const data = new FormData(checkoutForm);
+  if (!activeBill || data.get('coupon').trim().toUpperCase() !== appliedCoupon) return;
   const customer = data.get('customer').trim();
   const phone = data.get('phone').trim();
   const address = data.get('address').trim();
@@ -618,20 +817,34 @@ checkoutForm?.addEventListener('submit', async event => {
     checkoutForm.reportValidity();
     return;
   }
-  const signature = JSON.stringify([...data]);
-  if (pendingOrder?.signature !== signature) pendingOrder = {signature, order: {
-    id: crypto.randomUUID().replaceAll('-', ''),
-    orderKey: Array.from(crypto.getRandomValues(new Uint8Array(32)), byte => byte.toString(16).padStart(2, '0')).join(''),
-    createdAt: Date.now(), customer, phone, address, items,
-    subtotal: items.reduce((sum, item) => sum + item.subtotal, 0),
-  }};
-  const {order} = pendingOrder;
   checkoutSubmit.disabled = true;
   checkoutClose.disabled = true;
+  placingOrder = true;
+  applyCoupon.disabled = true;
+  checkoutForm.elements.coupon.readOnly = true;
+  const back = document.querySelector('#checkout-back');
+  back.disabled = true;
   checkoutError.textContent = '';
+  let placedId;
   try {
-    await submitTestOrder(order);
+    const signatureText = JSON.stringify({fields: [...data], ids: items.map(item => item.id)});
+    const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(signatureText));
+    const signature = Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, '0')).join('');
+    let attempt = JSON.parse(sessionStorage.getItem(checkoutDraftKey));
+    if (attempt?.signature !== signature) {
+      attempt = {
+        signature,
+        id: crypto.randomUUID().replaceAll('-', ''),
+        orderKey: Array.from(crypto.getRandomValues(new Uint8Array(32)), byte => byte.toString(16).padStart(2, '0')).join(''),
+      };
+      sessionStorage.setItem(checkoutDraftKey, JSON.stringify(attempt));
+    }
+    const order = {...attempt, customer, phone, address, items,
+      slot: data.get('slot') || '', notes: data.get('notes'), coupon: appliedCoupon, total: activeBill.total};
+    await submitOrder(order);
     await saveOrder(order);
+    sessionStorage.removeItem(checkoutDraftKey);
+    placedId = order.id;
   } catch (error) {
     checkoutError.textContent = error.message || 'Could not complete checkout. Try again.';
     if (error.signInRequired) {
@@ -642,11 +855,16 @@ checkoutForm?.addEventListener('submit', async event => {
     }
     return;
   } finally {
+    document.querySelector('#checkout-progress').hidden = true;
+    back.disabled = false;
     checkoutSubmit.disabled = false;
     checkoutClose.disabled = false;
+    placingOrder = false;
+    applyCoupon.disabled = false;
+    checkoutForm.elements.coupon.readOnly = false;
   }
   checkout.close();
-  location.assign('orders.html#orders');
+  location.assign('orders.html?placed=' + placedId + '#orders');
 });
 
 Promise.all([showQueue(), showOrders()]).catch(() => {

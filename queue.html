@@ -9,7 +9,7 @@
 <script src="preloader.js?v=3"></script>
 <link rel="stylesheet" href="studio.css?v=compact-relief-footer">
 <script src="profile.js?v=delivery-details" defer></script>
-<script src="studio.js?v=account-orders" defer></script>
+<script src="studio.js?v=razorpay-checkout" defer></script>
 </head>
 <body>
 <a href="#main" class="skip">Skip to content</a>
@@ -34,11 +34,11 @@
     <div><h1>Upload files</h1><p>Add all the files you want printed, then check out together.</p></div>
     <div class="raised table-card upload-card">
       <form id="queue-form">
-        <label class="field-label" for="document-file">Any file type, up to 50 MB per file</label>
+        <label class="field-label" for="document-file">Drop files here or choose files · up to 50 MB each</label>
         <input class="inset file-field" id="document-file" type="file" multiple>
         <section class="file-review" id="file-review" aria-labelledby="review-title" hidden>
           <h2 id="review-title">Review your files</h2>
-          <p class="review-note">Files stay in your browser until you place your order.</p>
+          <p class="review-note">PDFs are sent to PrintBee to count pages. Files are saved with your order at checkout.</p>
           <div id="review-grid" class="review-grid"></div>
           <div id="review-settings"></div>
           <div class="review-actions review-summary">
@@ -62,9 +62,14 @@
       <label>Full name<input name="customer" autocomplete="name" required maxlength="100"></label>
       <label>Phone<input name="phone" type="tel" autocomplete="tel" pattern="[+0-9 \(\)\-]{7,20}" required maxlength="20"></label>
       <label class="checkout-address">Delivery address<textarea name="address" autocomplete="street-address" required maxlength="500"></textarea></label>
+      <label id="checkout-slot" hidden>Delivery slot<select name="slot" disabled></select></label>
+      <label class="checkout-address">Delivery notes (optional)<textarea name="notes" maxlength="500"></textarea></label>
+      <label>Coupon code (optional)<input name="coupon" maxlength="30"></label>
+      <button class="pill raised" type="button" id="apply-coupon">Apply coupon</button>
     </fieldset>
     <section id="checkout-bill" aria-label="Order bill" hidden><h3>Order bill</h3><ul></ul></section>
-    <p id="checkout-payment-note" hidden>Test payment only. No money is charged. Delivery fees are excluded.</p>
+    <p id="checkout-payment-note" hidden></p>
+    <progress id="checkout-progress" aria-label="File upload progress" hidden></progress>
     <p id="checkout-error" role="status"></p>
     <div class="checkout-bar">
       <div><span id="checkout-page-count"></span><p class="checkout-total">Order total <output id="checkout-total"></output></p></div>
