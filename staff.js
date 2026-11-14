@@ -20,7 +20,7 @@ async function request(path, key, options = {}) {
 function button(text, action) {
   const control = document.createElement('button');
   control.type = 'button';
-  control.className = 'pill yellow';
+  control.className = 'clay-button';
   control.textContent = text;
   control.addEventListener('click', async () => {
     control.disabled = true;
@@ -42,12 +42,15 @@ async function loadOrders(key) {
   statusLine.textContent = (data.role === 'warehouse' ? 'Warehouse' : 'Delivery') + ' · ' + data.orders.length + ' orders';
   for (const order of data.orders) {
     const card = document.createElement('article');
-    card.className = 'raised table-card';
+    card.className = 'clay-card';
     const title = document.createElement('h2');
-    title.textContent = 'PB-' + order.id.slice(0, 8).toUpperCase() + ' · ' + labels[order.status];
+    title.textContent = 'PB-' + order.id.slice(0, 8).toUpperCase();
+    const badge = document.createElement('span');
+    badge.className = 'clay-badge';
+    badge.textContent = labels[order.status];
     const customer = document.createElement('p');
     customer.textContent = [order.customer, order.phone, order.address].join(' · ');
-    card.append(title, customer);
+    card.append(title, badge, customer);
     if (data.role === 'warehouse') {
       const files = document.createElement('ul');
       order.items.forEach((item, index) => {

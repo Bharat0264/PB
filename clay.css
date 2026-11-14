@@ -1,0 +1,83 @@
+:root {
+  --clay-bg: #fff9e8;
+  --clay-surface: #fff;
+  --clay-primary: #ffc83d;
+  --clay-primary-deep: #f5a800;
+  --clay-ink: #2b2415;
+  --clay-muted: #6b604a;
+  --clay-radius: 28px;
+  --clay-raised: 6px 8px 18px #9c743332, -4px -4px 14px #fff9,
+    inset -3px -3px 7px #6d572012, inset 3px 3px 7px #fffc;
+}
+
+.clay-card {
+  padding: clamp(16px, 3vw, 32px);
+  background: var(--clay-surface);
+  color: var(--clay-ink);
+  border-radius: var(--clay-radius);
+  box-shadow: var(--clay-raised);
+}
+
+.clay-button {
+  min-height: 44px;
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 999px;
+  color: var(--clay-ink);
+  background: linear-gradient(135deg, #ffe18a, var(--clay-primary));
+  box-shadow: var(--clay-raised);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform .22s cubic-bezier(.22, 1.35, .44, 1), box-shadow .15s;
+}
+
+.clay-button:active {
+  transform: scale(.96);
+  box-shadow: inset 3px 3px 8px #91672250;
+}
+
+.clay-button:disabled { opacity: .65; cursor: wait; }
+.clay-button:focus-visible, .clay-input:focus-visible { outline: 3px solid #654816; outline-offset: 3px; }
+
+.clay-input {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid #c8bda6;
+  border-radius: 14px;
+  color: var(--clay-ink);
+  background: var(--clay-bg);
+  font: inherit;
+}
+
+.clay-badge {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 4px 11px;
+  background: #eaf0d6;
+  color: #3d4928;
+  font-size: .875rem;
+  font-weight: 800;
+}
+
+.clay-stepper { display: flex; align-items: center; gap: 8px; }
+.clay-modal { border: 0; max-width: min(620px, calc(100% - 24px)); }
+.clay-modal::backdrop { background: #2b241570; }
+.clay-table { width: 100%; border-collapse: collapse; text-align: left; }
+.clay-table :is(th, td) { border-bottom: 1px solid #d8cfbc; padding: 8px; }
+.clay-toast { color: var(--clay-muted); }
+.clay-skeleton { border-radius: 12px; min-height: 1em; background: #e7dfce; }
+
+.staff-console { display: grid; gap: 18px; }
+.staff-login-fields { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; }
+.staff-login-fields label { display: grid; flex: 1 1 220px; gap: 4px; }
+.staff-console #staff-orders { display: grid; gap: 16px; }
+.staff-console #staff-orders article { overflow-wrap: anywhere; }
+.staff-console #staff-orders button { margin: 8px 8px 0 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .clay-button { transition: none; }
+  .clay-button:active { transform: none; }
+}

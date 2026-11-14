@@ -1,0 +1,54 @@
+"""PrintBee's server-side pricing rules. Prices are integer paise."""
+RATES = (175, 300, 850, 1400)
+BINDING_RATES = {"none": 0, "glossy": 5000, "blue": 4000}
+LIMIT = 50 * 1024 * 1024
+
+
+def quote_items(items):
+    if not isinstance(items, list) or not 1 <= len(items) <= 100:
+        raise ValueError("Choose between one and 100 files.")
+    documents = []
+    for item in items:
+        if not isinstance(item, dict):
+            raise ValueError("Invalid file options.")
+        pages, copies, size = (item[key] for key in ("pages", "copies", "size"))
+        colour, duplex = item["colour"], item["duplex"]
+        if not (type(pages) is type(copies) is type(size) is int and 1 <= pages <= 10000
+                and 1 <= copies <= 100 and 1 <= size <= LIMIT and type(colour) is type(duplex) is bool
+                and item["orientation"] in ("Portrait", "Landscape")
+                and isinstance(item["name"], str) and 1 <= len(item["name"]) <= 255):
+            raise ValueError("Invalid file options.")
+        binding = item.get("binding", "none")
+        if not isinstance(binding, str) or binding not in BINDING_RATES:
+            raise ValueError("Invalid binding.")
+        selected = item.get("colourPages")
+        if selected is not None and (
+            colour or not isinstance(selected, list) or not selected or
+            any(type(page) is not int or not 1 <= page <= pages for page in selected) or
+            len(set(selected)) != len(selected)
+        ):
+            raise ValueError("Invalid colour page selection.")
+        colour_count = len(selected) if selected is not None else pages if colour else 0
+        subtotal = copies * ((pages - colour_count) * RATES[duplex]
+                             + colour_count * RATES[2 + duplex] + BINDING_RATES[binding])
+        documents.append({key: item[key] for key in (
+            "name", "size", "pages", "copies", "colour", "duplex", "orientation"
+        )} | {"subtotal": subtotal, "binding": binding, "colourPages": selected})
+    return documents, sum(item["subtotal"] for item in documents)
+
+
+TRANSITIONS = {
+    "warehouse": {"paid": "printing", "printing": "packed"},
+    "delivery": {"packed": "out_for_delivery", "out_for_delivery": "delivered"},
+}
+
+
+def advance_order(db, order_id, role, expected):
+    """Advance only when the role and current persisted status both match."""
+    target = TRANSITIONS.get(role, {}).get(expected)
+    if target is None:
+        return None
+    changed = db.execute(
+        "UPDATE orders SET status=? WHERE id=? AND status=?", (target, order_id, expected)
+    ).rowcount
+    return target if changed else None

@@ -13,18 +13,12 @@ from urllib.parse import parse_qs, urlsplit
 from http.cookies import CookieError, SimpleCookie
 
 import customer_auth as auth
+from order_rules import LIMIT, TRANSITIONS, advance_order, quote_items
 
 ROOT = Path(__file__).resolve().parent
 PRELOADER_BUNDLE = ROOT / "preloader-3d.bundle.js"
 DATA = Path(os.environ.get("LOCALAPPDATA", ROOT.parent)) / "PrintBeeLocal"
 DATA.mkdir(exist_ok=True)
-RATES = (175, 300, 850, 1400)
-BINDING_RATES = {"none": 0, "glossy": 5000, "blue": 4000}
-LIMIT = 50 * 1024 * 1024
-TRANSITIONS = {
-    "warehouse": {"paid": "printing", "printing": "packed"},
-    "delivery": {"packed": "out_for_delivery", "out_for_delivery": "delivered"},
-}
 
 
 def connect():
@@ -114,7 +108,7 @@ class PrintBee(SimpleHTTPRequestHandler):
             with closing(connect()) as db:
                 return self.json_response(200, {"email": auth.session_email(db, self.headers)})
         if not path.startswith("/api/"):
-            allowed = {"/", "/index.html", "/studio.js", "/studio.css", "/staff.html", "/staff.js",
+            allowed = {"/", "/index.html", "/studio.js", "/studio.css", "/clay.css", "/staff.html", "/staff.js",
                        "/pricing.html", "/queue.html", "/orders.html", "/profile.html", "/profile.js", "/address.html", "/customer-login.js",
                        "/preloader.js", "/preloader.css", "/preloader-art.js", "/gsap-3.13.0.min.js"}
             if path == "/preloader-3d.bundle.js" and self.server.preloader_gzip:
@@ -235,35 +229,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                 len(re.sub(r"\D", "", details["phone"])) < 7 or
                 not details["address"] or len(details["address"]) > 500):
             raise ValueError()
-        items = data["items"]
-        if not 1 <= len(items) <= 100:
-            raise ValueError()
-        total = 0
-        documents = []
-        for item in items:
-            pages, copies, size = (item[key] for key in ("pages", "copies", "size"))
-            colour, duplex = item["colour"], item["duplex"]
-            if not (type(pages) is type(copies) is type(size) is int and 1 <= pages <= 10000
-                    and 1 <= copies <= 100 and 1 <= size <= LIMIT and type(colour) is type(duplex) is bool
-                    and item["orientation"] in ("Portrait", "Landscape") and 1 <= len(item["name"]) <= 255):
-                raise ValueError()
-            binding = item.get("binding", "none")
-            selected = item.get("colourPages")
-            if binding not in BINDING_RATES:
-                raise ValueError()
-            if selected is not None and (
-                colour or not isinstance(selected, list) or not selected or
-                any(type(page) is not int or not 1 <= page <= pages for page in selected) or
-                len(set(selected)) != len(selected)
-            ):
-                raise ValueError()
-            colour_count = len(selected) if selected is not None else pages if colour else 0
-            subtotal = copies * ((pages - colour_count) * RATES[duplex]
-                                 + colour_count * RATES[2 + duplex] + BINDING_RATES[binding])
-            total += subtotal
-            documents.append({key: item[key] for key in (
-                "name", "size", "pages", "copies", "colour", "duplex", "orientation"
-            )} | {"subtotal": subtotal, "binding": binding, "colourPages": selected})
+        documents, total = quote_items(data["items"])
         details.update(items=documents, subtotal=total)
         encoded = json.dumps(details, sort_keys=True)
         with closing(connect()) as db, db:
@@ -321,13 +287,11 @@ class PrintBee(SimpleHTTPRequestHandler):
         if not role:
             return self.json_response(403, {"error": "Enter your staff key."})
         expected = self.headers.get("X-Order-Status", "")
-        next_status = TRANSITIONS[role].get(expected)
-        if not next_status:
+        if expected not in TRANSITIONS[role]:
             return self.json_response(409, {"error": "This action is unavailable."})
         with closing(connect()) as db, db:
-            changed = db.execute("UPDATE orders SET status=? WHERE id=? AND status=?",
-                                 (next_status, order_id, expected)).rowcount
-        if not changed:
+            next_status = advance_order(db, order_id, role, expected)
+        if not next_status:
             return self.json_response(409, {"error": "The order changed. Refresh your list."})
         self.json_response(200, {"status": next_status})
 
