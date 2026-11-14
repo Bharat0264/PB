@@ -649,6 +649,10 @@ body{background:var(--base)}
 .header-cart:hover{background:#ffdb69}
 @media(min-width:701px) and (max-width:980px){.top{grid-template-columns:auto minmax(0,1fr) auto;gap:10px}}
 
+.profile-page {
+  padding-bottom: clamp(24px, 4vw, 48px);
+}
+
 .profile-login {
   --profile-surface: #f8f0dd;
   --profile-button-shadow: 6px 8px 16px #77542726, -4px -4px 12px #fffdf6,
