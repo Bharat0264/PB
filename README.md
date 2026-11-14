@@ -80,7 +80,7 @@ browser-local carts and saved orders need a migration plan before changing stora
 
 The customer tabs are Home (`/home`), Orders (`/orders`), Upload
 (`/upload`), Address (`/address`), and Profile (`/profile`). Orders includes
-tracking. Profile includes Help & Contact, and Home and Upload link to
+tracking. Home and Upload link to
 Pricing. The layout keeps same-origin screens mounted to retain their
 scroll and form state between tab switches. Account and order data
 require the Python API.
