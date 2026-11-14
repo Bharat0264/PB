@@ -62,3 +62,35 @@ def invoice_pdf(number, details, mode):
             rows.append(Paragraph(f"{label}: INR {amount:.2f}", styles["BodyText"]))
     pdf.build(rows)
     return output.getvalue()
+
+
+def packing_label_pdf(number, details):
+    from reportlab.graphics import renderPDF
+    from reportlab.graphics.barcode import createBarcodeDrawing
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib.units import mm
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
+    from reportlab.platypus.flowables import Flowable
+    from xml.sax.saxutils import escape
+
+    class OrderCode(Flowable):
+        width = height = 29 * mm
+
+        def draw(self):
+            code = createBarcodeDrawing("QR", value=number, width=self.width, height=self.height)
+            renderPDF.draw(code, self.canv, 0, 0)
+
+    output = BytesIO()
+    label = SimpleDocTemplate(output, pagesize=(104 * mm, 148 * mm), leftMargin=8 * mm,
+                              rightMargin=8 * mm, topMargin=8 * mm, bottomMargin=8 * mm)
+    styles = getSampleStyleSheet()
+    label.build([
+        Paragraph("PrintBee", styles["Heading1"]),
+        Paragraph(escape(number), styles["Heading2"]),
+        OrderCode(),
+        Spacer(1, 8),
+        Paragraph(escape(details["customer"]), styles["Heading3"]),
+        Paragraph(escape(details["address"]), styles["BodyText"]),
+        Paragraph(escape(details["phone"]), styles["BodyText"]),
+    ])
+    return output.getvalue()

@@ -67,11 +67,43 @@ for the same cart and details reuses its order reference.
 | Phase | Scope and dependencies |
 | --- | --- |
 | 2 | Verify Razorpay test checkout against a public webhook, configure and verify Google Maps and the private bucket, and test DOCX pagination with the production renderer. Configure merchant details for tax invoices. |
-| 3 | Warehouse dashboard, durable print jobs, printer agent, packing labels, and per-user audit logs. Validate the agent on the actual warehouse printer before rollout. |
-| 4 | Partner accounts and assignment, Google Maps, location tracking, and OTP delivery confirmation with a configured SMS provider. |
-| 5 | Admin roles, versioned pricing, partner management, reporting, refunds, and payouts. |
-| 6 | Realtime tracking, notifications, production security and accessibility checks, end-to-end QA, and deployment. |
+| 3 | Validate the agent on the warehouse printer, add automated DOCX/image and mixed-colour submission, automatic label printing, printer supplies, and per-user staff accounts. |
+| 4 | Individual partner accounts with phone sign-in, automated dispatch, a PWA, maps with ETA, earnings and payouts, KYC, SMS and photo proof. |
+| 5 | Refunds and cancellations, partner management and settlements, detailed finance and GST reporting, and additional pricing rules. |
+| 6 | Push realtime events and notifications, guest order access, deployment and production security and accessibility checks. |
 
 Production provider accounts, deployment settings, and warehouse printer details
 are still needed for live integrations. Keep credentials outside Git. Existing
 browser-local carts and saved orders need a migration plan before changing storage.
+
+## Local operations
+
+Use Python with SQLite 3.35 or later and run `python server.py --show-staff-keys`
+to obtain distinct warehouse, delivery, admin and agent credentials. Existing
+warehouse and delivery keys are preserved. Open `/warehouse`, `/partner` or
+`/admin` on the local server and enter the corresponding key.
+
+The warehouse can queue individual PDF files or print all, retry failed
+jobs, or confirm a manually printed file. Packing requires every file to be
+confirmed. Packed orders offer a downloadable PDF label with an order QR code.
+Start the agent with `PRINTBEE_PRINT_AGENT_KEY` set to the agent
+credential and run `python print_agent.py --printer "Printer name"`. On
+Windows also pass `--sumatra "C:\path\to\SumatraPDF.exe"`. Linux and macOS
+use the CUPS `lp` command. Use `--origin` for a deployed HTTPS endpoint and
+`--once` for one queued job. Successful submission reports completion
+at the spooler. If a job is interrupted, inspect the real spooler before using
+`POST /api/admin/print-jobs/<id>/recover` with the admin key and retrying.
+
+Set `PRINTBEE_PARTNER_KEYS` to a JSON object mapping partner IDs to unique
+random tokens for individual assignments. The original delivery key remains
+available for the default operator. A partner accepts a packed order and
+confirms pickup. The signed-in customer
+can then see a four-digit code and the latest shared position on Orders.
+The code expires after two hours and locks after three wrong attempts.
+An admin can renew it from the dashboard. Open order details refresh every
+15 seconds. Partner location sharing uses the browser's permission prompt.
+
+The admin dashboard shows order counts, captured Razorpay totals, a recent
+order CSV export, and operational audit events. Published pricing is stored
+as a new version and is available to subsequently loaded checkouts. Existing
+paid orders retain their quoted amounts.

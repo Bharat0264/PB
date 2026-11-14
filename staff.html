@@ -6,18 +6,26 @@
 <title>PrintBee staff portal</title>
 <link rel="stylesheet" href="studio.css?v=even-honeycomb">
 <link rel="stylesheet" href="clay.css?v=1">
-<script src="staff.js?v=print-options" defer></script>
+<script src="staff.js?v=warehouse-jobs" defer></script>
 </head>
 <body>
 <header class="frame top"><a href="/" class="brand">PrintBee</a></header>
 <main class="frame">
 <section class="section staff-console">
-<h1>Staff portal</h1>
+<h1>Warehouse</h1>
+<nav aria-label="Staff portals"><a href="/partner">Delivery partner</a> · <a href="/admin">Admin</a></nav>
 <form id="staff-login" class="clay-card staff-login-fields">
   <label>Staff key<input class="clay-input" id="staff-key" type="password" required autocomplete="off"></label>
   <button class="clay-button" type="submit">Load orders</button>
 </form>
 <p id="staff-status" class="clay-toast" role="status"></p>
+<div id="warehouse-filters" class="staff-login-fields" hidden>
+  <label>Find an order<input class="clay-input" id="warehouse-search" type="search" placeholder="Order number"></label>
+  <label>Status<select class="clay-input" id="warehouse-state">
+    <option value="">All</option><option value="paid">New</option>
+    <option value="printing">Printing</option><option value="packed">Ready for pickup</option>
+  </select></label>
+</div>
 <div id="staff-orders"></div>
 </section>
 </main>

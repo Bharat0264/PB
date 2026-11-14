@@ -2,12 +2,15 @@ const login = document.querySelector('#staff-login');
 const statusLine = document.querySelector('#staff-status');
 const orders = document.querySelector('#staff-orders');
 const keyField = document.querySelector('#staff-key');
+const filters = document.querySelector('#warehouse-filters');
+const search = document.querySelector('#warehouse-search');
+const stateFilter = document.querySelector('#warehouse-state');
 const actions = {
   warehouse: {paid: 'Start printing', printing: 'Mark packed'},
   delivery: {packed: 'Collect for delivery', out_for_delivery: 'Mark delivered'},
 };
 const labels = {
-  paid: 'Paid in test checkout', printing: 'Printing', packed: 'Packed',
+  paid: 'Payment confirmed', printing: 'Printing', packed: 'Packed',
   out_for_delivery: 'Out for delivery', delivered: 'Delivered',
 };
 
@@ -15,6 +18,16 @@ async function request(path, key, options = {}) {
   const response = await fetch(path, {...options, headers: {'X-Staff-Key': key, ...options.headers}});
   if (!response.ok) throw new Error((await response.json()).error);
   return response;
+}
+
+async function downloadFile(path, key, filename) {
+  const response = await request(path, key);
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function button(text, action) {
@@ -39,12 +52,15 @@ async function loadOrders(key) {
   const response = await request('/api/staff/orders', key);
   const data = await response.json();
   orders.replaceChildren();
-  statusLine.textContent = (data.role === 'warehouse' ? 'Warehouse' : 'Delivery') + ' · ' + data.orders.length + ' orders';
+  filters.hidden = false;
+  statusLine.textContent = data.orders.length + ' orders · Print agent ' + (data.agentOnline ? 'online' : 'offline');
   for (const order of data.orders) {
     const card = document.createElement('article');
     card.className = 'clay-card';
     const title = document.createElement('h2');
     title.textContent = order.number || 'PB-' + order.id.slice(0, 8).toUpperCase();
+    card.dataset.number = title.textContent.toLowerCase();
+    card.dataset.status = order.status;
     const badge = document.createElement('span');
     badge.className = 'clay-badge';
     badge.textContent = labels[order.status];
@@ -69,18 +85,33 @@ async function loadOrders(key) {
           {glossy: 'Glossy binding · White transparent sheet', blue: 'Blue sheet binding',
             spiral: 'Spiral binding', staple: 'Staple binding'}[item.binding] || 'No binding',
         ].filter(Boolean).join(' · ');
-        row.append(spec, button('Download print file', async () => {
-          const response = await request('/api/staff/files/' + order.id + '/' + index, key);
-          const url = URL.createObjectURL(await response.blob());
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = item.name;
-          link.click();
-          setTimeout(() => URL.revokeObjectURL(url), 1000);
-        }));
+        row.append(spec, button('Download print file', () =>
+          downloadFile('/api/staff/files/' + order.id + '/' + index, key, item.name)));
+        const job = order.jobs.find(entry => entry.position === index);
+        if (job) {
+          const result = document.createElement('p');
+          result.textContent = 'Job ' + job.id + ' · ' + job.state + (job.error ? ' · ' + job.error : '');
+          row.append(result);
+        }
+        if (['paid', 'printing'].includes(order.status) && (!job || job.state === 'failed')) {
+          row.append(button(job ? 'Retry print' : 'Print file', async () => {
+            await request('/api/staff/orders/' + order.id + '/print/' + index, key, {method: 'POST'});
+            await loadOrders(key);
+          }));
+          row.append(button('Confirm manually printed', async () => {
+            await request('/api/staff/orders/' + order.id + '/printed/' + index, key, {method: 'POST'});
+            await loadOrders(key);
+          }));
+        }
         files.append(row);
       });
       card.append(files);
+      if (['paid', 'printing'].includes(order.status)) card.append(button('Print all', async () => {
+        await request('/api/staff/orders/' + order.id + '/print/all', key, {method: 'POST'});
+        await loadOrders(key);
+      }));
+      if (order.status === 'packed') card.append(button('Download packing label', () =>
+        downloadFile('/api/staff/orders/' + order.id + '/label', key, title.textContent + '-packing.pdf')));
     }
     const action = actions[data.role][order.status];
     if (action) card.append(button(action, async () => {
@@ -91,14 +122,34 @@ async function loadOrders(key) {
     }));
     orders.append(card);
   }
+  filterOrders();
 }
 
+function filterOrders() {
+  const query = search.value.trim().toLowerCase();
+  for (const card of orders.children) {
+    card.hidden = !card.dataset.number.includes(query) ||
+      (stateFilter.value !== '' && card.dataset.status !== stateFilter.value);
+  }
+}
+
+filters.addEventListener('input', filterOrders);
+
+let refresh;
 login.addEventListener('submit', async event => {
   event.preventDefault();
+  clearInterval(refresh);
+  const key = keyField.value;
   try {
-    await loadOrders(keyField.value);
+    await loadOrders(key);
+    refresh = setInterval(() => {
+      if (!document.hidden && !orders.contains(document.activeElement)) {
+        loadOrders(key).catch(() => { statusLine.textContent = 'Could not refresh orders.'; });
+      }
+    }, 10000);
   } catch (error) {
     orders.replaceChildren();
+    filters.hidden = true;
     statusLine.textContent = error.message || 'Could not load orders.';
   }
 });

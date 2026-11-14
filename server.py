@@ -6,6 +6,7 @@ import os
 import re
 import secrets
 import sqlite3
+import time
 from contextlib import closing
 from datetime import datetime, timedelta, timezone
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -15,10 +16,11 @@ from http.cookies import CookieError, SimpleCookie
 from threading import BoundedSemaphore
 
 import customer_auth as auth
+import fulfillment as ops
 import razorpay_checkout
-from checkout_terms import bill_for, configured_terms
+from checkout_terms import bill_for, configured_terms, validate_terms
 from document_pages import count_pages
-from order_documents import PrivateFiles, invoice_pdf
+from order_documents import PrivateFiles, invoice_pdf, packing_label_pdf
 from order_rules import LIMIT, TRANSITIONS, advance_order, quote_items
 
 ROOT = Path(__file__).resolve().parent
@@ -36,9 +38,15 @@ def connect():
 
 def staff_keys():
     path = DATA / "staff-keys.json"
-    if not path.exists():
-        path.write_text(json.dumps({role: secrets.token_urlsafe(24) for role in TRANSITIONS}), encoding="utf-8")
-    return json.loads(path.read_text(encoding="utf-8"))
+    keys = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    updated = {**keys, **{role: secrets.token_urlsafe(24) for role in
+                          ("warehouse", "delivery", "admin", "print-agent", "delivery-code")
+                          if role not in keys}}
+    if updated != keys:
+        temporary = path.with_suffix(".tmp")
+        temporary.write_text(json.dumps(updated), encoding="utf-8")
+        temporary.replace(path)
+    return updated
 
 
 def order_number(db):
@@ -65,8 +73,21 @@ class PrintBee(SimpleHTTPRequestHandler):
         self.wfile.write(body)
 
     def get_role(self):
-        key = self.headers.get("X-Staff-Key", "")
-        return next((role for role, secret in self.server.keys.items() if hmac.compare_digest(key, secret)), None)
+        key = self.headers.get("X-Staff-Key", "").encode()
+        return next((role for role, secret in self.server.keys.items()
+                     if role != "delivery-code" and hmac.compare_digest(key, secret.encode())), None)
+
+    def get_partner(self):
+        key = self.headers.get("X-Staff-Key", "").encode()
+        return next((name for name, secret in self.server.partners.items()
+                     if hmac.compare_digest(key, secret.encode())), None)
+
+    def checkout_terms(self, db=None):
+        if db is None:
+            with closing(connect()) as connection:
+                return self.checkout_terms(connection)
+        row = db.execute("SELECT terms FROM pricing_versions ORDER BY id DESC LIMIT 1").fetchone()
+        return json.loads(row["terms"]) if row else self.server.checkout_terms
 
     def log_request(self, code="-", size="-"):
         if urlsplit(self.path).path == auth.GOOGLE_CALLBACK:
@@ -117,17 +138,21 @@ class PrintBee(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         path = urlsplit(self.path).path
+        pages = {"/warehouse": "/staff.html", "/partner": "/partner.html", "/admin": "/admin.html"}
+        if path in pages:
+            return self.auth_redirect(pages[path])
         if path in ("/api/auth/google", auth.GOOGLE_CALLBACK):
             return self.google_sign_in(path)
         if path == "/api/auth/session":
             with closing(connect()) as db:
                 return self.json_response(200, {"email": auth.session_email(db, self.headers)})
         if path == "/api/checkout":
-            terms = {key: value for key, value in self.server.checkout_terms.items() if key != "coupons"}
+            terms = {key: value for key, value in self.checkout_terms().items() if key != "coupons"}
             return self.json_response(200, {"mode": self.server.payment_mode, "terms": terms,
                                            "maps": self.server.maps})
         if not path.startswith("/api/"):
             allowed = {"/", "/index.html", "/studio.js", "/studio.css", "/clay.css", "/staff.html", "/staff.js", "/delivery-map.js",
+                       "/partner.html", "/admin.html", "/operations.js",
                        "/pricing.html", "/queue.html", "/orders.html", "/profile.html", "/profile.js", "/address.html", "/customer-login.js",
                        "/preloader.js", "/preloader.css", "/preloader-art.js", "/gsap-3.13.0.min.js"}
             if path == "/preloader-3d.bundle.js" and self.server.preloader_gzip:
@@ -149,6 +174,29 @@ class PrintBee(SimpleHTTPRequestHandler):
                 return super().do_GET()
             return self.send_error(404)
         with closing(connect()) as db:
+            if path == "/api/admin":
+                return self.admin_snapshot(db)
+            if path == "/api/partner/orders":
+                return self.partner_orders(db)
+            label = re.fullmatch(r"/api/staff/orders/([a-f0-9]{32})/label", path)
+            if label and self.get_role() == "warehouse":
+                row = db.execute(
+                    "SELECT details, order_number FROM orders LEFT JOIN order_owners "
+                    "ON orders.id=order_owners.order_id WHERE orders.id=? AND status='packed'", label.groups()
+                ).fetchone()
+                if row:
+                    number = row["order_number"] or "PB-" + label[1][:8].upper()
+                    body = packing_label_pdf(number, json.loads(row["details"]))
+                    return self.send_download(body, "application/pdf", f'attachment; filename="{number}-packing.pdf"')
+            match = re.fullmatch(r"/api/print-agent/jobs/(\d+)/file", path)
+            if match and self.get_role() == "print-agent":
+                row = db.execute(
+                    "SELECT content, object_key FROM print_jobs JOIN files ON files.order_id=print_jobs.order_id "
+                    "AND files.position=print_jobs.position WHERE print_jobs.id=? AND state='printing' AND worker=?",
+                    (match[1], self.headers.get("X-Print-Claim", ""))
+                ).fetchone()
+                if row:
+                    return self.send_file(row)
             if path == "/api/orders":
                 email = auth.session_email(db, self.headers)
                 if not email:
@@ -168,15 +216,21 @@ class PrintBee(SimpleHTTPRequestHandler):
                 ]})
             if path == "/api/staff/orders":
                 role = self.get_role()
-                if not role:
+                if role != "warehouse":
                     return self.json_response(403, {"error": "Enter your staff key."})
-                states = ("paid", "printing", "packed") if role == "warehouse" else ("packed", "out_for_delivery", "delivered")
+                states = ("paid", "printing", "packed")
                 rows = db.execute(
                     "SELECT orders.id, status, details, order_number FROM orders LEFT JOIN order_owners "
                     "ON orders.id=order_owners.order_id WHERE status IN (?, ?, ?) ORDER BY orders.rowid DESC", states
                 )
-                return self.json_response(200, {"role": role, "orders": [
+                jobs = {}
+                for job in db.execute("SELECT id, order_id, position, state, error FROM print_jobs"):
+                    jobs.setdefault(job["order_id"], []).append(dict(job))
+                agent = db.execute("SELECT seen FROM workstations WHERE role='print-agent'").fetchone()
+                return self.json_response(200, {"role": role, "agentOnline": bool(agent and agent["seen"] > time.time() - 180),
+                                               "orders": [
                     {"id": row["id"], "number": row["order_number"], "status": row["status"],
+                     "jobs": jobs.get(row["id"], []),
                      **json.loads(row["details"])} for row in rows
                 ]})
             match = re.fullmatch(r"/api/orders/([a-f0-9]{32})", path)
@@ -192,8 +246,11 @@ class PrintBee(SimpleHTTPRequestHandler):
                     or (row["email"] and row["email"] == auth.session_email(db, self.headers)
                         and row["status"] != "pending")
                 ):
-                    return self.json_response(200, {"status": row["status"], "number": row["order_number"],
-                                                    "paymentStarted": bool(row["provider_id"])})
+                    result = {"status": row["status"], "number": row["order_number"],
+                              "paymentStarted": bool(row["provider_id"])}
+                    if row["email"] and row["email"] == auth.session_email(db, self.headers):
+                        result["delivery"] = self.customer_delivery(db, match[1], row["status"])
+                    return self.json_response(200, result)
             match = re.fullmatch(r"/api/staff/files/([a-f0-9]{32})/(\d+)", path)
             if match and self.get_role() == "warehouse":
                 row = db.execute("SELECT content, object_key FROM files JOIN orders ON orders.id=files.order_id "
@@ -255,6 +312,14 @@ class PrintBee(SimpleHTTPRequestHandler):
     def do_POST(self):
         path = urlsplit(self.path).path
         try:
+            if path.startswith(("/api/print-agent/", "/api/partner/", "/api/admin/")):
+                return self.operations_post(path)
+            match = re.fullmatch(r"/api/staff/orders/([a-f0-9]{32})/print/(all|\d+)", path)
+            if match:
+                return self.queue_print(*match.groups())
+            match = re.fullmatch(r"/api/staff/orders/([a-f0-9]{32})/printed/(\d+)", path)
+            if match:
+                return self.confirm_manual_print(*match.groups())
             if path.startswith("/api/auth/"):
                 return self.customer_auth(path)
             if path == "/api/webhooks/razorpay":
@@ -286,6 +351,8 @@ class PrintBee(SimpleHTTPRequestHandler):
             if match:
                 return self.advance(match[1])
             self.json_response(404, {"error": "Unknown request."})
+        except ops.Conflict as error:
+            self.json_response(409, {"error": str(error)})
         except (ValueError, KeyError, TypeError, AttributeError):
             self.json_response(400, {"error": "Check the order details and try again."})
 
@@ -325,7 +392,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                 len(re.sub(r"\D", "", details["phone"])) < 7 or
                 not details["address"] or len(details["address"]) > 500):
             raise ValueError()
-        terms = self.server.checkout_terms
+        terms = self.checkout_terms()
         documents, total = quote_items(data["items"], terms["paperRates"], terms["bindingRates"])
         coupon = data.get("coupon", "").strip().upper()
         notes = data.get("notes", "").strip()
@@ -376,7 +443,7 @@ class PrintBee(SimpleHTTPRequestHandler):
             raise ValueError("Invalid quote length.")
         data = json.loads(self.rfile.read(length))
         coupon = data.get("coupon", "").strip().upper()
-        terms = self.server.checkout_terms
+        terms = self.checkout_terms()
         documents, total = quote_items(data["items"], terms["paperRates"], terms["bindingRates"])
         if coupon and coupon not in terms["coupons"]:
             return self.json_response(400, {"error": "This coupon is unavailable."})
@@ -505,15 +572,180 @@ class PrintBee(SimpleHTTPRequestHandler):
             return self.json_response(409, {"error": "Payment does not match the order."})
         self.json_response(200, {"received": True})
 
+    def queue_print(self, order_id, selection):
+        if self.get_role() != "warehouse":
+            return self.json_response(403, {"error": "Warehouse access is required."})
+        with closing(connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            positions = ([row["position"] for row in db.execute(
+                "SELECT position FROM files WHERE order_id=?", (order_id,)
+            )] if selection == "all" else [int(selection)])
+            queued = sum(ops.queue_job(db, order_id, position) for position in positions)
+        return self.json_response(200, {"queued": queued})
+
+    def confirm_manual_print(self, order_id, position):
+        if self.get_role() != "warehouse":
+            return self.json_response(403, {"error": "Warehouse access is required."})
+        with closing(connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            changed = db.execute(
+                "INSERT INTO print_jobs(order_id, position, state) SELECT files.order_id, files.position, 'done' "
+                "FROM files JOIN orders ON orders.id=files.order_id WHERE files.order_id=? AND position=? "
+                "AND orders.status IN ('paid','printing') ON CONFLICT(order_id, position) "
+                "DO UPDATE SET state='done', error=NULL WHERE print_jobs.state='failed'",
+                (order_id, int(position)),
+            ).rowcount
+            if not changed:
+                raise ops.Conflict("This file is unavailable for manual confirmation.")
+            db.execute("UPDATE orders SET status='printing' WHERE id=? AND status='paid'", (order_id,))
+            ops.audit(db, "warehouse", "printed_manually", order_id)
+        self.json_response(200, {"saved": True})
+
+    def partner_orders(self, db):
+        partner = self.get_partner()
+        if not partner:
+            return self.json_response(403, {"error": "Delivery access is required."})
+        rows = db.execute(
+            "SELECT orders.id, orders.status, orders.details, order_number, partner FROM orders "
+            "LEFT JOIN order_owners ON orders.id=order_owners.order_id LEFT JOIN deliveries "
+            "ON orders.id=deliveries.order_id WHERE (orders.status='packed' AND partner IS NULL) "
+            "OR (partner=? AND orders.status IN ('packed','out_for_delivery','delivered')) "
+            "ORDER BY orders.rowid DESC LIMIT 100", (partner,)
+        )
+        orders = []
+        for row in rows:
+            record = {key: row[key] for key in ("id", "status", "order_number", "partner")}
+            if row["partner"] and row["status"] != "delivered":
+                details = json.loads(row["details"])
+                record.update({key: details.get(key) for key in ("customer", "address", "phone", "slot", "notes")})
+            orders.append(record)
+        return self.json_response(200, {"orders": orders})
+
+    def customer_delivery(self, db, order_id, status):
+        if status != "out_for_delivery":
+            return None
+        row = db.execute("SELECT * FROM deliveries WHERE order_id=?", (order_id,)).fetchone()
+        if not row:
+            return None
+        delivery = {}
+        if row["nonce"] and row["expires"] > time.time() and row["attempts"] < 3:
+            delivery["code"] = ops.delivery_code(self.server.keys["delivery-code"].encode(), row["nonce"])
+        if row["located_at"] and row["located_at"] > time.time() - 300:
+            delivery["location"] = [row["lat"], row["lng"]]
+        return delivery
+
+    def admin_snapshot(self, db):
+        if self.get_role() != "admin":
+            return self.json_response(403, {"error": "Admin access is required."})
+        orders = [dict(row) for row in db.execute(
+            "SELECT orders.id, status, order_number, CAST(COALESCE(json_extract(details,'$.bill.total'), "
+            "json_extract(details,'$.subtotal')) AS INTEGER) AS total FROM orders LEFT JOIN order_owners "
+            "ON orders.id=order_owners.order_id ORDER BY orders.rowid DESC LIMIT 500"
+        )]
+        counts = {row["status"]: row["count"] for row in db.execute(
+            "SELECT status, count(*) AS count FROM orders GROUP BY status"
+        )}
+        captured = db.execute("SELECT COALESCE(sum(amount),0) FROM razorpay_orders WHERE payment_id IS NOT NULL").fetchone()[0]
+        history = [dict(row) for row in db.execute(
+            "SELECT actor, action, order_id, created FROM audit ORDER BY id DESC LIMIT 50"
+        )]
+        return self.json_response(200, {"orders": orders, "counts": counts, "captured": captured,
+                                        "terms": self.checkout_terms(db), "audit": history})
+
+    def operations_post(self, path):
+        area = path.split("/")[2]
+        role = {"admin": "admin", "partner": "delivery", "print-agent": "print-agent"}[area]
+        partner = self.get_partner() if area == "partner" else None
+        if not (partner if area == "partner" else self.get_role() == role):
+            return self.json_response(403, {"error": "This account cannot perform this action."})
+        length = int(self.headers.get("Content-Length", "0"))
+        if length < 0 or length > 65536:
+            raise ValueError()
+        data = json.loads(self.rfile.read(length)) if length else {}
+        with closing(connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            if path == "/api/admin/pricing":
+                terms = validate_terms({**data, "bindingRates": {
+                    key: rate for key, rate in data.get("bindingRates", {}).items() if key != "none"
+                }})
+                cursor = db.execute("INSERT INTO pricing_versions(terms, created) VALUES (?,?)",
+                                    (json.dumps(terms), int(time.time())))
+                ops.audit(db, role, "pricing_updated")
+                result = {"version": cursor.lastrowid}
+            elif role == "admin" and (reset := re.fullmatch(r"/api/admin/orders/([a-f0-9]{32})/renew-code", path)):
+                ops.renew_delivery_code(db, reset[1])
+                result = {"saved": True}
+            elif role == "admin" and (recover := re.fullmatch(r"/api/admin/print-jobs/(\d+)/recover", path)):
+                row = db.execute("UPDATE print_jobs SET state='failed', error='Recovered by admin' "
+                                 "WHERE id=? AND state='printing' RETURNING order_id", (int(recover[1]),)).fetchone()
+                if not row:
+                    raise ops.Conflict("This job is no longer active.")
+                ops.audit(db, role, "print_job_recovered", row["order_id"])
+                result = {"saved": True}
+            elif path == "/api/print-agent/claim":
+                db.execute("INSERT INTO workstations VALUES (?,?) ON CONFLICT(role) DO UPDATE SET seen=excluded.seen",
+                           (role, int(time.time())))
+                claim = secrets.token_urlsafe(24)
+                row = ops.claim_job(db, claim)
+                result = {"job": None}
+                if row:
+                    details = db.execute("SELECT details FROM orders WHERE id=?", (row["order_id"],)).fetchone()
+                    result["job"] = {"id": row["id"], "claim": claim,
+                                     "item": json.loads(details["details"])["items"][row["position"]]}
+            elif re.fullmatch(r"/api/print-agent/jobs/\d+/result", path):
+                state = data["state"]
+                if state not in ("done", "failed"):
+                    raise ValueError()
+                if not ops.finish_job(db, int(path.split("/")[4]), self.headers.get("X-Print-Claim", ""),
+                                      state, str(data.get("error", ""))[:300]):
+                    raise ops.Conflict("This print job is no longer active.")
+                result = {"saved": True}
+            else:
+                match = re.fullmatch(r"/api/partner/orders/([a-f0-9]{32})/(accept|pickup|deliver|location)", path)
+                if not match:
+                    return self.json_response(404, {"error": "Unknown operation."})
+                order_id, action = match.groups()
+                result = {"saved": True}
+                if action == "accept":
+                    ops.assign_delivery(db, order_id, partner)
+                elif action == "pickup":
+                    ops.pickup(db, order_id, partner)
+                elif action == "deliver":
+                    code = data["code"]
+                    if not re.fullmatch(r"[0-9]{4}", code):
+                        raise ValueError()
+                    error = ops.deliver(db, order_id, partner, self.server.keys["delivery-code"].encode(), code)
+                    if error:
+                        result = {"error": error}
+                else:
+                    lat, lng = data["lat"], data["lng"]
+                    if type(lat) not in (int, float) or type(lng) not in (int, float) or not (
+                        -90 <= lat <= 90 and -180 <= lng <= 180
+                    ):
+                        raise ValueError()
+                    db.execute("UPDATE deliveries SET lat=?, lng=?, located_at=? WHERE order_id=? AND partner=? "
+                               "AND EXISTS(SELECT 1 FROM orders WHERE id=? AND status='out_for_delivery')",
+                               (lat, lng, int(time.time()), order_id, partner, order_id))
+        self.json_response(409 if "error" in result else 200, result)
+
     def advance(self, order_id):
         role = self.get_role()
         if not role:
             return self.json_response(403, {"error": "Enter your staff key."})
         expected = self.headers.get("X-Order-Status", "")
-        if expected not in TRANSITIONS[role]:
+        if role != "warehouse" or expected not in TRANSITIONS["warehouse"]:
             return self.json_response(409, {"error": "This action is unavailable."})
         with closing(connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            if expected == "printing" and db.execute(
+                "SELECT 1 FROM files LEFT JOIN print_jobs ON print_jobs.order_id=files.order_id "
+                "AND print_jobs.position=files.position WHERE files.order_id=? "
+                "AND (print_jobs.state IS NULL OR print_jobs.state!='done')", (order_id,)
+            ).fetchone():
+                raise ops.Conflict("Finish or confirm every file before packing.")
             next_status = advance_order(db, order_id, role, expected)
+            if next_status:
+                ops.audit(db, role, next_status, order_id)
         if not next_status:
             return self.json_response(409, {"error": "The order changed. Refresh your list."})
         self.json_response(200, {"status": next_status})
@@ -533,13 +765,22 @@ if __name__ == "__main__":
     checkout_terms = configured_terms()
     bucket = os.environ.get("PRINTBEE_S3_BUCKET")
     keys = staff_keys()
+    partners = json.loads(os.environ.get("PRINTBEE_PARTNER_KEYS", "{}"))
+    if not isinstance(partners, dict) or any(
+        not re.fullmatch(r"[a-zA-Z0-9_-]{1,40}", name) or name == "delivery" or
+        not isinstance(key, str) or not re.fullmatch(r"[a-zA-Z0-9_-]{24,100}", key)
+        for name, key in partners.items()
+    ) or len(set(partners.values()) | set(keys.values())) != len(partners) + len(keys):
+        raise SystemExit("Provide distinct, random partner tokens in PRINTBEE_PARTNER_KEYS.")
     if args.show_staff_keys:
         for role, key in keys.items():
-            print(role.title(), key)
+            if role != "delivery-code":
+                print(role.title(), key)
         raise SystemExit()
     with closing(connect()) as db, db:
         db.executescript(auth.SCHEMA)
         db.executescript(razorpay_checkout.SCHEMA)
+        db.executescript(ops.SCHEMA)
         db.executescript("""
             CREATE TABLE IF NOT EXISTS orders (id TEXT PRIMARY KEY, token TEXT, status TEXT, details TEXT);
             CREATE TABLE IF NOT EXISTS files (
@@ -555,6 +796,7 @@ if __name__ == "__main__":
             db.execute("ALTER TABLE files ADD COLUMN object_key TEXT")
     with ThreadingHTTPServer(("127.0.0.1", args.port), PrintBee) as server:
         server.keys = keys
+        server.partners = {"delivery": keys["delivery"], **partners}
         server.payment_mode = payment_mode
         server.razorpay = gateway
         server.checkout_terms = checkout_terms

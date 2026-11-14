@@ -8,6 +8,10 @@ from order_rules import BINDING_RATES, RATES
 
 def configured_terms():
     raw = json.loads(os.environ.get("PRINTBEE_CHECKOUT_TERMS", "{}"))
+    return validate_terms(raw)
+
+
+def validate_terms(raw):
     terms = {key: raw.get(key, 0) for key in ("packing", "platform", "delivery", "taxBasisPoints")}
     if any(type(value) is not int or value < 0 for value in terms.values()) or terms["taxBasisPoints"] > 10000:
         raise ValueError("Checkout fees must be nonnegative integer paise and tax must be 0–10000 basis points.")

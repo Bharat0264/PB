@@ -670,6 +670,7 @@ async function showOrders() {
     state.className = 'order-state';
     const steps = document.createElement('ol');
     steps.className = 'order-timeline';
+    const deliveryInfo = document.createElement('div');
     const stages = {paid: 'Order received', printing: 'Printing', packed: 'Packed',
       out_for_delivery: 'Out for delivery', delivered: 'Delivered'};
     function renderStage(currentStatus) {
@@ -682,15 +683,31 @@ async function showOrders() {
       }));
     }
     renderStage(order.status);
-    details.append(summary, state, steps);
+    details.append(summary, state, steps, deliveryInfo);
     let updating = false;
     async function refreshStatus() {
       if (updating) return;
       updating = true;
       try {
-        const {status: currentStatus} = await orderRequest('/api/orders/' + order.id, order.orderKey);
+        const {status: currentStatus, delivery} = await orderRequest('/api/orders/' + order.id, order.orderKey);
         if (state.textContent !== orderStates[currentStatus]) renderStage(currentStatus);
+        deliveryInfo.replaceChildren();
+        if (delivery?.code) {
+          const code = document.createElement('p');
+          code.className = 'raised table-card';
+          code.textContent = 'Delivery code · ' + delivery.code;
+          deliveryInfo.append(code);
+        }
+        if (delivery?.location) {
+          const pin = document.createElement('a');
+          pin.textContent = 'View latest delivery location';
+          pin.href = 'https://www.google.com/maps/search/?' + new URLSearchParams({api: 1, query: delivery.location.join(',')});
+          pin.rel = 'noopener noreferrer';
+          pin.target = '_blank';
+          deliveryInfo.append(pin);
+        }
       } catch {
+        deliveryInfo.replaceChildren();
         state.textContent = 'Could not refresh delivery status.';
       } finally {
         updating = false;
