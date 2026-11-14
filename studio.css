@@ -787,7 +787,7 @@ body{background:var(--base)}
 }
 
 /* Rounded wax cells sit under a soft honey-and-sage wash. */
-body.home-page {
+body {
   background-color: #f6ecd7;
   background-image:
     radial-gradient(ellipse at 50% 39%, #fff9ed 0%, #fff9edca 37%, transparent 82%),
@@ -796,7 +796,7 @@ body.home-page {
     linear-gradient(155deg, #f4ddb0, #f9f0da 60%, #efe5c9);
 }
 
-.home-page .top,
-.home-page .section {
+.top,
+.section {
   border-color: #78654335;
 }
