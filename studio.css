@@ -120,7 +120,6 @@ td{font-weight:800}
   .footer{margin-bottom:94px}
 }
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::after{transition:none!important}}
-.file-field{display:block;width:100%;border:0;border-radius:14px;padding:10px;margin:8px 0 12px;font-size:13px}
 #queue button{border:0}
 #queue-status{margin-top:10px}
 #queue-list{padding:0;margin:8px 0 0;list-style:none}
@@ -314,8 +313,6 @@ body{background:var(--base)}
 .pill.yellow:active{transform:translateY(1px);box-shadow:inset 3px 4px 7px #b28a3140,inset -3px -3px 5px #fff0b8}
 .step{border-radius:18px;background:#f6f1e5;box-shadow:var(--raised)}
 .table-card{padding:20px}
-.file-field{background:#eae5d9;box-shadow:var(--inset);border-radius:18px;padding:14px}
-.file-field::file-selector-button{border:0;border-radius:12px;padding:9px 13px;margin-right:12px;background:#f8e2a0;color:#3c3522;box-shadow:3px 4px 7px #7c694e25,inset 2px 2px 4px #fff5d6;font:inherit;cursor:pointer}
 .paper-front,.paper-back{border-radius:12px;box-shadow:7px 9px 14px #81715736,inset 3px 3px 5px #fffdf3,inset -3px -3px 6px #c8bea654}
 .footer-surface{border:0;border-radius:40px;background:#e9eadc;box-shadow:11px 14px 24px #6f775026,inset 6px 6px 12px #fffef4,inset -6px -7px 12px #b6bca15c}
 .footer-actions>a span{box-shadow:3px 4px 6px #62674233,inset 2px 2px 3px #ffffff35,inset -2px -2px 3px #0002}
@@ -396,8 +393,6 @@ body{background:var(--base)}
 .paper-front b{background:#d57142}
 .paper-seal{background:#ffdc55;color:#473b16}
 .raised,.table-card{background:#fffdf6}
-.file-field{background:#f0eee2}
-.file-field::file-selector-button{background:#e9efc4;color:#465125;box-shadow:3px 4px 7px #7b845425,inset 2px 2px 4px #fbffe8}
 .footer-surface{
  background:linear-gradient(120deg,#edf0da,#f6f4e7);
  box-shadow:9px 12px 24px #7078481c,inset 5px 5px 10px #fefff5,inset -5px -6px 10px #bdc69c40
@@ -864,6 +859,130 @@ body {
 
 .upload-card {
   min-width: 0;
+}
+
+.upload-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.upload-panel {
+  display: grid;
+  gap: 20px;
+  padding: clamp(18px, 4vw, 30px);
+  border: 1px solid #fff9ea;
+  border-radius: 26px;
+  background:
+    radial-gradient(ellipse at 100% 100%, #f1d79791, transparent 65%),
+    linear-gradient(145deg, #fffaf0, #f4ead3);
+  box-shadow: 0 12px 25px #6e542123, inset 0 1px 4px #fffdf6;
+}
+
+.upload-picker {
+  width: min(100%, 540px);
+  margin-inline: auto;
+  cursor: pointer;
+}
+
+.upload-input:focus-visible + .upload-picker {
+  outline: 3px solid #835400;
+  outline-offset: 4px;
+}
+
+.upload-input:disabled + .upload-picker {
+  cursor: wait;
+}
+
+.upload-panel-heading {
+  display: flex;
+  align-items: center;
+  gap: clamp(12px, 3vw, 20px);
+}
+
+.upload-panel-heading strong,
+.upload-panel-heading small {
+  display: block;
+}
+
+.upload-panel-heading strong {
+  font-size: clamp(18px, 2vw, 22px);
+  line-height: 1.2;
+}
+
+.upload-panel-heading small {
+  margin-top: 3px;
+  color: #625336;
+  font-size: 13px;
+}
+
+.upload-folder {
+  position: relative;
+  flex: none;
+  width: 62px;
+  height: 54px;
+}
+
+.upload-folder::before,
+.upload-folder::after,
+.upload-folder > span {
+  position: absolute;
+  content: "";
+}
+
+.upload-folder::before {
+  inset: 7px 6px 8px;
+  border-radius: 8px;
+  background: #e6c269;
+}
+
+.upload-folder > span {
+  inset: 2px 12px 12px;
+  border-radius: 6px;
+  background: linear-gradient(#fffdf7, #eee1c0);
+  transform: rotate(-7deg);
+  box-shadow: 0 2px 4px #72592724;
+}
+
+.upload-folder::after {
+  inset: 17px 1px 2px;
+  border-radius: 7px 7px 10px 10px;
+  background: linear-gradient(155deg, #ffdf87, #ecaf33);
+  box-shadow: 0 5px 8px #91601c35, inset 0 2px 4px #fff2c890;
+  transform: perspective(95px) rotateX(-18deg);
+}
+
+.upload-drop-hint {
+  display: grid;
+  place-items: center;
+  min-height: 48px;
+  padding: 8px;
+  border: 1px dashed #9d7743;
+  border-radius: 14px;
+  background: #fffaf0a6;
+  color: #624719;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.upload-input:not(:disabled) + .upload-picker:hover .upload-drop-hint {
+  background: #ffedb9;
+}
+
+.checkout-upload:not([hidden]) {
+  margin-block: 14px;
+}
+
+.checkout-upload[hidden] {
+  display: none;
+}
+
+#checkout-progress {
+  width: 100%;
+  height: 10px;
+  accent-color: #a36b12;
 }
 
 .review-note {

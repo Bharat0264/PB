@@ -9,12 +9,12 @@
 <script src="preloader.js?v=4"></script>
 <script src="embedded-tab.js" defer></script>
 <script type="module" src="bottom-nav.js"></script>
-<link rel="stylesheet" href="studio.css?v=header-bee-size">
+<link rel="stylesheet" href="studio.css?v=upload-folder">
 <link rel="stylesheet" href="footer-wave.css?v=contact-icons">
 <script src="footer-wave.js?v=letter-spacing" defer></script>
 <script src="profile.js?v=delivery-details" defer></script>
 <script src="delivery-map.js" defer></script>
-<script src="studio.js?v=liquid-nav" defer></script>
+<script src="studio.js?v=upload-folder" defer></script>
 </head>
 <body>
 <a href="#main" class="skip">Skip to content</a>
@@ -37,10 +37,16 @@
 <main id="main" class="frame inner-page">
   <section class="section upload-section" id="queue">
     <div><h1>Upload files</h1><p>Add all the files you want printed, then check out together.</p></div>
-    <div class="raised table-card upload-card">
+    <div class="upload-card">
       <form id="queue-form">
-        <label class="field-label" for="document-file">Drop files here or choose files · up to 50 MB each</label>
-        <input class="inset file-field" id="document-file" type="file" multiple>
+        <input class="upload-input" id="document-file" type="file" aria-describedby="upload-hint" multiple>
+        <label class="upload-panel upload-picker" for="document-file">
+          <span class="upload-panel-heading">
+            <span class="upload-folder" aria-hidden="true"><span></span></span>
+            <span><strong>Choose files</strong><small id="upload-hint">Up to 50 MB per file</small></span>
+          </span>
+          <span class="upload-drop-hint" aria-hidden="true">Drop files here</span>
+        </label>
         <section class="file-review" id="file-review" aria-labelledby="review-title" hidden>
           <h2 id="review-title">Review your files</h2>
           <p class="review-note">PDF and Word files are sent to PrintBee to count pages. Files are saved with your order at checkout.</p>
@@ -80,7 +86,13 @@
     </fieldset>
     <section id="checkout-bill" aria-label="Order bill" hidden><h3>Order bill</h3><ul></ul></section>
     <p id="checkout-payment-note" hidden></p>
-    <progress id="checkout-progress" aria-label="File upload progress" hidden></progress>
+    <div class="upload-panel checkout-upload" id="checkout-upload" hidden>
+      <div class="upload-panel-heading">
+        <span class="upload-folder" aria-hidden="true"><span></span></span>
+        <div><strong>File upload</strong><small id="checkout-upload-status" role="status" aria-atomic="true"></small></div>
+      </div>
+      <progress id="checkout-progress" aria-label="File upload progress"></progress>
+    </div>
     <p id="checkout-error" role="status"></p>
     <div class="checkout-bar">
       <div><span id="checkout-page-count"></span><p class="checkout-total">Order total <output id="checkout-total"></output></p></div>

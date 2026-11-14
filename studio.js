@@ -958,16 +958,18 @@ async function submitOrder(order) {
   const current = await orderRequest(path, order.orderKey);
   if (current.status !== 'pending') return;
   if (!current.paymentStarted) {
+    const uploadPanel = document.querySelector('#checkout-upload');
+    const uploadStatus = document.querySelector('#checkout-upload-status');
     const progress = document.querySelector('#checkout-progress');
     progress.max = order.items.length;
     progress.value = 0;
-    progress.hidden = false;
+    uploadPanel.hidden = false;
     for (const [index, item] of order.items.entries()) {
-      checkoutError.textContent = 'Uploading file ' + (index + 1) + ' of ' + order.items.length + '…';
+      uploadStatus.textContent = 'Uploading file ' + (index + 1) + ' of ' + order.items.length + '…';
       await orderRequest(path + '/files/' + index, order.orderKey, {method: 'POST', body: item.file});
       progress.value = index + 1;
     }
-    progress.hidden = true;
+    uploadPanel.hidden = true;
   }
   const payment = await orderRequest(path + '/payment', order.orderKey, {method: 'POST'});
   if (payment.status !== 'pending') return;
@@ -1046,7 +1048,7 @@ checkoutForm?.addEventListener('submit', async event => {
     }
     return;
   } finally {
-    document.querySelector('#checkout-progress').hidden = true;
+    document.querySelector('#checkout-upload').hidden = true;
     back.disabled = false;
     checkoutSubmit.disabled = false;
     checkoutClose.disabled = false;
