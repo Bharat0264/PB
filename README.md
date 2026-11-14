@@ -70,7 +70,7 @@ for the same cart and details reuses its order reference.
 | 3 | Validate the agent on the warehouse printer, add automated mixed-colour submission and label printing, printer supplies, and per-user warehouse accounts. |
 | 4 | Verify Twilio enrollment and delivery on real phones. Add distance-based dispatch, live route and ETA, earnings and payouts, KYC, and photo proof. |
 | 5 | Validate refunds in Razorpay test mode, add partner management and settlements, detailed finance and GST reporting, and additional pricing rules. |
-| 6 | Configure push/SMS/email status notifications. Verify deployment, production security, and accessibility. |
+| 6 | Configure the status email worker and verify mail delivery. Add push and SMS status notifications. Verify deployment, production security, and accessibility. |
 
 Production provider accounts, deployment settings, and warehouse printer details
 are still needed for live integrations. Keep credentials outside Git. Existing
@@ -118,6 +118,19 @@ The admin dashboard shows order counts, captured Razorpay totals, a recent
 order CSV export, and operational audit events. Published pricing is stored
 as a new version and is available to subsequently loaded checkouts. Existing
 paid orders retain their quoted amounts.
+
+Set `partnerPayout` in checkout pricing to record fixed delivery earnings
+in integer paise. Completed deliveries get one earnings entry. Admins can
+record an externally completed transfer against a specific earning using
+its reference. The dashboard records the settlement without moving money.
+Signed-in customers can also read their fulfilment and refund updates on
+the Orders page.
+
+For optional status email, configure the SMTP settings from
+`EMAIL-SIGN-IN.md` and the public HTTPS origin. Run one scheduled instance of
+`python send_order_updates.py`. Its first run starts at the current event
+cursor to avoid sending historical mail. Later runs send up to 50 new
+updates and resume from the last successful send.
 
 The admin may cancel an unprinted local test order or request a full refund
 on an unprinted captured Razorpay order. A refund request pauses fulfilment

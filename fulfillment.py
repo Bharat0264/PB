@@ -1,6 +1,7 @@
 """Durable warehouse jobs, delivery assignments and audit records."""
 
 import hmac
+import json
 import secrets
 import time
 
@@ -27,6 +28,13 @@ CREATE TABLE IF NOT EXISTS workstations (
 );
 CREATE TABLE IF NOT EXISTS partner_availability (
     partner TEXT PRIMARY KEY, available INTEGER NOT NULL, updated INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS partner_earnings (
+    order_id TEXT PRIMARY KEY, partner TEXT NOT NULL, amount INTEGER NOT NULL,
+    earned INTEGER NOT NULL, settled INTEGER, reference TEXT
+);
+CREATE TABLE IF NOT EXISTS notification_reads (
+    email TEXT PRIMARY KEY, last_seen INTEGER NOT NULL
 );
 """
 
@@ -149,5 +157,18 @@ def deliver(db, order_id, partner, secret, code):
         return "Incorrect delivery code."
     db.execute("UPDATE orders SET status='delivered' WHERE id=?", (order_id,))
     db.execute("UPDATE deliveries SET nonce=NULL, expires=NULL WHERE order_id=?", (order_id,))
+    details = json.loads(db.execute("SELECT details FROM orders WHERE id=?", (order_id,)).fetchone()["details"])
+    db.execute("INSERT INTO partner_earnings(order_id, partner, amount, earned) VALUES (?,?,?,?)",
+               (order_id, partner, details.get("partnerPayout", 0), int(time.time())))
     audit(db, partner, "delivery_completed", order_id)
     return None
+
+
+def settle_earning(db, order_id, reference):
+    changed = db.execute(
+        "UPDATE partner_earnings SET settled=?, reference=? WHERE order_id=? AND settled IS NULL RETURNING partner",
+        (int(time.time()), reference, order_id)
+    ).fetchone()
+    if not changed:
+        raise Conflict("This earning is unavailable or already settled.")
+    audit(db, "admin", "payout_recorded", order_id)

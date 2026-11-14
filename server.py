@@ -157,6 +157,8 @@ class PrintBee(SimpleHTTPRequestHandler):
         if path == "/api/auth/session":
             with closing(connect()) as db:
                 return self.json_response(200, {"email": auth.session_email(db, self.headers)})
+        if path == "/api/orders/notifications":
+            return self.customer_notifications()
         if path == "/api/checkout":
             terms = {key: value for key, value in self.checkout_terms().items() if key != "coupons"}
             return self.json_response(200, {"mode": self.server.payment_mode, "terms": terms,
@@ -292,6 +294,32 @@ class PrintBee(SimpleHTTPRequestHandler):
         secret = self.server.keys["delivery-code"].encode()
         return hmac.digest(secret, ("tracking:" + order_id).encode(), "sha256").hex()
 
+    def customer_notifications(self, mark_read=False):
+        if mark_read:
+            origin = auth.public_origin() or f"http://{self.headers.get('Host')}"
+            if self.headers.get("Origin") != origin:
+                return self.json_response(403, {"error": "Open PrintBee directly and try again."})
+        visible = ("paid", "printing", "packed", "delivery_picked_up", "delivery_completed",
+                   "order_cancelled", "refund_requested", "refund.processed", "refund.failed")
+        with closing(connect()) as db, db:
+            email = auth.session_email(db, self.headers)
+            if not email:
+                return self.json_response(401, {"error": "Sign in to see order updates."})
+            if mark_read:
+                through = int(self.headers.get("X-Notification-Cursor", "0"))
+                if through < 0 or through > 2**63 - 1:
+                    raise ValueError()
+                db.execute("INSERT INTO notification_reads VALUES (?,?) ON CONFLICT(email) DO UPDATE "
+                           "SET last_seen=max(last_seen, excluded.last_seen)", (email, through))
+                return self.json_response(200, {"saved": True})
+            rows = db.execute(
+                "SELECT audit.id, audit.action, audit.order_id, audit.created, order_number, "
+                "audit.id>COALESCE(last_seen,0) AS unread FROM audit JOIN order_owners USING(order_id) "
+                "LEFT JOIN notification_reads USING(email) WHERE email=? AND audit.action IN ("
+                + ",".join("?" for _ in visible) + ") ORDER BY audit.id DESC LIMIT 30", (email, *visible)
+            )
+            return self.json_response(200, {"updates": [dict(row) for row in rows]})
+
     def order_events(self, order_id):
         def snapshot(db):
             row = db.execute(
@@ -375,6 +403,8 @@ class PrintBee(SimpleHTTPRequestHandler):
     def do_POST(self):
         path = urlsplit(self.path).path
         try:
+            if path == "/api/orders/notifications/read":
+                return self.customer_notifications(mark_read=True)
             if path in ("/api/partner/auth/send", "/api/partner/auth/check", "/api/partner/auth/logout"):
                 return self.verify_partner_phone(path.rsplit("/", 1)[1])
             if path.startswith(("/api/print-agent/", "/api/partner/", "/api/admin/")):
@@ -485,6 +515,7 @@ class PrintBee(SimpleHTTPRequestHandler):
             if existing:
                 stored = json.loads(existing["details"])
                 bill = stored.pop("bill", None)
+                stored.pop("partnerPayout", None)
                 if stored != details:
                     return self.json_response(409, {"error": "Order details changed. Reopen checkout to try again."})
             else:
@@ -496,7 +527,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                 bill = bill_for(total, binding_total, coupon, terms)
                 if type(data.get("expectedTotal")) is not int or data["expectedTotal"] != bill["total"]:
                     return self.json_response(409, {"error": "Prices changed. Refresh and review your order."})
-                encoded = json.dumps({**details, "bill": bill}, sort_keys=True)
+                encoded = json.dumps({**details, "bill": bill, "partnerPayout": terms.get("partnerPayout", 0)}, sort_keys=True)
                 db.execute("INSERT INTO orders VALUES (?, ?, 'pending', ?)", (order_id, token, encoded))
                 db.execute("INSERT INTO order_owners (order_id, email, order_number) VALUES (?, ?, ?)",
                            (order_id, email, order_number(db)))
@@ -602,6 +633,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                 if existing:
                     return self.json_response(409, {"error": "Resume this order in Razorpay."})
                 db.execute("UPDATE orders SET status='paid' WHERE id=?", (order_id,))
+                ops.audit(db, "checkout", "paid", order_id)
                 result = {"status": "paid"}
             else:
                 gateway = self.server.razorpay
@@ -634,7 +666,12 @@ class PrintBee(SimpleHTTPRequestHandler):
         with closing(connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
             if event_type == "payment.captured":
-                recorded = razorpay_checkout.record_capture(db, event["payload"]["payment"]["entity"])
+                payment = event["payload"]["payment"]["entity"]
+                pending = db.execute("SELECT order_id FROM razorpay_orders WHERE provider_id=? AND payment_id IS NULL",
+                                     (payment["order_id"],)).fetchone()
+                recorded = razorpay_checkout.record_capture(db, payment)
+                if recorded and pending:
+                    ops.audit(db, "razorpay", "paid", pending["order_id"])
             else:
                 refund = event["payload"]["refund"]["entity"]
                 if razorpay_checkout.record_refund(db, refund):
@@ -693,7 +730,12 @@ class PrintBee(SimpleHTTPRequestHandler):
             orders.append(record)
         availability = db.execute("SELECT available, updated FROM partner_availability WHERE partner=?",
                                   (partner,)).fetchone()
-        return self.json_response(200, {"orders": orders, "available": bool(
+        earnings = dict(db.execute(
+            "SELECT COALESCE(sum(amount),0) AS lifetime, "
+            "COALESCE(sum(CASE WHEN settled IS NULL THEN amount END),0) AS outstanding "
+            "FROM partner_earnings WHERE partner=?", (partner,)
+        ).fetchone())
+        return self.json_response(200, {"orders": orders, "earnings": earnings, "available": bool(
             availability and availability["available"] and availability["updated"] > time.time() - 900
         )})
 
@@ -776,8 +818,12 @@ class PrintBee(SimpleHTTPRequestHandler):
         history = [dict(row) for row in db.execute(
             "SELECT actor, action, order_id, created FROM audit ORDER BY id DESC LIMIT 50"
         )]
+        payouts = [dict(row) for row in db.execute(
+            "SELECT order_id, partner, amount, earned FROM partner_earnings WHERE settled IS NULL AND amount>0 "
+            "ORDER BY earned LIMIT 100"
+        )]
         return self.json_response(200, {"orders": orders, "counts": counts, "captured": captured,
-                                        "terms": self.checkout_terms(db), "audit": history})
+                                        "terms": self.checkout_terms(db), "audit": history, "payouts": payouts})
 
     def operations_post(self, path):
         area = path.split("/")[2]
@@ -811,6 +857,12 @@ class PrintBee(SimpleHTTPRequestHandler):
                 result = {"saved": True}
             elif role == "admin" and (cancel := re.fullmatch(r"/api/admin/orders/([a-f0-9]{32})/cancel", path)):
                 ops.cancel_order(db, cancel[1])
+                result = {"saved": True}
+            elif role == "admin" and (settlement := re.fullmatch(r"/api/admin/payouts/([a-f0-9]{32})/record", path)):
+                reference = data["reference"].strip()
+                if not reference or len(reference) > 100:
+                    raise ValueError()
+                ops.settle_earning(db, settlement[1], reference)
                 result = {"saved": True}
             elif role == "admin" and (recover := re.fullmatch(r"/api/admin/print-jobs/(\d+)/recover", path)):
                 row = db.execute("UPDATE print_jobs SET state='failed', error='Recovered by admin' "

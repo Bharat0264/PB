@@ -8,7 +8,7 @@
 <title>Orders · PrintBee</title>
 <script src="preloader.js?v=3"></script>
 <link rel="stylesheet" href="studio.css?v=customer-ordering">
-<script src="studio.js?v=live-delivery" defer></script>
+<script src="studio.js?v=order-updates" defer></script>
 </head>
 <body>
 <a href="#main" class="skip">Skip to content</a>
@@ -25,7 +25,12 @@
 <main id="main" class="frame inner-page">
   <section class="section rates" id="orders">
     <div><h1>Your orders</h1><p>See what you ordered and track your delivery.</p></div>
-    <div class="raised table-card"><p id="order-confirmation" role="status" hidden></p><p id="order-status" role="status"></p><ul id="order-history"></ul></div>
+    <div class="raised table-card">
+      <p id="order-confirmation" role="status" hidden></p>
+      <p id="order-status" role="status"></p>
+      <details id="order-updates" hidden><summary>Order updates</summary><ul></ul></details>
+      <ul id="order-history"></ul>
+    </div>
   </section>
 </main>
 <footer class="frame brand-footer" id="contact">

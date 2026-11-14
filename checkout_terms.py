@@ -12,7 +12,7 @@ def configured_terms():
 
 
 def validate_terms(raw):
-    terms = {key: raw.get(key, 0) for key in ("packing", "platform", "delivery", "taxBasisPoints")}
+    terms = {key: raw.get(key, 0) for key in ("packing", "platform", "delivery", "taxBasisPoints", "partnerPayout")}
     if any(type(value) is not int or value < 0 for value in terms.values()) or terms["taxBasisPoints"] > 10000:
         raise ValueError("Checkout fees must be nonnegative integer paise and tax must be 0–10000 basis points.")
     slots = raw.get("slots", [])

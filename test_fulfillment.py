@@ -11,9 +11,9 @@ class FulfillmentTest(unittest.TestCase):
         self.addCleanup(self.db.close)
         self.db.row_factory = sqlite3.Row
         self.db.executescript(ops.SCHEMA + """
-            CREATE TABLE orders (id TEXT PRIMARY KEY, status TEXT);
+            CREATE TABLE orders (id TEXT PRIMARY KEY, status TEXT, details TEXT);
             CREATE TABLE files (order_id TEXT, position INTEGER);
-            INSERT INTO orders VALUES ('sample','paid');
+            INSERT INTO orders VALUES ('sample','paid','{"partnerPayout":250}');
             INSERT INTO files VALUES ('sample',0);
         """)
 
@@ -57,3 +57,7 @@ class FulfillmentTest(unittest.TestCase):
         nonce = self.db.execute("SELECT nonce FROM deliveries").fetchone()["nonce"]
         self.assertIsNone(ops.deliver(self.db, "sample", "partner", secret, ops.delivery_code(secret, nonce)))
         self.assertEqual(self.db.execute("SELECT status FROM orders").fetchone()["status"], "delivered")
+        self.assertEqual(self.db.execute("SELECT amount FROM partner_earnings").fetchone()["amount"], 250)
+        ops.settle_earning(self.db, "sample", "transfer123")
+        with self.assertRaises(ops.Conflict):
+            ops.settle_earning(self.db, "sample", "duplicate")

@@ -38,7 +38,7 @@ function action(label, run) {
 }
 
 async function partnerOrders() {
-  const {orders, available} = await api('/api/partner/orders');
+  const {orders, available, earnings} = await api('/api/partner/orders');
   const cards = orders.map(order => {
     const card = element('article');
     card.className = 'clay-card';
@@ -101,7 +101,9 @@ async function partnerOrders() {
     stopSharing();
     location.reload();
   }));
-  content.replaceChildren(...controls,
+  const money = value => new Intl.NumberFormat('en-IN', {style: 'currency', currency: 'INR'}).format(value / 100);
+  content.replaceChildren(...controls, element('p', money(earnings.lifetime) + ' earned · ' +
+    money(earnings.outstanding) + ' awaiting settlement'),
     ...(cards.length ? cards : [element('p', 'No deliveries available.')]));
 }
 
@@ -180,7 +182,26 @@ async function admin() {
     new Date(entry.created * 1000).toLocaleString(), entry.actor, entry.action.replaceAll('_', ' '),
   ].join(' · ')));
   audit.append(history);
-  content.replaceChildren(action('Refresh dashboard', admin), totals, orders, pricing, audit);
+  const settlements = element('section');
+  settlements.className = 'clay-card';
+  settlements.append(element('h2', 'Partner settlements'));
+  if (!data.payouts.length) settlements.append(element('p', 'No outstanding settlements.'));
+  for (const payout of data.payouts) {
+    const row = element('div');
+    row.className = 'order-actions';
+    const label = element('label', 'Transfer reference for ' + payout.partner);
+    const reference = element('input');
+    reference.maxLength = 100;
+    reference.className = 'clay-input';
+    label.append(reference);
+    row.append(element('p', money(payout.amount)), label, action('Record settlement', async () => {
+      if (!reference.value.trim()) throw new Error('Enter the completed transfer reference.');
+      await api('/api/admin/payouts/' + payout.order_id + '/record', {reference: reference.value});
+      await admin();
+    }));
+    settlements.append(row);
+  }
+  content.replaceChildren(action('Refresh dashboard', admin), totals, orders, pricing, settlements, audit);
 }
 
 login.addEventListener('submit', async event => {

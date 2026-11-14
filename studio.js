@@ -658,6 +658,7 @@ async function showOrders() {
     const response = await fetch('/api/orders');
     if (response.ok) {
       ({orders: accountOrders} = await response.json());
+      loadOrderUpdates().catch(() => {});
     } else if (response.status === 401) {
       const signIn = document.createElement('a');
       signIn.href = 'profile.html';
@@ -817,6 +818,35 @@ async function showOrders() {
     empty.textContent = 'Your placed orders will appear here.';
     orderHistory.append(empty);
   }
+}
+
+async function loadOrderUpdates() {
+  const panel = document.querySelector('#order-updates');
+  const {updates} = await orderRequest('/api/orders/notifications');
+  panel.hidden = !updates.length;
+  if (!updates.length) return;
+  const labels = {paid: 'Order received', printing: 'Printing', packed: 'Packed',
+    delivery_picked_up: 'Out for delivery', delivery_completed: 'Delivered', order_cancelled: 'Cancelled',
+    refund_requested: 'Refund requested', 'refund.processed': 'Refunded', 'refund.failed': 'Refund needs assistance'};
+  const unread = updates.filter(update => update.unread).length;
+  panel.querySelector('summary').textContent = unread ? 'Order updates (' + unread + ' new)' : 'Order updates';
+  panel.querySelector('ul').replaceChildren(...updates.map(update => {
+    const row = document.createElement('li');
+    row.textContent = (update.order_number || 'PB-' + update.order_id.slice(0, 8).toUpperCase()) +
+      ' · ' + labels[update.action] + ' · ' + new Date(update.created * 1000).toLocaleString();
+    return row;
+  }));
+  panel.ontoggle = async () => {
+    if (!panel.open || !unread) return;
+    try {
+      await orderRequest('/api/orders/notifications/read', null, {
+        method: 'POST', headers: {'X-Notification-Cursor': updates[0].id},
+      });
+      panel.querySelector('summary').textContent = 'Order updates';
+    } catch {
+      status.textContent = 'Could not mark order updates as read.';
+    }
+  };
 }
 
 function displayOrderNumber(order) {
