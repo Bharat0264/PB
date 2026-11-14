@@ -1,9 +1,17 @@
+@font-face {
+  font-family: Lobster;
+  src: url("lobster-printbee-regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 .footer-wave {
   display: grid;
   place-items: end center;
   container-type: inline-size;
-  background: radial-gradient(ellipse at 22% 0%, #fff7df, transparent 65%),
-    linear-gradient(145deg, #f4e8c9, #eae1c2);
+  background: radial-gradient(ellipse at 50% 30%, #f9edcb, transparent 72%),
+    linear-gradient(150deg, #e9dfbe, #efe7cd);
   box-shadow: inset 2px 3px 8px #a5843b25, inset -3px -4px 8px #fff7de95;
 }
 
@@ -11,33 +19,27 @@
   position: relative;
   display: flex;
   align-items: end;
-  padding: 17px .09em 14px 0;
-  color: #61421f;
-  font-size: clamp(32px, 17cqw, 158px);
-  font-weight: 800;
-  line-height: 1;
-  letter-spacing: -.065em;
+  padding: .11em .16em .24em .1em;
+  font-family: Lobster, Georgia, serif;
+  font-size: clamp(28px, 18cqw, 170px);
+  font-weight: 400;
+  line-height: 1.04;
+  letter-spacing: -.035em;
   white-space: nowrap;
   user-select: none;
 }
 
 .footer-wave-word span {
   display: block;
-  padding-inline-end: .065em;
-  margin-inline-end: -.065em;
-  --letter-height: .94em;
-  height: var(--letter-height);
-  background: linear-gradient(175deg, #8c6940 4%, #5e3d21 45%, #422712 92%);
-  color: transparent;
-  background-clip: text;
-  filter: drop-shadow(0 .022em .012em #fff3cfb0) drop-shadow(0 .045em .032em #4a2b2440);
+  color: #fff0c9;
+  -webkit-text-stroke: .024em #4e271d;
+  paint-order: stroke fill;
+  text-shadow: -.016em .024em 0 #783c25, -.026em .041em 0 #66301f,
+    -.036em .057em 0 #53251c, -.047em .073em 0 #3b1b15,
+    -.056em .09em .026em #4d2e2355;
   transform-origin: 50% 100%;
 }
 
 .footer-wave-word span:nth-child(n+6) {
-  background-image: linear-gradient(175deg, #ffde84 5%, #e9ab42 56%, #a86c23 99%);
-}
-
-@media (max-width: 480px) {
-  .footer-wave-word { padding-block: 13px 10px; }
+  color: #ffce78;
 }
