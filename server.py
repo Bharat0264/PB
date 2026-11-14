@@ -130,6 +130,23 @@ class PrintBee(SimpleHTTPRequestHandler):
                 return super().do_GET()
             return self.send_error(404)
         with closing(connect()) as db:
+            if path == "/api/orders":
+                email = auth.session_email(db, self.headers)
+                if not email:
+                    return self.json_response(401, {"error": "Sign in to see your orders."})
+                rows = db.execute(
+                    "SELECT orders.id, status, details FROM order_owners JOIN orders "
+                    "ON orders.id=order_owners.order_id WHERE email=? AND status!='pending' "
+                    "ORDER BY orders.rowid DESC", (email,)
+                )
+                return self.json_response(200, {"orders": [
+                    {"id": row["id"], "status": row["status"],
+                     "items": [{key: item[key] for key in (
+                         "name", "pages", "copies", "colour", "duplex", "orientation",
+                         "binding", "colourPages"
+                     )} for item in json.loads(row["details"])["items"]]}
+                    for row in rows
+                ]})
             if path == "/api/staff/orders":
                 role = self.get_role()
                 if not role:
@@ -143,9 +160,16 @@ class PrintBee(SimpleHTTPRequestHandler):
                 ]})
             match = re.fullmatch(r"/api/orders/([a-f0-9]{32})", path)
             if match:
-                row = db.execute("SELECT id, status, token FROM orders WHERE id=?", match.groups()).fetchone()
+                row = db.execute(
+                    "SELECT status, token, email FROM orders LEFT JOIN order_owners "
+                    "ON orders.id=order_owners.order_id WHERE orders.id=?", match.groups()
+                ).fetchone()
                 token = self.headers.get("X-Order-Key", "")
-                if row and hmac.compare_digest(row["token"], token):
+                if row and (
+                    hmac.compare_digest(row["token"], token)
+                    or (row["email"] and row["email"] == auth.session_email(db, self.headers)
+                        and row["status"] != "pending")
+                ):
                     return self.json_response(200, {"status": row["status"]})
             match = re.fullmatch(r"/api/staff/files/([a-f0-9]{32})/(\d+)", path)
             if match and self.get_role() == "warehouse":
@@ -179,7 +203,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                 length = int(self.headers.get("Content-Length", "0"))
                 if not 0 < length <= 65536:
                     raise ValueError("Invalid order details.")
-                return self.create_order(json.loads(self.rfile.read(length)))
+                return self.create_order(json.loads(self.rfile.read(length)), email)
             match = re.fullmatch(r"/api/orders/([a-f0-9]{32})/files/(\d+)", path)
             if match:
                 return self.upload(*match.groups())
@@ -218,7 +242,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                 return self.json_response(200, {"email": None}, auth.session_cookie("", 0))
         return self.json_response(404, {"error": "Unknown sign-in request."})
 
-    def create_order(self, data):
+    def create_order(self, data, email):
         order_id = data["id"]
         token = self.headers.get("X-Order-Key", "")
         if not re.fullmatch(r"[a-f0-9]{32}", order_id) or not re.fullmatch(r"[a-f0-9]{64}", token):
@@ -234,11 +258,18 @@ class PrintBee(SimpleHTTPRequestHandler):
         encoded = json.dumps(details, sort_keys=True)
         with closing(connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
-            existing = db.execute("SELECT token, details FROM orders WHERE id=?", (order_id,)).fetchone()
-            if existing and (not hmac.compare_digest(token, existing["token"]) or existing["details"] != encoded):
+            existing = db.execute(
+                "SELECT token, details, email FROM orders LEFT JOIN order_owners "
+                "ON orders.id=order_owners.order_id WHERE orders.id=?", (order_id,)
+            ).fetchone()
+            if existing and (
+                not hmac.compare_digest(token, existing["token"]) or existing["details"] != encoded
+                or existing["email"] not in (None, email)
+            ):
                 return self.json_response(409, {"error": "Order details changed. Reopen checkout to try again."})
             if not existing:
                 db.execute("INSERT INTO orders VALUES (?, ?, 'pending', ?)", (order_id, token, encoded))
+                db.execute("INSERT INTO order_owners VALUES (?, ?)", (order_id, email))
         self.json_response(200, {"subtotal": total})
 
     def upload(self, order_id, position):
@@ -313,6 +344,8 @@ if __name__ == "__main__":
             CREATE TABLE IF NOT EXISTS files (
                 order_id TEXT, position INTEGER, content BLOB, PRIMARY KEY (order_id, position)
             );
+            CREATE TABLE IF NOT EXISTS order_owners (order_id TEXT PRIMARY KEY, email TEXT NOT NULL);
+            CREATE INDEX IF NOT EXISTS order_owners_email ON order_owners(email);
         """)
     with ThreadingHTTPServer(("127.0.0.1", args.port), PrintBee) as server:
         server.keys = keys

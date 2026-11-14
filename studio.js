@@ -476,45 +476,43 @@ async function saveOrder(order) {
         else documents.delete(item.id);
       };
     }
-    transaction.objectStore('orders').add({...order, placed: true});
+    transaction.objectStore('orders').add({...order, placed: true, accountOrder: true});
   });
 }
 
 async function showOrders() {
   if (!orderHistory) return;
-  const db = await database;
-  const orders = await new Promise((resolve, reject) => {
-    const request = db.transaction('orders').objectStore('orders').getAll();
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-  const placedOrders = await Promise.all(orders.filter(order => order.orderKey).map(async order => {
-    try {
-      const {status} = await orderRequest('/api/orders/' + order.id, order.orderKey);
-      return Object.hasOwn(orderStates, status) ? {order, status} : null;
-    } catch {
-      return order.placed ? {order, status: null} : null;
+  let accountOrders = [];
+  try {
+    const response = await fetch('/api/orders');
+    if (response.ok) {
+      ({orders: accountOrders} = await response.json());
+    } else if (response.status === 401) {
+      const signIn = document.createElement('a');
+      signIn.href = 'profile.html';
+      signIn.textContent = 'Sign in to see your account orders';
+      status.replaceChildren(signIn);
+    } else {
+      throw new Error('Order history unavailable');
     }
-  }));
-  const visible = placedOrders.filter(Boolean).sort((a, b) => b.order.createdAt - a.order.createdAt);
-  orderHistory.replaceChildren();
-  if (!visible.length) {
-    const empty = document.createElement('li');
-    empty.textContent = 'Your placed orders will appear here.';
-    orderHistory.append(empty);
+  } catch {
+    status.textContent = 'Could not load your account orders. Refresh to try again.';
   }
-  for (const {order, status} of visible) {
+  const accountIds = new Set(accountOrders.map(order => order.id));
+  const legacyOrders = await getLegacyOrders(accountIds).catch(() => []);
+  orderHistory.replaceChildren();
+  for (const order of [...accountOrders, ...legacyOrders]) {
     const row = document.createElement('li');
     const details = document.createElement('details');
     const summary = document.createElement('summary');
     summary.textContent = 'PB-' + order.id.slice(0, 8).toUpperCase();
     const state = document.createElement('p');
-    state.textContent = orderStates[status] || 'Delivery status unavailable.';
+    state.textContent = orderStates[order.status] || 'Delivery status unavailable.';
     details.append(summary, state);
     details.append(queueButton('Refresh status', async () => {
       try {
-        const result = await orderRequest('/api/orders/' + order.id, order.orderKey);
-        state.textContent = orderStates[result.status] || 'Delivery status unavailable.';
+        const {status: currentStatus} = await orderRequest('/api/orders/' + order.id, order.orderKey);
+        state.textContent = orderStates[currentStatus] || 'Delivery status unavailable.';
       } catch {
         state.textContent = 'Delivery status unavailable.';
       }
@@ -522,7 +520,7 @@ async function showOrders() {
     const files = document.createElement('ul');
     for (const item of order.items) {
       const line = document.createElement('li');
-      line.textContent = item.file.name + ' · ' + item.pages + ' pages × ' + item.copies + ' copies · '
+      line.textContent = (item.name || item.file.name) + ' · ' + item.pages + ' pages × ' + item.copies + ' copies · '
         + (item.colourPages ? 'Colour pages ' + item.colourPages.join(', ') : item.colour ? 'Colour' : 'Black & white') + ' · ' + (item.duplex ? 'Double-sided' : 'Single-sided') + (item.orientation ? ' · ' + item.orientation : '')
         + ({glossy: ' · Glossy binding', blue: ' · Blue sheet binding'}[item.binding] || '');
       files.append(line);
@@ -531,6 +529,31 @@ async function showOrders() {
     row.append(details);
     orderHistory.append(row);
   }
+  if (!orderHistory.childElementCount && !status.textContent) {
+    const empty = document.createElement('li');
+    empty.textContent = 'Your placed orders will appear here.';
+    orderHistory.append(empty);
+  }
+}
+
+async function getLegacyOrders(accountIds) {
+  const db = await database;
+  const orders = await new Promise((resolve, reject) => {
+    const request = db.transaction('orders').objectStore('orders').getAll();
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  const legacyOrders = orders.filter(order => order.orderKey && !order.accountOrder && !accountIds.has(order.id));
+  legacyOrders.sort((a, b) => b.createdAt - a.createdAt);
+  const placedOrders = await Promise.all(legacyOrders.map(async order => {
+    try {
+      const {status} = await orderRequest('/api/orders/' + order.id, order.orderKey);
+      return Object.hasOwn(orderStates, status) ? {...order, status} : null;
+    } catch {
+      return order.placed ? order : null;
+    }
+  }));
+  return placedOrders.filter(Boolean);
 }
 
 const orderStates = {
@@ -541,7 +564,9 @@ const orderStates = {
 let pendingOrder;
 
 async function orderRequest(path, key, options = {}) {
-  const response = await fetch(path, {...options, headers: {'X-Order-Key': key, ...options.headers}});
+  const headers = new Headers(options.headers);
+  if (key) headers.set('X-Order-Key', key);
+  const response = await fetch(path, {...options, headers});
   const data = await response.json();
   if (response.status === 401) {
     throw Object.assign(new Error('Sign in by email before placing an order.'), {signInRequired: true});
