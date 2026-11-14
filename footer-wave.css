@@ -6,19 +6,6 @@
   font-display: swap;
 }
 
-.brand-footer .footer-intro {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: clamp(12px, 1.4vw, 18px);
-}
-
-.brand-footer .footer-intro img {
-  width: clamp(72px, 7vw, 90px);
-  height: auto;
-  margin-bottom: 0;
-}
-
 .brand-footer .footer-intro p {
   max-width: 26ch;
   font-family: "Young Serif", Georgia, serif;
@@ -39,7 +26,7 @@
 }
 
 .brand-footer .footer-columns {
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.8fr) minmax(0, .85fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.8fr) minmax(0, .85fr);
 }
 
 .footer-directory {
