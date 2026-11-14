@@ -206,7 +206,8 @@ class PrintBee(SimpleHTTPRequestHandler):
         if not path.startswith("/api/"):
             allowed = {"/", "/index.html", "/studio.js", "/studio.css", "/clay.css", "/staff.html", "/staff.js", "/delivery-map.js",
                        "/footer-wave.css", "/footer-wave.js",
-                       "/partner.html", "/admin.html", "/operations.js", "/partner.webmanifest", "/portal-login.js",
+                       "/partner.html", "/admin.html", "/admin-preview.html", "/admin-dashboard.css", "/admin-tokens.css",
+                       "/admin-dashboard.js", "/admin-data.js", "/operations.js", "/partner.webmanifest", "/portal-login.js",
                        "/pricing.html", "/terms.html", "/queue.html", "/orders.html", "/profile.html", "/profile.js", "/address.html", "/customer-login.js",
                        "/preloader.js", "/preloader.css", "/preloader-art.js", "/gsap-3.13.0.min.js",
                        "/navigation.html", "/navigation.css", "/bottom-nav.js", "/nav-tokens.js", "/embedded-tab.js"}

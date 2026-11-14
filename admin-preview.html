@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f5f0e4">
+<title>Dashboard · PrintBee Admin</title>
+<link rel="icon" href="/printbee-tab-bee.png">
+<link rel="stylesheet" href="admin-tokens.css">
+<link rel="stylesheet" href="admin-dashboard.css">
+<script type="module" src="admin-dashboard.js"></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to dashboard</a>
+<div class="workspace">
+  <aside class="sidebar" aria-label="Admin sidebar">
+    <a class="brand" href="#dashboard"><img src="printbee-header-bee.webp" width="44" height="40" alt=""><span><strong>PrintBee</strong><small>Admin workspace</small></span></a>
+    <nav id="sidebar-nav" aria-label="Admin sections"></nav>
+    <a class="live-link" href="/admin.html">Live admin sign-in <span aria-hidden="true">↗</span></a>
+  </aside>
+  <main id="main" tabindex="-1">
+    <header class="toolbar">
+      <button class="icon-button collapse" id="collapse" type="button" aria-label="Collapse sidebar" aria-expanded="true"></button>
+      <label class="search-clay"><span id="search-icon" aria-hidden="true"></span><input id="global-search" type="search" aria-label="Search orders" placeholder="Search orders"></label>
+      <label class="range"><span class="sr-only">Dashboard date range</span><select id="range"><option value="30">Last 30 days</option><option value="7">Last 7 days</option><option value="90">Last 90 days</option></select></label>
+      <button class="icon-button" id="theme" type="button" aria-label="Dark mode" aria-pressed="false"></button>
+      <button class="icon-button" id="notifications" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-panel"></button>
+      <button class="avatar" id="profile" type="button" aria-label="Admin profile" aria-expanded="false" aria-controls="profile-panel">PB</button>
+      <div class="popover card" id="notification-panel" hidden><h2>Notifications</h2><ul id="notification-list" class="activity"></ul></div>
+      <div class="popover card" id="profile-panel" hidden><strong>PrintBee Admin</strong><p>Demo workspace</p><a href="/admin.html">Live admin sign-in ↗</a></div>
+    </header>
+    <div class="intro">
+      <div><p class="eyebrow">PrintBee operations <span>Sample data</span></p><h1 id="page-title">Dashboard</h1><p id="page-description">Track campus print orders, revenue, and delivery activity.</p></div>
+      <div class="actions"><button id="add-order" class="primary" type="button">+ Add order</button><button id="add-product" type="button">+ Add product</button><button id="export-csv" type="button">Export CSV</button><button id="export-pdf" type="button">Print / Save PDF</button></div>
+    </div>
+    <p id="notice" class="notice" role="status"></p>
+    <div id="dashboard" aria-busy="true">
+      <div class="skeletons" role="status" aria-label="Loading dashboard"><span></span><span></span><span></span></div>
+    </div>
+  </main>
+</div>
+<nav id="mobile-nav" class="mobile-nav" aria-label="Mobile admin sections"></nav>
+<dialog id="editor" aria-labelledby="editor-title">
+  <form id="editor-form">
+    <h2 id="editor-title"></h2>
+    <div id="editor-fields"></div>
+    <div class="actions"><button id="close-editor" type="button">Close</button><button class="primary" id="save-editor" type="submit">Save</button></div>
+  </form>
+</dialog>
+</body>
+</html>
