@@ -92,20 +92,6 @@ position drives both the SVG notch and the bubble. The screen slide uses
 24px of travel. Reduced motion snaps the bubble to the active tab and
 crossfades screens for 150ms.
 
-## Website footer
-
-The storefront footer uses a shared stylesheet and a small JavaScript
-enhancement. Cream #FBF5E3, warm ink #1F1A10, muted ink #6B6250, and yellow
-#FFC83D are set in `footer.css` with the card radius and three shadow layers.
-The larger yellow action sets the hierarchy, and a transparent WebP makes the
-clay wordmark part of the card. The mobile layout places both actions above
-the Explore and Contact links.
-
-Set the footer's `data-status` attribute to a status label or use an empty
-value to hide the chip. The current label is static. `footer.js` adds a
-viewport reveal, parallax, pointer feedback, and smooth scrolling with
-reduced-motion support.
-
 ## Local operations
 
 Use Python with SQLite 3.35 or later. Open `/warehouse`, `/partner` or
