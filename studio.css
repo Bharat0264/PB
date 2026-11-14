@@ -738,3 +738,50 @@ body{background:var(--base)}
 .profile-login-body .profile-email-submit:hover {
   background: #464038;
 }
+
+#profile {
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  align-items: start;
+}
+
+.profile-hero {
+  position: relative;
+  display: grid;
+  padding: clamp(20px, 3.5vw, 48px);
+  overflow: hidden;
+  border-radius: clamp(24px, 5vw, 44px);
+  background: radial-gradient(ellipse at 12% 100%, #ffe69b, transparent 65%),
+    linear-gradient(145deg, #fffdf3, #fff4cd);
+  box-shadow: 10px 14px 30px #866b2b24, inset 4px 5px 12px #fff,
+    inset -5px -6px 15px #c7973424;
+}
+
+.profile-hero h1 {
+  font-size: clamp(32px, 4vw, 58px);
+}
+
+.profile-hero h1 span {
+  color: #885502;
+}
+
+.profile-hero-copy p {
+  max-width: 32ch;
+}
+
+.profile-hero img {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: 12px;
+}
+
+@media (max-width: 800px) {
+  #profile {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .profile-hero img {
+    max-width: 460px;
+    justify-self: center;
+  }
+}
