@@ -968,7 +968,7 @@ body {
 
 /* Workflow tiles sit directly on the shared honeycomb backdrop. */
 .section.how {
-  padding-block: clamp(28px, 4vw, 52px);
+  padding-block: clamp(26px, 3.5vw, 46px);
   border-top: 0;
 }
 
@@ -992,9 +992,9 @@ body {
   display: grid;
   align-content: start;
   justify-items: start;
-  gap: 14px;
+  gap: 12px;
   min-width: 0;
-  padding: clamp(16px, 2.2vw, 28px);
+  padding: clamp(15px, 1.9vw, 24px);
   border-radius: 26px;
   background: linear-gradient(150deg, #fffaf0, #f4e8ce);
   box-shadow: 6px 9px 18px #7e603426, inset 2px 3px 6px #fffaf1, inset -3px -4px 8px #b6985a23;
@@ -1013,8 +1013,8 @@ body {
 }
 
 .how .step {
-  width: 58px;
-  height: 58px;
+  width: 54px;
+  height: 54px;
   background: linear-gradient(140deg, #ffffff70, transparent 70%), var(--tile-tint);
   color: var(--tile-ink);
   box-shadow: 3px 5px 9px var(--tile-shadow), inset 2px 3px 5px #fff8, inset -2px -3px 6px var(--tile-shadow);
