@@ -29,10 +29,9 @@ function queueButton(label, onClick) {
   return button;
 }
 
-const batchOrder = document.querySelector('#batch-order');
-const orderSelected = document.querySelector('#order-selected');
-const selectAll = document.querySelector('#select-all');
-const selectedIds = new Set();
+const cartCheckout = document.querySelector('#cart-checkout');
+const cartCount = document.querySelector('#cart-count');
+const maxOrderFiles = 100;
 
 async function showQueue() {
   if (!queueList) return;
@@ -50,25 +49,19 @@ async function showQueue() {
     transaction.onabort = () => reject(transaction.error);
   });
   queueList.replaceChildren();
-  batchOrder.hidden = entries.length === 0;
-  const controls = [];
-
-  function updateSelection() {
-    const selected = entries.filter(([id]) => selectedIds.has(id));
-    orderSelected.hidden = selected.length === 0;
-    orderSelected.textContent = 'Continue to checkout (' + selected.length + ')';
-    orderSelected.onclick = () => openCheckout(selected);
-    selectAll.textContent = selected.length === entries.length ? 'Clear selection' : 'Select all';
-  }
-
-  selectAll.onclick = () => {
-    const checked = controls.some(([, input]) => !input.checked);
-    for (const [id, input] of controls) {
-      input.checked = checked;
-      if (checked) selectedIds.add(id);
-      else selectedIds.delete(id);
+  cartCheckout.hidden = entries.length === 0;
+  cartCount.textContent = fileCount(entries);
+  cartCheckout.querySelector('button').onclick = () => {
+    if (saveButton.disabled) return;
+    if (fileInput.files.length) {
+      status.textContent = 'Add the files you’re reviewing to the cart before checking out.';
+      return;
     }
-    updateSelection();
+    if (entries.length > maxOrderFiles) {
+      status.textContent = 'An order can contain up to 100 files. Remove files to continue.';
+      return;
+    }
+    openCheckout(entries);
   };
   for (const [id, entry] of entries) {
     const row = document.createElement('li');
@@ -87,31 +80,15 @@ async function showQueue() {
     const remove = queueButton('Remove', async () => {
       try {
         await queueAction('readwrite', store => store.delete(id));
-        selectedIds.delete(id);
         await showQueue();
         status.textContent = 'Document removed.';
       } catch {
         status.textContent = 'Could not remove this document.';
       }
     });
-    const order = queueButton('Checkout', () => openCheckout([[id, entry]]));
-    const label = document.createElement('label');
-    label.className = 'queue-selection';
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.checked = selectedIds.has(id);
-    checkbox.setAttribute('aria-label', 'Select ' + entry.file.name + ' for printing');
-    checkbox.addEventListener('change', () => {
-      if (checkbox.checked) selectedIds.add(id);
-      else selectedIds.delete(id);
-      updateSelection();
-    });
-    controls.push([id, checkbox]);
-    label.append(checkbox, name);
-    row.append(label, settings, order, download, remove);
+    row.append(name, settings, download, remove);
     queueList.append(row);
   }
-  updateSelection();
 }
 
 const fileInput = document.querySelector('#document-file');
@@ -244,16 +221,40 @@ let checkoutEntries = [];
 let legacyOrder;
 let paymentStep = false;
 
+function fileCount(files) {
+  return files.length + (files.length === 1 ? ' file' : ' files');
+}
+
+function showOrderBill(items) {
+  const bill = document.querySelector('#checkout-bill');
+  const list = bill.querySelector('ul');
+  list.replaceChildren();
+  for (const item of items) {
+    const row = document.createElement('li');
+    const name = document.createElement('span');
+    const price = document.createElement('strong');
+    name.textContent = item.file.name;
+    price.textContent = rupees.format(item.subtotal / 100);
+    row.append(name, price);
+    list.append(row);
+  }
+  document.querySelector('#checkout-page-count').textContent = fileCount(items);
+  checkoutTotal.value = rupees.format(items.reduce((sum, item) => sum + item.subtotal, 0) / 100);
+}
+
 function setCheckoutStep(payment) {
   paymentStep = payment;
   checkoutFiles.hidden = payment;
+  document.querySelector('#checkout-bill').hidden = !payment;
+  if (payment) showOrderBill(legacyOrder ? legacyItems(legacyOrder) : checkoutItems());
+  else updateCheckoutTotal();
   const delivery = document.querySelector('#checkout-delivery');
   delivery.hidden = !payment;
   delivery.disabled = !payment;
   document.querySelector('#checkout-payment-note').hidden = !payment;
   document.querySelector('#checkout-back').hidden = !payment || Boolean(legacyOrder);
   document.querySelector('#checkout-title').textContent = payment ? 'Delivery and payment' : 'Print settings';
-  checkoutSubmit.textContent = payment ? 'Place test order' : 'Proceed to payment';
+  checkoutSubmit.textContent = payment ? 'Place test order' : 'Review order';
   checkoutError.textContent = '';
 }
 
@@ -281,8 +282,6 @@ function resumeOrder(order) {
   checkoutForm.reset();
   fillProfile(checkoutForm);
   checkoutFiles.replaceChildren();
-  checkoutTotal.value = rupees.format(legacyItems(order).reduce((sum, item) => sum + item.subtotal, 0) / 100);
-  document.querySelector('#checkout-page-count').textContent = '';
   setCheckoutStep(true);
   checkout.showModal();
   checkoutForm.elements.customer.focus();
@@ -329,7 +328,6 @@ function openCheckout(entries) {
     checkoutFiles.append(group);
   }
   checkoutFiles.insertAdjacentHTML('beforeend', '<p>Enter the number of pages you want printed in each file. A4 rates apply.</p>');
-  updateCheckoutTotal();
   setCheckoutStep(false);
   checkout.showModal();
 }
@@ -433,7 +431,7 @@ function updateCheckoutTotal() {
     return;
   }
   const printedPages = items.reduce((sum, item) => sum + item.pages * item.copies, 0);
-  document.querySelector('#checkout-page-count').textContent = printedPages + (printedPages === 1 ? ' printed page' : ' printed pages');
+  document.querySelector('#checkout-page-count').textContent = fileCount(items) + ' · ' + printedPages + (printedPages === 1 ? ' printed page' : ' printed pages');
   const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
   checkoutTotal.value = rupees.format(subtotal / 100);
 }
@@ -562,6 +560,7 @@ checkoutForm.addEventListener('submit', async event => {
   event.preventDefault();
   if (checkoutSubmit.disabled) return;
   if (!paymentStep) {
+    if (checkoutItems().includes(null)) return;
     setCheckoutStep(true);
     checkout.scrollTop = 0;
     checkoutForm.elements.customer.focus();
@@ -608,7 +607,6 @@ checkoutForm.addEventListener('submit', async event => {
     checkoutSubmit.disabled = false;
     checkoutClose.disabled = false;
   }
-  for (const item of items) selectedIds.delete(item.id);
   checkout.close();
   if (!orderHistory) {
     location.assign('orders.html#orders');

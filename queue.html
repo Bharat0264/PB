@@ -7,9 +7,9 @@
 <meta name="description" content="PrintBee campus printing for SRM University. Save your A4 documents in your local print queue.">
 <title>Upload · PrintBee</title>
 <script src="preloader.js?v=2"></script>
-<link rel="stylesheet" href="studio.css?v=footer-fit">
+<link rel="stylesheet" href="studio.css?v=cart-checkout">
 <script src="profile.js?v=address-page" defer></script>
-<script src="studio.js?v=email-sign-in" defer></script>
+<script src="studio.js?v=cart-checkout" defer></script>
 </head>
 <body>
 <a href="#main" class="skip">Skip to content</a>
@@ -30,7 +30,7 @@
   </a>
 </header>
 <main id="main" class="frame inner-page">
-  <section class="section rates" id="queue"><div><h1>Upload files</h1><p>Save your files, select the ones you want printed, and continue to checkout.</p></div><div class="raised table-card"><form id="queue-form"><label class="field-label" for="document-file">Any file type, up to 50 MB per file</label><input class="inset file-field" id="document-file" type="file" multiple required><section class="file-review" id="file-review" aria-labelledby="review-title" hidden>
+  <section class="section rates" id="queue"><div><h1>Upload files</h1><p>Add all the files you want printed, then check out together.</p></div><div class="raised table-card"><form id="queue-form"><label class="field-label" for="document-file">Any file type, up to 50 MB per file</label><input class="inset file-field" id="document-file" type="file" multiple required><section class="file-review" id="file-review" aria-labelledby="review-title" hidden>
   <h3 id="review-title">Review your files</h3>
   <label id="review-picker" hidden>File to preview <select id="review-file"></select></label>
   <p class="review-filename" id="review-name"></p>
@@ -39,10 +39,10 @@
   <a class="subtle" id="review-open" target="_blank" rel="noopener" hidden>Open full preview ↗</a>
   <p id="review-fallback" hidden>Preview unavailable for this format. You can still save the file.</p>
   <div class="review-actions">
-    <button class="pill yellow" type="submit">Save to queue</button>
+    <button class="pill yellow" type="submit">Add to cart</button>
     <button class="pill raised" type="button" id="review-change">Change files</button>
   </div>
-</section></form><p id="queue-status" role="status"></p><ul id="queue-list" aria-label="Saved documents"></ul><div id="batch-order" hidden><button type="button" id="select-all">Select all</button><button type="button" class="pill yellow" id="order-selected" hidden></button></div></div></section>
+</section></form><p id="queue-status" role="status"></p><ul id="queue-list" aria-label="Saved documents"></ul><div id="cart-checkout" hidden><span id="cart-count"></span><button type="button" class="pill yellow">Checkout all files</button></div></div></section>
 </main>
 <dialog id="checkout" aria-labelledby="checkout-title">
   <form id="checkout-form">
@@ -54,12 +54,13 @@
       <label>Phone<input name="phone" type="tel" autocomplete="tel" pattern="[+0-9 \(\)\-]{7,20}" required maxlength="20"></label>
       <label class="checkout-address">Delivery address<textarea name="address" autocomplete="street-address" required maxlength="500"></textarea></label>
     </fieldset>
+    <section id="checkout-bill" aria-label="Order bill" hidden><h3>Order bill</h3><ul></ul></section>
     <p id="checkout-payment-note" hidden>Test payment only. No money is charged. Delivery fees are excluded.</p>
     <p id="checkout-error" role="status"></p>
     <div class="checkout-bar">
-      <div><span id="checkout-page-count"></span><p class="checkout-total">Print subtotal <output id="checkout-total"></output></p></div>
+      <div><span id="checkout-page-count"></span><p class="checkout-total">Order total <output id="checkout-total"></output></p></div>
       <button class="pill raised" type="button" id="checkout-back" hidden>Back</button>
-      <button class="pill yellow" type="submit">Proceed to payment</button>
+      <button class="pill yellow" type="submit">Review order</button>
     </div>
   </form>
 </dialog>
