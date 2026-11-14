@@ -596,18 +596,16 @@ body{background:var(--base)}
 }
 
 .footer-wordmark-panel {
-  display: grid;
-  place-items: center;
+  overflow: hidden;
   margin: 0 clamp(16px, 3vw, 40px) clamp(16px, 3vw, 36px);
-  padding: clamp(12px, 2vw, 24px);
-  border-radius: clamp(18px, 3vw, 32px);
-  background: linear-gradient(130deg, #f5e8c6, #f0edda);
-  box-shadow: inset 3px 4px 8px #a98d5030, inset -3px -3px 7px #fff9e9;
+  border-radius: clamp(16px, 3vw, 32px);
+  background: #f4b64c;
+  box-shadow: 0 5px 14px #84602429;
 }
 
-.footer-leather {
+.footer-relief {
   display: block;
-  width: min(100%, 620px);
+  width: 100%;
   height: auto;
 }
 
