@@ -48,7 +48,7 @@ def audit(db, actor, action, order_id=None):
                (actor, action, order_id, int(time.time())))
 
 
-def queue_job(db, order_id, position):
+def queue_job(db, order_id, position, actor="warehouse"):
     changed = db.execute(
         "INSERT INTO print_jobs(order_id, position) "
         "SELECT files.order_id, files.position FROM files JOIN orders ON orders.id=files.order_id "
@@ -59,7 +59,7 @@ def queue_job(db, order_id, position):
     if not changed:
         return False
     db.execute("UPDATE orders SET status='printing' WHERE id=? AND status='paid'", (order_id,))
-    audit(db, "warehouse", "print_queued", order_id)
+    audit(db, actor, "print_queued", order_id)
     return True
 
 

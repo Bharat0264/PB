@@ -36,8 +36,17 @@ def run(origin, key, printer, sumatra, once):
         with urlopen(Request(origin + "/api/print-agent/" + path, data=data, headers=headers), timeout=60) as response:
             return response.read()
 
+    backoff = 3
     while True:
-        job = json.loads(request("claim", {}))["job"]
+        try:
+            job = json.loads(request("claim", {}))["job"]
+        except OSError:
+            if once:
+                raise
+            time.sleep(backoff)
+            backoff = min(backoff * 2, 30)
+            continue
+        backoff = 3
         if not job:
             if once:
                 return
@@ -85,10 +94,24 @@ def run(origin, key, printer, sumatra, once):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--origin", default="http://127.0.0.1:4188")
-    parser.add_argument("--printer", required=True)
+    parser.add_argument("--printer")
+    parser.add_argument("--dry-run", metavar="PDF", type=Path,
+                        help="Validate a local sample PDF and exit without contacting the server or printer.")
     parser.add_argument("--sumatra", help="Path to SumatraPDF.exe on Windows")
     parser.add_argument("--once", action="store_true")
     args = parser.parse_args()
+    if args.dry_run:
+        from document_pages import count_pages
+        try:
+            pages = count_pages("sample.pdf", args.dry_run.read_bytes())
+            print_command({"pages": pages, "copies": 1, "duplex": False, "colour": False,
+                           "orientation": "Portrait"}, args.dry_run, "Mock printer", args.sumatra)
+        except (OSError, ValueError) as error:
+            parser.error(str(error))
+        print(f"Mock printer validated {pages} page(s). No job was sent.")
+        raise SystemExit(0)
+    if not args.printer:
+        parser.error("Provide --printer for live printing.")
     origin = urlsplit(args.origin)
     if origin.scheme != "https" and not (origin.scheme == "http" and origin.hostname in ("localhost", "127.0.0.1")):
         parser.error("Use HTTPS or a local server.")

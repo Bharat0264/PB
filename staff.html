@@ -7,26 +7,45 @@
 <link rel="stylesheet" href="studio.css?v=solid-clay">
 <link rel="stylesheet" href="clay.css?v=1">
 <script src="portal-login.js" defer></script>
-<script src="staff.js?v=google" defer></script>
+<link rel="stylesheet" href="warehouse.css">
+<script src="warehouse.js" defer></script>
 </head>
-<body>
-<header class="frame top"><a href="/" class="brand">PrintBee</a></header>
-<main class="frame">
-<section class="section staff-console">
-<h1>Warehouse</h1>
-<nav aria-label="Staff portals"><a href="/partner">Delivery partner</a> · <a href="/admin">Admin</a></nav>
-<div id="portal-login" class="clay-card"><a class="clay-button" href="/api/auth/google?portal=warehouse">Continue with Google</a></div>
-<button id="portal-logout" class="clay-button" type="button" hidden>Sign out</button>
-<p id="staff-status" class="clay-toast" role="status"></p>
-<div id="warehouse-filters" class="staff-login-fields" hidden>
-  <label>Find an order<input class="clay-input" id="warehouse-search" type="search" placeholder="Order number"></label>
-  <label>Status<select class="clay-input" id="warehouse-state">
-    <option value="">All</option><option value="paid">New</option>
-    <option value="printing">Printing</option><option value="packed">Ready for pickup</option>
-  </select></label>
+<body class="warehouse">
+<a class="skip" href="#warehouse-main">Skip to warehouse</a>
+<div class="warehouse-shell">
+  <aside class="clay-card warehouse-sidebar">
+    <a href="/" class="warehouse-brand"><img src="/printbee-header-bee.webp" width="56" height="44" alt=""><span>PrintBee<br><small>Warehouse</small></span></a>
+    <nav id="warehouse-nav" aria-label="Warehouse sections" hidden></nav>
+    <a id="warehouse-mode-link" href="/warehouse?preview=1">Open sample dashboard</a>
+  </aside>
+  <main id="warehouse-main">
+    <header class="warehouse-top"><span>SRM campus print room</span><span class="clay-badge" id="agent-status" hidden></span><button id="portal-logout" type="button" class="clay-button" hidden>Sign out</button></header>
+    <h1 id="warehouse-title">Warehouse</h1>
+    <div id="portal-login" class="clay-card"><a class="clay-button" href="/api/auth/google?portal=warehouse">Continue with Google</a></div>
+    <p id="staff-status" role="status" class="clay-toast"></p>
+    <div id="warehouse-app" hidden>
+      <div id="warehouse-filters" class="warehouse-controls">
+        <label>Search<input id="warehouse-search" class="clay-input" type="search" placeholder="Order, customer, phone"></label>
+        <label>Status<select id="warehouse-state" class="clay-input"><option value="">All statuses</option></select></label>
+        <label>Colour<select id="warehouse-colour" class="clay-input"><option value="">All files</option><option value="colour">Colour</option><option value="mono">Black &amp; white</option></select></label>
+        <label>Paper<select id="warehouse-paper" class="clay-input"><option value="">All sizes</option><option>A4</option><option>A3</option><option>A5</option></select></label>
+        <label>Date<select id="warehouse-date" class="clay-input"><option value="">Any date</option><option value="today">Today</option></select></label>
+        <label>Priority<select id="warehouse-priority" class="clay-input"><option value="">All priorities</option><option>Urgent</option><option>Express</option></select></label>
+        <label>Partner<select id="warehouse-partner" class="clay-input"><option value="">Any partner</option><option value="assigned">Assigned</option><option value="unassigned">Unassigned</option></select></label>
+        <button id="warehouse-view" class="clay-button" type="button">Table view</button>
+      </div>
+      <div id="warehouse-content"></div>
+    </div>
+  </main>
 </div>
-<div id="staff-orders"></div>
-</section>
-</main>
+<dialog class="clay-card warehouse-drawer" id="warehouse-detail" aria-labelledby="detail-title">
+  <div class="warehouse-dialog-top"><h2 id="detail-title">Order details</h2><form method="dialog"><button type="submit" class="clay-button">Close</button></form></div>
+  <p id="detail-status" role="status"></p><div id="detail-body"></div>
+</dialog>
+<dialog class="clay-card clay-modal" id="warehouse-confirm" aria-labelledby="confirm-title">
+  <h2 id="confirm-title">Confirm print</h2>
+  <div id="confirm-body"></div>
+  <form method="dialog"><button type="submit" value="cancel" class="clay-button">Back</button> <button type="submit" value="print" class="clay-button">Send to printer</button></form>
+</dialog>
 </body>
 </html>

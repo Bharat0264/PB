@@ -82,6 +82,8 @@ class PrintBee(SimpleHTTPRequestHandler):
         role = "admin" if path.startswith("/api/admin") else "warehouse" if path.startswith("/api/staff/") else None
         if role and self.google_portal_access(role):
             return role
+        if role == "warehouse" and self.google_portal_access("admin"):
+            return "admin"
         return None
 
     def google_portal_access(self, portal):
@@ -161,7 +163,10 @@ class PrintBee(SimpleHTTPRequestHandler):
             email = auth.google_email(config, query["code"][0], verifier)
             with closing(connect()) as db, db:
                 if portal:
-                    if email not in self.server.google_access[portal]:
+                    access = email in self.server.google_access[portal] or (
+                        portal == "warehouse" and email in self.server.google_access["admin"]
+                    )
+                    if not access:
                         return self.auth_redirect(destination + "#google-denied", clear)
                     session = auth.portal_session(db, self.headers, email)
                 else:
@@ -182,7 +187,10 @@ class PrintBee(SimpleHTTPRequestHandler):
         if path in ("/profile", "/saved", "/add", "/track", "/more"):
             self.path = "/navigation.html"
             return super().do_GET()
-        pages = {"/warehouse": "/staff.html", "/partner": "/partner.html", "/admin": "/admin.html"}
+        if path == "/warehouse":
+            self.path = "/staff.html"
+            return super().do_GET()
+        pages = {"/partner": "/partner.html", "/admin": "/admin.html"}
         if path in pages:
             return self.auth_redirect(pages[path])
         if path in ("/api/auth/google", auth.GOOGLE_CALLBACK):
@@ -194,9 +202,10 @@ class PrintBee(SimpleHTTPRequestHandler):
             portal = parse_qs(urlsplit(self.path).query).get("portal", [""])[0]
             if portal not in auth.GOOGLE_PORTALS:
                 return self.send_error(400)
-            return self.json_response(200, {"signedIn": bool(self.google_portal_access(portal) or (
-                portal == "partner" and self.get_partner()
-            ))})
+            signed_in = self.google_portal_access(portal) or (
+                portal == "warehouse" and self.google_portal_access("admin")
+            ) or (portal == "partner" and self.get_partner())
+            return self.json_response(200, {"signedIn": bool(signed_in)})
         if path == "/api/orders/notifications":
             return self.customer_notifications()
         if path == "/api/checkout":
@@ -204,7 +213,7 @@ class PrintBee(SimpleHTTPRequestHandler):
             return self.json_response(200, {"mode": self.server.payment_mode, "terms": terms,
                                            "maps": self.server.maps})
         if not path.startswith("/api/"):
-            allowed = {"/", "/index.html", "/studio.js", "/studio.css", "/clay.css", "/staff.html", "/staff.js", "/delivery-map.js",
+            allowed = {"/", "/index.html", "/studio.js", "/studio.css", "/clay.css", "/staff.html", "/staff.js", "/warehouse.css", "/warehouse.js", "/delivery-map.js",
                        "/footer-wave.css", "/footer-wave.js",
                        "/partner.html", "/admin.html", "/admin-preview.html", "/admin-dashboard.css", "/admin-tokens.css",
                        "/admin-dashboard.js", "/admin-data.js", "/operations.js", "/partner.webmanifest", "/portal-login.js",
@@ -241,7 +250,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                 return self.json_response(200, {"sms": bool(self.server.partner_verify),
                                                 "signedIn": bool(self.get_partner())})
             label = re.fullmatch(r"/api/staff/orders/([a-f0-9]{32})/label", path)
-            if label and self.get_role() == "warehouse":
+            if label and self.get_role() in ("warehouse", "admin"):
                 row = db.execute(
                     "SELECT details, order_number FROM orders LEFT JOIN order_owners "
                     "ON orders.id=order_owners.order_id WHERE orders.id=? AND status='packed'", label.groups()
@@ -278,21 +287,37 @@ class PrintBee(SimpleHTTPRequestHandler):
                 ]})
             if path == "/api/staff/orders":
                 role = self.get_role()
-                if role != "warehouse":
-                    return self.json_response(403, {"error": "Enter your staff key."})
-                states = ("paid", "printing", "packed")
+                if role not in ("warehouse", "admin"):
+                    return self.json_response(403, {"error": "Warehouse access is required."})
                 rows = db.execute(
-                    "SELECT orders.id, status, details, order_number FROM orders LEFT JOIN order_owners "
-                    "ON orders.id=order_owners.order_id WHERE status IN (?, ?, ?) ORDER BY orders.rowid DESC", states
-                )
+                    "SELECT orders.id, status, details, order_number, deliveries.partner, "
+                    "(SELECT min(created) FROM audit WHERE audit.order_id=orders.id AND action='paid') AS paid_at "
+                    "FROM orders LEFT JOIN order_owners ON orders.id=order_owners.order_id "
+                    "LEFT JOIN deliveries ON orders.id=deliveries.order_id "
+                    "WHERE status IN ('paid','printing','packed','out_for_delivery') OR orders.id IN "
+                    "(SELECT id FROM orders WHERE status='delivered' ORDER BY rowid DESC LIMIT 100) "
+                    "ORDER BY orders.rowid DESC"
+                ).fetchall()
                 jobs = {}
-                for job in db.execute("SELECT id, order_id, position, state, error FROM print_jobs"):
-                    jobs.setdefault(job["order_id"], []).append(dict(job))
+                timeline = {}
+                order_ids = [row["id"] for row in rows]
+                for offset in range(0, len(order_ids), 500):
+                    batch = order_ids[offset:offset + 500]
+                    placeholders = ",".join("?" for _ in batch)
+                    for job in db.execute(
+                        f"SELECT id, order_id, position, state, error FROM print_jobs WHERE order_id IN ({placeholders})", batch
+                    ):
+                        jobs.setdefault(job["order_id"], []).append(dict(job))
+                    for event in db.execute(
+                        f"SELECT action, created, order_id FROM audit WHERE order_id IN ({placeholders}) ORDER BY id", batch
+                    ):
+                        timeline.setdefault(event["order_id"], []).append(dict(event))
                 agent = db.execute("SELECT seen FROM workstations WHERE role='print-agent'").fetchone()
                 return self.json_response(200, {"role": role, "agentOnline": bool(agent and agent["seen"] > time.time() - 180),
                                                "orders": [
                     {"id": row["id"], "number": row["order_number"], "status": row["status"],
-                     "jobs": jobs.get(row["id"], []),
+                     "jobs": jobs.get(row["id"], []), "paidAt": row["paid_at"],
+                     "partner": row["partner"], "timeline": timeline.get(row["id"], []),
                      **json.loads(row["details"])} for row in rows
                 ]})
             match = re.fullmatch(r"/api/orders/([a-f0-9]{32})", path)
@@ -319,7 +344,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                             result["trackingKey"] = self.tracking_key(match[1])
                     return self.json_response(200, result)
             match = re.fullmatch(r"/api/staff/files/([a-f0-9]{32})/(\d+)", path)
-            if match and self.get_role() == "warehouse":
+            if match and self.get_role() in ("warehouse", "admin"):
                 row = db.execute("SELECT content, object_key FROM files JOIN orders ON orders.id=files.order_id "
                                  "WHERE order_id=? AND position=? AND status IN ('paid','printing','packed')",
                                  match.groups()).fetchone()
@@ -737,18 +762,20 @@ class PrintBee(SimpleHTTPRequestHandler):
         self.json_response(200, {"received": True})
 
     def queue_print(self, order_id, selection):
-        if self.get_role() != "warehouse":
+        role = self.get_role()
+        if role not in ("warehouse", "admin"):
             return self.json_response(403, {"error": "Warehouse access is required."})
         with closing(connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
             positions = ([row["position"] for row in db.execute(
                 "SELECT position FROM files WHERE order_id=?", (order_id,)
             )] if selection == "all" else [int(selection)])
-            queued = sum(ops.queue_job(db, order_id, position) for position in positions)
+            queued = sum(ops.queue_job(db, order_id, position, role) for position in positions)
         return self.json_response(200, {"queued": queued})
 
     def confirm_manual_print(self, order_id, position):
-        if self.get_role() != "warehouse":
+        role = self.get_role()
+        if role not in ("warehouse", "admin"):
             return self.json_response(403, {"error": "Warehouse access is required."})
         with closing(connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
@@ -762,7 +789,7 @@ class PrintBee(SimpleHTTPRequestHandler):
             if not changed:
                 raise ops.Conflict("This file is unavailable for manual confirmation.")
             db.execute("UPDATE orders SET status='printing' WHERE id=? AND status='paid'", (order_id,))
-            ops.audit(db, "warehouse", "printed_manually", order_id)
+            ops.audit(db, role, "printed_manually", order_id)
         self.json_response(200, {"saved": True})
 
     def partner_orders(self, db):
@@ -1011,7 +1038,7 @@ class PrintBee(SimpleHTTPRequestHandler):
         if not role:
             return self.json_response(403, {"error": "Enter your staff key."})
         expected = self.headers.get("X-Order-Status", "")
-        if role != "warehouse" or expected not in TRANSITIONS["warehouse"]:
+        if role not in ("warehouse", "admin") or expected not in TRANSITIONS["warehouse"]:
             return self.json_response(409, {"error": "This action is unavailable."})
         with closing(connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
@@ -1021,7 +1048,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                 "AND (print_jobs.state IS NULL OR print_jobs.state!='done')", (order_id,)
             ).fetchone():
                 raise ops.Conflict("Finish or confirm every file before packing.")
-            next_status = advance_order(db, order_id, role, expected)
+            next_status = advance_order(db, order_id, "warehouse", expected)
             if next_status:
                 ops.audit(db, role, next_status, order_id)
                 if next_status == "packed" and self.checkout_terms(db).get("autoDispatch"):
