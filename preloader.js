@@ -18,6 +18,12 @@
     },
   };
   if (window.PrintBeePreloader) return;
+  // Let internal page switches paint immediately. Direct visits and reloads keep the loader.
+  if (document.referrer && performance.getEntriesByType('navigation')[0]?.type === 'navigate') {
+    const previous = new URL(document.referrer);
+    if (previous.origin === location.origin && previous.pathname !== location.pathname) return;
+  }
+
   const root = document.documentElement;
   const base = new URL('.', document.currentScript.src);
   const started = performance.now();
