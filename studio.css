@@ -649,17 +649,12 @@ body{background:var(--base)}
 .header-cart:hover{background:#ffdb69}
 @media(min-width:701px) and (max-width:980px){.top{grid-template-columns:auto minmax(0,1fr) auto;gap:10px}}
 
-.profile-cards {
-  display: grid;
-  gap: 20px;
-  width: min(100%, 520px);
-  justify-self: center;
-}
-
 .profile-login {
   --profile-surface: #f8f0dd;
   --profile-button-shadow: 6px 8px 16px #77542726, -4px -4px 12px #fffdf6,
     inset 2px 2px 5px #fff9;
+  width: min(100%, 520px);
+  margin: clamp(24px, 5vw, 64px) auto 0;
   border-radius: clamp(24px, 4vw, 36px);
   padding: clamp(24px, 3vw, 38px);
   background: var(--profile-surface);
@@ -671,7 +666,7 @@ body{background:var(--base)}
   text-align: center;
 }
 
-.profile-login-banner h2 {
+.profile-login .profile-login-banner h1 {
   margin: 0;
   font-size: clamp(26px, 3vw, 36px);
   color: #2b2415;
@@ -754,53 +749,6 @@ body{background:var(--base)}
   flex: 1;
   height: 1px;
   background: #79613a30;
-}
-
-#profile {
-  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
-  align-items: start;
-}
-
-.profile-hero {
-  position: relative;
-  display: grid;
-  padding: clamp(20px, 3.5vw, 48px);
-  overflow: hidden;
-  border-radius: clamp(24px, 5vw, 44px);
-  background: radial-gradient(ellipse at 12% 100%, #ffe69b, transparent 65%),
-    linear-gradient(145deg, #fffdf3, #fff4cd);
-  box-shadow: 10px 14px 30px #866b2b24, inset 4px 5px 12px #fff,
-    inset -5px -6px 15px #c7973424;
-}
-
-.profile-hero h1 {
-  font-size: clamp(32px, 4vw, 58px);
-}
-
-.profile-hero h1 span {
-  color: #885502;
-}
-
-.profile-hero-copy p {
-  max-width: 32ch;
-}
-
-.profile-hero img {
-  display: block;
-  width: 100%;
-  height: auto;
-  margin-top: 12px;
-}
-
-@media (max-width: 800px) {
-  #profile {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .profile-hero img {
-    max-width: 460px;
-    justify-self: center;
-  }
 }
 
 :root {

@@ -17,27 +17,6 @@ function fillProfile(form) {
   }
 }
 
-const profileForm = document.querySelector('#profile-form');
-if (profileForm) {
-  fillProfile(profileForm);
-  profileForm.addEventListener('submit', event => {
-    event.preventDefault();
-    const status = document.querySelector('#profile-status');
-    const customer = profileForm.elements.customer.value.trim();
-    const phone = profileForm.elements.phone.value.trim();
-    if (!customer || !/^[+0-9 ()-]{7,20}$/.test(phone) || phone.replace(/\D/g, '').length < 7) {
-      status.textContent = 'Check the details and try again.';
-      return;
-    }
-    try {
-      localStorage.setItem(profileKey, JSON.stringify({...readProfile(), customer, phone}));
-      status.textContent = 'Profile saved on this browser.';
-    } catch {
-      status.textContent = 'Your browser could not save the profile.';
-    }
-  });
-}
-
 const addressForm = document.querySelector('#address-form');
 if (addressForm) {
   const saved = readProfile();
