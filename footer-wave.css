@@ -1,4 +1,23 @@
 @font-face {
+  font-family: "Young Serif";
+  src: url("young-serif-footer.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+.brand-footer .footer-intro p {
+  max-width: 26ch;
+  font-family: "Young Serif", Georgia, serif;
+  font-size: clamp(16px, 1.55vw, 21px);
+  font-weight: 400;
+  line-height: 1.3;
+  letter-spacing: -.02em;
+  color: #34291e;
+  text-wrap: balance;
+}
+
+@font-face {
   font-family: Lobster;
   src: url("lobster-printbee-regular.woff2") format("woff2");
   font-weight: 400;
