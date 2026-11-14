@@ -38,12 +38,13 @@
   position: relative;
   display: flex;
   align-items: end;
+  /* Reserve space for the script font's overhang and the layered shadow. */
+  gap: .165em;
   padding: .11em .16em .24em .1em;
   font-family: Lobster, Georgia, serif;
   font-size: clamp(28px, 18cqw, 170px);
   font-weight: 400;
   line-height: 1.04;
-  letter-spacing: -.035em;
   white-space: nowrap;
   user-select: none;
 }
@@ -53,9 +54,9 @@
   color: #fff0c9;
   -webkit-text-stroke: .024em #4e271d;
   paint-order: stroke fill;
-  text-shadow: -.016em .024em 0 #783c25, -.026em .041em 0 #66301f,
-    -.036em .057em 0 #53251c, -.047em .073em 0 #3b1b15,
-    -.056em .09em .026em #4d2e2355;
+  text-shadow: -.012em .024em 0 #783c25, -.019em .041em 0 #66301f,
+    -.025em .057em 0 #53251c, -.032em .073em 0 #3b1b15,
+    -.04em .09em .018em #4d2e2355;
   transform-origin: 50% 100%;
 }
 

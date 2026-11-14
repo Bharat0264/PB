@@ -6,7 +6,7 @@
   const mouse = matchMedia('(hover: hover) and (pointer: fine)');
   const compress = [1, .59, .45, .61, .9, 1.036, 1].map((height, index) => ({
     offset: [0, .2, .36, .52, .7, .86, 1][index],
-    transform: `scale(${1 + (1 - height) * .09}, ${height})`,
+    transform: `scaleY(${height})`,
   }));
   const motions = new WeakMap();
   let entered = false;
