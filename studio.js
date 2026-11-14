@@ -636,6 +636,7 @@ async function showOrders() {
   if (!orderHistory) return;
   const shared = location.hash.match(/^#track=([a-f0-9]{32})\.([a-f0-9]{64})$/);
   if (shared) {
+    status.textContent = '';
     const row = document.createElement('li');
     const line = document.createElement('p');
     async function refreshShared() {
@@ -653,11 +654,16 @@ async function showOrders() {
     await refreshShared();
     return;
   }
+  const errorPanel = document.querySelector('#orders-error');
   let accountOrders = [];
+  let accountUnavailable = false;
+  status.textContent = '';
   try {
     const response = await fetch('/api/orders');
     if (response.ok) {
-      ({orders: accountOrders} = await response.json());
+      const data = await response.json();
+      if (!Array.isArray(data.orders)) throw new Error('Invalid order list');
+      accountOrders = data.orders;
       loadOrderUpdates().catch(() => {});
     } else if (response.status === 401) {
       const signIn = document.createElement('a');
@@ -668,10 +674,11 @@ async function showOrders() {
       throw new Error('Order history unavailable');
     }
   } catch {
-    status.textContent = 'Could not load your account orders. Refresh to try again.';
+    accountUnavailable = true;
   }
   const accountIds = new Set(accountOrders.map(order => order.id));
   const legacyOrders = await getLegacyOrders(accountIds).catch(() => []);
+  for (const details of orderHistory.querySelectorAll('details[open]')) details.open = false;
   orderHistory.replaceChildren();
   const confirmedId = new URLSearchParams(location.search).get('placed');
   const confirmed = accountOrders.find(order => order.id === confirmedId);
@@ -814,7 +821,8 @@ async function showOrders() {
     row.append(details);
     orderHistory.append(row);
   }
-  if (!orderHistory.childElementCount && !status.textContent) {
+  errorPanel.hidden = !accountUnavailable;
+  if (!accountUnavailable && !orderHistory.childElementCount && !status.textContent) {
     const empty = document.createElement('li');
     empty.textContent = 'Your placed orders will appear here.';
     orderHistory.append(empty);
@@ -1049,6 +1057,23 @@ checkoutForm?.addEventListener('submit', async event => {
   checkout.close();
   if (window.parent !== window) window.parent.location.assign('/track?placed=' + placedId + '#orders');
   else location.assign('orders.html?placed=' + placedId + '#orders');
+});
+
+const ordersRefresh = document.querySelector('#orders-refresh');
+ordersRefresh?.addEventListener('click', async () => {
+  if (ordersRefresh.disabled) return;
+  const label = ordersRefresh.querySelector('span');
+  ordersRefresh.disabled = true;
+  label.textContent = 'Refreshing…';
+  try {
+    await showOrders();
+    if (ordersRefresh.closest('[hidden]')) document.querySelector('#orders-card').focus();
+  } catch {
+    status.textContent = 'Could not refresh orders. Try again.';
+  } finally {
+    ordersRefresh.disabled = false;
+    label.textContent = 'Refresh Orders';
+  }
 });
 
 Promise.all([showQueue(), showOrders()]).catch(() => {

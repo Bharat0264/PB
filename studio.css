@@ -512,6 +512,60 @@ body{background:var(--base)}
 #order-history > li + li{margin-top:12px}
 #order-history summary{cursor:pointer;font-weight:800}
 
+.orders-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2.35fr);
+  align-items: start;
+  gap: clamp(24px, 4vw, 54px);
+  padding-block: clamp(28px, 4vw, 54px);
+}
+.orders-card {
+  min-width: 0;
+  margin-top: clamp(12px, 3vw, 42px);
+  background: #fbf8ef;
+  box-shadow: 0 14px 25px #64563324, inset 2px 3px 8px #fffdf6;
+}
+.orders-card #order-status:empty { display: none; }
+.orders-error:not([hidden]) {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding: 4px 0 8px;
+  text-align: center;
+}
+.orders-error-art {
+  width: clamp(82px, 10vw, 126px);
+  height: auto;
+  color: #898576;
+}
+.orders-error h2 {
+  color: var(--ink);
+  font-size: clamp(20px, 2.2vw, 29px);
+  line-height: 1.2;
+}
+.orders-error p { margin-top: 6px; color: var(--muted); }
+#orders-refresh {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 10px 26px;
+  border: 0;
+  border-radius: 999px;
+  background: #343328;
+  color: #fffaf0;
+  font-weight: 800;
+  box-shadow: 0 5px 9px #413a2826, inset 0 1px 2px #ffffff32;
+}
+#orders-refresh:hover:not(:disabled) { background: #454332; }
+#orders-refresh:disabled { cursor: wait; }
+#orders-refresh svg { width: 20px; height: 20px; flex: none; }
+@media (max-width: 760px) {
+  .orders-layout { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .orders-card { margin-top: 0; }
+}
+
 .print-options{display:block;background:#fffdf6}
 .print-quantity,.print-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .print-quantity>div>label{margin-bottom:4px}

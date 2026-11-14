@@ -9,10 +9,10 @@
 <script src="preloader.js?v=4"></script>
 <script src="embedded-tab.js" defer></script>
 <script type="module" src="bottom-nav.js"></script>
-<link rel="stylesheet" href="studio.css?v=header-bee-size">
+<link rel="stylesheet" href="studio.css?v=orders-panel">
 <link rel="stylesheet" href="footer-wave.css?v=contact-icons">
 <script src="footer-wave.js?v=letter-spacing" defer></script>
-<script src="studio.js?v=liquid-nav" defer></script>
+<script src="studio.js?v=orders-panel" defer></script>
 </head>
 <body>
 <a href="#main" class="skip">Skip to content</a>
@@ -27,11 +27,32 @@
   </nav>
 </header>
 <main id="main" class="frame inner-page">
-  <section class="section rates" id="orders">
+  <section class="section orders-layout" id="orders">
     <div><h1>Your orders</h1><p>See what you ordered and track your delivery.</p></div>
-    <div class="raised table-card">
+    <div class="raised table-card orders-card" id="orders-card" tabindex="-1">
       <p id="order-confirmation" role="status" hidden></p>
-      <p id="order-status" role="status"></p>
+      <p id="order-status" role="status">Loading orders…</p>
+      <div id="orders-error" class="orders-error" hidden>
+        <svg class="orders-error-art" viewBox="0 0 120 112" fill="none" aria-hidden="true" focusable="false">
+          <g stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 45 55 27l43 18-43 18-43-18v44l43 19 19-8m-19-37v45m43-63v24M34 54l43-18"/>
+            <path d="m78 15-2-10m11 12 7-9m-2 16 10-2"/>
+          </g>
+          <circle cx="94" cy="90" r="18" fill="currentColor"/>
+          <path d="M94 82v9" stroke="#fffaf0" stroke-width="4" stroke-linecap="round"/>
+          <circle cx="94" cy="98" r="2.2" fill="#fffaf0"/>
+        </svg>
+        <div role="status">
+          <h2>Could not load your account orders.</h2>
+          <p>Refresh to try again.</p>
+        </div>
+        <button id="orders-refresh" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <path d="M3 10a9 9 0 0 1 15-5l3 3m0-5v5h-5M21 14a9 9 0 0 1-15 5l-3-3m0 5v-5h5"/>
+          </svg>
+          <span>Refresh Orders</span>
+        </button>
+      </div>
       <details id="order-updates" hidden><summary>Order updates</summary><ul></ul></details>
       <ul id="order-history"></ul>
     </div>
