@@ -99,6 +99,13 @@ class PrintBee(SimpleHTTPRequestHandler):
             return self.auth_redirect("/profile.html#google-failed", clear)
         return self.auth_redirect("/", clear, session)
 
+    def end_headers(self):
+        # Revalidate page markup so all pages use the current navigation.
+        path = urlsplit(self.path).path
+        if path == "/" or path.endswith(".html"):
+            self.send_header("Cache-Control", "no-cache")
+        super().end_headers()
+
     def do_GET(self):
         path = urlsplit(self.path).path
         if path in ("/api/auth/google", auth.GOOGLE_CALLBACK):
