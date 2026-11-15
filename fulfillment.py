@@ -20,6 +20,11 @@ CREATE TABLE IF NOT EXISTS audit (
     id INTEGER PRIMARY KEY, actor TEXT NOT NULL, action TEXT NOT NULL,
     order_id TEXT, created INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS order_events (
+    id INTEGER PRIMARY KEY, order_id TEXT NOT NULL, event TEXT NOT NULL, actor TEXT NOT NULL,
+    from_status TEXT, to_status TEXT, created INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS order_events_order ON order_events(order_id, id);
 CREATE TABLE IF NOT EXISTS pricing_versions (
     id INTEGER PRIMARY KEY, terms TEXT NOT NULL, created INTEGER NOT NULL
 );
@@ -44,8 +49,25 @@ class Conflict(ValueError):
 
 
 def audit(db, actor, action, order_id=None):
-    db.execute("INSERT INTO audit(actor, action, order_id, created) VALUES (?, ?, ?, ?)",
-               (actor, action, order_id, int(time.time())))
+    """Record an action. For real orders this also writes the central `order_events` row.
+
+    Callers invoke this inside the same transaction, right after the change, so the event carries
+    the order's new status (`to_status`) and the status of the previous event (`from_status`).
+    The event reuses the audit row id, so notification cursors and the live feed share one sequence.
+    """
+    now = int(time.time())
+    cursor = db.execute("INSERT INTO audit(actor, action, order_id, created) VALUES (?, ?, ?, ?)",
+                        (actor, action, order_id, now))
+    if not order_id:
+        return
+    row = db.execute("SELECT status FROM orders WHERE id=?", (order_id,)).fetchone()
+    if row:
+        last = db.execute("SELECT to_status FROM order_events WHERE order_id=? ORDER BY id DESC LIMIT 1",
+                          (order_id,)).fetchone()
+        db.execute("INSERT INTO order_events(id, order_id, event, actor, from_status, to_status, created) "
+                   "VALUES (?,?,?,?,?,?,?)",
+                   (cursor.lastrowid, order_id, action, actor, last["to_status"] if last else None,
+                    row["status"], now))
 
 
 def queue_job(db, order_id, position, actor="warehouse"):

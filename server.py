@@ -16,6 +16,8 @@ from threading import BoundedSemaphore
 
 import admin_ledger
 import admin_records
+import event_feed
+import order_status
 import customer_auth as auth
 import fulfillment as ops
 import partner_auth
@@ -259,6 +261,10 @@ class PrintBee(SimpleHTTPRequestHandler):
             if re.fullmatch(r"/[a-z0-9.-]+\.(png|webp|woff2)", path):
                 return super().do_GET()
             return self.send_error(404)
+        if path == "/api/status-model":
+            return self.json_response(200, order_status.public_model())
+        if path == "/api/events":
+            return self.event_stream()
         match = re.fullmatch(r"/api/orders/([a-f0-9]{32})/events", path)
         if match:
             return self.order_events(match[1])
@@ -411,6 +417,77 @@ class PrintBee(SimpleHTTPRequestHandler):
             )
             return self.json_response(200, {"updates": [dict(row) for row in rows]})
 
+    def event_audience(self, wanted):
+        """(audience, identity) for the signed-in role the client asked to follow, else None."""
+        if wanted in ("admin", "warehouse"):
+            key = self.headers.get("X-Staff-Key", "").encode()
+            if key:
+                role = next((name for name, secret in self.server.keys.items()
+                             if name != "delivery-code" and hmac.compare_digest(key, secret.encode())), None)
+                return (wanted, role) if role == wanted or (role == "admin" and wanted == "warehouse") else None
+            email = None
+            with closing(connect()) as db:
+                email = auth.portal_google_email(db, self.headers, wanted)
+            return (wanted, email) if email and self.server.google_access[wanted].get(email) else None
+        if wanted == "partner":
+            partner = self.get_partner()
+            return ("partner", partner) if partner else None
+        if wanted == "customer":
+            with closing(connect()) as db:
+                email = auth.session_email(db, self.headers)
+            return ("customer", email) if email else None
+        return None
+
+    def event_stream(self):
+        """GET /api/events?as=<role>[&since=<id>]: the live feed.
+
+        Server-Sent Events by default (EventSource reconnects with Last-Event-ID, which is the
+        catch-up cursor). With `&poll=1` the same events come back as JSON for the polling fallback.
+        """
+        query = parse_qs(urlsplit(self.path).query)
+        audience = self.event_audience(query.get("as", [""])[0])
+        if not audience:
+            return self.json_response(403, {"error": "Sign in to follow live updates."})
+        kind, identity = audience
+        try:
+            cursor = self.headers.get("Last-Event-ID") or query.get("since", [None])[0]
+            last = int(cursor) if cursor not in (None, "") else None
+        except ValueError:
+            return self.json_response(400, {"error": "Invalid event cursor."})
+        db = connect()
+        try:
+            newest = event_feed.latest(db)
+            if last is None or last > newest:
+                last = newest          # first connect: no replay (clients load current state themselves)
+            if "poll" in query:
+                events = event_feed.fetch(db, kind, identity, last)
+                return self.json_response(200, {"events": events, "latest": events[-1]["id"] if events else last})
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Accel-Buffering", "no")
+            self.end_headers()
+            self.wfile.write(b"retry: 3000\n\nevent: hello\ndata: " + json.dumps({"latest": last}).encode() + b"\n\n")
+            self.wfile.flush()
+            quiet = time.time()
+            deadline = time.time() + 300      # clients reconnect and catch up from Last-Event-ID
+            while time.time() < deadline:
+                events = event_feed.fetch(db, kind, identity, last)
+                for event in events:
+                    self.wfile.write(f"id: {event['id']}\ndata: {json.dumps(event)}\n\n".encode())
+                    last = event["id"]
+                if events:
+                    quiet = time.time()
+                elif time.time() - quiet > 15:
+                    self.wfile.write(b": keep-alive\n\n")
+                    quiet = time.time()
+                self.wfile.flush()
+                time.sleep(1)
+        except (OSError, ConnectionError):
+            pass
+        finally:
+            db.close()
+
     def order_events(self, order_id):
         def snapshot(db):
             row = db.execute(
@@ -551,6 +628,10 @@ class PrintBee(SimpleHTTPRequestHandler):
             self.json_response(404, {"error": "Unknown request."})
         except ops.Conflict as error:
             self.json_response(409, {"error": str(error)})
+        except sqlite3.IntegrityError as error:
+            if "Illegal order status change" not in str(error):
+                raise
+            self.json_response(409, {"error": "This order cannot move to that status."})
         except (admin_records.InputError, DeliveryQuoteError) as error:
             self.json_response(400, {"error": str(error)})
         except (ValueError, KeyError, TypeError, AttributeError):
@@ -649,6 +730,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                 db.execute("INSERT INTO orders VALUES (?, ?, 'pending', ?)", (order_id, token, encoded))
                 db.execute("INSERT INTO order_owners (order_id, email, order_number) VALUES (?, ?, ?)",
                            (order_id, email, order_number(db)))
+                ops.audit(db, "customer", "order_created", order_id)
         self.json_response(200, {"subtotal": total, "total": bill["total"] if bill else total})
 
     def checkout_quote(self):
@@ -1239,6 +1321,7 @@ if __name__ == "__main__":
         db.execute("CREATE UNIQUE INDEX IF NOT EXISTS order_owners_number ON order_owners(order_number)")
         if "object_key" not in {column["name"] for column in db.execute("PRAGMA table_info(files)")}:
             db.execute("ALTER TABLE files ADD COLUMN object_key TEXT")
+        order_status.install_guards(db)
         eligible = ()
         if active_checkout_terms(db, checkout_terms).get("autoDispatch"):
             eligible = {"delivery", *partners, *phones.values(), *google_access["partner"].values()}
