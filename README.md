@@ -200,3 +200,9 @@ on an unprinted captured Razorpay order. A refund request pauses fulfilment
 and uses a stable receipt reference. Configure the HTTPS Razorpay webhook to
 also receive `refund.processed` and `refund.failed`. A pending request can be
 reconciled from the dashboard if the initial API response is lost.
+
+## Connected portals
+
+One order travels through the customer, warehouse, partner and admin portals with live status. See
+[docs/connected-workflow/CONNECTED-PORTALS.md](docs/connected-workflow/CONNECTED-PORTALS.md) for the workflow map,
+configuration (local vs production) and `python demo.py` for a one-command local demo.

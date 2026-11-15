@@ -28,9 +28,10 @@
   mount.append(title, list);
   mount.hidden = false;
   const style = document.createElement('style');
-  style.textContent = '#demo-login{display:grid;gap:8px;margin-top:16px;padding:16px;border-radius:20px;background:#fff6dd;border:1px dashed #b9831a}'
+  style.textContent = '#demo-login{position:fixed;right:16px;bottom:16px;z-index:20;display:grid;gap:8px;width:min(380px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto;padding:16px;border-radius:20px;background:#fff6dd;border:1px dashed #b9831a;box-shadow:0 12px 32px #6b4f2933}'
+    + '#demo-login[hidden]{display:none}'
     + '.demo-login-title{margin:0;font-weight:800;font-size:13px;letter-spacing:.04em;text-transform:uppercase}'
-    + '.demo-login-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}'
+    + '.demo-login-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}'
     + '.demo-login-button{min-height:48px;display:grid;place-items:center;text-align:center;text-decoration:none}';
   document.head.append(style);
 })();

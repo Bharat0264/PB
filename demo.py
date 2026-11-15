@@ -23,7 +23,7 @@ from urllib.request import urlopen
 
 ROOT = Path(__file__).resolve().parent
 TERMS = {
-    "packing": 500, "platform": 300, "delivery": 1500, "taxBasisPoints": 500, "partnerPayout": 4000,
+    "packing": 500, "platform": 300, "delivery": 1500, "taxBasisPoints": 500, "partnerPayout": 1200,
     "slots": [], "coupons": {"WELCOME10": 1000}, "paperRates": {}, "bindingRates": {},
 }
 
