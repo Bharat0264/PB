@@ -1,5 +1,5 @@
 /* PrintBee Partner · "The Hive"
-   Tokens → base → shell (dock, top cluster) → map → cockpit rails / sheet → components → pages → motion.
+   Tokens → base → shell (dock, top cluster) → cockpit → components → pages → motion.
    Breakpoints: desktop ≥1280, tablet 768–1279, mobile <768. Spacing on an 8px scale. */
 
 @font-face { font-family: Manrope; src: url("/manrope-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; }
@@ -22,14 +22,9 @@
   --r-lg: 28px; --r-md: 20px; --r-pill: 999px;
   --focus: 0 0 0 3px var(--bg), 0 0 0 6px #C9840F;
   /* Map palette */
-  --map-land: #F6EDD6; --map-land-2: #EFE3C3; --map-park: #DDEBC4; --map-water: #CFE5EA; --map-road: #FFFFFF; --map-road-edge: #E4D3AC;
-  --map-building: #EADBB5; --map-building-top: #F3E7C8; --map-label: #7A6A4A;
-  --hex-low: 251, 224, 138; --hex-high: 233, 150, 20; --hex-stroke: rgba(185,131,26,.28);
-  --route: #B9831A;
   /* Layout rails (desktop) */
   --dock-w: 72px; --dock-x: 16px; --gutter: 24px; --outer: 32px; --top: 96px;
   --rail-l: calc(var(--dock-x) + var(--dock-w) + var(--gutter));
-  --left-w: 400px; --right-w: 380px;
   --bar-h: 72px;
   color-scheme: light;
 }
@@ -47,10 +42,7 @@
   --sh-3: inset 0 1px 0 var(--hi), inset 0 -8px 16px var(--shade), 0 10px 20px var(--drop-2), 0 30px 60px var(--drop-2), 0 0 40px rgba(255,170,40,.06);
   --glass: rgba(42,29,15,.84);
   --focus: 0 0 0 3px var(--bg), 0 0 0 6px #FFC94D;
-  --map-land: #20160B; --map-land-2: #261A0D; --map-park: #1F2512; --map-water: #14232A; --map-road: #3A2A15; --map-road-edge: #2D200F;
-  --map-building: #33240F; --map-building-top: #3E2C14; --map-label: #B79E70;
-  --hex-low: 140, 92, 24; --hex-high: 255, 170, 40; --hex-stroke: rgba(255,190,80,.14);
-  --route: #FFC94D; --shimmer: rgba(255,200,90,.1);
+  --shimmer: rgba(255,200,90,.1);
   color-scheme: dark;
 }
 
@@ -117,10 +109,7 @@ body.hive { margin: 0; min-height: 100dvh; background: var(--bg); color: var(--i
 .hive-tab span { position: absolute; left: calc(100% + 16px); padding: 6px 10px; border-radius: 10px; background: var(--ink); color: var(--bg); font-size: 13px; font-weight: 700; white-space: nowrap; opacity: 0; pointer-events: none; transform: translateX(-4px); transition: .15s; }
 .hive-tab:hover span, .hive-tab:focus-visible span { opacity: 1; transform: none; }
 .hive-tab[aria-current="page"] { color: #2A2112; }
-.hive-dock-bee { position: absolute; z-index: 0; left: 8px; top: 12px; width: 56px; height: 56px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #FFE89A, var(--honey-500)); box-shadow: var(--sh-1); transition: transform .42s cubic-bezier(.34,1.4,.64,1); }
-.hive-dock-bee::before, .hive-dock-bee::after { content: ""; position: absolute; top: -6px; width: 16px; height: 12px; border-radius: 50%; background: rgba(255,255,255,.9); box-shadow: 0 1px 3px var(--drop); animation: wing .12s linear infinite alternate; }
-.hive-dock-bee::before { left: 12px; transform-origin: 100% 100%; }
-.hive-dock-bee::after { right: 12px; transform-origin: 0 100%; animation-direction: alternate-reverse; }
+.hive-dock-indicator { position: absolute; z-index: 0; left: 8px; top: 12px; width: 56px; height: 56px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #FFE89A, var(--honey-500)); box-shadow: var(--sh-1); transition: transform .42s cubic-bezier(.34,1.4,.64,1); }
 
 /* ---------- Main + pages ---------- */
 .hive-main { position: relative; z-index: 10; min-height: 100dvh; padding: var(--top) var(--outer) calc(var(--bar-h) + 48px) var(--rail-l); outline: none; }
@@ -130,79 +119,12 @@ body.hive { margin: 0; min-height: 100dvh; background: var(--bg); color: var(--i
 .page-head { display: flex; align-items: end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
 .page-head p { color: var(--muted); margin-top: 4px; }
 
-/* ---------- Map ---------- */
-/* Clip the viewport-sized map to keep its pointer and camera coordinates aligned. */
-.hive-map {
-  --map-frame: var(--top) calc(var(--outer) + var(--right-w) + var(--gutter))
-    calc(var(--bar-h) + 40px) calc(var(--rail-l) + var(--left-w) + var(--gutter));
-  position: fixed; inset: 0; z-index: 0; overflow: hidden;
-  pointer-events: none; touch-action: none; cursor: grab;
-}
-.hive-map.is-dragging { cursor: grabbing; }
-.hive-map > :is(svg, .map-overlay) { clip-path: inset(var(--map-frame) round var(--r-lg)); }
-.hive-map > svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; background: var(--map-land); pointer-events: auto; }
-body[data-page="Cockpit"] .hive-main { pointer-events: none; }
-body[data-page="Cockpit"] :is(.rail, .cockpit-cols, .sheet, .map-ctrl, .map-legend, .hive-banner) { pointer-events: auto; }
-.map-land { fill: var(--map-land); }
-.map-block { fill: var(--map-land-2); }
-.map-park { fill: var(--map-park); }
-.map-water { fill: var(--map-water); }
-.map-road-edge { fill: none; stroke: var(--map-road-edge); stroke-linecap: round; stroke-linejoin: round; }
-.map-road { fill: none; stroke: var(--map-road); stroke-linecap: round; stroke-linejoin: round; }
-.map-bld { fill: var(--map-building); }
-.map-bld-top { fill: var(--map-building-top); }
-.map-label { fill: var(--map-label); font: 700 13px Manrope, sans-serif; paint-order: stroke; stroke: var(--map-land); stroke-width: 4px; letter-spacing: .02em; pointer-events: none; }
-.map-hex { stroke: var(--hex-stroke); stroke-width: 1.2; cursor: pointer; transition: fill-opacity .3s; }
-.map-hex:hover { stroke: var(--honey-700); stroke-width: 2; }
-.map-hex.is-hot { animation: hexpulse 2.4s ease-in-out infinite; }
-.map-hex.is-selected { stroke: var(--honey-700); stroke-width: 3; }
-.map-route { fill: none; stroke: var(--route); stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 2 12; animation: routeflow 1s linear infinite; }
-.map-route-base { fill: none; stroke: var(--route); stroke-opacity: .22; stroke-width: 12; stroke-linecap: round; stroke-linejoin: round; }
-.map-overlay { position: absolute; inset: 0; pointer-events: none; }
-.map-pin { position: absolute; left: 0; top: 0; pointer-events: auto; transform: translate(-50%, -100%); filter: drop-shadow(0 6px 8px var(--drop-2)); }
-.map-pin svg { display: block; width: 44px; height: 52px; }
-.map-pin-label { position: absolute; left: 50%; bottom: calc(100% + 4px); transform: translateX(-50%); padding: 4px 10px; border-radius: var(--r-pill); background: var(--surface); box-shadow: var(--sh-1); font-size: 12px; font-weight: 800; white-space: nowrap; }
-.map-trail { position: absolute; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: var(--honey-500); box-shadow: 0 0 6px var(--honey-500); }
-.map-bee { position: absolute; z-index: 2; left: 0; top: 0; width: 64px; height: 64px; margin: -32px 0 0 -32px; filter: drop-shadow(0 10px 10px var(--drop-2)); }
-.map-bee svg { width: 100%; height: 100%; overflow: visible; }
-.map-bee .wing { transform-box: fill-box; animation: wing .09s linear infinite alternate; }
-.map-bee .wing-r { transform-origin: 0% 100%; animation-direction: alternate-reverse; }
-.map-bee .wing-l { transform-origin: 100% 100%; }
-.map-bee.is-asleep .wing { animation: none; transform: rotate(-12deg) scaleY(.7); }
-.map-bee.is-asleep .bee-body { transform: translateY(4px) rotate(-8deg); transform-box: fill-box; transform-origin: 50% 50%; }
-.map-zzz { position: absolute; font-weight: 800; color: var(--honey-ink); font-size: 16px; animation: zzz 2.4s ease-in-out infinite; }
-.map-zzz:nth-child(2) { animation-delay: .8s; font-size: 13px; }
-.map-zzz:nth-child(3) { animation-delay: 1.6s; font-size: 11px; }
-.map-ctrl { position: fixed; z-index: 15; right: calc(var(--outer) + var(--right-w) + var(--gutter)); bottom: calc(var(--bar-h) + 48px); display: grid; gap: 8px; }
-.map-ctrl button { width: 44px; height: 44px; border: 0; border-radius: 14px; background: var(--glass); box-shadow: var(--sh-2); font-weight: 800; font-size: 20px; backdrop-filter: blur(10px); }
-.map-legend { position: fixed; z-index: 15; left: calc(var(--rail-l) + var(--left-w) + var(--gutter)); top: var(--top); display: grid; gap: 8px; padding: 12px 16px; width: 264px; border-radius: var(--r-md); background: var(--glass); box-shadow: var(--sh-2); backdrop-filter: blur(12px); font-size: 13px; }
-.map-legend-bar { height: 10px; border-radius: 6px; background: linear-gradient(90deg, rgba(var(--hex-low), .45), rgba(var(--hex-high), .9)); }
-.map-legend-scale { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; font-weight: 700; }
-.map-legend strong { display: flex; gap: 6px; align-items: center; }
-.map-legend .zones { display: flex; gap: 6px; flex-wrap: wrap; }
-.map-legend .zones button { min-height: 32px; padding: 0 10px; border: 0; border-radius: var(--r-pill); background: var(--honey-100); color: var(--honey-ink); font-weight: 800; font-size: 12px; box-shadow: var(--sh-1); }
-.hex-pop { position: absolute; z-index: 5; width: 240px; padding: 16px; border-radius: var(--r-md); background: var(--surface); box-shadow: var(--sh-3); pointer-events: auto; transform: translate(-50%, calc(-100% - 16px)); animation: pop .22s cubic-bezier(.34,1.56,.64,1); }
-.hex-pop h3 { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
-.hex-pop dl { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; margin: 0; font-size: 13px; }
-.hex-pop dt { color: var(--muted); }
-.hex-pop dd { margin: 0; font-weight: 800; font-variant-numeric: tabular-nums; }
-.hex-pop .bonus { margin-top: 10px; padding: 6px 10px; border-radius: 12px; background: var(--honey-100); color: var(--honey-ink); font-weight: 800; font-size: 13px; }
-.hex-pop button { position: absolute; top: 8px; right: 8px; width: 32px; height: 32px; border: 0; border-radius: 50%; background: var(--surface-2); }
-
-/* ---------- Cockpit rails ---------- */
-.rail { position: fixed; z-index: 12; top: var(--top); bottom: calc(var(--bar-h) + 40px); display: flex; flex-direction: column; gap: 16px; overflow-y: auto; overscroll-behavior: contain; padding: 4px 6px 16px; margin: -4px -6px; scrollbar-width: thin; }
-.rail-left { left: var(--rail-l); width: calc(var(--left-w) + 12px); }
-.rail-right { right: var(--outer); width: calc(var(--right-w) + 12px); }
-.rail .cell { flex: none; }
+/* ---------- Cockpit ---------- */
+.cockpit-layout { display: grid; grid-template-columns: minmax(0,1.2fr) minmax(0,1fr); align-items: start; gap: var(--gutter); }
+.cockpit-column { display: grid; gap: var(--gutter); min-width: 0; }
 .cockpit-greet { display: grid; gap: 4px; }
 .cockpit-greet h1 { font-size: 28px; }
-
-/* Bottom sheet (mobile cockpit) */
-.sheet { position: fixed; z-index: 20; left: 0; right: 0; bottom: 0; height: calc(92dvh - env(safe-area-inset-top)); padding: 8px 16px calc(96px + env(safe-area-inset-bottom)); border-radius: 28px 28px 0 0; background: var(--bg); box-shadow: 0 -12px 40px var(--drop-2), inset 0 1px 0 var(--hi); transform: translateY(var(--sheet-y, 60%)); transition: transform .42s cubic-bezier(.22,1.2,.36,1); display: flex; flex-direction: column; }
-.sheet.is-dragging { transition: none; }
-.sheet-handle { flex: none; display: grid; place-items: center; width: 100%; height: 32px; border: 0; background: transparent; touch-action: none; }
-.sheet-handle::before { content: ""; width: 48px; height: 6px; border-radius: 3px; background: var(--line); box-shadow: inset 0 1px 2px var(--drop); }
-.sheet-body { flex: 1; overflow-y: auto; display: grid; align-content: start; gap: 16px; padding: 4px 2px 16px; overscroll-behavior: contain; }
+body[data-page="Cockpit"] .hive-main { padding-bottom: 40px; }
 
 /* ---------- Slide to act ---------- */
 .slide { position: relative; height: 72px; border-radius: var(--r-pill); background: var(--surface-3); box-shadow: var(--sh-press); overflow: hidden; user-select: none; touch-action: none; }
@@ -271,8 +193,6 @@ body[data-page="Cockpit"] :is(.rail, .cockpit-cols, .sheet, .map-ctrl, .map-lege
 .offer-route i.to { background: var(--success); clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); border-radius: 0; }
 .offer-meta { display: flex; gap: 8px; flex-wrap: wrap; }
 .tag { display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border-radius: var(--r-pill); background: var(--surface-3); font-size: 12px; font-weight: 800; color: var(--muted); }
-.tag-hot { background: #FFE2B5; color: #8A4B05; }
-:root[data-theme="moon"] .tag-hot { background: #4A2F0C; color: #FFCE63; }
 .offer .skip { justify-self: center; min-height: 44px; border: 0; background: none; color: var(--muted); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
 
 .stepper { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 0 0 16px; padding: 0; list-style: none; counter-reset: s; }
@@ -310,8 +230,7 @@ body[data-page="Cockpit"] :is(.rail, .cockpit-cols, .sheet, .map-ctrl, .map-lege
 .delivered h3 { font-size: 26px; }
 
 /* Active delivery bar (every page) */
-.hive-activebar { position: fixed; z-index: 35; left: calc(var(--rail-l) + var(--left-w) + var(--gutter)); right: calc(var(--outer) + var(--right-w) + var(--gutter)); bottom: 24px; min-height: var(--bar-h); display: flex; align-items: center; gap: 16px; padding: 12px 12px 12px 20px; border-radius: var(--r-lg); background: var(--ink); color: var(--bg); box-shadow: var(--sh-3); }
-body:not([data-page="Cockpit"]) .hive-activebar { left: var(--rail-l); right: var(--outer); }
+.hive-activebar { position: fixed; z-index: 35; left: var(--rail-l); right: var(--outer); bottom: 24px; min-height: var(--bar-h); display: flex; align-items: center; gap: 16px; padding: 12px 12px 12px 20px; border-radius: var(--r-lg); background: var(--ink); color: var(--bg); box-shadow: var(--sh-3); }
 .hive-activebar .ab-id { font-weight: 800; }
 .hive-activebar .ab-eta { color: color-mix(in srgb, var(--bg) 70%, transparent); font-size: 13px; }
 .hive-activebar .ab-steps { display: flex; gap: 4px; margin-left: auto; }
@@ -319,15 +238,6 @@ body:not([data-page="Cockpit"]) .hive-activebar { left: var(--rail-l); right: va
 .hive-activebar .ab-steps i.on { background: var(--honey-500); }
 .hive-activebar .hive-btn { background: var(--honey-500); color: #2A2112; min-height: 48px; }
 .ab-text { display: grid; min-width: 0; }
-
-/* Buzz co-pilot */
-.hive-buzz { position: fixed; z-index: 36; right: var(--outer); bottom: calc(var(--bar-h) + 48px); display: flex; align-items: end; gap: 8px; max-width: 340px; animation: buzzin .4s cubic-bezier(.34,1.56,.64,1); }
-body[data-page="Cockpit"] .hive-buzz { right: calc(var(--outer) + var(--right-w) + var(--gutter) + 56px); }
-.buzz-bee { flex: none; width: 52px; height: 52px; display: grid; place-items: center; border-radius: 50%; background: var(--surface); box-shadow: var(--sh-2); }
-.buzz-bee svg { width: 40px; height: 40px; }
-.buzz-bubble { position: relative; padding: 12px 40px 12px 16px; border-radius: 20px 20px 20px 6px; background: var(--surface); box-shadow: var(--sh-3); font-weight: 700; font-size: 14px; }
-.buzz-bubble small { display: block; color: var(--honey-ink); font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
-.buzz-bubble button { position: absolute; top: 6px; right: 6px; width: 32px; height: 32px; border: 0; border-radius: 50%; background: var(--surface-2); }
 
 /* ---------- Earnings ---------- */
 .grid-12 { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: var(--gutter); }
@@ -461,11 +371,7 @@ body[data-page="Cockpit"] .hive-buzz { right: calc(var(--outer) + var(--right-w)
 ::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
 
 /* ---------- Keyframes ---------- */
-@keyframes wing { from { transform: rotate(-14deg) scaleY(1); } to { transform: rotate(14deg) scaleY(.6); } }
-@keyframes hexpulse { 0%, 100% { fill-opacity: var(--a); } 50% { fill-opacity: calc(var(--a) + .22); } }
-@keyframes routeflow { to { stroke-dashoffset: -14; } }
-@keyframes zzz { 0% { opacity: 0; transform: translate(0, 0) scale(.8); } 30% { opacity: 1; } 100% { opacity: 0; transform: translate(14px, -26px) scale(1.1); } }
-@keyframes pop { from { opacity: 0; transform: translate(-50%, calc(-100% - 4px)) scale(.92); } }
+@keyframes pop { from { opacity: 0; transform: scale(.92); } }
 .delivered-hex { animation-name: pophex; }
 @keyframes pophex { from { transform: scale(.4) rotate(-20deg); opacity: 0; } }
 @keyframes wave { from { transform: translateX(0); } to { transform: translateX(-120px); } }
@@ -481,29 +387,20 @@ body[data-page="Cockpit"] .hive-buzz { right: calc(var(--outer) + var(--right-w)
 @keyframes stamp { from { transform: rotate(-8deg) scale(2.2); opacity: 0; } 60% { opacity: 1; } to { transform: rotate(-8deg) scale(1); } }
 @keyframes shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
 @keyframes toast { 0% { opacity: 0; transform: translate(-50%, -8px); } 8%, 85% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
-@keyframes buzzin { from { opacity: 0; transform: translateY(12px) scale(.96); } }
 @keyframes ripple { 0% { opacity: 1; --rr: 0px; } 100% { opacity: 0; --rr: 1600px; } }
 @property --rr { syntax: "<length>"; inherits: false; initial-value: 0px; }
 @keyframes assemble { from { opacity: 0; transform: translateY(12px) scale(.985); } }
 
 /* ---------- Tablet 768–1279 ---------- */
 @media (max-width: 1279px) {
-  .hive-map { --map-frame: var(--top) var(--outer) 55dvh; }
   :root { --outer: 24px; --rail-l: 24px; --top: 96px; }
   .hive-dock { left: 50%; top: auto; bottom: 16px; transform: translateX(-50%); width: auto; height: 72px; flex-direction: row; padding: 0 8px; }
   .hive-tab span { left: 50%; bottom: calc(100% + 12px); transform: translateX(-50%); }
   .hive-tab:hover span, .hive-tab:focus-visible span { transform: translateX(-50%); }
-  .hive-dock-bee { top: 8px; left: 8px; }
+  .hive-dock-indicator { top: 8px; left: 8px; }
   .hive-main { padding: var(--top) var(--outer) calc(var(--bar-h) + 120px); }
-  body[data-page="Cockpit"] .hive-main { padding-top: 46dvh; }
-  .cockpit-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gutter); align-items: start; }
-  .cockpit-cols > div { display: grid; gap: 16px; }
-  .rail { position: static; overflow: visible; margin: 0; padding: 0; width: auto; }
-  .map-legend { left: var(--outer); top: var(--top); }
-  .map-ctrl { right: var(--outer); bottom: auto; top: calc(var(--top) + 8px); }
-  .hive-activebar, body:not([data-page="Cockpit"]) .hive-activebar { left: var(--outer); right: var(--outer); bottom: 104px; }
-  .hive-buzz, body[data-page="Cockpit"] .hive-buzz { right: var(--outer); bottom: calc(var(--bar-h) + 128px); }
-  body[data-page="Cockpit"] .hive-buzz { right: calc(var(--outer) + 60px); top: calc(var(--top) + 8px); bottom: auto; }
+  body[data-page="Cockpit"] .hive-main { padding-bottom: 112px; }
+  .hive-activebar { left: var(--outer); right: var(--outer); bottom: 104px; }
   .span-7, .span-5, .span-8, .span-4 { grid-column: span 12; }
   .span-6 { grid-column: span 6; }
   .earn-split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gutter); grid-column: span 12; }
@@ -511,16 +408,17 @@ body[data-page="Cockpit"] .hive-buzz { right: calc(var(--outer) + var(--right-w)
 
 /* ---------- Mobile <768 ---------- */
 @media (max-width: 767px) {
-  .hive-map { --map-frame: calc(72px + env(safe-area-inset-top)) 16px var(--sheet-px, 240px); }
   :root { --outer: 16px; --rail-l: 16px; --top: 80px; --gutter: 16px; }
   body.hive { font-size: 15px; }
-  .hive-brand { top: calc(12px + env(safe-area-inset-top)); left: 16px; height: 48px; padding-right: 14px; }
+  .hive-brand { top: calc(12px + env(safe-area-inset-top)); left: 12px; height: 48px; padding-inline: 9px 12px; gap: 4px; font-size: 15px; }
+  .hive-brand img { width: 32px; }
   .hive-brand small { display: none; }
-  .hive-top { top: calc(12px + env(safe-area-inset-top)); right: 16px; height: 48px; gap: 4px; padding: 0 4px 0 8px; }
+  .hive-top { top: calc(12px + env(safe-area-inset-top)); right: 12px; height: 48px; gap: 4px; padding: 0 4px 0 8px; }
   .hive-top .hive-chip { display: none; }
-  .hive-theme { width: 64px; height: 40px; }
-  .hive-theme::before, .hive-theme::after { width: 28px; height: 28px; }
-  :root[data-theme="moon"] .hive-theme::before { transform: translateX(24px); }
+  .hive-theme { width: 52px; height: 44px; }
+  .hive-theme::before, .hive-theme::after { top: 8px; width: 28px; height: 28px; }
+  :root[data-theme="moon"] .hive-theme::before { transform: translateX(12px); }
+  :root[data-theme="moon"] .hive-theme::after { transform: translate(22px,-4px) scale(.82); }
   .hive-icon, .hive-avatar { width: 44px; height: 44px; }
   .hive-top { height: 52px; }
   #rider-notifications { display: none; }
@@ -529,22 +427,19 @@ body[data-page="Cockpit"] .hive-buzz { right: calc(var(--outer) + var(--right-w)
   .hive-tab span { position: static; opacity: 1; transform: none; background: none; color: inherit; padding: 0; font-size: 11px; }
   .hive-tab:hover span, .hive-tab:focus-visible span { transform: none; }
   .hive-tab { display: flex; align-items: center; justify-content: center; gap: 2px; height: 64px; border-radius: 20px; }
-  .hive-dock-bee { width: 64px; height: 64px; top: 4px; border-radius: 20px; }
-  .hive-main { padding: var(--top) 16px calc(var(--bar-h) + 120px + env(safe-area-inset-bottom)); }
-  body[data-page="Cockpit"] .hive-main { padding: 0; }
+  .hive-dock-indicator { width: 64px; height: 64px; top: 4px; border-radius: 20px; }
+  .hive-main { padding: calc(var(--top) + env(safe-area-inset-top)) 16px calc(var(--bar-h) + 120px + env(safe-area-inset-bottom)); }
+  body[data-page="Cockpit"] .hive-main { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
+  .cockpit-layout { grid-template-columns: minmax(0,1fr); }
   .grid-12 { gap: 16px; }
   .span-6 { grid-column: span 12; }
   .earn-split { grid-template-columns: 1fr; gap: 16px; }
   .cell { padding: 20px; }
-  .map-legend { top: calc(72px + env(safe-area-inset-top)); left: 16px; right: 16px; width: auto; grid-template-columns: 1fr auto; padding: 10px 12px; }
-  .map-legend .zones, .map-legend p { display: none; }
-  .map-ctrl { top: auto; bottom: calc(var(--sheet-px, 40dvh) + 16px); right: 16px; }
-  .hive-activebar, body:not([data-page="Cockpit"]) .hive-activebar { left: 8px; right: 8px; bottom: calc(80px + env(safe-area-inset-bottom)); gap: 10px; padding: 8px 8px 8px 16px; }
+  .cell-head { flex-wrap: wrap; }
+  .seg { max-width: 100%; }
+  .seg button { min-height: 44px; padding-inline: 10px; }
+  .hive-activebar { left: 8px; right: 8px; bottom: calc(80px + env(safe-area-inset-bottom)); gap: 10px; padding: 8px 8px 8px 16px; }
   .hive-activebar .ab-steps { display: none; }
-  body[data-page="Cockpit"] .hive-activebar { display: none !important; }
-  .hive-buzz { left: 16px; right: 16px; max-width: none; bottom: calc(96px + env(safe-area-inset-bottom)); }
-  body:has(.hive-activebar:not([hidden])) .hive-buzz { bottom: calc(170px + env(safe-area-inset-bottom)); }
-  body[data-page="Cockpit"] .hive-buzz { top: calc(132px + env(safe-area-inset-top)); bottom: auto; }
   .jar-cell { grid-template-columns: 120px 1fr; gap: 16px; }
   .jar { width: 120px; height: 140px; }
   .earn-hero { grid-template-columns: 1fr; justify-items: center; text-align: center; gap: 16px; }
@@ -564,7 +459,6 @@ body[data-page="Cockpit"] .hive-buzz { right: calc(var(--outer) + var(--right-w)
 /* ---------- Reduced motion ---------- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
-  .map-bee .wing, .hive-dock-bee::before, .hive-dock-bee::after, .map-hex.is-hot, .ticket.is-awaiting::after, .slide-label span { animation: none !important; }
   .slide-label span { color: var(--ink); background: none; }
   .chart .line { stroke-dashoffset: 0; }
 }

@@ -2,9 +2,7 @@
  * UI layer for /partner (Cockpit, Earnings, Profile). The data layer (API calls, polling, GPS,
  * sample mode, OTP rules, CSV export, sign-in) is unchanged from the previous portal.
  *
- * Sections: utils → icons/art → data layer → map (vector campus + hex demand + bee) →
- * components (slide, jar, comb, OTP, tickets, chart, badge, QR) → pages → shell (dock, sheet,
- * palette, Buzz, theme) → boot.
+ * Sections: utils → icons/art → data layer → components → pages → shell → boot.
  */
 'use strict';
 
@@ -34,9 +32,7 @@ function saved(key) { try { return localStorage.getItem(key); } catch { return n
 function save(key, value) { try { localStorage.setItem(key, value); } catch {} }
 // Haptics only after a real tap (browsers reject vibrate() before user activation).
 const buzzVibrate = ms => { try { if (navigator.userActivation?.hasBeenActive !== false) navigator.vibrate?.(ms); } catch {} };
-const viewport = () => innerWidth >= 1280 ? 'desktop' : innerWidth >= 768 ? 'tablet' : 'mobile';
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-const HEX_CLIP = 'polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%)';
 
 /* ================================================================ icons & art */
 // Custom icon set: hex-leaning strokes, 24px grid.
@@ -47,12 +43,9 @@ const ICON = {
   search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L20 20"/>',
   bell: '<path d="M18 9a6 6 0 0 0-12 0c0 6.5-2.5 7.5-2.5 8.5h17c0-1-2.5-2-2.5-8.5"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',
   nav: '<path d="M4 11l16-7-7 16-2-7z"/>',
-  locate: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="7.5"/>',
   arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
   flip: '<path d="M4 9a8 8 0 0 1 14-3l2 2M20 15a8 8 0 0 1-14 3l-2-2"/><path d="M20 4v4h-4M4 20v-4h4"/>',
   download: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
-  plus: '<path d="M12 5v14M5 12h14"/>',
-  minus: '<path d="M5 12h14"/>',
 };
 const icon = (name, size = 24) => {
   const span = document.createElement('span');
@@ -75,10 +68,6 @@ const BEE = (cls = '') => `<svg class="${cls}" viewBox="0 0 64 64" aria-hidden="
     <circle cx="50" cy="16" r="1.8" fill="#2A2112"/><circle cx="56.6" cy="19.3" r="1.8" fill="#2A2112"/>
     <ellipse cx="25" cy="31" rx="6" ry="2.2" fill="#fff" fill-opacity=".35" transform="rotate(-12 25 31)"/>
   </g></svg>`;
-const FLOWER = `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 40c0 10 0 16-2 22" stroke="#5F8F4A" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M31 54c-6-1-10-5-11-9 5 0 9 3 11 9z" fill="#7DB35F"/>${[0, 72, 144, 216, 288].map(a => `<ellipse cx="32" cy="22" rx="8" ry="12" transform="rotate(${a} 32 34)" fill="#FFF6E2" stroke="#EAD9B5" stroke-width="1.2"/>`).join('')}<circle cx="32" cy="34" r="7" fill="#F5C542" stroke="#B9831A" stroke-width="1.4"/></svg>`;
-const PIN = (fill, inner) => `<svg viewBox="0 0 44 52" aria-hidden="true"><path d="M22 51C12 39 4 31 4 21a18 18 0 0 1 36 0c0 10-8 18-18 30z" fill="${fill}" stroke="#2A2112" stroke-opacity=".2" stroke-width="1.5"/>${inner}</svg>`;
-const HIVE_PIN = PIN('#F5C542', '<path d="M14 15h16M12 21h20M14 27h16" stroke="#8A5E0B" stroke-width="3" stroke-linecap="round"/><path d="M19 31h6" stroke="#2A2112" stroke-width="3" stroke-linecap="round"/>');
-const FLOWER_PIN = PIN('#3E8E5A', '<circle cx="22" cy="21" r="5" fill="#F5C542"/>' + [0, 72, 144, 216, 288].map(a => `<ellipse cx="22" cy="13" rx="3.4" ry="5" transform="rotate(${a} 22 21)" fill="#fff"/>`).join(''));
 const EMPTY_COMB = `<svg viewBox="0 0 120 96" aria-hidden="true">${[[30, 26], [60, 26], [90, 26], [45, 52], [75, 52], [60, 78]].map(([x, y], i) => `<path d="M${x} ${y - 16}l14 8v16l-14 8-14-8v-16z" fill="${i === 4 ? '#FBE08A' : 'none'}" stroke="#E2C88A" stroke-width="2.4" stroke-linejoin="round"/>`).join('')}</svg>`;
 const SLEEPY = `<svg viewBox="0 0 120 96" aria-hidden="true"><g transform="translate(18 18) scale(1.2)">${BEE().replace(/<svg[^>]*>|<\/svg>/g, '')}</g><text x="88" y="24" font-weight="800" font-size="16" fill="#B9831A">z</text><text x="98" y="12" font-weight="800" font-size="12" fill="#B9831A">z</text></svg>`;
 
@@ -91,8 +80,8 @@ const seed = () => {
     available: false, step: 0, failures: 0, unlock: 0,
     earnings: {lifetime: 3700 + 4600 + 3900 + 5200 + 4100 + 3600 + 4800, outstanding: 3700},
     orders: [
-      {id: 'sample-1', order_number: 'PB-DEMO-4101', status: 'packed', payout: 4200, summary: '0.6 km to pickup · 1.4 km to drop · 11 min · 2 packets', urgent: true, address: 'North Hostel reception, SRM campus', to: 'North Hostel', dest: 'hostel', customer: 'Sample customer', notes: 'Meet at reception.', km: 2.0, eta: 11, packets: 2},
-      {id: 'sample-2', order_number: 'PB-DEMO-4102', status: 'packed', payout: 3800, summary: '0.9 km to pickup · 1.1 km to drop · 12 min · 1 packet', address: 'Engineering block, SRM campus', to: 'Engineering block', dest: 'engg', customer: 'Sample customer', km: 2.0, eta: 12, packets: 1},
+      {id: 'sample-1', order_number: 'PB-DEMO-4101', status: 'packed', payout: 4200, summary: '0.6 km to pickup · 1.4 km to drop · 11 min · 2 packets', address: 'North Hostel reception, SRM campus', to: 'North Hostel', customer: 'Sample customer', notes: 'Meet at reception.', km: 2.0, eta: 11, packets: 2},
+      {id: 'sample-2', order_number: 'PB-DEMO-4102', status: 'packed', payout: 3800, summary: '0.9 km to pickup · 1.1 km to drop · 12 min · 1 packet', address: 'Engineering block, SRM campus', to: 'Engineering block', customer: 'Sample customer', km: 2.0, eta: 12, packets: 1},
       hist(4100, 35 * 60000, 'Library foyer', 3700, false),
       hist(4099, 2.4 * 3600000, 'North Hostel', 4600, true),
       hist(4098, 5.1 * 3600000, 'Tech Park, gate 2', 3900, true),
@@ -204,12 +193,11 @@ async function sendLocation() {
   catch { if (state.available && order.id === active()?.id) notify('Location update paused. Retrying when connected.'); }
   finally { sending = false; }
 }
-let gps = null;
 function startLocation() {
   if (demo || watch !== undefined || !navigator.geolocation) return;
   watch = navigator.geolocation.watchPosition(({coords}) => {
     if (coords.accuracy > 100) return;
-    point = {lat: coords.latitude, lng: coords.longitude}; gps = point; sendLocation();
+    point = {lat: coords.latitude, lng: coords.longitude}; sendLocation();
   }, () => { notify('Allow location access to share your progress.'); }, {enableHighAccuracy: true, maximumAge: 5000, timeout: 15000});
   keepAwake();
 }
@@ -252,351 +240,6 @@ function exportDeliveries() {
   notify('Deliveries exported as CSV.');
 }
 const settledOf = o => demo ? Boolean(o.settled) : false;
-
-/* ====================================================================== map */
-// Illustrated SRM campus in metres (x east, y south); origin = PrintBee print room (the hive).
-const ORIGIN = {lat: 12.8231, lng: 80.0444};
-const M_PER_DEG = 111320;
-const toMeters = ({lat, lng}) => ({x: (lng - ORIGIN.lng) * M_PER_DEG * Math.cos(ORIGIN.lat * Math.PI / 180), y: (ORIGIN.lat - lat) * M_PER_DEG});
-const POI = {
-  hive: {x: 0, y: 0, label: 'PrintBee hive'},
-  hostel: {x: -430, y: -590, label: 'North Hostel'},
-  engg: {x: 610, y: -230, label: 'Engineering block'},
-  library: {x: 300, y: 300, label: 'Library'},
-  gate: {x: -260, y: 700, label: 'Main gate'},
-  tech: {x: 900, y: 520, label: 'Tech Park'},
-  garden: {x: -110, y: 120, label: ''},
-};
-const ROUTES = {
-  hostel: [[0, 0], [0, -230], [-260, -230], [-260, -560], [-430, -590]],
-  engg: [[0, 0], [0, -230], [610, -230]],
-  other: [[0, 0], [0, 360], [700, 360], [900, 520]],
-};
-const ROADS = [
-  {w: 26, pts: [[-2200, 380], [-900, 370], [0, 360], [1100, 380], [2200, 400]]},
-  {w: 22, pts: [[-260, -2200], [-260, -560], [-260, 360], [-240, 1400], [-200, 2200]]},
-  {w: 14, pts: [[-260, -230], [0, -230], [610, -230], [980, -260], [1600, -300]]},
-  {w: 14, pts: [[0, -760], [0, -230], [0, 360]]},
-  {w: 12, pts: [[-260, -560], [-430, -590], [-900, -620], [-1700, -700]]},
-  {w: 12, pts: [[610, -230], [700, 360], [740, 1100]]},
-  {w: 10, pts: [[700, 360], [900, 520], [1300, 760]]},
-  {w: 10, pts: [[-260, 700], [300, 700], [740, 700]]},
-  {w: 10, pts: [[-900, -1500], [-260, -1000], [400, -1000], [1200, -1100]]},
-  {w: 18, pts: [[-1500, 1300], [-240, 1400], [800, 1500], [2000, 1700]]},
-];
-const BLOCKS = [[-1900, -1450, -330, -680], [-200, -1450, 1100, -1080], [-200, -930, -60, -300], [70, -680, 560, -300], [680, -930, 1500, -320],
-  [-1900, -540, -330, 290], [-190, -160, -70, 280], [80, -160, 560, 280], [780, -180, 1600, 300], [-1900, 450, -330, 1250],
-  [-160, 440, 650, 620], [-160, 780, 650, 1300], [820, 640, 1700, 1300], [-1900, 1480, 1700, 2100], [1200, -1450, 2100, -1150]];
-function rng(seedValue) { let s = seedValue >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
-
-function createMap(host) {
-  const NS = 'http://www.w3.org/2000/svg';
-  const svg = document.createElementNS(NS, 'svg');
-  svg.setAttribute('aria-hidden', 'true');
-  const layer = cls => { const g = document.createElementNS(NS, 'g'); g.setAttribute('class', cls); svg.append(g); return g; };
-  const base = layer('map-base'), hexLayer = layer('map-hexes'), routeLayer = layer('map-routes');
-  const overlay = h('div', {class: 'map-overlay'});
-  host.replaceChildren(svg, overlay);
-  host.tabIndex = 0;
-  host.setAttribute('role', 'region');
-  host.setAttribute('aria-label', 'Delivery map. Use arrow keys to pan and plus or minus to zoom.');
-  host.removeAttribute('aria-hidden');
-  svg.setAttribute('aria-hidden', 'true');
-
-  // --- base map (static, metres)
-  const path = d => { const p = document.createElementNS(NS, 'path'); p.setAttribute('d', d); return p; };
-  const add = (g, el, cls, attrs = {}) => { el.setAttribute('class', cls); for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v); g.append(el); return el; };
-  add(base, document.createElementNS(NS, 'rect'), 'map-land', {x: -3000, y: -3000, width: 6000, height: 6000});
-  const r = rng(7);
-  for (const [x0, y0, x1, y1] of BLOCKS) {
-    add(base, document.createElementNS(NS, 'rect'), 'map-block', {x: x0, y: y0, width: x1 - x0, height: y1 - y0, rx: 26});
-    // buildings: shelf-packed rectangles with a lighter roof
-    for (let y = y0 + 24; y < y1 - 60; y += 70 + r() * 50) {
-      for (let x = x0 + 24; x < x1 - 60;) {
-        const w = 50 + r() * 110, hh = 40 + r() * 46;
-        if (x + w > x1 - 24) break;
-        if (r() > .28) {
-          add(base, document.createElementNS(NS, 'rect'), 'map-bld', {x, y, width: w, height: hh, rx: 6});
-          add(base, document.createElementNS(NS, 'rect'), 'map-bld-top', {x: x + 4, y: y + 4, width: w - 8, height: hh - 12, rx: 4});
-        }
-        x += w + 18 + r() * 30;
-      }
-    }
-  }
-  add(base, path('M-1450 640c180-90 420-40 520 90s20 330-210 360-460-60-470-210 30-160 160-240z'), 'map-water');
-  add(base, path('M-120 60c60-50 170-40 200 20s-20 140-110 140-150-50-140-100 20-40 50-60z'), 'map-park');
-  add(base, path('M240 160c120-40 260 0 280 70s-60 120-190 110-170-60-150-110 20-60 60-70z'), 'map-park');
-  add(base, path('M-1700 -1350c200-60 520-30 560 100s-150 230-380 220-330-90-290-200 60-90 110-120z'), 'map-park');
-  add(base, path('M1250 -900c150-40 330 10 340 110s-130 160-280 140-200-70-170-150z'), 'map-park');
-  const line = pts => 'M' + pts.map(p => p.join(' ')).join('L');
-  for (const road of ROADS) add(base, path(line(road.pts)), 'map-road-edge', {'stroke-width': road.w + 8});
-  for (const road of ROADS) add(base, path(line(road.pts)), 'map-road', {'stroke-width': road.w});
-
-  // --- H3-style demand hexes (pointy-top, 170 m circumradius)
-  const R = 125, SQ3 = Math.sqrt(3);
-  const hotspots = [[610, -230, 1, 330], [-430, -590, .85, 300], [300, 300, .7, 260], [900, 520, .55, 380], [-260, 700, .4, 260]];
-  const hexes = [];
-  let theme = null;
-  for (let q = -13; q <= 13; q++) for (let rr = -12; rr <= 12; rr++) {
-    const cx = R * SQ3 * (q + rr / 2), cy = R * 1.5 * rr;
-    if (Math.abs(cx) > 1900 || Math.abs(cy) > 1700) continue;
-    let d = 0;
-    for (const [hx, hy, a, s] of hotspots) d += a * Math.exp(-((cx - hx) ** 2 + (cy - hy) ** 2) / (2 * s * s));
-    d += (Math.sin(q * 12.9898 + rr * 78.233) * 43758.5453 % 1 + 1) % 1 * .12;
-    d = clamp(d, 0, 1);
-    const corners = Array.from({length: 6}, (_, i) => { const a = Math.PI / 180 * (60 * i - 30); return [cx + (R - 5) * Math.cos(a), cy + (R - 5) * Math.sin(a)]; });
-    const el = add(hexLayer, path('M' + corners.map(c => c.join(' ')).join('L') + 'Z'), 'map-hex' + (d > .68 ? ' is-hot' : ''), {'vector-effect': 'non-scaling-stroke'});
-    const zone = String.fromCharCode(77 + rr) + '-' + (q + 14);
-    const hex = {q, r: rr, cx, cy, d, el, zone};
-    el.addEventListener('click', event => { if (!moved) { event.stopPropagation(); selectHex(hex); } });
-    hexes.push(hex);
-  }
-  function colourHexes() {
-    const css = getComputedStyle(document.documentElement);
-    const lo = css.getPropertyValue('--hex-low').split(',').map(Number), hi = css.getPropertyValue('--hex-high').split(',').map(Number);
-    theme = document.documentElement.dataset.theme;
-    for (const hex of hexes) {
-      const t = hex.d;
-      const c = lo.map((v, i) => Math.round(v + (hi[i] - v) * t));
-      // Quiet cells nearly vanish; only real demand glows (gentler on the dark Moon map).
-      const a = theme === 'moon' ? .02 + Math.pow(t, 2.2) * .42 : .03 + Math.pow(t, 1.8) * .55;
-      hex.el.setAttribute('fill', `rgb(${c.join(',')})`);
-      hex.el.style.setProperty('--a', a.toFixed(2));
-      hex.el.setAttribute('fill-opacity', a.toFixed(2));
-    }
-  }
-  colourHexes();
-
-  // --- view: metres-per-pixel + top-left world position
-  let W = 0, H = 0, view = {x: -800, y: -600, mpp: 2};
-  const focusArea = () => {
-    const mode = viewport();
-    if (mode === 'desktop') {
-      const left = 112 + 400 + 24, right = innerWidth - 32 - 380 - 24;
-      return {x: (left + right) / 2, y: innerHeight * .48};
-    }
-    if (mode === 'tablet') return {x: innerWidth / 2, y: innerHeight * .26};
-    const sheet = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sheet-px')) || innerHeight * .4;
-    return {x: innerWidth / 2, y: (innerHeight - sheet) / 2 + 30};
-  };
-  function apply() {
-    svg.setAttribute('viewBox', `${view.x} ${view.y} ${W * view.mpp} ${H * view.mpp}`);
-    placeOverlay();
-  }
-  function resize() {
-    W = host.clientWidth; H = host.clientHeight;
-    apply();
-  }
-  function focus(p, mpp = view.mpp, animate = false) {
-    const f = focusArea();
-    const target = {x: p.x - f.x * mpp, y: p.y - f.y * mpp, mpp};
-    if (!animate || reduced.matches) { view = target; apply(); return; }
-    const from = {...view}, start = performance.now();
-    const stepAnim = now => {
-      const t = Math.min(1, (now - start) / 600), e = 1 - Math.pow(1 - t, 3);
-      view = {x: from.x + (target.x - from.x) * e, y: from.y + (target.y - from.y) * e, mpp: from.mpp + (target.mpp - from.mpp) * e};
-      apply();
-      if (t < 1) requestAnimationFrame(stepAnim);
-    };
-    requestAnimationFrame(stepAnim);
-  }
-  function zoomAt(factor, sx = focusArea().x, sy = focusArea().y) {
-    const mpp = clamp(view.mpp * factor, .6, 6);
-    const wx = view.x + sx * view.mpp, wy = view.y + sy * view.mpp;
-    view = {x: wx - sx * mpp, y: wy - sy * mpp, mpp};
-    apply();
-  }
-  const toScreen = p => ({x: (p.x - view.x) / view.mpp, y: (p.y - view.y) / view.mpp});
-
-  // --- pointer pan / pinch / wheel / keys
-  const pointers = new Map();
-  let moved = false, last = null, pinch = null;
-  host.addEventListener('pointerdown', e => {
-    if (e.target.closest('.hex-pop, .map-pin')) return;
-    host.setPointerCapture?.(e.pointerId);
-    pointers.set(e.pointerId, {x: e.clientX, y: e.clientY});
-    moved = false; last = {x: e.clientX, y: e.clientY};
-    if (pointers.size === 2) { const [a, b] = [...pointers.values()]; pinch = Math.hypot(a.x - b.x, a.y - b.y); }
-  });
-  host.addEventListener('pointermove', e => {
-    if (!pointers.has(e.pointerId)) return;
-    pointers.set(e.pointerId, {x: e.clientX, y: e.clientY});
-    if (pointers.size === 2 && pinch) {
-      const [a, b] = [...pointers.values()], dist = Math.hypot(a.x - b.x, a.y - b.y);
-      zoomAt(pinch / dist, (a.x + b.x) / 2, (a.y + b.y) / 2); pinch = dist; moved = true; return;
-    }
-    const dx = e.clientX - last.x, dy = e.clientY - last.y;
-    if (Math.abs(dx) + Math.abs(dy) > 3) { moved = true; host.classList.add('is-dragging'); }
-    if (moved) { view.x -= dx * view.mpp; view.y -= dy * view.mpp; apply(); }
-    last = {x: e.clientX, y: e.clientY};
-  });
-  const end = e => { pointers.delete(e.pointerId); if (pointers.size < 2) pinch = null; host.classList.remove('is-dragging'); setTimeout(() => { moved = false; }, 0); };
-  host.addEventListener('pointerup', end);
-  host.addEventListener('pointercancel', end);
-  host.addEventListener('wheel', e => { e.preventDefault(); zoomAt(Math.exp(e.deltaY * .0015), e.clientX - host.getBoundingClientRect().left, e.clientY - host.getBoundingClientRect().top); }, {passive: false});
-  host.addEventListener('keydown', e => {
-    const step = 60 * view.mpp;
-    const keys = {ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step]};
-    if (keys[e.key]) { view.x += keys[e.key][0]; view.y += keys[e.key][1]; apply(); e.preventDefault(); }
-    else if (e.key === '+' || e.key === '=') { zoomAt(.8); e.preventDefault(); }
-    else if (e.key === '-') { zoomAt(1.25); e.preventDefault(); }
-    else if (e.key === 'Escape') closePop();
-  });
-  host.addEventListener('click', e => { if (!moved && !e.target.closest('.hex-pop')) closePop(); });
-
-  // --- overlay: labels, pins, bee, trail
-  const labels = Object.entries(POI).filter(([, p]) => p.label && p !== POI.hive).map(([, p]) => {
-    const el = h('span', {class: 'map-pin-label', style: {position: 'absolute', transform: 'translate(-50%,-50%)', bottom: 'auto', left: 0, top: 0, pointerEvents: 'none', opacity: '.92'}}, p.label);
-    overlay.append(el); return {el, p};
-  });
-  const hivePin = h('div', {class: 'map-pin', html: HIVE_PIN, title: 'PrintBee hive (pickup)'});
-  hivePin.append(h('span', {class: 'map-pin-label'}, 'Pickup · Print room'));
-  const destPin = h('div', {class: 'map-pin', html: FLOWER_PIN, hidden: true});
-  const destLabel = h('span', {class: 'map-pin-label'});
-  destPin.append(destLabel);
-  const flower = h('div', {class: 'map-pin', html: FLOWER, style: {transform: 'translate(-50%,-46%)'}});
-  flower.firstElementChild.style.cssText = 'width:72px;height:72px';
-  const trailDots = Array.from({length: 12}, () => h('i', {class: 'map-trail'}));
-  const bee = h('div', {class: 'map-bee', html: BEE()});
-  const zzz = h('div', {style: {position: 'absolute', left: '28px', top: '-30px'}}, h('span', {class: 'map-zzz'}, 'Z'), h('span', {class: 'map-zzz', style: {left: '10px', top: '-8px', position: 'absolute'}}, 'z'), h('span', {class: 'map-zzz', style: {left: '18px', top: '-16px', position: 'absolute'}}, 'z'));
-  bee.append(zzz);
-  overlay.append(flower, hivePin, destPin, ...trailDots, bee);
-  let pop = null, selected = null;
-  function selectHex(hex) {
-    closePop();
-    selected = hex; hex.el.classList.add('is-selected');
-    const level = hex.d > .68 ? 'Hot' : hex.d > .45 ? 'Busy' : hex.d > .25 ? 'Steady' : 'Quiet';
-    const perHour = Math.max(1, Math.round(1 + hex.d * 6));
-    pop = h('div', {class: 'hex-pop', role: 'dialog', 'aria-label': 'Zone ' + hex.zone},
-      h('h3', {}, 'Zone ' + hex.zone, h('span', {class: 'tag' + (level === 'Hot' ? ' tag-hot' : '')}, level)),
-      h('dl', {}, h('dt', {}, 'Expected orders'), h('dd', {}, `~${perHour}/hr`), h('dt', {}, 'Expected earnings'), h('dd', {}, `${money(perHour * 4100)}/hr`),
-        h('dt', {}, 'From the hive'), h('dd', {}, (Math.hypot(hex.cx, hex.cy) / 1000).toFixed(1) + ' km')),
-      level === 'Hot' ? h('p', {class: 'bonus'}, 'Hot zone: +₹15 bonus per order') : null,
-      h('button', {type: 'button', 'aria-label': 'Close zone details', onclick: closePop}, '✕'));
-    host.append(pop);
-    placeOverlay();
-    pop.querySelector('button').focus({preventScroll: true});
-  }
-  function closePop() { pop?.remove(); pop = null; selected?.el.classList.remove('is-selected'); selected = null; }
-
-  let beePos = {...POI.hive}, heading = 0, asleep = true, trail = [], route = null, dest = null;
-  function placeOverlay() {
-    const at = (el, p) => { const s = toScreen(p); el.style.left = s.x + 'px'; el.style.top = s.y + 'px'; };
-    for (const {el, p} of labels) at(el, {x: p.x, y: p.y + 70});
-    at(hivePin, POI.hive);
-    at(flower, POI.garden);
-    if (dest) at(destPin, dest);
-    const b = toScreen(beePos);
-    bee.style.transform = `translate(${b.x}px, ${b.y}px)`;
-    bee.style.left = bee.style.top = '0';
-    const flipX = Math.cos(heading) < 0;
-    bee.firstElementChild.style.transform = `rotate(${flipX ? heading * 180 / Math.PI + 180 : heading * 180 / Math.PI}deg) scaleX(${flipX ? -1 : 1})`;
-    trailDots.forEach((dot, i) => {
-      const p = trail[trail.length - 1 - i];
-      if (!p || asleep) { dot.style.opacity = '0'; return; }
-      const s = toScreen(p); dot.style.left = s.x + 'px'; dot.style.top = s.y + 'px';
-      dot.style.opacity = String((1 - i / trailDots.length) * .8);
-      dot.style.transform = `scale(${1 - i / 18})`;
-    });
-    if (pop && selected) at(pop, {x: selected.cx, y: selected.cy - 60});
-  }
-  function setRoute(pts, destPoint, label) {
-    routeLayer.replaceChildren();
-    route = pts; dest = destPoint;
-    destPin.hidden = !destPoint;
-    if (label) destLabel.textContent = label;
-    if (pts) {
-      const d = line(pts);
-      add(routeLayer, path(d), 'map-route-base', {'vector-effect': 'non-scaling-stroke'});
-      add(routeLayer, path(d), 'map-route', {'vector-effect': 'non-scaling-stroke'});
-    }
-    placeOverlay();
-  }
-  function setBee(p, opts = {}) {
-    if (opts.heading != null) heading = opts.heading;
-    const prev = beePos;
-    beePos = {x: p.x, y: p.y};
-    if (opts.trail !== false && Math.hypot(prev.x - p.x, prev.y - p.y) > 4) {
-      trail.push({...prev});
-      if (trail.length > 24) trail.shift();
-    }
-    placeOverlay();
-  }
-  function setAsleep(value) {
-    asleep = value;
-    bee.classList.toggle('is-asleep', value);
-    zzz.hidden = !value;
-    flower.hidden = !value;
-    if (value) { beePos = {x: POI.garden.x + 4, y: POI.garden.y - 10}; heading = 0; trail = []; }
-    placeOverlay();
-  }
-  addEventListener('resize', resize);
-  resize();
-  focus(POI.hive, innerWidth < 768 ? 2.4 : 1.9);
-  return {resize, focus, zoomAt, setRoute, setBee, setAsleep, colourHexes, closePop, get bee() { return beePos; }, get hexes() { return hexes; }, selectHex, get theme() { return theme; }};
-}
-
-/* Demo flight: the bee moves along routes in a time-lapse; live mode follows GPS. */
-let map = null, flightRaf = 0, flight = {pts: null, t: 0, speed: 0};
-function routeLength(pts) { let s = 0; for (let i = 1; i < pts.length; i++) s += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); return s; }
-function pointAt(pts, dist) {
-  for (let i = 1; i < pts.length; i++) {
-    const seg = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
-    if (dist <= seg) { const t = dist / seg; return {x: pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * t, y: pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * t, heading: Math.atan2(pts[i][1] - pts[i - 1][1], pts[i][0] - pts[i - 1][0])}; }
-    dist -= seg;
-  }
-  const n = pts.length - 1;
-  return {x: pts[n][0], y: pts[n][1], heading: Math.atan2(pts[n][1] - pts[n - 1][1], pts[n][0] - pts[n - 1][0]), done: true};
-}
-function syncMap() {
-  if (!map) return;
-  const order = active();
-  const offline = !state.available;
-  map.setAsleep(offline && !order);
-  cancelAnimationFrame(flightRaf);
-  if (!order) map.setRoute(null, null);
-  if (offline && !order) return;
-  let mode = 'hover', pts = null;
-  if (order) {
-    const key = order.dest || 'other';
-    const full = ROUTES[key] || ROUTES.other;
-    const end = full[full.length - 1];
-    map.setRoute(full, {x: end[0], y: end[1]}, order.to || 'Drop-off');
-    const step = stepOf(order);
-    if (step === 0) { mode = 'fly'; pts = [[map.bee.x, map.bee.y], [0, 0]]; }
-    else if (step === 1) mode = 'hover-hive';
-    else if (step === 2) { mode = 'fly'; pts = full; }
-    else mode = 'hover-dest';
-  }
-  if (!demo) {
-    // Live: follow the latest accurate GPS fix, otherwise rest at the hive.
-    const p = gps ? toMeters(gps) : POI.hive;
-    map.setBee(p, {trail: Boolean(gps)});
-    return;
-  }
-  if (reduced.matches) {
-    const p = pts ? pointAt(pts, Infinity) : mode === 'hover-dest' && order ? (() => { const e = (ROUTES[order.dest] || ROUTES.other).slice(-1)[0]; return {x: e[0], y: e[1]}; })() : POI.hive;
-    map.setBee(p, {trail: false});
-    return;
-  }
-  const centre = mode === 'hover-dest' ? (() => { const e = (ROUTES[order.dest] || ROUTES.other).slice(-1)[0]; return {x: e[0], y: e[1]}; })() : {x: 40, y: -60};
-  let startT = performance.now(), dist = 0, lastT = startT;
-  const loop = now => {
-    const dt = Math.min(.05, (now - lastT) / 1000); lastT = now;
-    if (mode === 'fly' && pts) {
-      dist += dt * 70;
-      const p = pointAt(pts, dist);
-      map.setBee(p, {heading: p.heading});
-      if (p.done) { mode = 'hover'; }
-    } else {
-      const t = (now - startT) / 1000, rad = mode === 'hover' ? 70 : 26;
-      const x = centre.x + Math.cos(t * .6) * rad, y = centre.y + Math.sin(t * .6) * rad * .6;
-      map.setBee({x, y}, {heading: Math.atan2(Math.cos(t * .6) * rad * .6, -Math.sin(t * .6) * rad)});
-    }
-    flightRaf = requestAnimationFrame(loop);
-  };
-  flightRaf = requestAnimationFrame(loop);
-}
 
 /* =============================================================== components */
 // Slide-to-act: drag the thumb to the end (spring back if released early).
@@ -914,10 +557,9 @@ function kpiCells() {
   }));
 }
 function offerCard(order) {
-  const hot = order.urgent;
   const pay = h('span', {class: 'offer-pay num'}, money(order.payout));
   return h('article', {class: 'offer', 'aria-label': `${orderNo(order)}, ${money(order.payout)}`},
-    h('div', {class: 'offer-top'}, h('div', {}, h('div', {class: 'offer-id'}, orderNo(order)), pay), hot ? h('span', {class: 'tag tag-hot'}, 'Hot zone +₹15') : null),
+    h('div', {class: 'offer-top'}, h('div', {}, h('div', {class: 'offer-id'}, orderNo(order)), pay)),
     h('div', {class: 'offer-route'}, h('i'), h('span', {}, order.pickupWarehouse?.name || 'Print room, PrintBee hive'), h('i', {class: 'to'}), h('span', {}, order.to || order.address || 'Customer')),
     h('div', {class: 'offer-meta'}, ...(order.summary || '').split(' · ').filter(Boolean).slice(1).map(t => h('span', {class: 'tag'}, t))),
     slideToAct({label: 'Slide to accept', ariaLabel: `Accept ${orderNo(order)} for ${money(order.payout)}. Drag, or press Enter.`,
@@ -963,7 +605,10 @@ function activeCell(order) {
   }
   if (step === 2) {
     body.push(h('div', {class: 'active-meta'}, h('strong', {style: {color: 'var(--ink)'}}, order.customer || 'Customer'), h('span', {}, order.address || ''), order.notes ? h('span', {}, '“' + order.notes + '”') : null));
-    if (!demo && order.phone) body.push(h('a', {class: 'hive-btn hive-btn-small', href: 'tel:' + order.phone.replace(/[^+0-9]/g, '')}, 'Call customer'));
+    const actions = h('div', {class: 'row-actions'}, h('a', {class: 'hive-btn', href: navigateUrl(order),
+      target: '_blank', rel: 'noopener noreferrer'}, icon('nav', 18), 'Navigate to customer'));
+    if (!demo && order.phone) actions.append(h('a', {class: 'hive-btn', href: 'tel:' + order.phone.replace(/[^+0-9]/g, '')}, 'Call customer'));
+    body.push(actions);
     body.push(slideToAct({label: 'Slide when you’re with the customer', onConfirm: () => advance(3), ariaLabel: 'I’m with the customer. Drag, or press Enter.'}));
   }
   if (step === 3) body.push(otpKeys(order));
@@ -985,7 +630,7 @@ function deliveriesCell() {
   const c = cell('Available deliveries');
   c.setAttribute('aria-live', 'polite');
   if (!state.available) c.append(emptyState(SLEEPY, 'You’re resting', 'Go online to see offers buzzing in.'));
-  else if (!list.length) c.append(emptyState(EMPTY_COMB, 'The comb is empty', 'New orders will buzz in here. Hot zones fill fastest.'));
+  else if (!list.length) c.append(emptyState(EMPTY_COMB, 'The comb is empty', 'New orders will appear here.'));
   else c.append(...list.map(offerCard));
   return c;
 }
@@ -994,31 +639,11 @@ function errorState(retry) {
   return h('section', {class: 'cell'}, emptyState(SLEEPY, 'The hive is unreachable', 'Deliveries could not load. Check your connection.'),
     h('div', {style: {display: 'grid', placeItems: 'center'}}, h('button', {class: 'hive-btn hive-btn-primary', type: 'button', onclick: () => run(retry)}, 'Try again')));
 }
-function legend() {
-  const hot = map ? [...map.hexes].sort((a, b) => b.d - a.d).slice(0, 3) : [];
-  return h('div', {class: 'map-legend', role: 'region', 'aria-label': 'Demand legend'},
-    h('strong', {}, h('span', {class: 'hexdot', 'aria-hidden': 'true'}), 'Demand'),
-    h('div', {class: 'map-legend-bar', 'aria-hidden': 'true'}),
-    h('div', {class: 'map-legend-scale'}, h('span', {}, 'Quiet'), h('span', {}, 'Hot zone: +₹15 bonus')),
-    h('p', {class: 'muted', style: {fontSize: '12px'}}, 'Tap a hex for expected orders. Hot zones:'),
-    h('div', {class: 'zones'}, hot.map(hex => h('button', {type: 'button', onclick: () => { map.focus({x: hex.cx, y: hex.cy}, undefined, true); setTimeout(() => map.selectHex(hex), 350); }}, 'Zone ' + hex.zone))));
-}
-function mapControls() {
-  const btn = (label, name, fn) => { const b = h('button', {type: 'button', 'aria-label': label, onclick: fn}); b.append(icon(name, 20)); return b; };
-  return h('div', {class: 'map-ctrl'}, btn('Zoom in', 'plus', () => map.zoomAt(.8)), btn('Zoom out', 'minus', () => map.zoomAt(1.25)), btn('Centre on my bee', 'locate', () => map.focus(map.bee, undefined, true)));
-}
-
 /* ==================================================================== pages */
 function renderCockpit() {
-  const mode = viewport();
-  const left = [statusCell(), jarCell(), kpiCells()];
-  const right = [deliveriesCell()];
-  if (mode === 'desktop') return [h('div', {class: 'rail rail-left assemble'}, left), h('div', {class: 'rail rail-right assemble'}, right), legend(), mapControls()];
-  if (mode === 'tablet') return [h('div', {class: 'cockpit-cols assemble'}, h('div', {}, left), h('div', {}, right)), legend(), mapControls()];
-  // On mobile the map sits above a three-position bottom sheet.
-  const order = active();
-  const first = order || completed ? [activeBarInline(), deliveriesCell(), statusCell()] : [statusCell(), deliveriesCell()];
-  return [legend(), mapControls(), sheet([...first, jarCell(), kpiCells()])];
+  return [h('div', {class: 'cockpit-layout assemble'},
+    h('div', {class: 'cockpit-column'}, statusCell(), deliveriesCell()),
+    h('div', {class: 'cockpit-column'}, jarCell(), kpiCells()))];
 }
 function payoutTimeline() {
   const now = new Date();
@@ -1189,48 +814,15 @@ function activeBarContent(order) {
   return [h('div', {class: 'ab-text'}, h('span', {class: 'ab-id'}, orderNo(order)), h('span', {class: 'ab-eta'}, (eta ? `ETA ${eta} min · ` : '') + STEPS[done])),
     h('div', {class: 'ab-steps', 'aria-hidden': 'true'}, STEPS.map((_, i) => h('i', {class: i <= done ? 'on' : ''}))), nav];
 }
-function activeBarInline() {
-  const order = active();
-  if (!order) return null;
-  const bar = h('div', {class: 'hive-activebar', style: {position: 'static', display: 'flex'}, role: 'region', 'aria-label': 'Active delivery'}, activeBarContent(order));
-  return bar;
-}
 function updateActiveBar() {
   const bar = $('hive-activebar'), order = active();
-  bar.hidden = !order || !content.dataset.ready;
-  if (order) { bar.setAttribute('role', 'region'); bar.setAttribute('aria-label', 'Active delivery'); bar.replaceChildren(...activeBarContent(order)); }
-}
-// Mobile bottom sheet with three snap points; the handle is a button for keyboard users.
-let sheetSnap = 0;
-function sheet(kids) {
-  const snaps = () => { const H = innerHeight * .92; return [H - 240, H - innerHeight * .6, 0]; };   // peek · half · full
-  const body = h('div', {class: 'sheet-body'}, kids);
-  const handle = h('button', {class: 'sheet-handle', type: 'button', 'aria-label': 'Resize panel', 'aria-expanded': 'false'});
-  const el = h('section', {class: 'sheet', 'aria-label': 'Cockpit panel'}, handle, body);
-  const setY = (y, snap) => {
-    el.style.setProperty('--sheet-y', y + 'px');
-    document.documentElement.style.setProperty('--sheet-px', (innerHeight * .92 - y) + 'px');
-    if (snap != null) { sheetSnap = snap; handle.setAttribute('aria-expanded', String(snap === 2)); handle.setAttribute('aria-label', ['Expand panel', 'Expand panel to full height', 'Collapse panel'][snap]); }
-  };
-  requestAnimationFrame(() => setY(snaps()[sheetSnap], sheetSnap));
-  let startY = 0, startOff = 0, lastY = 0, lastT = 0, v = 0, dragging = false;
-  const down = e => { dragging = true; startY = lastY = e.clientY; lastT = performance.now(); startOff = snaps()[sheetSnap]; el.classList.add('is-dragging'); e.currentTarget.setPointerCapture(e.pointerId); };
-  const move = e => { if (!dragging) return; const now = performance.now(); v = (e.clientY - lastY) / Math.max(1, now - lastT); lastY = e.clientY; lastT = now; setY(clamp(startOff + e.clientY - startY, 0, snaps()[0] + 40)); };
-  const up = e => {
-    if (!dragging) return; dragging = false; el.classList.remove('is-dragging');
-    const s = snaps(), y = startOff + e.clientY - startY;
-    if (Math.abs(e.clientY - startY) < 4) { setY(s[(sheetSnap + 1) % 3], (sheetSnap + 1) % 3); return; }
-    let target = s.map((p, i) => [Math.abs(p - (y + v * 160)), i]).sort((a, b) => a[0] - b[0])[0][1];
-    setY(s[target], target);
-  };
-  handle.addEventListener('pointerdown', down); handle.addEventListener('pointermove', move); handle.addEventListener('pointerup', up); handle.addEventListener('pointercancel', up);
-  handle.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); const n = (sheetSnap + 1) % 3; setY(snaps()[n], n); } });
-  return el;
+  bar.hidden = !order || !content.dataset.ready || tab === 'Cockpit';
+  if (!bar.hidden) { bar.setAttribute('role', 'region'); bar.setAttribute('aria-label', 'Active delivery'); bar.replaceChildren(...activeBarContent(order)); }
 }
 function renderDock() {
   const nav = $('rider-nav');
   if (!nav.childElementCount) {
-    nav.append(h('span', {class: 'hive-dock-bee', 'aria-hidden': 'true'}));
+    nav.append(h('span', {class: 'hive-dock-indicator', 'aria-hidden': 'true'}));
     for (const name of ['Cockpit', 'Earnings', 'Profile']) {
       const b = h('button', {class: 'hive-tab', type: 'button', 'data-section': name, onclick: e => selectTab(name, e.currentTarget)}, icon(name), h('span', {}, name));
       nav.append(b);
@@ -1239,8 +831,8 @@ function renderDock() {
   const tabs = [...nav.querySelectorAll('.hive-tab')];
   tabs.forEach(b => { if (b.dataset.section === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   const current = tabs.find(b => b.dataset.section === tab);
-  const indicator = nav.querySelector('.hive-dock-bee');
-  requestAnimationFrame(() => { indicator.style.transform = viewport() === 'desktop' ? `translateY(${current.offsetTop - 12}px)` : `translateX(${current.offsetLeft - 8}px)`; });
+  const indicator = nav.querySelector('.hive-dock-indicator');
+  requestAnimationFrame(() => { indicator.style.transform = innerWidth >= 1280 ? `translateY(${current.offsetTop - 12}px)` : `translateX(${current.offsetLeft - 8}px)`; });
 }
 function selectTab(next, from) {
   if (next === tab) return;
@@ -1257,26 +849,15 @@ function selectTab(next, from) {
   scrollTo(0, 0);
   $('main').focus({preventScroll: true});
 }
-let lastMode = viewport();
 function render() {
   document.body.dataset.page = tab;
-  const mode = viewport();
-  lastMode = mode;
   renderDock();
-  const mapHost = $('hive-map');
-  mapHost.hidden = tab !== 'Cockpit';
-  if (tab === 'Cockpit') {
-    if (!map) map = createMap(mapHost);
-    else map.resize();
-  } else cancelAnimationFrame(flightRaf);
   const nodes = tab === 'Cockpit' ? renderCockpit() : tab === 'Earnings' ? renderEarnings() : renderProfile();
   content.replaceChildren(...nodes);
   content.dataset.ready = '1';
   content.querySelectorAll('.assemble').forEach(g => [...g.children].forEach((c, i) => c.style.setProperty('--k', i)));
-  if (tab === 'Cockpit') syncMap();
   updateActiveBar();
   updateClock();
-  scheduleBuzz();
 }
 function updateClock() {
   const timer = content.querySelector('[data-shift-time]');
@@ -1348,40 +929,6 @@ function openPalette() {
   input.focus();
 }
 
-// Buzz, the co-pilot: one tip at a time, dismissable, rate-limited.
-let buzzTimer = 0, buzzLast = 0, buzzDismissedUntil = 0, buzzShown = new Set();
-function buzzTip() {
-  const order = active();
-  const streak = delivered().filter(o => Date.now() - (o.completedAt || 0) < DAY).length;
-  const hot = map ? [...map.hexes].sort((a, b) => b.d - a.d)[0] : null;
-  const dir = hot ? (() => { const dx = hot.cx - map.bee.x, dy = hot.cy - map.bee.y; const m = Math.round(Math.hypot(dx, dy) / 50) * 50; const card = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'east' : 'west') : (dy > 0 ? 'south' : 'north'); return `${m} m ${card}`; })() : '';
-  const tips = [];
-  if (!state.available) tips.push(['offline', 'Hot zone near the Engineering block. Go online to catch +₹15 orders.']);
-  if (state.available && !order && hot && tab === 'Cockpit') tips.push(['hot', `Hot zone ${dir}, +₹15 per order.`]);
-  if (order && stepOf(order) === 2) tips.push(['rain', 'Light rain expected soon. Ride safe and keep packets covered.']);
-  if (order && stepOf(order) === 3) tips.push(['otp', 'Ask for the 4-digit code in the customer’s PrintBee app.']);
-  if (streak > 0 && streak < 5) tips.push(['streak', `${5 - streak} more deliveries today for your streak bonus.`]);
-  if (tab === 'Earnings') tips.push(['settle', 'Awaiting payouts settle every Friday evening.']);
-  return tips.find(([k]) => !buzzShown.has(k + tab + (order?.id || '')));
-}
-function scheduleBuzz() {
-  clearTimeout(buzzTimer);
-  const box = $('hive-buzz');
-  if ($('rider-app').hidden) return;
-  const wait = Math.max(2500, 30000 - (Date.now() - buzzLast), buzzDismissedUntil - Date.now());
-  buzzTimer = setTimeout(() => {
-    const tip = buzzTip();
-    if (!tip) return;
-    buzzShown.add(tip[0] + tab + (active()?.id || ''));
-    buzzLast = Date.now();
-    const close = h('button', {type: 'button', 'aria-label': 'Dismiss tip', onclick: () => { box.hidden = true; buzzDismissedUntil = Date.now() + 60000; }}, '✕');
-    box.replaceChildren(h('div', {class: 'buzz-bee', html: BEE()}), h('div', {class: 'buzz-bubble'}, h('small', {}, 'Buzz · co-pilot'), tip[1], close));
-    box.hidden = false;
-    setTimeout(() => { if (box.firstChild && box.querySelector('.buzz-bubble')?.textContent.includes(tip[1])) box.hidden = true; }, 12000);
-  }, buzzLast ? wait : 2500);
-}
-
-// Sun Hive ⇄ Moon Hive with a circular reveal from the toggle.
 function applyTheme(moon) {
   document.documentElement.dataset.theme = moon ? 'moon' : 'sun';
   const t = $('night-mode');
@@ -1389,7 +936,6 @@ function applyTheme(moon) {
   t.setAttribute('aria-label', moon ? 'Sun Hive (day theme)' : 'Moon Hive (night theme)');
   document.querySelector('meta[name=theme-color]').content = moon ? '#1A1209' : '#FFF8E8';
   if (!new URLSearchParams(location.search).get('theme')) save('printbee-rider-night', moon ? '1' : '0');
-  map?.colourHexes();
 }
 function toggleTheme() {
   const moon = document.documentElement.dataset.theme !== 'moon';
@@ -1414,16 +960,29 @@ async function init() {
     h('p', {class: 'muted'}, demo ? profile.name + ' · PB-R104' : 'Signed in as a delivery partner'),
     h('button', {class: 'hive-btn', type: 'button', onclick: () => selectTab('Profile', document.querySelector('[data-section=Profile]'))}, 'Open profile')));
   document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); openPalette(); } });
-  addEventListener('resize', () => { if (viewport() !== lastMode) render(); else renderDock(); });
+  addEventListener('resize', renderDock);
   setInterval(updateClock, 30000);
   if (demo) { render(); return; }
   content.replaceChildren(h('div', {class: 'grid-12'}, h('div', {class: 'skel skel-cell span-5'}), h('div', {class: 'skel skel-cell span-7'}), h('div', {class: 'skel skel-cell span-12'})));
-  function poll() { if (!busy) refresh().catch(() => {}); sendLocation(); if (tab === 'Cockpit') syncMap(); }
+  function poll() { if (!busy) refresh().catch(() => {}); sendLocation(); }
   addEventListener('online', poll);
   addEventListener('offline', () => { $('network').hidden = false; });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { poll(); keepAwake(); } });
   try { await refresh(); } finally { interval = setInterval(poll, 5000); }
 }
+
+const brand = $('partner-home');
+const home = new URL('/partner', location.origin);
+home.search = location.search;
+home.searchParams.delete('tab');
+brand.href = home.pathname + home.search;
+brand.addEventListener('click', event => {
+  if ($('rider-app').hidden || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+  event.preventDefault();
+  history.replaceState(history.state, '', brand.href);
+  if (tab !== 'Cockpit') selectTab('Cockpit');
+  else scrollTo(0, 0);
+});
 
 applyTheme(document.documentElement.dataset.theme === 'moon');
 $('night-mode').onclick = toggleTheme;

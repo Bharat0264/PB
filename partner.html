@@ -8,19 +8,16 @@
 <link rel="manifest" href="/partner.webmanifest">
 <link rel="icon" href="/printbee-tab-bee.png">
 <link rel="preload" href="/manrope-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/partner.css?v=plain-clay">
+<link rel="stylesheet" href="/partner.css?v=streamlined-cockpit">
 <script>try { const t = new URLSearchParams(location.search).get('theme'); document.documentElement.dataset.theme = t ? (t === 'moon' ? 'moon' : 'sun') : localStorage.getItem('printbee-rider-night') === '1' ? 'moon' : 'sun'; } catch { document.documentElement.dataset.theme = 'sun'; }</script>
 <script src="/portal-login.js" defer></script>
-<script src="/partner.js?v=warehouse-pickup" defer></script>
+<script src="/partner.js?v=streamlined-cockpit" defer></script>
 </head>
 <body class="hive">
 <a href="#main" class="hive-skip">Skip to deliveries</a>
 
-<!-- Interactive cockpit map. Drawn by partner.js. -->
-<div id="hive-map" class="hive-map" hidden></div>
-
 <!-- Brand + floating top-right cluster -->
-<a class="hive-brand" href="/" aria-label="PrintBee home">
+<a id="partner-home" class="hive-brand" href="/partner" aria-label="PrintBee Partner home">
   <img src="/printbee-header-bee.webp" alt="" width="44" height="35"><span>PrintBee <small>Partner</small></span>
 </a>
 <div class="hive-top" role="toolbar" aria-label="Quick actions">
@@ -55,7 +52,6 @@
 </main>
 
 <div id="hive-activebar" class="hive-activebar" hidden></div>
-<aside id="hive-buzz" class="hive-buzz" aria-live="polite" hidden></aside>
 <div id="hive-ripple" class="hive-ripple" aria-hidden="true"></div>
 <p id="hive-live" class="hive-sr" aria-live="assertive"></p>
 

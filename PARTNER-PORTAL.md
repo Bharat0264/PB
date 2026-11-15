@@ -12,18 +12,10 @@ The project still uses its existing Python and SQLite stack. The live maps embed
 
 ## "The Hive" redesign
 
-The partner portal UI was rebuilt around a hive metaphor. The data layer (API calls, polling,
-GPS, sample mode, OTP rules, CSV export, sign-in) is unchanged; only `partner.html`,
-`partner.css` and `partner.js` were rewritten, plus the preview service-worker asset list.
+The PrintBee Partner button returns to the cockpit and keeps the selected live or sample mode.
+The cockpit shows shift controls, available or active deliveries, and earnings. Assigned orders
+show Google Maps directions for warehouse pickup and customer drop-off.
 
-- **Map-first cockpit.** An illustrated vector map of the SRM campus fills the screen (pan, pinch,
-  wheel zoom, arrow keys, +/-). Day and night map styles. Works offline, no tiles or keys.
-- **Demand hexes.** An H3-style pointy hex grid (125 m) glows from pale honey to amber by demand;
-  hot cells pulse. Tap a hex (or a "Hot zone" chip in the legend) for expected orders, earnings
-  per hour and the +₹15 bonus. The grid is computed locally; h3-js was not added (about 1 MB).
-- **Flying bee.** The partner marker is the PrintBee mascot with a CSS wing flutter, rotated to
-  its heading, with a fading honey-dot trail. Offline, it sleeps on a flower with Zzz. In sample
-  mode it flies the route; live, it follows the GPS fix the portal already collects.
 - **Slide to act.** Go online/offline, accept, arrive, confirm pickup and "with the customer" are
   clay slides with spring-back and a haptic tick. Enter/Space or arrow keys complete them.
 - **Honey jar + weekly comb.** Earned today fills a glass jar (SVG wave) toward the daily goal and
@@ -35,15 +27,11 @@ GPS, sample mode, OTP rules, CSV export, sign-in) is unchanged; only `partner.ht
 - **Partner ID badge.** A 3D-tilting card (pointer or gyro) with a holographic hex sheen, rating
   star-comb and a real, scannable QR code (`PRINTBEE:PARTNER:<id>`, ISO 18004 byte mode, EC M).
   It flips to vehicle and documents.
-- **Buzz, the co-pilot.** One contextual tip at a time (hot zone direction, rain, OTP, streak,
-  settlement day). Dismissable; at most one every 30 seconds, quiet for a minute after dismissal.
 - **Sun Hive / Moon Hive.** Animated sun-to-moon toggle with a circular View Transition reveal.
-  Moon Hive has its own deep-brown and amber token set, a dark map and fireflies.
-- **Layout.** Desktop ≥1280: floating 72 px dock with a gliding bee indicator, top-right cluster,
-  400 px left rail and 380 px right rail on the same rails as the brand and cluster. Tablet:
-  bottom pill dock, two-column panels over the map. Mobile: full-screen map, a draggable bottom
-  sheet with peek/half/full snaps (handle works by keyboard), bottom nav, safe-area insets.
-- **Everywhere.** Sticky active-delivery bar (order, ETA, stepper Pickup → In transit → Arrived →
+- **Layout.** Desktop has a side dock and two cockpit columns. Tablet has a bottom dock and two
+  columns. Phones have a single scrolling column and bottom navigation with safe-area insets.
+- **Delivery navigation.** Active orders show directions in the cockpit, with a shortcut from
+  Earnings and Profile (order, ETA, stepper Pickup → In transit → Arrived →
   OTP, Google Maps "Navigate"), Ctrl/Cmd+K command palette (pages, theme, online/offline, CSV,
   orders), illustrated empty/loading/error/offline states, honey skeletons, hex-ripple page
   changes, reduced-motion support, 44 px targets and polite/assertive live regions.
