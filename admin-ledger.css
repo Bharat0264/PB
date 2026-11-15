@@ -1,0 +1,14 @@
+#ops-content[data-section=ledger] > :not(.ledger-panel),
+#ops-content:not([data-section=ledger]) > .ledger-panel { display:none; }
+#ops-content > .ledger-panel { grid-column:1/-1; }
+.ledger-summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr)); gap:12px; margin:16px 0; }
+.ledger-summary > div { padding:12px 14px; border-radius:var(--hv-r-tile); background:var(--hv-surface-2); box-shadow:var(--hv-sh-1); }
+.ledger-summary dd { margin:4px 0 0; font-size:1.15rem; font-weight:800; overflow-wrap:anywhere; font-variant-numeric:tabular-nums; }
+.ledger-controls { display:flex; flex-wrap:wrap; align-items:end; gap:10px; margin:14px 0; }
+.ledger-controls label { display:grid; gap:4px; font-weight:700; }
+.ledger-pagination { align-items:center; }
+.ledger-table { overflow-x:auto; }
+.ledger-table table { width:100%; min-width:690px; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+.ledger-table :is(th,td) { text-align:left; padding:10px 12px; border-bottom:1px solid var(--hv-border); overflow-wrap:anywhere; }
+.ledger-table :is(th,td):last-child { text-align:right; white-space:nowrap; }
+.ledger-panel [role=status]:empty { display:none; }

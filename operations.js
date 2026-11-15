@@ -1,5 +1,6 @@
 import {addOfflineOrderFields, pickupMapUrl} from './admin-records.js';
 
+import {buildLedger} from './admin-ledger.js';
 import {buildPricingForm} from './admin-pricing.js';
 
 const portal = document.body.dataset.portal;
@@ -114,14 +115,17 @@ let liveOrders;
 let adminRevision = 0;
 let refreshingOrders = false;
 let adminTimer;
+let refreshLedger;
 
 function syncAdminSection() {
-  const pricing = location.hash === '#pricing';
-  content.dataset.section = pricing ? 'pricing' : 'dashboard';
+  const tab = location.hash.slice(1);
+  const section = ['pricing','ledger'].includes(tab) ? tab : 'dashboard';
+  content.dataset.section = section;
   for (const link of document.querySelectorAll('#admin-sections a')) {
-    if ((link.hash === '#pricing') === pricing) link.setAttribute('aria-current', 'page');
+    if (link.hash === '#' + section) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');
   }
+  if (section === 'ledger') refreshLedger?.();
 }
 
 function orderNumber(order) {
@@ -300,7 +304,6 @@ function appendOrderRows(list, orders) {
 }
 
 async function admin() {
-  syncAdminSection();
   const revision = ++adminRevision;
   const data = await api('/api/admin');
   if (revision !== adminRevision) return;
@@ -366,7 +369,12 @@ async function admin() {
     }));
     settlements.append(row);
   }
-  content.replaceChildren(action('Refresh dashboard', admin), totals, orders, settlements, audit, buildWarehouses(data.warehouses), pricing);
+  const ledger = element('section');
+  ledger.className = 'clay-card ledger-panel';
+  ledger.append(element('h2','Ledger'));
+  refreshLedger = buildLedger(ledger, (page, kind) => api('/api/admin/ledger?' + new URLSearchParams({page,kind})));
+  content.replaceChildren(action('Refresh dashboard', admin), totals, orders, settlements, audit, buildWarehouses(data.warehouses), pricing, ledger);
+  syncAdminSection();
   liveOrders = update;
 }
 
@@ -389,7 +397,6 @@ async function startAdmin() {
   await admin();
   const navigation = document.querySelector('#admin-sections');
   navigation.hidden = false;
-  syncAdminSection();
   window.addEventListener('hashchange', syncAdminSection);
   if (location.hash === '#orders') document.getElementById('orders')?.scrollIntoView();
   adminTimer = setInterval(refreshLiveOrders, 10000);

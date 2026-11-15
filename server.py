@@ -14,6 +14,7 @@ from urllib.parse import parse_qs, urlsplit
 from http.cookies import CookieError, SimpleCookie
 from threading import BoundedSemaphore
 
+import admin_ledger
 import admin_records
 import customer_auth as auth
 import fulfillment as ops
@@ -249,7 +250,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                        "/footer-wave.css", "/footer-wave.js",
                        "/hive-theme.css", "/hive-theme.js", "/admin-hive.css", "/admin-live-hive.css", "/warehouse-hive.css",
                        "/partner.html", "/partner.css", "/partner.js", "/partner-sw.js", "/admin.html", "/admin-preview.html", "/admin-dashboard.css", "/admin-tokens.css",
-                       "/customer-pricing.js", "/customer-price-table.js", "/admin-dashboard.js", "/admin-records.js", "/admin-pricing.js", "/admin-pricing.css", "/admin-data.js", "/operations.js", "/partner.webmanifest", "/portal-login.js",
+                       "/customer-pricing.js", "/customer-price-table.js", "/admin-dashboard.js", "/admin-records.js", "/admin-ledger.js", "/admin-ledger.css", "/admin-pricing.js", "/admin-pricing.css", "/admin-data.js", "/operations.js", "/partner.webmanifest", "/portal-login.js",
                        "/pricing.html", "/terms.html", "/queue.html", "/orders.html", "/profile.html", "/profile.js", "/address.html", "/customer-login.js",
                        "/preloader.js", "/preloader.css", "/gsap-3.13.0.min.js",
                        "/navigation.html", "/navigation.css", "/bottom-nav.js", "/nav-tokens.js", "/embedded-tab.js"}
@@ -264,6 +265,8 @@ class PrintBee(SimpleHTTPRequestHandler):
         with closing(connect()) as db:
             if path == "/api/admin":
                 return self.admin_snapshot(db)
+            if path == "/api/admin/ledger":
+                return self.admin_ledger(db)
             if path == "/api/partner/orders":
                 return self.partner_orders(db)
             if path == "/api/partner/auth":
@@ -929,6 +932,17 @@ class PrintBee(SimpleHTTPRequestHandler):
             delivery["location"] = [row["lat"], row["lng"]]
         return delivery
 
+    def admin_ledger(self, db):
+        if self.get_role() != "admin":
+            return self.json_response(403, {"error": "Admin access is required."})
+        query = parse_qs(urlsplit(self.path).query)
+        page = query.get("page", ["1"])[0]
+        kind = query.get("kind", [""])[0]
+        if not re.fullmatch(r"[1-9][0-9]{0,8}", page) or kind not in ("", *admin_ledger.KINDS):
+            return self.json_response(400, {"error": "Invalid ledger page or transaction type."})
+        db.execute("BEGIN")
+        return self.json_response(200, admin_ledger.ledger(db, int(page), kind))
+
     def admin_snapshot(self, db):
         if self.get_role() != "admin":
             return self.json_response(403, {"error": "Admin access is required."})
@@ -1125,8 +1139,11 @@ class PrintBee(SimpleHTTPRequestHandler):
             return self.json_response(502, {"error": "Refund awaiting reconciliation. Retry from the dashboard."})
         with closing(connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
-            if razorpay_checkout.record_refund(db, result) is False:
+            recorded = razorpay_checkout.record_refund(db, result)
+            if recorded is False:
                 raise ops.Conflict("Razorpay refund response needs reconciliation.")
+            if recorded and result["status"] == "processed":
+                ops.audit(db, "razorpay", "refund.processed", order_id)
             state = db.execute("SELECT state FROM razorpay_refunds WHERE order_id=?", (order_id,)).fetchone()["state"]
         self.json_response(200, {"state": state})
 

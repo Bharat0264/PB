@@ -2,6 +2,7 @@ import {orders, products, activity, traffic, targets, today} from './admin-data.
 
 import {addOfflineOrderFields, pickupMapUrl} from './admin-records.js';
 
+import {buildLedger} from './admin-ledger.js';
 import {buildPricingForm} from './admin-pricing.js';
 
 const $ = id => document.getElementById(id);
@@ -15,6 +16,7 @@ const sections = {
   customers: ['Customers', 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z M22 21v-2a4 4 0 0 0-3-4 M17 3a4 4 0 0 1 0 8'],
   analytics: ['Analytics', 'M3 3v18h18 M7 15l4-5 4 2 5-7'],
   pricing: ['Pricing', 'M12 2v20 M17 6H9a3 3 0 0 0 0 6h6a3 3 0 0 1 0 6H7'],
+  ledger: ['Ledger', 'M5 3h14v18H5z M8 7h8 M8 11h8 M8 15h5'],
   inventory: ['Inventory', 'M3 9h18v12H3z M5 9V4h14v5 M9 14h6'],
   partners: ['Delivery Partners', 'M3 6h12v11H3z M15 9h4l3 4v4h-7 M6 17a2 2 0 1 0 4 0 M17 17a2 2 0 1 0 4 0'],
   warehouses: ['Warehouses', 'M3 21V8l9-5 9 5v13z M7 21V11h10v10 M7 15h10 M7 18h10'],
@@ -246,6 +248,28 @@ function directory(title, records, details, status = '') {
     `<li><strong>${escape(record.name)}</strong>${details(record)}${status}</li>`).join('')}</ul>`, 'full');
 }
 
+function previewLedger(page, filter) {
+  const totals = {payment:0, offline:0, refund:0, payout:0};
+  const rows = [];
+  function add(order, kind, amount, description) {
+    rows.push({order_number:order.id, kind, amount, description, reference:'', date:order.date.getTime() / 1000});
+    totals[kind] += amount;
+  }
+  for (const order of orders) {
+    if (['Pending','Cancelled'].includes(order.status)) continue;
+    const amount = Math.round(order.total * 100);
+    if (order.status === 'Offline') add(order,'offline',amount,order.product);
+    else {
+      add(order,'payment',amount,'Sample online payment');
+      if (order.status === 'Refunded') add(order,'refund',-amount,'Sample refund');
+    }
+  }
+  const matching = rows.filter(row => !filter || row.kind === filter).sort((a,b) => b.date-a.date);
+  const pages = Math.max(1, Math.ceil(matching.length / 25));
+  page = Math.min(page,pages);
+  return {totals,page,pages,entries:matching.slice((page - 1) * 25,page * 25)};
+}
+
 function render(animate = false) {
   const slug = location.hash.slice(1);
   const route = Object.hasOwn(sections, slug) ? slug : Object.hasOwn(oldSections, slug) ? oldSections[slug] : 'dashboard';
@@ -256,6 +280,7 @@ function render(animate = false) {
   const regionRank = aggregate(items,'region');
   let widgets;
   switch (route) {
+    case 'ledger': widgets = card('Transactions', '<div id="preview-ledger" class="ledger-panel"></div>', 'full'); break;
     case 'pricing': widgets = card('Checkout rates', '<div id="pricing-form"></div>', 'full'); break;
     case 'orders': widgets = orderTable(); break;
     case 'customers': widgets = growth(items) + bars('Top 5 customers',customersRank,money) + bars('Delivery regions',regionRank); break;
@@ -285,6 +310,7 @@ function render(animate = false) {
   if (!mobileSections.includes(route)) $('mobile-more').setAttribute('aria-current','page');
   else $('mobile-more').removeAttribute('aria-current');
   root.innerHTML = `<div class="grid${animate ? ' arrive' : ''}">${widgets}</div>`;
+  if (route === 'ledger') buildLedger($('preview-ledger'), previewLedger, {demo:true})();
   if (route === 'pricing') $('pricing-form').append(buildPricingForm(previewPricing, changes => {
     Object.assign(previewPricing, changes);
     return 'Preview pricing saved.';
