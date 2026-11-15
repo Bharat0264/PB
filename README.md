@@ -6,8 +6,10 @@ Install dependencies with `python -m pip install -r requirements.txt`, run
 
 ## Deploying shared pricing
 
-Serve the site and its API from the same PrintBee Python server. The static
-Vercel configuration serves HTML and assets. It returns 404 for the Python API.
+Serve the site and its API from the same PrintBee Python server. For a Vercel
+frontend (pb-lake.vercel.app) with the Python backend hosted elsewhere, see
+[DEPLOY-VERCEL.md](DEPLOY-VERCEL.md): `/` opens the sign-in page and `/api` is proxied.
+Without a backend the static Vercel site returns 404 for the Python API.
 Live Admin uses /api/admin/pricing and customers read /api/checkout. Both need
 the same running server and persistent SQLite data.
 

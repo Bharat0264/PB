@@ -1,0 +1,9 @@
+# The Python backend, tests and tooling are not part of the static site.
+*.py
+requirements.txt
+Dockerfile
+docs
+.demo-data
+.claude
+print-agent
+*.cmd

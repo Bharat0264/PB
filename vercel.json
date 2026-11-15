@@ -1,6 +1,8 @@
 {
+  "redirects": [
+    {"source": "/", "destination": "/welcome.html", "permanent": false}
+  ],
   "rewrites": [
-    {"source": "/", "destination": "/welcome.html"},
     {"source": "/admin", "destination": "/admin.html"},
     {"source": "/partner", "destination": "/partner.html"},
     {"source": "/warehouse", "destination": "/staff.html"},
@@ -9,5 +11,8 @@
     {"source": "/upload", "destination": "/navigation.html"},
     {"source": "/address", "destination": "/navigation.html"},
     {"source": "/profile", "destination": "/navigation.html"}
-  ]
+  ],
+  "functions": {
+    "api/[...path].js": {"maxDuration": 60}
+  }
 }
