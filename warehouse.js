@@ -7,12 +7,11 @@ const confirmation = byId('warehouse-confirm');
 const viewer = byId('warehouse-preview');
 const arrival = byId('warehouse-new');
 const mobile = matchMedia('(max-width:1050px)');
-const buckets = ['New', 'Printing', 'To Pack', 'Ready'];
-const sections = [['Home','home'],['Print Queue','printer'],['Packing','package'],['Ready','truck'],['Printers','monitor'],['History','history'],['Settings','settings']];
+const buckets = ['New', 'Printing', 'Ready'];
+const sections = [['Home','home'],['Print Queue','printer'],['Ready','truck'],['Printers','monitor'],['History','history'],['Settings','settings']];
 const glyphs = {
   home:'<path d="m3 10 9-7 9 7v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 21v-7h6v7"/>',
   printer:'<path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6zM6 12h.01"/>',
-  package:'<path d="m12 3 9 5v8l-9 5-9-5V8zm0 9v9m-9-13 9 5 9-5M7 5.5l10 5.5"/>',
   truck:'<path d="M10 17H5V5h12v12h-3m3-10h3l3 4v6h-2m-4 0h-3"/><circle cx="8" cy="17" r="2"/><circle cx="19" cy="17" r="2"/>',
   monitor:'<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/>',
   history:'<path d="M3 12a9 9 0 1 1 2.2 5.9M3 4v8h8m1-4v5l3 2"/>',
@@ -33,10 +32,9 @@ function icon(name) {
 const demoOrders = preview ? makeSamples() : [];
 const preferences = Object.fromEntries(['sound','skipConfirm','takeover','large','contrast'].map(key => [key,readSetting(key)]));
 const money = new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR'}).format;
-const orderChecks = new Map();
 let orders = [], known, newBadges = new Set(), online = preview, connected = true, paused = false;
 let view = 'Home', tab = 'New', active, sheet = false, restoreFocus;
-let printAction, printPending = false, previewUrl, previewRequest = 0, camera, scanFrame, scanRequest = 0, arrivalOrder;
+let printAction, printPending = false, previewUrl, previewRequest = 0, arrivalOrder;
 let polling, busyRefresh = false, refreshVersion = 0, toastTimer, audio;
 const filters = {colour:'', paper:'', date:'', priority:'', partner:'', from:'', to:''};
 
@@ -96,7 +94,7 @@ function labelOrder(order) { return order.number || 'PB-'+order.id.slice(0,8).to
 function jobState(order,index) { return order.jobs.find(job=>job.position===index)?.state; }
 function stage(order) {
   if (order.status==='paid') return 'New';
-  if (order.status==='printing') return order.items.length && order.items.every((_,index)=>jobState(order,index)==='done')?'To Pack':'Printing';
+  if (order.status==='printing') return 'Printing';
   if (order.status==='packed') return 'Ready';
   return order.status==='delivered'?'Delivered':'Out for delivery';
 }
@@ -128,9 +126,9 @@ async function request(path,options) {
 }
 function makeSamples() {
   const date = new Date().toISOString().slice(2, 10).replaceAll('-', '');
-  return ['paid','paid','printing','printing','printing','packed','packed','delivered'].map((state, index) => ({
+  return ['paid','paid','printing','packed','packed','delivered'].map((state, index) => ({
     id:'demo-' + index, number:'PB-' + date + '-' + (4100 + index), status:state,
-    partner:index === 6 ? 'Demo delivery partner' : null,
+    partner:index === 4 ? 'Demo delivery partner' : null,
     paidAt:Math.floor(Date.now()/1000) - (index + 1)*435,
     customer:['Maya Rao','Arjun Dev','Sana Thomas'][index%3], phone:'0000000000',
     address:'SRM campus, Demo block ' + (index+1), slot:'Today, 4–6 PM',
@@ -148,7 +146,7 @@ function makeSamples() {
 function go(section, selectedTab, keepSearch=false) {
   view=section;
   if (!keepSearch) byId('warehouse-search').value='';
-  tab=selectedTab || {Packing:'To Pack',Ready:'Ready'}[section] || 'New';
+  tab=selectedTab || (section==='Ready'?'Ready':null) || 'New';
   if (['Printers','Settings','Inventory','History'].includes(section)) {
     active=null;
     closeSheet(false);
@@ -251,7 +249,7 @@ function renderQueue(filterOpen) {
   for (const label of buckets) {
     const control=button(label,()=>{
       tab=label;
-      view=label==='To Pack'?'Packing':label==='Ready'?'Ready':'Print Queue';
+      view=label==='Ready'?'Ready':'Print Queue';
       newBadges.delete(label);
       render();
     },'wh-tab');
@@ -263,9 +261,8 @@ function renderQueue(filterOpen) {
   board.append(lanes);
   const actions=node('div',null,'wh-tool-actions');
   actions.append(queueFilters(filterOpen));
-  if (tab==='Ready') actions.append(button('Scan QR',openScanner));
   board.append(heading(tab,actions),list(selectedOrders([tab])));
-  board.append(node('p','↑ / ↓ Move · Enter Open · P Print · K Pack','wh-hint wh-alert'));
+  board.append(node('p','↑ / ↓ Move · Enter Open · P Print','wh-hint wh-alert'));
 }
 function list(items) {
   const result=node('div',null,'wh-list');
@@ -304,7 +301,7 @@ function list(items) {
       [...new Set(order.items.map(binding).filter(Boolean))].join(' · '),
     ];
     [order.items.length+(order.items.length===1?' file':' files'),pageCount+' pages',...extras].filter(Boolean).forEach(text=>specs.append(chip(text)));
-    const action={New:'Print',Printing:'View print','To Pack':'Pack',Ready:'Hand over'}[stage(order)];
+    const action={New:'Print',Printing:'View print',Ready:'Hand over'}[stage(order)];
     const open=button(action,()=>openOrder(order.id,true),'clay-button wh-open');
     open.dataset.focus='order-'+order.id;
     open.setAttribute('aria-label',action+' '+labelOrder(order));
@@ -444,7 +441,6 @@ function renderStation(order=findOrder()) {
   body.append(docs);
 
   if (bucket==='New' || bucket==='Printing') renderPrintAction(order,dock);
-  if (bucket==='To Pack') renderPacking(order,body,dock);
   if (bucket==='Ready') renderHandover(order,body,dock);
   body.append(orderDetails(order,detailsOpen));
   scroll.scrollTop=top;
@@ -519,29 +515,6 @@ function renderPrintAction(order,dock) {
   control.prepend(icon('printer'));
   control.disabled=printPending || !order.items.length;
   dock.append(control);
-}
-function renderPacking(order,body,dock) {
-  const checks=orderChecks.get(order.id) || [false,false,false];
-  orderChecks.set(order.id,checks);
-  const group=node('fieldset',null,'wh-pack');
-  group.append(node('legend','Packing checklist'));
-  const pack=mainAction('Mark packed',async()=>{
-    if (!checks.every(Boolean)) return;
-    if (preview) {order.status='packed';addEvent(order,'packed');}
-    else await request('/api/staff/orders/'+order.id+'/advance',{method:'POST',headers:{'X-Order-Status':'printing'}});
-    orderChecks.delete(order.id);
-    await refreshAfterAction('Order marked packed.');
-  },'pack');
-  pack.disabled=!checks.every(Boolean);
-  ['All files printed and counted','Binding checked or not needed','Print quality checked'].forEach((label,index)=>{
-    const row=node('label'), input=node('input');
-    input.type='checkbox';input.checked=checks[index];input.dataset.focus='check-'+index;
-    input.addEventListener('change',()=>{checks[index]=input.checked;pack.disabled=!checks.every(Boolean);});
-    row.append(input,label);group.append(row);
-  });
-  body.append(group);
-  dock.hidden=false;
-  dock.append(pack);
 }
 function renderHandover(order,body,dock) {
   const details=node('section',null,'wh-notes');
@@ -627,62 +600,8 @@ async function showAsset(title,path,label) {
     if (viewer.open && attempt===previewRequest) showPreview(title,[node('p',error.message)]);
   }
 }
-function stopScan() {
-  scanRequest++;
-  cancelAnimationFrame(scanFrame);
-  camera?.getTracks().forEach(track=>track.stop());
-  camera=null;
-}
-function openScanner() {
-  const form=node('form'), label=node('label','Order number'), input=node('input',null,'clay-input');
-  input.required=true;input.placeholder='PB-…';
-  const submit=node('button','Find packed order','clay-button wh-primary');
-  const feedback=node('p');feedback.setAttribute('role','status');
-  const media=node('div',null,'wh-scanner');
-  function locate(value) {
-    const match=orders.find(order=>order.status==='packed' && labelOrder(order).toUpperCase()===value.trim().toUpperCase());
-    if (!match) {feedback.textContent='No packed order found for this label.';return false;}
-    viewer.close();
-    openOrder(match.id,true);
-    return true;
-  }
-  form.addEventListener('submit',event=>{event.preventDefault();locate(input.value);});
-  label.append(input);
-  form.append(label,submit);
-  const content=[form,media,feedback];
-  if ('BarcodeDetector' in window && navigator.mediaDevices?.getUserMedia) {
-    const video=node('video');video.autoplay=true;video.muted=true;video.playsInline=true;video.hidden=true;
-    const trigger=button('Use camera',async()=>{
-      const version=++scanRequest;
-      try {
-        const detector=new BarcodeDetector({formats:['qr_code']});
-        const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});
-        if (!viewer.open || version!==scanRequest) {stream.getTracks().forEach(track=>track.stop());return;}
-        camera=stream;video.srcObject=camera;video.hidden=false;trigger.hidden=true;
-        let last=0;
-        async function read(now) {
-          if (!viewer.open || version!==scanRequest) return;
-          try {
-            if (video.readyState>=2 && now-last>=180) {
-              last=now;
-              const [code]=await detector.detect(video);
-              if (version!==scanRequest || !viewer.open || (code && locate(code.rawValue))) return;
-            }
-          } catch {stopScan();video.hidden=true;feedback.textContent='Camera scan paused. Enter the label’s order number.';return;}
-          scanFrame=requestAnimationFrame(read);
-        }
-        scanFrame=requestAnimationFrame(read);
-      } catch {if (viewer.open) feedback.textContent='Camera unavailable. Enter the label’s order number.';}
-    });
-    media.append(trigger,video);
-  } else {
-    feedback.textContent='Enter the order number or use a handheld QR scanner.';
-  }
-  showPreview('Find a packed order',content);
-}
 viewer.addEventListener('close',()=>{
   previewRequest++;
-  stopScan();
   byId('preview-body').replaceChildren();
   if (previewUrl) URL.revokeObjectURL(previewUrl);
   previewUrl=null;
@@ -731,9 +650,15 @@ async function sendPrint(order,index,selected) {
 function addEvent(order,action) {order.timeline.push({action,created:Math.floor(Date.now()/1000)});}
 function updateMockJobs(order,selected,state) {
   order.jobs.filter(job=>selected.includes(job.position)).forEach(job=>{job.state=state;});
-  if (state==='done') addEvent(order,'print_done');
+  if (state==='done') {
+    addEvent(order,'print_done');
+    if (order.items.every((_,index)=>jobState(order,index)==='done')) {
+      order.status='packed';
+      addEvent(order,'packed');
+      announce(labelOrder(order)+' is ready for pickup.',true);
+    }
+  }
   void refresh(true);
-  if (state==='done') announce('Printing finished for '+labelOrder(order)+'.',true);
 }
 async function refreshAfterAction(message) {
   announce(message,true);
@@ -854,9 +779,8 @@ function handleKeys(event) {
     const next=index>=0 && cards[index+(['ArrowDown','ArrowRight'].includes(event.key)?1:-1)];
     if (next) {event.preventDefault();next.focus();}
   }
-  const action={p:'print',k:'pack'}[event.key.toLowerCase()];
-  if (action) {
-    const control=station.querySelector('[data-action="'+action+'"]');
+  if (event.key.toLowerCase()==='p') {
+    const control=station.querySelector('[data-action="print"]');
     if (control && control.getClientRects().length && !control.disabled) {event.preventDefault();control.click();}
   }
 }

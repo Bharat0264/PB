@@ -56,6 +56,11 @@ def order_number(db):
             return value
 
 
+def active_checkout_terms(db, default):
+    row = db.execute("SELECT terms FROM pricing_versions ORDER BY id DESC LIMIT 1").fetchone()
+    return json.loads(row["terms"]) if row else default
+
+
 class PrintBee(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(ROOT), **kwargs)
@@ -118,8 +123,14 @@ class PrintBee(SimpleHTTPRequestHandler):
         if db is None:
             with closing(connect()) as connection:
                 return self.checkout_terms(connection)
-        row = db.execute("SELECT terms FROM pricing_versions ORDER BY id DESC LIMIT 1").fetchone()
-        return json.loads(row["terms"]) if row else self.server.checkout_terms
+        return active_checkout_terms(db, self.server.checkout_terms)
+
+    def ready_printed_order(self, db, actor, order_id):
+        eligible = ()
+        if self.checkout_terms(db).get("autoDispatch"):
+            eligible = (set(self.server.partners) | set(self.server.partner_phones.values()) |
+                        set(self.server.google_access["partner"].values()))
+        return ops.ready_printed_orders(db, actor, order_id, eligible)
 
     def log_request(self, code="-", size="-"):
         if urlsplit(self.path).path == auth.GOOGLE_CALLBACK:
@@ -794,6 +805,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                 raise ops.Conflict("This file is unavailable for manual confirmation.")
             db.execute("UPDATE orders SET status='printing' WHERE id=? AND status='paid'", (order_id,))
             ops.audit(db, role, "printed_manually", order_id)
+            self.ready_printed_order(db, role, order_id)
         self.json_response(200, {"saved": True})
 
     def partner_orders(self, db):
@@ -972,9 +984,12 @@ class PrintBee(SimpleHTTPRequestHandler):
                 state = data["state"]
                 if state not in ("done", "failed"):
                     raise ValueError()
-                if not ops.finish_job(db, int(path.split("/")[4]), self.headers.get("X-Print-Claim", ""),
-                                      state, str(data.get("error", ""))[:300]):
+                order_id = ops.finish_job(db, int(path.split("/")[4]), self.headers.get("X-Print-Claim", ""),
+                                          state, str(data.get("error", ""))[:300])
+                if not order_id:
                     raise ops.Conflict("This print job is no longer active.")
+                if state == "done":
+                    self.ready_printed_order(db, role, order_id)
                 result = {"saved": True}
             elif path == "/api/partner/availability":
                 if type(data.get("available")) is not bool:
@@ -1058,19 +1073,16 @@ class PrintBee(SimpleHTTPRequestHandler):
             return self.json_response(409, {"error": "This action is unavailable."})
         with closing(connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
-            if expected == "printing" and db.execute(
-                "SELECT 1 FROM files LEFT JOIN print_jobs ON print_jobs.order_id=files.order_id "
-                "AND print_jobs.position=files.position WHERE files.order_id=? "
-                "AND (print_jobs.state IS NULL OR print_jobs.state!='done')", (order_id,)
-            ).fetchone():
-                raise ops.Conflict("Finish or confirm every file before packing.")
-            next_status = advance_order(db, order_id, "warehouse", expected)
-            if next_status:
-                ops.audit(db, role, next_status, order_id)
-                if next_status == "packed" and self.checkout_terms(db).get("autoDispatch"):
-                    ops.dispatch_available(db, order_id, set(self.server.partners) |
-                                           set(self.server.partner_phones.values()) |
-                                           set(self.server.google_access["partner"].values()))
+            if expected == "printing":
+                if not self.ready_printed_order(db, role, order_id):
+                    row = db.execute("SELECT status FROM orders WHERE id=?", (order_id,)).fetchone()
+                    if not row or row["status"] != "packed":
+                        raise ops.Conflict("Complete every file before the order is ready for pickup.")
+                next_status = "packed"
+            else:
+                next_status = advance_order(db, order_id, "warehouse", expected)
+                if next_status:
+                    ops.audit(db, role, next_status, order_id)
         if not next_status:
             return self.json_response(409, {"error": "The order changed. Refresh your list."})
         self.json_response(200, {"status": next_status})
@@ -1142,6 +1154,10 @@ if __name__ == "__main__":
         db.execute("CREATE UNIQUE INDEX IF NOT EXISTS order_owners_number ON order_owners(order_number)")
         if "object_key" not in {column["name"] for column in db.execute("PRAGMA table_info(files)")}:
             db.execute("ALTER TABLE files ADD COLUMN object_key TEXT")
+        eligible = ()
+        if active_checkout_terms(db, checkout_terms).get("autoDispatch"):
+            eligible = {"delivery", *partners, *phones.values(), *google_access["partner"].values()}
+        ops.ready_printed_orders(db, "warehouse", eligible_partners=eligible)
     with ThreadingHTTPServer(("127.0.0.1", args.port), PrintBee) as server:
         server.keys = keys
         server.google_access = google_access

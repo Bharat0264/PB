@@ -115,8 +115,8 @@ Run `python server.py --show-staff-keys` to obtain the Print-agent credential
 for the warehouse workstation. Existing API credentials continue to work.
 
 The warehouse can queue individual files or print all, retry failed
-jobs, or confirm a manually printed file. Packing requires every file to be
-confirmed. Packed orders offer a downloadable PDF label with an order QR code.
+jobs, or confirm a manually printed file. Once every file is confirmed, the
+order moves straight to Ready for pickup. A downloadable PDF label is optional.
 Start the agent with `PRINTBEE_PRINT_AGENT_KEY` set to the agent
 credential and run `python print_agent.py --printer "Printer name"`. On
 Windows also pass `--sumatra "C:\path\to\SumatraPDF.exe"`. Linux and macOS

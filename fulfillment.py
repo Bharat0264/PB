@@ -78,9 +78,29 @@ def finish_job(db, job, worker, state, error):
     ).fetchone()
     if row:
         audit(db, "print-agent", "print_" + state, row["order_id"])
-        return True
-    return bool(db.execute("SELECT 1 FROM print_jobs WHERE id=? AND worker=? AND state=?",
-                           (job, worker, state)).fetchone())
+        return row["order_id"]
+    saved = db.execute("SELECT order_id FROM print_jobs WHERE id=? AND worker=? AND state=?",
+                       (job, worker, state)).fetchone()
+    return saved["order_id"] if saved else None
+
+
+def ready_printed_orders(db, actor, order_id=None, eligible_partners=()):
+    """Make fully printed orders eligible for pickup in the caller's transaction."""
+    scope = "printed.id=?" if order_id is not None else "1=1"
+    params = (order_id,) if order_id is not None else ()
+    rows = db.execute(
+        f"UPDATE orders AS printed SET status='packed' WHERE {scope} AND printed.status='printing' "
+        "AND EXISTS (SELECT 1 FROM files WHERE order_id=printed.id) "
+        "AND NOT EXISTS (SELECT 1 FROM files LEFT JOIN print_jobs "
+        "ON print_jobs.order_id=files.order_id AND print_jobs.position=files.position "
+        "WHERE files.order_id=printed.id AND (print_jobs.state IS NULL OR print_jobs.state!='done')) "
+        "RETURNING id", params,
+    ).fetchall()
+    for row in rows:
+        audit(db, actor, "packed", row["id"])
+        if eligible_partners:
+            dispatch_available(db, row["id"], eligible_partners)
+    return len(rows)
 
 
 def assign_delivery(db, order_id, partner):
