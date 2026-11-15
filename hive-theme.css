@@ -55,12 +55,51 @@
 .hv-num, .hv-page :is(td, .num) { font-variant-numeric: tabular-nums; }
 
 /* Theme switch: existing toggle button restyled as an animated sun ⇄ moon switch */
-.hv-switch { position: relative; width: 76px !important; padding: 0 !important; border-radius: var(--hv-r-pill) !important; background: linear-gradient(180deg, #CDEBF5, #FFE9B0) !important; box-shadow: var(--hv-press) !important; overflow: hidden; }
-.hv-switch::before { content: ""; position: absolute; top: 6px; left: 6px; width: 32px; height: 32px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #FFF3B0, #F5B52E); box-shadow: 0 0 12px #FFC94D99; transition: transform .45s var(--hv-spring), background .45s; }
-.hv-switch > svg { position: relative; z-index: 1; transform: translateX(-16px); color: #6E4A05; transition: transform .45s var(--hv-spring), color .3s; }
-:root[data-theme="dark"] .hv-switch { background: linear-gradient(180deg, #2B1C0B, #4A3112) !important; }
-:root[data-theme="dark"] .hv-switch::before { transform: translateX(32px); background: radial-gradient(circle at 40% 40%, #FFF6DA, #F2D598); box-shadow: 0 0 14px #FFE2A066; }
-:root[data-theme="dark"] .hv-switch > svg { transform: translateX(16px); color: #3B2913; }
+.hv-switch {
+  --switch-width: 76px;
+  --switch-thumb: 32px;
+  --switch-inset: 8px;
+  --switch-icon: 18px;
+  --switch-position: 0px;
+  position: relative;
+  width: var(--switch-width) !important;
+  padding: 0 !important;
+  border-radius: var(--hv-r-pill) !important;
+  background: linear-gradient(180deg, #CDEBF5, #FFE9B0) !important;
+  box-shadow: var(--hv-press) !important;
+  overflow: hidden;
+}
+.hv-switch::before, .hv-switch > svg {
+  position: absolute;
+  top: 50%;
+  transform: translate(var(--switch-position), -50%);
+  transition: transform .45s var(--hv-spring);
+}
+.hv-switch::before {
+  content: "";
+  left: var(--switch-inset);
+  width: var(--switch-thumb);
+  height: var(--switch-thumb);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #FFF3B0, #F5B52E);
+  box-shadow: 0 0 8px #FFC94D66;
+}
+.hv-switch > svg {
+  z-index: 1;
+  left: calc(var(--switch-inset) + (var(--switch-thumb) - var(--switch-icon)) / 2);
+  width: var(--switch-icon);
+  height: var(--switch-icon);
+  color: #6E4A05;
+}
+:root[data-theme="dark"] .hv-switch {
+  --switch-position: calc(var(--switch-width) - var(--switch-thumb) - var(--switch-inset) - var(--switch-inset));
+  background: linear-gradient(180deg, #2B1C0B, #4A3112) !important;
+}
+:root[data-theme="dark"] .hv-switch::before {
+  background: radial-gradient(circle at 40% 40%, #FFF6DA, #F2D598);
+  box-shadow: 0 0 8px #FFE2A066;
+}
+:root[data-theme="dark"] .hv-switch > svg { color: #3B2913; }
 
 /* Gliding active indicator for sidebars (decorative span added by hive-theme.js) */
 .hv-glide-host { position: relative; }
