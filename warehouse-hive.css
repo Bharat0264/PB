@@ -118,7 +118,7 @@ body.warehouse {
 .wh-dialog::backdrop { background: color-mix(in srgb, #8A5E0B 22%, rgba(23,18,10,.45)); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
 .wh-feedback > :not(:empty) { border-radius: var(--hv-r-tile); background: var(--hv-surface); color: var(--hv-ink); box-shadow: var(--hv-sh-3); font-weight: 700; }
 .wh-feedback #warehouse-arrival { background: var(--hv-warning-bg); color: var(--hv-warning-ink); }
-.wh-empty, .wh-loading { border-radius: var(--hv-r-card); background: var(--hv-comb), var(--hv-surface-2); background-size: 56px 96px, auto; box-shadow: inset 0 0 0 1px var(--hv-border); color: var(--hv-muted); }
+.wh-empty, .wh-loading { border-radius: var(--hv-r-card); background: var(--hv-surface-2); box-shadow: inset 0 0 0 1px var(--hv-border); color: var(--hv-muted); }
 .warehouse .clay-skeleton { background: linear-gradient(100deg, var(--hv-surface-2) 30%, var(--hv-honey-300) 50%, var(--hv-surface-2) 70%); background-size: 250% 100%; animation: hv-shimmer 1.4s ease-in-out infinite; }
 .wh-login { border-radius: var(--hv-r-card); }
 

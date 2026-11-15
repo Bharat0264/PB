@@ -131,9 +131,18 @@ body.hive { margin: 0; min-height: 100dvh; background: var(--bg); color: var(--i
 .page-head p { color: var(--muted); margin-top: 4px; }
 
 /* ---------- Map ---------- */
-.hive-map { position: fixed; inset: 0; z-index: 0; background: var(--map-land); overflow: hidden; touch-action: none; cursor: grab; }
+/* Clip the viewport-sized map to keep its pointer and camera coordinates aligned. */
+.hive-map {
+  --map-frame: var(--top) calc(var(--outer) + var(--right-w) + var(--gutter))
+    calc(var(--bar-h) + 40px) calc(var(--rail-l) + var(--left-w) + var(--gutter));
+  position: fixed; inset: 0; z-index: 0; overflow: hidden;
+  pointer-events: none; touch-action: none; cursor: grab;
+}
 .hive-map.is-dragging { cursor: grabbing; }
-.hive-map > svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.hive-map > :is(svg, .map-overlay) { clip-path: inset(var(--map-frame) round var(--r-lg)); }
+.hive-map > svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; background: var(--map-land); pointer-events: auto; }
+body[data-page="Cockpit"] .hive-main { pointer-events: none; }
+body[data-page="Cockpit"] :is(.rail, .cockpit-cols, .sheet, .map-ctrl, .map-legend, .hive-banner) { pointer-events: auto; }
 .map-land { fill: var(--map-land); }
 .map-block { fill: var(--map-land-2); }
 .map-park { fill: var(--map-park); }
@@ -442,16 +451,11 @@ body[data-page="Cockpit"] .hive-buzz { right: calc(var(--outer) + var(--right-w)
 
 /* Page ripple + panel assembly */
 .hive-ripple { position: fixed; inset: 0; z-index: 50; pointer-events: none; opacity: 0;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='96' viewBox='0 0 56 96'%3E%3Cpath d='M28 2l26 15v30L28 62 2 47V17zM28 66l26 15v30M28 66L2 81v30' fill='%23F5C542' fill-opacity='.18' stroke='%23E9A928' stroke-opacity='.45' stroke-width='2'/%3E%3C/svg%3E"); background-size: 56px 96px;
+  background: color-mix(in srgb, var(--honey-500) 14%, transparent);
   -webkit-mask: radial-gradient(circle at var(--rx, 50%) var(--ry, 50%), #000 0, #000 var(--rr, 0px), transparent calc(var(--rr, 0px) + 120px));
           mask: radial-gradient(circle at var(--rx, 50%) var(--ry, 50%), #000 0, #000 var(--rr, 0px), transparent calc(var(--rr, 0px) + 120px)); }
 .hive-ripple.is-on { animation: ripple .3s ease-out forwards; }
 .assemble > * { animation: assemble .3s cubic-bezier(.22,1,.36,1) both; animation-delay: calc(var(--k, 0) * 40ms + 60ms); }
-
-/* Fireflies (Moon Hive) */
-.hive-fireflies { position: fixed; inset: 0; z-index: 1; pointer-events: none; display: none; }
-:root[data-theme="moon"] .hive-fireflies { display: block; }
-.hive-fireflies i { position: absolute; left: var(--x); top: var(--y); width: 4px; height: 4px; border-radius: 50%; background: #FFD36B; box-shadow: 0 0 10px 3px rgba(255,190,60,.55); opacity: 0; animation: firefly var(--d) ease-in-out infinite; animation-delay: var(--dl); }
 
 /* View transition: circular reveal from the theme toggle */
 ::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
@@ -481,10 +485,10 @@ body[data-page="Cockpit"] .hive-buzz { right: calc(var(--outer) + var(--right-w)
 @keyframes ripple { 0% { opacity: 1; --rr: 0px; } 100% { opacity: 0; --rr: 1600px; } }
 @property --rr { syntax: "<length>"; inherits: false; initial-value: 0px; }
 @keyframes assemble { from { opacity: 0; transform: translateY(12px) scale(.985); } }
-@keyframes firefly { 0%, 100% { opacity: 0; transform: translate(0, 0); } 30% { opacity: .9; } 50% { transform: translate(var(--fx), var(--fy)); opacity: .4; } 70% { opacity: .9; } }
 
 /* ---------- Tablet 768–1279 ---------- */
 @media (max-width: 1279px) {
+  .hive-map { --map-frame: var(--top) var(--outer) 55dvh; }
   :root { --outer: 24px; --rail-l: 24px; --top: 96px; }
   .hive-dock { left: 50%; top: auto; bottom: 16px; transform: translateX(-50%); width: auto; height: 72px; flex-direction: row; padding: 0 8px; }
   .hive-tab span { left: 50%; bottom: calc(100% + 12px); transform: translateX(-50%); }
@@ -507,6 +511,7 @@ body[data-page="Cockpit"] .hive-buzz { right: calc(var(--outer) + var(--right-w)
 
 /* ---------- Mobile <768 ---------- */
 @media (max-width: 767px) {
+  .hive-map { --map-frame: calc(72px + env(safe-area-inset-top)) 16px var(--sheet-px, 240px); }
   :root { --outer: 16px; --rail-l: 16px; --top: 80px; --gutter: 16px; }
   body.hive { font-size: 15px; }
   .hive-brand { top: calc(12px + env(safe-area-inset-top)); left: 16px; height: 48px; padding-right: 14px; }
@@ -559,7 +564,7 @@ body[data-page="Cockpit"] .hive-buzz { right: calc(var(--outer) + var(--right-w)
 /* ---------- Reduced motion ---------- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
-  .map-bee .wing, .hive-dock-bee::before, .hive-dock-bee::after, .map-hex.is-hot, .hive-fireflies i, .ticket.is-awaiting::after, .slide-label span { animation: none !important; }
+  .map-bee .wing, .hive-dock-bee::before, .hive-dock-bee::after, .map-hex.is-hot, .ticket.is-awaiting::after, .slide-label span { animation: none !important; }
   .slide-label span { color: var(--ink); background: none; }
   .chart .line { stroke-dashoffset: 0; }
 }

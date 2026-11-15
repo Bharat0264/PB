@@ -400,7 +400,7 @@ function createMap(host) {
     };
     requestAnimationFrame(stepAnim);
   }
-  function zoomAt(factor, sx = W / 2, sy = H / 2) {
+  function zoomAt(factor, sx = focusArea().x, sy = focusArea().y) {
     const mpp = clamp(view.mpp * factor, .6, 6);
     const wx = view.x + sx * view.mpp, wy = view.y + sy * view.mpp;
     view = {x: wx - sx * mpp, y: wy - sy * mpp, mpp};
@@ -473,7 +473,7 @@ function createMap(host) {
         h('dt', {}, 'From the hive'), h('dd', {}, (Math.hypot(hex.cx, hex.cy) / 1000).toFixed(1) + ' km')),
       level === 'Hot' ? h('p', {class: 'bonus'}, 'Hot zone: +₹15 bonus per order') : null,
       h('button', {type: 'button', 'aria-label': 'Close zone details', onclick: closePop}, '✕'));
-    overlay.append(pop);
+    host.append(pop);
     placeOverlay();
     pop.querySelector('button').focus({preventScroll: true});
   }
@@ -1006,7 +1006,7 @@ function renderCockpit() {
   const right = [deliveriesCell()];
   if (mode === 'desktop') return [h('div', {class: 'rail rail-left assemble'}, left), h('div', {class: 'rail rail-right assemble'}, right), legend(), mapControls()];
   if (mode === 'tablet') return [h('div', {class: 'cockpit-cols assemble'}, h('div', {}, left), h('div', {}, right)), legend(), mapControls()];
-  // Mobile: map fills the screen; content lives in a 3-snap bottom sheet. Primary action first (thumb zone).
+  // On mobile the map sits above a three-position bottom sheet.
   const order = active();
   const first = order || completed ? [activeBarInline(), deliveriesCell(), statusCell()] : [statusCell(), deliveriesCell()];
   return [legend(), mapControls(), sheet([...first, jarCell(), kpiCells()])];
@@ -1236,7 +1236,7 @@ function renderDock() {
 function selectTab(next, from) {
   if (next === tab) return;
   if ($('rider-dialog').open) $('rider-dialog').close();
-  // Hex ripple out from the dock item, then the new layout assembles.
+  // A soft ripple from the dock item accompanies the page transition.
   const ripple = $('hive-ripple');
   if (!reduced.matches && from) {
     const r = from.getBoundingClientRect();
@@ -1391,16 +1391,6 @@ function toggleTheme() {
   const t = document.startViewTransition(() => applyTheme(moon));
   t.ready.then(() => document.documentElement.animate({clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`]}, {duration: 650, easing: 'cubic-bezier(.22,1,.36,1)', pseudoElement: '::view-transition-new(root)'})).catch(() => {});
 }
-function fireflies() {
-  const host = document.querySelector('.hive-fireflies');
-  const r = rng(42);
-  for (let i = 0; i < 22; i++) {
-    const f = h('i');
-    for (const [k, v] of Object.entries({'--x': (r() * 100) + '%', '--y': (r() * 100) + '%', '--fx': (r() * 60 - 30) + 'px', '--fy': (r() * 60 - 30) + 'px', '--d': (5 + r() * 6) + 's', '--dl': (-r() * 8) + 's'})) f.style.setProperty(k, v);
-    host.append(f);
-  }
-}
-
 /* ===================================================================== boot */
 async function init() {
   $('rider-app').hidden = false;
@@ -1428,7 +1418,6 @@ async function init() {
 
 applyTheme(document.documentElement.dataset.theme === 'moon');
 $('night-mode').onclick = toggleTheme;
-fireflies();
 reduced.addEventListener?.('change', () => { if (!$('rider-app').hidden) render(); });
 if (demo) {
   $('portal-login').hidden = true;

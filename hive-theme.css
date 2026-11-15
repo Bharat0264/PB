@@ -26,7 +26,6 @@
   --hv-focus: 0 0 0 3px var(--hv-honey-500), 0 0 0 5px var(--hv-ink);
   --hv-r-card: 28px; --hv-r-tile: 20px; --hv-r-input: 14px; --hv-r-pill: 999px;
   --hv-ease: cubic-bezier(.22,1,.36,1); --hv-spring: cubic-bezier(.34,1.4,.64,1);
-  --hv-comb: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='96' viewBox='0 0 56 96'%3E%3Cpath d='M28 2l26 15v30L28 62 2 47V17zM28 66l26 15v30M28 66L2 81v30' fill='none' stroke='%23B9831A' stroke-opacity='.07' stroke-width='1.6'/%3E%3C/svg%3E");
   color-scheme: light;
 }
 /* ---------- Moon Hive: warm brown + amber glow (designed, not inverted) ---------- */
@@ -43,16 +42,12 @@
   --hv-glass: rgba(35,27,15,.86);
   --hv-honey-grad: linear-gradient(180deg, #FFD978, #F5C542 65%, #E3A321);
   --hv-focus: 0 0 0 3px var(--hv-honey-500), 0 0 0 5px #000;
-  --hv-comb: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='96' viewBox='0 0 56 96'%3E%3Cpath d='M28 2l26 15v30L28 62 2 47V17zM28 66l26 15v30M28 66L2 81v30' fill='none' stroke='%23FFC94D' stroke-opacity='.05' stroke-width='1.6'/%3E%3C/svg%3E");
   color-scheme: dark;
 }
 
-/* Page identity: faint honeycomb + soft honey glow */
+/* Solid clay page surface in both themes. */
 .hv-page {
-  background-color: var(--hv-bg);
-  background-image: radial-gradient(1200px 600px at 85% -10%, color-mix(in srgb, var(--hv-honey-500) 10%, transparent), transparent 70%), var(--hv-comb);
-  background-size: auto, 56px 96px;
-  background-attachment: fixed;
+  background: var(--hv-bg);
   color: var(--hv-ink);
   font-family: Manrope, system-ui, sans-serif;
   transition: background-color .35s ease, color .35s ease;
