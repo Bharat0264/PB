@@ -55,7 +55,7 @@ def invoice_pdf(number, details, mode):
     rows.append(Spacer(1, 16))
     bill = details.get("bill", {"total": details["subtotal"]})
     for key, label in (("printing", "Printing"), ("binding", "Binding"), ("packing", "Packing"),
-                       ("platform", "Platform"), ("delivery", "Delivery"), ("discount", "Discount"),
+                       ("platform", "Platform"), ("delivery", "Delivery"), ("surge", "Surge fee"), ("discount", "Discount"),
                        ("tax", "Taxes"), ("total", "Total")):
         if key in bill:
             amount = (-bill[key] if key == "discount" else bill[key]) / 100

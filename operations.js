@@ -1,5 +1,7 @@
 import {addOfflineOrderFields, pickupMapUrl} from './admin-records.js';
 
+import {buildPricingForm} from './admin-pricing.js';
+
 const portal = document.body.dataset.portal;
 const statusLine = document.querySelector('#ops-status');
 const content = document.querySelector('#ops-content');
@@ -112,6 +114,15 @@ let liveOrders;
 let adminRevision = 0;
 let refreshingOrders = false;
 let adminTimer;
+
+function syncAdminSection() {
+  const pricing = location.hash === '#pricing';
+  content.dataset.section = pricing ? 'pricing' : 'dashboard';
+  for (const link of document.querySelectorAll('#admin-sections a')) {
+    if ((link.hash === '#pricing') === pricing) link.setAttribute('aria-current', 'page');
+    else link.removeAttribute('aria-current');
+  }
+}
 
 function orderNumber(order) {
   return order.order_number || 'PB-' + order.id.slice(0, 8).toUpperCase();
@@ -289,6 +300,7 @@ function appendOrderRows(list, orders) {
 }
 
 async function admin() {
+  syncAdminSection();
   const revision = ++adminRevision;
   const data = await api('/api/admin');
   if (revision !== adminRevision) return;
@@ -320,16 +332,12 @@ async function admin() {
   const update = next => { updateOverview(next); updateOrders(next.orders); };
   update(data);
   const pricing = element('section');
-  pricing.className = 'clay-card';
-  const label = element('label', 'Checkout pricing');
-  const editor = element('textarea');
-  editor.className = 'clay-input';
-  editor.rows = 14;
-  editor.value = JSON.stringify(data.terms, null, 2);
-  label.append(editor);
-  pricing.append(label, action('Publish pricing', async () => {
-    const result = await api('/api/admin/pricing', JSON.parse(editor.value));
-    statusLine.textContent = 'Pricing version ' + result.version + ' published.';
+  pricing.className = 'clay-card pricing-panel';
+  let pricingVersion = data.pricingVersion;
+  pricing.append(element('h2', 'Pricing'), buildPricingForm(data.terms, async changes => {
+    const result = await api('/api/admin/pricing', {version:pricingVersion, changes});
+    pricingVersion = result.version;
+    return 'Pricing version ' + result.version + ' published.';
   }));
   const audit = element('section');
   audit.className = 'clay-card';
@@ -358,7 +366,7 @@ async function admin() {
     }));
     settlements.append(row);
   }
-  content.replaceChildren(action('Refresh dashboard', admin), totals, orders, pricing, settlements, audit, buildWarehouses(data.warehouses));
+  content.replaceChildren(action('Refresh dashboard', admin), totals, orders, settlements, audit, buildWarehouses(data.warehouses), pricing);
   liveOrders = update;
 }
 
@@ -379,6 +387,10 @@ async function refreshLiveOrders() {
 
 async function startAdmin() {
   await admin();
+  const navigation = document.querySelector('#admin-sections');
+  navigation.hidden = false;
+  syncAdminSection();
+  window.addEventListener('hashchange', syncAdminSection);
   if (location.hash === '#orders') document.getElementById('orders')?.scrollIntoView();
   adminTimer = setInterval(refreshLiveOrders, 10000);
 }

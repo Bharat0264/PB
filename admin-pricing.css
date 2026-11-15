@@ -1,0 +1,19 @@
+.admin-pricing-form { display:grid; gap:16px; }
+.admin-pricing-form :is(p,fieldset) { margin:0; }
+.admin-pricing-form fieldset { min-inline-size:0; padding:16px; border:1px solid var(--hv-border); border-radius:20px; }
+.admin-pricing-form legend { padding:0 6px; font-weight:800; }
+.admin-pricing-form fieldset p { margin-bottom:10px; }
+.admin-pricing-form .pricing-fields { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,155px),1fr)); gap:12px; }
+.admin-pricing-form label { display:grid; align-content:start; gap:5px; min-width:0; font-weight:700; }
+.admin-pricing-form :is(input,textarea) { width:100%; min-width:0; }
+.admin-pricing-form summary { cursor:pointer; padding:8px 0; font-weight:700; }
+.admin-pricing-form textarea { resize:vertical; }
+.admin-pricing-form > button { justify-self:start; }
+.admin-pricing-form [role=status]:empty { display:none; }
+.admin-section-nav { display:flex; flex-wrap:wrap; gap:8px; grid-column:1/-1; }
+.admin-section-nav .clay-button { display:inline-flex; align-items:center; text-decoration:none; }
+body[data-portal=admin] .admin-section-nav a[aria-current=page],
+body[data-portal=admin] .admin-pricing-form > button { background:var(--hv-honey-grad); color:#2A2112; }
+#ops-content > .pricing-panel { grid-column:1/-1; }
+#ops-content[data-section=pricing] > :not(.pricing-panel),
+#ops-content:not([data-section=pricing]) > .pricing-panel { display:none; }

@@ -2,6 +2,8 @@ import {orders, products, activity, traffic, targets, today} from './admin-data.
 
 import {addOfflineOrderFields, pickupMapUrl} from './admin-records.js';
 
+import {buildPricingForm} from './admin-pricing.js';
+
 const $ = id => document.getElementById(id);
 const root = $('dashboard');
 const money = new Intl.NumberFormat('en-IN', {style:'currency', currency:'INR', minimumFractionDigits:0, maximumFractionDigits:2}).format;
@@ -12,6 +14,7 @@ const sections = {
   orders: ['Orders', 'M4 7h16v14H4z M8 7V5h8v2 M9 12h6'],
   customers: ['Customers', 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z M22 21v-2a4 4 0 0 0-3-4 M17 3a4 4 0 0 1 0 8'],
   analytics: ['Analytics', 'M3 3v18h18 M7 15l4-5 4 2 5-7'],
+  pricing: ['Pricing', 'M12 2v20 M17 6H9a3 3 0 0 0 0 6h6a3 3 0 0 1 0 6H7'],
   inventory: ['Inventory', 'M3 9h18v12H3z M5 9V4h14v5 M9 14h6'],
   partners: ['Delivery Partners', 'M3 6h12v11H3z M15 9h4l3 4v4h-7 M6 17a2 2 0 1 0 4 0 M17 17a2 2 0 1 0 4 0'],
   warehouses: ['Warehouses', 'M3 21V8l9-5 9 5v13z M7 21V11h10v10 M7 15h10 M7 18h10'],
@@ -23,6 +26,7 @@ const escape = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;',
 const reduced = matchMedia('(prefers-reduced-motion: reduce)');
 const partners = [{name:'Ananya Roy', email:'ananya.rider@example.com'}];
 const warehouses = [{name:'Main campus print room', location:'SRM Main Campus', address:'SRM Institute of Science and Technology, Kattankulathur', email:'warehouse@example.com'}];
+const previewPricing = {paperRates:{A4:[175,300,850,1400]}, bindingRates:{glossy:5000,blue:4000}};
 const orderWindowDays = 30;
 const state = { period:'Daily', query:'', filter:'', sort:'date', direction:-1, page:0};
 const getStored = key => { try { return localStorage.getItem(key); } catch { return null; } };
@@ -250,6 +254,7 @@ function render(animate = false) {
   const regionRank = aggregate(items,'region');
   let widgets;
   switch (route) {
+    case 'pricing': widgets = card('Checkout rates', '<div id="pricing-form"></div>', 'full'); break;
     case 'orders': widgets = orderTable(); break;
     case 'customers': widgets = growth(items) + bars('Top 5 customers',customersRank,money) + bars('Delivery regions',regionRank); break;
     case 'inventory': widgets = productList() + stock(); break;
@@ -278,6 +283,10 @@ function render(animate = false) {
   if (!mobileSections.includes(route)) $('mobile-more').setAttribute('aria-current','page');
   else $('mobile-more').removeAttribute('aria-current');
   root.innerHTML = `<div class="grid${animate ? ' arrive' : ''}">${widgets}</div>`;
+  if (route === 'pricing') $('pricing-form').append(buildPricingForm(previewPricing, changes => {
+    Object.assign(previewPricing, changes);
+    return 'Preview pricing saved.';
+  }, {demo:true}));
   root.removeAttribute('aria-busy');
   if ($('order-search')) {
     $('order-search').value = state.query;

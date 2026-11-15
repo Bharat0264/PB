@@ -69,6 +69,7 @@ async function showQueue() {
       return;
     }
     await paymentConfig;
+    await loadPaymentConfig();
     openCheckout(entries);
   };
   for (const [id, entry] of entries) {
@@ -284,21 +285,30 @@ const rupees = new Intl.NumberFormat('en-IN', {style: 'currency', currency: 'INR
 let checkoutEntries = [];
 let paymentStep = false;
 let paymentMode = 'disabled';
-const paymentConfig = checkout ? fetch('/api/checkout').then(async response => {
-  if (!response.ok) return;
-  const {mode, terms, maps} = await response.json();
-  paperRates = terms.paperRates;
-  bindingRates = terms.bindingRates;
-  paymentMode = mode;
-  const slot = checkoutForm.elements.slot;
-  slot.replaceChildren(...terms.slots.map(label => new Option(label, label)));
-  slot.disabled = terms.slots.length === 0;
-  slot.closest('label').hidden = slot.disabled;
-  setupDeliveryMap(maps);
-}).catch(() => {}) : null;
+let mapsReady = false;
+function loadPaymentConfig() {
+  return fetch('/api/checkout').then(async response => {
+    if (!response.ok) return;
+    const {mode, terms, maps} = await response.json();
+    paperRates = terms.paperRates;
+    bindingRates = terms.bindingRates;
+    paymentMode = mode;
+    const slot = checkoutForm.elements.slot;
+    slot.replaceChildren(...terms.slots.map(label => new Option(label, label)));
+    slot.disabled = terms.slots.length === 0;
+    slot.closest('label').hidden = slot.disabled;
+    if (maps && !mapsReady) {
+      setupDeliveryMap(maps);
+      mapsReady = true;
+    }
+  }).catch(() => {});
+}
+const paymentConfig = checkout ? loadPaymentConfig() : null;
 let activeBill;
 let appliedCoupon = '';
 let quoteVersion = 0;
+let quoteTimer;
+let quotedAddress = '';
 let placingOrder = false;
 
 function fileCount(files) {
@@ -320,9 +330,9 @@ function showOrderBill(items) {
   }
   for (const [key, label] of Object.entries({
     printing: 'Printing', binding: 'Binding', packing: 'Packing fee',
-    platform: 'Platform fee', delivery: 'Delivery fee', discount: 'Coupon discount', tax: 'Taxes',
+    platform: 'Platform fee', delivery: 'Delivery fee', surge: 'Surge fee', discount: 'Coupon discount', tax: 'Taxes',
   })) {
-    if (!activeBill || (!activeBill[key] && key === 'discount')) continue;
+    if (!activeBill || (!(key in activeBill) || (!activeBill[key] && key === 'discount'))) continue;
     const row = document.createElement('li');
     const name = document.createElement('span');
     const price = document.createElement('strong');
@@ -335,7 +345,8 @@ function showOrderBill(items) {
   checkoutTotal.value = activeBill ? rupees.format(activeBill.total / 100) : 'Updating total…';
 }
 
-async function refreshBill() {
+async function refreshBill({useCouponField = false} = {}) {
+  clearTimeout(quoteTimer);
   const version = ++quoteVersion;
   const items = checkoutItems();
   activeBill = null;
@@ -343,16 +354,20 @@ async function refreshBill() {
   checkoutError.textContent = '';
   showOrderBill(items);
   try {
-    const coupon = checkoutForm.elements.coupon.value.trim().toUpperCase();
+    const coupon = useCouponField ? checkoutForm.elements.coupon.value.trim().toUpperCase() : appliedCoupon;
+    const address = checkoutForm.elements.address.value.trim();
     const bill = await orderRequest('/api/checkout/quote', null, {
       method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({items: orderDocuments(items), coupon}),
+      body: JSON.stringify({items: orderDocuments(items), coupon, address}),
     });
     if (version !== quoteVersion) return;
     activeBill = bill;
     appliedCoupon = coupon;
+    quotedAddress = address;
     showOrderBill(items);
-    checkoutSubmit.disabled = paymentMode === 'disabled';
+    const couponChanged = checkoutForm.elements.coupon.value.trim().toUpperCase() !== appliedCoupon;
+    checkoutSubmit.disabled = paymentMode === 'disabled' || couponChanged;
+    if (couponChanged) checkoutError.textContent = 'Apply the coupon code to update your total.';
   } catch (error) {
     if (version !== quoteVersion) return;
     checkoutTotal.value = 'Check your order';
@@ -361,7 +376,16 @@ async function refreshBill() {
 }
 
 const applyCoupon = document.querySelector('#apply-coupon');
-applyCoupon?.addEventListener('click', refreshBill);
+applyCoupon?.addEventListener('click', () => refreshBill({useCouponField:true}));
+checkoutForm?.elements.address.addEventListener('input', () => {
+  if (!paymentStep || placingOrder) return;
+  quoteVersion++;
+  activeBill = null;
+  checkoutSubmit.disabled = true;
+  showOrderBill(checkoutItems());
+  clearTimeout(quoteTimer);
+  quoteTimer = setTimeout(refreshBill, 300);
+});
 checkoutForm?.elements.coupon.addEventListener('input', () => {
   quoteVersion++;
   checkoutSubmit.disabled = true;
@@ -369,6 +393,7 @@ checkoutForm?.elements.coupon.addEventListener('input', () => {
 });
 
 function setCheckoutStep(payment) {
+  clearTimeout(quoteTimer);
   paymentStep = payment;
   quoteVersion++;
   activeBill = null;
@@ -404,6 +429,7 @@ function openCheckout(entries) {
   if (!entries.length || checkout.open || placingOrder) return;
   checkoutEntries = entries;
   checkoutForm.reset();
+  appliedCoupon = '';
   fillProfile(checkoutForm);
   checkoutError.textContent = '';
   pendingOrder = undefined;
@@ -1000,6 +1026,10 @@ checkoutForm?.addEventListener('submit', async event => {
   const customer = data.get('customer').trim();
   const phone = data.get('phone').trim();
   const address = data.get('address').trim();
+  if (address !== quotedAddress) {
+    refreshBill();
+    return;
+  }
   if (!customer || !address || phone.replace(/\D/g, '').length < 7) {
     checkoutError.textContent = 'Enter your name, a valid phone number and a delivery address.';
     return;

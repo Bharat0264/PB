@@ -5,7 +5,7 @@ import unittest
 from contextlib import closing
 from unittest.mock import Mock
 
-from checkout_terms import bill_for
+from checkout_terms import DeliveryQuoteError, bill_for, validate_terms
 from order_rules import quote_items
 from razorpay_checkout import Razorpay, SCHEMA, record_capture, record_refund
 
@@ -41,6 +41,21 @@ class CheckoutTest(unittest.TestCase):
         bill = bill_for(525, 0, "WELCOME", terms)
         self.assertEqual(bill["total"], 761)
         self.assertEqual(bill["tax"], 36)
+
+    def test_delivery_distance_and_surge_are_included_in_checkout(self):
+        pickup = {"address": "12.82, 80.04"}
+        terms = validate_terms({"delivery": 1000, "deliveryPerKm": 800, "surge": 500,
+                                "platform": 300, "packing": 200, "taxBasisPoints": 500})
+        bill = bill_for(2200, 500, "", terms, pickup=pickup,
+                        address="Hostel\nDelivery pin: 12.83, 80.04")
+        self.assertEqual(bill, {"printing": 1700, "binding": 500, "delivery": 1890,
+                                "surge": 500, "platform": 300, "packing": 200,
+                                "discount": 0, "tax": 255, "total": 5345})
+        with self.assertRaises(DeliveryQuoteError):
+            bill_for(2200, 500, "", terms, pickup=pickup, address="Hostel")
+        with self.assertRaises(DeliveryQuoteError):
+            bill_for(2200, 500, "", terms, pickup={"address": "Print room"},
+                     address="Hostel\nDelivery pin: 12.83, 80.04")
 
     def test_retry_recovers_gateway_order_by_receipt(self):
         gateway = Razorpay("key", "secret", "webhook")

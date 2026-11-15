@@ -1,7 +1,9 @@
 """Server-controlled delivery choices and order charges for checkout."""
 
 import json
+import math
 import os
+import re
 
 from order_rules import BINDING_RATES, RATES
 
@@ -12,7 +14,9 @@ def configured_terms():
 
 
 def validate_terms(raw):
-    terms = {key: raw.get(key, 0) for key in ("packing", "platform", "delivery", "taxBasisPoints", "partnerPayout")}
+    terms = {key: raw.get(key, 0) for key in (
+        "packing", "platform", "delivery", "surge", "deliveryPerKm", "taxBasisPoints", "partnerPayout"
+    )}
     if any(type(value) is not int or value < 0 for value in terms.values()) or terms["taxBasisPoints"] > 10000:
         raise ValueError("Checkout fees must be nonnegative integer paise and tax must be 0–10000 basis points.")
     slots = raw.get("slots", [])
@@ -47,9 +51,53 @@ def validate_terms(raw):
     return terms
 
 
-def bill_for(subtotal, binding, coupon, terms):
+class DeliveryQuoteError(ValueError):
+    pass
+
+
+COORDINATES = r"(-?[0-9]{1,3}(?:\.[0-9]+)?),\s*(-?[0-9]{1,3}(?:\.[0-9]+)?)"
+
+
+def coordinates(value, *, delivery=False):
+    if not isinstance(value, str):
+        return None
+    match = (re.search(r"(?:^|\n)Delivery pin:\s*" + COORDINATES + r"\s*\Z", value, re.I)
+             if delivery else re.fullmatch(COORDINATES, value.strip()))
+    if not match:
+        return None
+    lat, lng = map(float, match.groups())
+    if abs(lat) <= 90 and abs(lng) <= 180:
+        return lat, lng
+    return None
+
+
+def require_pickup_coordinates(terms, pickup):
+    origin = coordinates(pickup["address"]) if pickup else None
+    if terms.get("deliveryPerKm") and origin is None:
+        raise DeliveryQuoteError("Set the default warehouse pickup to latitude, longitude before using per-km delivery pricing.")
+    return origin
+
+
+def distance_delivery(terms, pickup, address):
+    rate = terms.get("deliveryPerKm", 0)
+    if not rate:
+        return 0
+    origin = require_pickup_coordinates(terms, pickup)
+    destination = coordinates(address, delivery=True)
+    if destination is None:
+        raise DeliveryQuoteError("Add a delivery pin on the map, or enter it on a new line as Delivery pin: latitude, longitude.")
+    lat1, lng1, lat2, lng2 = map(math.radians, (*origin, *destination))
+    a = math.sin((lat2 - lat1) / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin((lng2 - lng1) / 2) ** 2
+    km = 6371 * 2 * math.asin(math.sqrt(min(1, a)))
+    return math.floor(km * rate + 0.5)
+
+
+def bill_for(subtotal, binding, coupon, terms, *, pickup=None, address=""):
     printing = subtotal - binding
     charges = {key: terms[key] for key in ("packing", "platform", "delivery")}
+    charges["delivery"] += distance_delivery(terms, pickup, address)
+    if terms.get("surge"):
+        charges["surge"] = terms["surge"]
     net = printing + binding + sum(charges.values())
     discount = min(terms["coupons"].get(coupon, 0), max(0, net - 100))
     tax = ((net - discount) * terms["taxBasisPoints"] + 5000) // 10000

@@ -7,13 +7,14 @@
 <link rel="stylesheet" href="studio.css?v=mobile-touch">
 <link rel="stylesheet" href="clay.css">
 <link rel="stylesheet" href="hive-theme.css?v=plain-clay">
-<link rel="stylesheet" href="admin-live-hive.css?v=offline-orders">
+<link rel="stylesheet" href="admin-live-hive.css?v=pricing">
+<link rel="stylesheet" href="admin-pricing.css">
 <script src="hive-theme.js?v=1"></script>
 <script src="portal-login.js" defer></script>
 <script>
 if (new URLSearchParams(location.search).get('preview') === '1') location.replace('/admin-preview.html');
 </script>
-<script type="module" src="operations.js?v=offline-orders"></script>
+<script type="module" src="operations.js?v=pricing"></script>
 </head>
 <body data-portal="admin">
 <header class="frame top"><a href="/">PrintBee</a></header>
@@ -22,6 +23,10 @@ if (new URLSearchParams(location.search).get('preview') === '1') location.replac
 <div id="portal-login" class="clay-card"><a class="clay-button" href="/api/auth/google?portal=admin">Continue with Google</a></div>
 <button id="portal-logout" class="clay-button" type="button" hidden>Sign out</button>
 <p id="ops-status" role="status"></p>
+<nav id="admin-sections" class="admin-section-nav" aria-label="Admin sections" hidden>
+<a class="clay-button" href="#dashboard">Dashboard</a>
+<a class="clay-button" href="#pricing">Pricing</a>
+</nav>
 <div id="ops-content"></div>
 </main>
 </body>

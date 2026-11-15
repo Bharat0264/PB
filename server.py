@@ -19,7 +19,7 @@ import customer_auth as auth
 import fulfillment as ops
 import partner_auth
 import razorpay_checkout
-from checkout_terms import bill_for, configured_terms, validate_terms
+from checkout_terms import DeliveryQuoteError, bill_for, configured_terms, require_pickup_coordinates, validate_terms
 from document_pages import count_pages
 from order_documents import PrivateFiles, invoice_pdf, packing_label_pdf
 from order_rules import LIMIT, TRANSITIONS, advance_order, quote_items
@@ -59,7 +59,7 @@ def order_number(db):
 
 def active_checkout_terms(db, default):
     row = db.execute("SELECT terms FROM pricing_versions ORDER BY id DESC LIMIT 1").fetchone()
-    return json.loads(row["terms"]) if row else default
+    return {"surge": 0, "deliveryPerKm": 0, **json.loads(row["terms"])} if row else default
 
 
 class PrintBee(SimpleHTTPRequestHandler):
@@ -246,7 +246,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                        "/footer-wave.css", "/footer-wave.js",
                        "/hive-theme.css", "/hive-theme.js", "/admin-hive.css", "/admin-live-hive.css", "/warehouse-hive.css",
                        "/partner.html", "/partner.css", "/partner.js", "/partner-sw.js", "/admin.html", "/admin-preview.html", "/admin-dashboard.css", "/admin-tokens.css",
-                       "/admin-dashboard.js", "/admin-records.js", "/admin-data.js", "/operations.js", "/partner.webmanifest", "/portal-login.js",
+                       "/admin-dashboard.js", "/admin-records.js", "/admin-pricing.js", "/admin-pricing.css", "/admin-data.js", "/operations.js", "/partner.webmanifest", "/portal-login.js",
                        "/pricing.html", "/terms.html", "/queue.html", "/orders.html", "/profile.html", "/profile.js", "/address.html", "/customer-login.js",
                        "/preloader.js", "/preloader.css", "/gsap-3.13.0.min.js",
                        "/navigation.html", "/navigation.css", "/bottom-nav.js", "/nav-tokens.js", "/embedded-tab.js"}
@@ -545,7 +545,7 @@ class PrintBee(SimpleHTTPRequestHandler):
             self.json_response(404, {"error": "Unknown request."})
         except ops.Conflict as error:
             self.json_response(409, {"error": str(error)})
-        except admin_records.InputError as error:
+        except (admin_records.InputError, DeliveryQuoteError) as error:
             self.json_response(400, {"error": str(error)})
         except (ValueError, KeyError, TypeError, AttributeError):
             self.json_response(400, {"error": "Check the order details and try again."})
@@ -586,14 +586,11 @@ class PrintBee(SimpleHTTPRequestHandler):
                 len(re.sub(r"\D", "", details["phone"])) < 7 or
                 not details["address"] or len(details["address"]) > 500):
             raise ValueError()
-        terms = self.checkout_terms()
-        documents, total = quote_items(data["items"], terms["paperRates"], terms["bindingRates"])
         coupon = data.get("coupon", "").strip().upper()
         notes = data.get("notes", "").strip()
         slot = data.get("slot", "")
         if len(notes) > 500 or not isinstance(slot, str) or len(coupon) > 30:
             raise ValueError()
-        details.update(items=documents, subtotal=total)
         if notes:
             details["notes"] = notes
         if slot:
@@ -614,22 +611,34 @@ class PrintBee(SimpleHTTPRequestHandler):
             if existing:
                 stored = json.loads(existing["details"])
                 bill = stored.pop("bill", None)
+                total = stored.pop("subtotal")
+                previous = stored.pop("items")
+                # Verify the same print choices even if settings have changed since this attempt.
+                selection, _ = quote_items(data["items"],
+                    {item.get("paper", "A4"): (0, 0, 0, 0) for item in previous},
+                    {item.get("binding", "none"): 0 for item in previous})
+                def options(items):
+                    return [{key: value for key, value in item.items() if key != "subtotal"} for item in items]
                 stored.pop("partnerPayout", None)
                 stored.pop("pickupWarehouse", None)
-                if stored != details:
+                if stored != details or options(previous) != options(selection):
                     return self.json_response(409, {"error": "Order details changed. Reopen checkout to try again."})
             else:
+                terms = self.checkout_terms(db)
+                documents, total = quote_items(data["items"], terms["paperRates"], terms["bindingRates"])
+                details.update(items=documents, subtotal=total)
                 if (terms["slots"] or slot) and slot not in terms["slots"]:
                     return self.json_response(409, {"error": "Choose an available delivery slot."})
                 if coupon and coupon not in terms["coupons"]:
                     return self.json_response(409, {"error": "This coupon is unavailable."})
                 binding_total = sum(terms["bindingRates"][item["binding"]] * item["copies"] for item in documents)
-                bill = bill_for(total, binding_total, coupon, terms)
+                pickup = admin_records.default_pickup(db)
+                bill = bill_for(total, binding_total, coupon, terms, pickup=pickup, address=details["address"])
                 if type(data.get("expectedTotal")) is not int or data["expectedTotal"] != bill["total"]:
                     return self.json_response(409, {"error": "Prices changed. Refresh and review your order."})
                 encoded = json.dumps({
                     **details, "bill": bill, "partnerPayout": terms.get("partnerPayout", 0),
-                    "pickupWarehouse": admin_records.default_pickup(db),
+                    "pickupWarehouse": pickup,
                 }, sort_keys=True)
                 db.execute("INSERT INTO orders VALUES (?, ?, 'pending', ?)", (order_id, token, encoded))
                 db.execute("INSERT INTO order_owners (order_id, email, order_number) VALUES (?, ?, ?)",
@@ -642,12 +651,18 @@ class PrintBee(SimpleHTTPRequestHandler):
             raise ValueError("Invalid quote length.")
         data = json.loads(self.rfile.read(length))
         coupon = data.get("coupon", "").strip().upper()
-        terms = self.checkout_terms()
+        address = data.get("address", "")
+        if not isinstance(address, str) or len(address) > 500:
+            raise ValueError("Invalid delivery address.")
+        with closing(connect()) as db, db:
+            db.execute("BEGIN")
+            terms = self.checkout_terms(db)
+            pickup = admin_records.default_pickup(db) if terms.get("deliveryPerKm") else None
         documents, total = quote_items(data["items"], terms["paperRates"], terms["bindingRates"])
         if coupon and coupon not in terms["coupons"]:
             return self.json_response(400, {"error": "This coupon is unavailable."})
         binding_total = sum(terms["bindingRates"][item["binding"]] * item["copies"] for item in documents)
-        bill = bill_for(total, binding_total, coupon, terms)
+        bill = bill_for(total, binding_total, coupon, terms, pickup=pickup, address=address)
         self.json_response(200, bill)
 
     def inspect_document(self):
@@ -914,6 +929,7 @@ class PrintBee(SimpleHTTPRequestHandler):
     def admin_snapshot(self, db):
         if self.get_role() != "admin":
             return self.json_response(403, {"error": "Admin access is required."})
+        db.execute("BEGIN")
         orders = [dict(row) for row in db.execute(
             "SELECT orders.id, status, order_number, json_extract(details,'$.customer') AS customer, "
             "CAST(COALESCE(json_extract(details,'$.bill.total'), "
@@ -942,7 +958,8 @@ class PrintBee(SimpleHTTPRequestHandler):
         return self.json_response(200, {"orders": orders, "counts": counts, "captured": captured,
                                         "terms": self.checkout_terms(db), "audit": history, "payouts": payouts,
                                         "today": admin_records.today_totals(db),
-                                        "warehouses": admin_records.warehouse_directory(db)})
+                                        "warehouses": admin_records.warehouse_directory(db),
+                                        "pricingVersion": db.execute("SELECT COALESCE(max(id),0) FROM pricing_versions").fetchone()[0]})
 
     def operations_post(self, path):
         area = path.split("/")[2]
@@ -973,13 +990,29 @@ class PrintBee(SimpleHTTPRequestHandler):
                     result = admin_records.record_offline_sales(db, data.get("orders"), actor)
                 else:
                     result = admin_records.save_warehouse(db, data, actor)
+                    require_pickup_coordinates(self.checkout_terms(db), admin_records.default_pickup(db))
             elif path == "/api/admin/pricing":
-                terms = validate_terms({**data, "bindingRates": {
-                    key: rate for key, rate in data.get("bindingRates", {}).items() if key != "none"
-                }})
+                version = db.execute("SELECT COALESCE(max(id),0) FROM pricing_versions").fetchone()[0]
+                if not isinstance(data, dict):
+                    raise admin_records.InputError("Enter valid pricing settings.")
+                if "changes" in data:
+                    if not isinstance(data["changes"], dict) or type(data.get("version")) is not int:
+                        raise admin_records.InputError("Enter valid pricing changes.")
+                    if data["version"] != version:
+                        raise ops.Conflict("Pricing was updated elsewhere. Reload this page and try again.")
+                    data = {**self.checkout_terms(db), **data["changes"]}
+                binding = data.get("bindingRates", {})
+                if isinstance(binding, dict):
+                    data["bindingRates"] = {key: rate for key, rate in binding.items() if key != "none"}
+                try:
+                    terms = validate_terms(data)
+                except ValueError as error:
+                    raise admin_records.InputError(str(error)) from error
+                require_pickup_coordinates(terms, admin_records.default_pickup(db))
                 cursor = db.execute("INSERT INTO pricing_versions(terms, created) VALUES (?,?)",
                                     (json.dumps(terms), int(time.time())))
-                ops.audit(db, role, "pricing_updated")
+                actor = auth.portal_google_email(db, self.headers, "admin") or role
+                ops.audit(db, actor, "pricing_updated", str(cursor.lastrowid))
                 result = {"version": cursor.lastrowid}
             elif role == "admin" and (reset := re.fullmatch(r"/api/admin/orders/([a-f0-9]{32})/renew-code", path)):
                 ops.renew_delivery_code(db, reset[1])

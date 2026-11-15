@@ -49,6 +49,7 @@ function setupDeliveryMap(config) {
         const {lat, lng} = position.toJSON();
         address.value = address.value.replace(/\s*Delivery pin: -?[\d.]+, -?[\d.]+\s*$/, '').trim()
           + '\nDelivery pin: ' + lat.toFixed(6) + ', ' + lng.toFixed(6);
+        address.dispatchEvent(new Event('input', {bubbles:true}));
         message.textContent = 'Delivery pin added. Include your room, building or landmark in the address.';
       }
       picker.addEventListener('gmp-select', async ({placePrediction}) => {
