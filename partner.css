@@ -202,6 +202,9 @@ body[data-page="Cockpit"] .hive-main { padding-bottom: 40px; }
 .stepper li[aria-current]::before { background: var(--honey-500); color: #2A2112; }
 .stepper li[aria-current] { color: var(--ink); }
 .active-cell h3 { font-size: 20px; margin-bottom: 4px; }
+.active-cell .row-actions { margin-bottom: 16px; }
+.active-cell .slide-label { padding-inline: 76px 12px; text-align: center; }
+.active-cell .slide-label span { line-height: 1.25; text-wrap: balance; }
 .active-meta { display: grid; gap: 4px; margin-bottom: 16px; color: var(--muted); }
 .checks { display: grid; gap: 8px; margin: 0 0 16px; padding: 0; border: 0; }
 .checks legend { font-weight: 800; margin-bottom: 8px; }
@@ -435,6 +438,8 @@ body[data-page="Cockpit"] .hive-main { padding-bottom: 40px; }
   .span-6 { grid-column: span 12; }
   .earn-split { grid-template-columns: 1fr; gap: 16px; }
   .cell { padding: 20px; }
+  .active-cell .row-actions .hive-btn { flex: 1 1 160px; justify-content: center; }
+  .active-cell .slide-label { font-size: 14px; }
   .cell-head { flex-wrap: wrap; }
   .seg { max-width: 100%; }
   .seg button { min-height: 44px; padding-inline: 10px; }
