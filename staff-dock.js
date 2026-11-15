@@ -21,22 +21,36 @@ window.createStaffDock = function createStaffDock(nav, tabs) {
     for (const [key,value] of Object.entries(attributes)) node.setAttribute(key,value);
     return node;
   }
-  const surface = svg({class:'staff-dock-surface', viewBox:'0 0 360 90', preserveAspectRatio:'none'});
+  const surface = svg({class:'staff-dock-surface', preserveAspectRatio:'none'});
   const path = document.createElementNS(ns,'path');
-  path.setAttribute('d','M30 14H138C156 14 161 0 180 0S204 14 222 14H330Q360 14 360 44V60Q360 90 330 90H30Q0 90 0 60V44Q0 14 30 14Z');
   surface.append(path);
-  const dot = document.createElement('i');
-  dot.className = 'staff-dock-dot';
-  dot.setAttribute('aria-hidden','true');
+
+  function drawSurface(width) {
+    if (!width) return;
+    const center = width / 2;
+    const right = width - 30;
+    surface.setAttribute('viewBox', '0 0 ' + width + ' 90');
+    // The corners and 104px hump are drawn in pixels. Resizing changes the flat spans.
+    path.setAttribute('d', [
+      'M30 14 H' + (center - 52),
+      'C' + (center - 34) + ' 14 ' + (center - 26) + ' 0 ' + center + ' 0',
+      'C' + (center + 26) + ' 0 ' + (center + 34) + ' 14 ' + (center + 52) + ' 14',
+      'H' + right + ' A30 30 0 0 1 ' + width + ' 44',
+      'V60 A30 30 0 0 1 ' + right + ' 90 H30 A30 30 0 0 1 0 60 V44 A30 30 0 0 1 30 14 Z',
+    ].join(' '));
+  }
   const items = document.createElement('div');
   items.className = 'staff-dock-items';
   const menu = document.createElement('div');
   menu.className = 'staff-dock-menu';
   menu.id = nav.id + '-menu';
   menu.hidden = true;
-  nav.replaceChildren(surface,dot,items,menu);
+  nav.replaceChildren(surface,items,menu);
   nav.classList.add('staff-dock');
   document.body.classList.add('has-staff-dock');
+  drawSurface(nav.clientWidth || 360);
+  const resize = new ResizeObserver(([entry]) => drawSurface(entry.contentRect.width));
+  resize.observe(nav);
 
   let menuTrigger;
   let selectedAt = 0;
@@ -142,8 +156,6 @@ window.createStaffDock = function createStaffDock(nav, tabs) {
       if (id === active) return;
       active = id;
       const index = buttons.findIndex(item => item.id === id || item.children?.some(child => child.id === id));
-      nav.style.setProperty('--dock-active',index);
-      nav.classList.toggle('staff-dock-has-active',index >= 0);
       buttons.forEach(({button}, position) => {
         if (position === index) button.setAttribute('aria-current','page');
         else button.removeAttribute('aria-current');
