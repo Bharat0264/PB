@@ -25,32 +25,34 @@ window.createStaffDock = function createStaffDock(nav, tabs) {
   const path = document.createElementNS(ns,'path');
   surface.append(path);
 
-  function drawSurface(width) {
-    if (!width) return;
-    const center = width / 2;
-    const right = width - 30;
-    surface.setAttribute('viewBox', '0 0 ' + width + ' 90');
-    // The corners and 104px hump are drawn in pixels. Resizing changes the flat spans.
-    path.setAttribute('d', [
-      'M30 14 H' + (center - 52),
-      'C' + (center - 34) + ' 14 ' + (center - 26) + ' 0 ' + center + ' 0',
-      'C' + (center + 26) + ' 0 ' + (center + 34) + ' 14 ' + (center + 52) + ' 14',
-      'H' + right + ' A30 30 0 0 1 ' + width + ' 44',
-      'V60 A30 30 0 0 1 ' + right + ' 90 H30 A30 30 0 0 1 0 60 V44 A30 30 0 0 1 30 14 Z',
-    ].join(' '));
-  }
   const items = document.createElement('div');
   items.className = 'staff-dock-items';
+  const knob = document.createElement('div');
+  knob.className = 'staff-dock-knob';
+  knob.setAttribute('aria-hidden','true');
+  const wheel = document.createElement('div');
+  wheel.className = 'staff-dock-wheel';
+  const face = document.createElement('div');
+  face.className = 'staff-dock-face';
+  const glyphs = document.createElement('div');
+  glyphs.className = 'staff-dock-knob-glyphs';
+  face.append(glyphs);
+  wheel.append(face);
+  knob.append(wheel);
+
+  function pictureFor(icon) {
+    const picture = svg({viewBox:'0 0 24 24', fill:'none', stroke:'currentColor',
+      'stroke-width':1.75, 'stroke-linecap':'round','stroke-linejoin':'round'});
+    picture.innerHTML = icons[icon];
+    return picture;
+  }
   const menu = document.createElement('div');
   menu.className = 'staff-dock-menu';
   menu.id = nav.id + '-menu';
   menu.hidden = true;
-  nav.replaceChildren(surface,items,menu);
+  nav.replaceChildren(surface,items,knob,menu);
   nav.classList.add('staff-dock');
   document.body.classList.add('has-staff-dock');
-  drawSurface(nav.clientWidth || 360);
-  const resize = new ResizeObserver(([entry]) => drawSurface(entry.contentRect.width));
-  resize.observe(nav);
 
   let menuTrigger;
   let selectedAt = 0;
@@ -67,9 +69,7 @@ window.createStaffDock = function createStaffDock(nav, tabs) {
     button.type = 'button';
     button.className = 'staff-dock-tab' + (center ? ' staff-dock-center' : '');
     button.style.setProperty('--dock-order',index);
-    const picture = svg({viewBox:'0 0 24 24', fill:'none', stroke:'currentColor',
-      'stroke-width':1.75, 'stroke-linecap':'round','stroke-linejoin':'round'});
-    picture.innerHTML = icons[icon];
+    const picture = pictureFor(icon);
     const iconWrap = document.createElement('span');
     iconWrap.className = 'staff-dock-symbol';
     iconWrap.append(picture);
@@ -111,16 +111,142 @@ window.createStaffDock = function createStaffDock(nav, tabs) {
         return;
       }
       closeMenu();
-      if (center) {
-        iconWrap.classList.remove('staff-dock-pressed');
-        void iconWrap.offsetWidth;
-        iconWrap.classList.add('staff-dock-pressed');
+      if (button.hasAttribute('aria-current')) {
+        wheel.classList.remove('staff-dock-pressed');
+        void wheel.offsetWidth;
+        wheel.classList.add('staff-dock-pressed');
       }
       select();
     };
     items.append(button);
-    return {id,button,badge,label,children};
+    return {id,button,badge,label,children,icon};
   });
+
+  const motion = matchMedia('(prefers-reduced-motion: reduce)');
+  let width = 0;
+  let centers = [];
+  let x = 0;
+  let rotation = 0;
+  let velocity = 0;
+  let frame = 0;
+  let selectedIndex = -1;
+  let displayedIcon;
+
+  function drawSurface(center) {
+    // Near the ends, narrow the shoulder into the rounded top corner.
+    const nearEdge = distance => Math.min(30, Math.max(9, distance - 24));
+    const leftCorner = nearEdge(center);
+    const rightCorner = nearEdge(width - center);
+    const leftShoulder = Math.min(52, Math.max(0, center - leftCorner));
+    const rightShoulder = Math.min(52, Math.max(0, width - center - rightCorner));
+    const round = value => Number(value.toFixed(2));
+    path.setAttribute('d', [
+      'M' + round(leftCorner) + ' 14 H' + round(center - leftShoulder),
+      'C' + round(center - leftShoulder * 34/52) + ' 14 ' + round(center - leftShoulder/2) + ' 0 ' + round(center) + ' 0',
+      'C' + round(center + rightShoulder/2) + ' 0 ' + round(center + rightShoulder * 34/52) + ' 14 ' + round(center + rightShoulder) + ' 14',
+      'H' + round(width - rightCorner) + ' A' + round(rightCorner) + ' ' + round(rightCorner) + ' 0 0 1 ' + width + ' ' + round(14 + rightCorner),
+      'V60 A30 30 0 0 1 ' + (width - 30) + ' 90 H30 A30 30 0 0 1 0 60',
+      'V' + round(14 + leftCorner) + ' A' + round(leftCorner) + ' ' + round(leftCorner) + ' 0 0 1 ' + round(leftCorner) + ' 14 Z',
+    ].join(' '));
+  }
+
+  function placeKnob(next, speed = 0, roll = true) {
+    const position = Math.max(23, Math.min(width - 23, next));
+    if (roll) rotation += (position - x) / (Math.PI * 62) * 360;
+    x = position;
+    const stretch = motion.matches ? 0 : Math.min(1, Math.abs(speed) / 930);
+    knob.style.setProperty('--knob-x',x + 'px');
+    knob.style.setProperty('--wheel-angle',rotation + 'deg');
+    knob.style.setProperty('--wheel-counter-angle',-rotation + 'deg');
+    knob.style.setProperty('--wheel-sx',1 + stretch * .10);
+    knob.style.setProperty('--wheel-sy',1 - stretch * .08);
+    drawSurface(x);
+  }
+
+  function swapIcon(icon, animate) {
+    if (displayedIcon === icon) return;
+    const next = pictureFor(icon);
+    const previous = glyphs.lastElementChild;
+    displayedIcon = icon;
+    if (!animate || !previous) {
+      glyphs.replaceChildren(next);
+      return;
+    }
+    glyphs.replaceChildren(previous,next);
+    previous.setAttribute('class','staff-dock-glyph-out');
+    next.setAttribute('class','staff-dock-glyph-in');
+  }
+
+  function measureDock() {
+    const rect = nav.getBoundingClientRect();
+    if (!rect.width) return;
+    width = rect.width;
+    surface.setAttribute('viewBox', '0 0 ' + width + ' 90');
+    centers = buttons.map(({button}) => {
+      const bounds = button.getBoundingClientRect();
+      return bounds.left - rect.left + bounds.width / 2;
+    });
+    cancelAnimationFrame(frame);
+    velocity = 0;
+    rotation = 0;
+    if (selectedIndex >= 0) {
+      placeKnob(centers[selectedIndex], 0, false);
+      swapIcon(buttons[selectedIndex].icon, false);
+    }
+  }
+  new ResizeObserver(measureDock).observe(nav);
+  motion.addEventListener('change',measureDock);
+
+  function moveKnob(index, initial) {
+    if (!width || initial) {
+      measureDock();
+      return;
+    }
+    cancelAnimationFrame(frame);
+    const target = centers[index];
+    const icon = buttons[index].icon;
+    const start = x;
+    const distance = target - start;
+    if (Math.abs(distance) < .5) {
+      velocity = 0;
+      placeKnob(target, 0, false);
+      swapIcon(icon, true);
+      return;
+    }
+    const started = performance.now();
+    let last = started;
+    function step(now) {
+      const elapsed = now - started;
+      let next;
+      if (motion.matches) {
+        const t = Math.min(1, elapsed / 150);
+        next = start + distance * (1 - (1 - t) ** 3);
+      } else {
+        // Integrate the spring in small steps, keeping the same position for the wheel and SVG.
+        let dt = Math.min(.032,(now - last)/1000);
+        next = x;
+        while (dt > 0) {
+          const tick = Math.min(dt, 1 / 120);
+          velocity += ((target - next) * 300 - velocity * 26) * tick;
+          next += velocity * tick;
+          dt -= tick;
+        }
+      }
+      last = now;
+      placeKnob(next, velocity, !motion.matches);
+      if ((x - start) / distance >= .5) swapIcon(icon, true);
+      const done = motion.matches ? elapsed >= 150 :
+        (Math.abs(x - target) < .45 && Math.abs(velocity) < 9) || elapsed >= 520;
+      if (!done) {
+        frame = requestAnimationFrame(step);
+        return;
+      }
+      velocity = 0;
+      placeKnob(target, 0, !motion.matches);
+      swapIcon(icon, true);
+    }
+    frame = requestAnimationFrame(step);
+  }
 
   const mobile = matchMedia('(max-width: 850px)');
   let previous = Math.max(0,window.scrollY);
@@ -156,6 +282,9 @@ window.createStaffDock = function createStaffDock(nav, tabs) {
       if (id === active) return;
       active = id;
       const index = buttons.findIndex(item => item.id === id || item.children?.some(child => child.id === id));
+      const initial = selectedIndex < 0;
+      selectedIndex = index;
+      nav.classList.toggle('staff-dock-selected', index >= 0);
       buttons.forEach(({button}, position) => {
         if (position === index) button.setAttribute('aria-current','page');
         else button.removeAttribute('aria-current');
@@ -164,6 +293,7 @@ window.createStaffDock = function createStaffDock(nav, tabs) {
         if (key === id) option.setAttribute('aria-current','page');
         else option.removeAttribute('aria-current');
       }
+      if (index >= 0) moveKnob(index, initial);
       nav.classList.remove('staff-dock-away');
     },
     setBadge(id, count) {

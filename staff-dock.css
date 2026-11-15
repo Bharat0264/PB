@@ -6,7 +6,7 @@
 }
 .staff-dock { display: none; }
 @media screen and (max-width: 850px) {
-  :root:not([data-theme="dark"], [data-theme="moon"]) body.has-staff-dock { background: #F5F6FA; }
+  body.has-staff-dock { --page-bg: var(--hv-bg, var(--bg, #F6EFD2)); background: var(--page-bg); }
   .has-staff-dock #rider-nav, .has-staff-dock #warehouse-nav, .has-staff-dock #admin-sections {
     display: none;
   }
@@ -22,7 +22,13 @@
   }
   .wh-has-sheet .staff-dock { display: none; }
   .staff-dock {
-    --dock-purple: #5B4CF0;
+    --nav-bg: var(--hv-surface, var(--surface, #FFFFFF));
+    --accent: var(--hv-honey-500, var(--honey-500, #E0A100));
+    --accent-ink: var(--hv-honey-ink, var(--honey-ink, #785608));
+    --accent-soft: var(--hv-surface-2, var(--surface-2, #FBF3D6));
+    --accent-border: var(--hv-border, var(--line, #EFE3B8));
+    --icon-inactive: var(--hv-muted, var(--muted, #8C8470));
+    --on-accent: #3B2F0B;
     position: fixed;
     z-index: 42;
     inset: auto 16px calc(12px + env(safe-area-inset-bottom)) 16px;
@@ -39,68 +45,87 @@
   .staff-dock-away { transform: translateY(calc(114px + env(safe-area-inset-bottom))); opacity: 0; pointer-events: none; }
   .staff-dock-surface {
     position: absolute; inset: auto 0 0; width: 100%; height: 90px; z-index: -1;
-    overflow: visible; fill: #fff; pointer-events: none;
+    overflow: visible; fill: var(--nav-bg); pointer-events: none;
     filter: drop-shadow(0 10px 24px rgba(20,20,50,.14));
   }
   .staff-dock-items { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); height: 100%; align-items: stretch; }
   .staff-dock .staff-dock-tab {
     -webkit-tap-highlight-color: transparent;
-    display: grid; place-content: center; justify-items: center; gap: 4px; position: relative;
-    min-width: 0; min-height: 44px; margin: 5px 0; padding: 0;
+    display: grid; place-content: end center; justify-items: center; gap: 4px; position: relative;
+    min-width: 0; min-height: 44px; margin: 5px 0; padding: 0 0 3px;
     border: 0; border-radius: 16px; background: transparent; box-shadow: none;
-    color: #8A8FA3; cursor: pointer; font: inherit; text-align: center;
+    color: var(--icon-inactive); cursor: pointer; font: inherit; text-align: center;
     transition: color .2s, transform .26s cubic-bezier(.24,1.3,.46,1);
   }
-  .staff-dock .staff-dock-tab:active { transform: scale(.9); box-shadow: none; }
+  .staff-dock .staff-dock-tab:is(:hover,:active,[aria-current]) { background: transparent; box-shadow: none; }
+  .staff-dock .staff-dock-tab:active { transform: scale(.92); }
   .staff-dock .staff-dock-tab:focus-visible, .staff-dock-menu button:focus-visible {
-    outline: 2px solid var(--dock-purple) !important; outline-offset: -2px; box-shadow: none !important;
+    outline: 2px solid var(--accent-ink) !important; outline-offset: -2px; box-shadow: none !important;
   }
-  .staff-dock .staff-dock-tab[aria-current] { color: var(--dock-purple); }
-  .staff-dock-symbol { display: grid; place-items: center; position: relative; color: #8A8FA3; }
-  .staff-dock-symbol svg { width: 24px; height: 24px; }
-  .staff-dock-tab[aria-current] .staff-dock-symbol { color: inherit; }
-  .staff-dock-symbol .fill { fill: transparent; transition: fill .2s; }
-  .staff-dock-tab[aria-current] .staff-dock-symbol .fill { fill: currentColor; }
-  .staff-dock-tab[aria-current] .staff-dock-symbol .detail { stroke: #fff; }
-  .staff-dock-tab[aria-current] svg { animation: staff-dock-pop .29s ease-out; }
-  .staff-dock-label { font-size: clamp(11px,3vw,12px); line-height: 1.2; font-weight: 500; white-space: nowrap; }
+  .staff-dock .staff-dock-tab[aria-current] { color: var(--accent-ink); }
+  .staff-dock-tab[aria-current]::before { content: ''; position: absolute; inset: -14px 0 0; }
+  .staff-dock-symbol { display: grid; place-items: center; position: relative; color: var(--icon-inactive); }
+  .staff-dock-symbol svg, .staff-dock-knob svg { width: 24px; height: 24px; }
+  .staff-dock-symbol svg { transition: opacity .15s; }
+  .staff-dock-tab[aria-current] .staff-dock-symbol svg { opacity: 0; }
+  .staff-dock-label {
+    font-size: clamp(11px,3vw,12px); line-height: 1.2; font-weight: 500; white-space: nowrap;
+    transform: translateY(2px); transition: color .18s, transform .22s ease-out;
+  }
+  .staff-dock-tab[aria-current] .staff-dock-label { transform: translateY(0); }
   .staff-dock-tab > span { animation: staff-dock-fade .34s ease-out backwards; animation-delay: calc(75ms + var(--dock-order) * 50ms); }
-  .staff-dock .staff-dock-center { place-content: end center; padding-bottom: 9px; margin: 0; }
-  .staff-dock-center .staff-dock-label { color: var(--dock-purple); }
-  .staff-dock-center .staff-dock-symbol {
-    position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
-    width: 60px; height: 60px; border-radius: 50%; color: white !important;
-    background: var(--dock-purple); box-shadow: 0 6px 14px rgba(91,76,240,.35);
+  .staff-dock-knob {
+    position: absolute; top: -11px; left: -31px; width: 62px; height: 62px;
+    transform: translate3d(var(--knob-x,0px),0,0); pointer-events: none; visibility: hidden;
+    filter: drop-shadow(0 6px 14px color-mix(in srgb, var(--accent) 35%, transparent));
   }
-  .staff-dock-center .staff-dock-symbol::before, .staff-dock-center .staff-dock-symbol::after {
-    content: ''; position: absolute; inset: 2px; border-radius: 50%; border: 1px solid white; pointer-events: none;
+  .staff-dock-selected .staff-dock-knob { visibility: visible; }
+  .staff-dock-wheel { width: 100%; height: 100%; scale: var(--wheel-sx,1) var(--wheel-sy,1); }
+  .staff-dock-face {
+    width: 100%; height: 100%; position: relative; border-radius: 50%;
+    background: var(--accent); color: var(--on-accent); rotate: var(--wheel-angle,0deg);
+    box-shadow: inset 0 1px 2px color-mix(in srgb, var(--nav-bg) 57%, transparent);
+    transition: scale .2s cubic-bezier(.24,1.3,.46,1);
   }
-  .staff-dock-center .staff-dock-symbol::before { opacity: 0; animation: staff-dock-pulse 2.5s ease-out infinite; }
-  .staff-dock-center .staff-dock-symbol::after { opacity: 0; }
-  .staff-dock-center .staff-dock-pressed::after { animation: staff-dock-ripple .45s ease-out; }
-  .staff-dock-center .staff-dock-pressed svg { animation: staff-dock-spin .35s ease-out; }
+  .staff-dock:has(.staff-dock-tab[aria-current]:active) .staff-dock-face { scale: .92; }
+  .staff-dock-knob-glyphs {
+    position: absolute; inset: 0; display: grid; place-items: center; rotate: var(--wheel-counter-angle,0deg);
+  }
+  .staff-dock-knob-glyphs svg { grid-area: 1 / 1; }
+  .staff-dock-knob .fill { fill: currentColor; }
+  .staff-dock-knob .detail { stroke: var(--accent); }
+  .staff-dock-glyph-out { animation: staff-dock-glyph-out .12s ease-out both; }
+  .staff-dock-glyph-in { animation: staff-dock-glyph-in .21s ease-out both; }
+  .staff-dock-face::after {
+    content: ''; position: absolute; inset: 2px; border-radius: 50%; opacity: 0;
+    border: 1px solid var(--accent-soft);
+  }
+  .staff-dock-pressed .staff-dock-face::after { animation: staff-dock-ripple .36s ease-out; }
   .staff-dock-badge {
     position: absolute; right: -3px; top: -2px; width: 8px; height: 8px;
-    border-radius: 50%; background: var(--dock-purple); box-shadow: 0 0 0 2px white; animation: staff-dock-pop .27s ease-out;
+    border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--nav-bg); animation: staff-dock-pop .27s ease-out;
   }
   .staff-dock-menu {
     position: absolute; bottom: 100%; right: 0; margin-bottom: 14px;
     min-width: min(240px,100%); max-height: min(55dvh,400px); overflow: auto; padding: 8px;
-    border-radius: 22px; background: white; box-shadow: 0 12px 34px #14143229;
+    border-radius: 22px; background: var(--nav-bg); border: 1px solid var(--accent-border); box-shadow: 0 12px 34px #14143229;
   }
   .staff-dock-menu button {
     display: block; min-height: 44px; width: 100%; border: 0; border-radius: 12px;
-    background: transparent; color: #30334a; box-shadow: none; text-align: left; padding: 0 14px;
+    background: transparent; color: var(--hv-ink, var(--ink, #3B2F0B)); box-shadow: none; text-align: left; padding: 0 14px;
   }
-  .staff-dock-menu button[aria-current], .staff-dock-menu button:hover { background: #efedff; color: var(--dock-purple); }
+  .staff-dock-menu button[aria-current], .staff-dock-menu button:hover { background: var(--accent-soft); color: var(--accent-ink); }
 }
 @keyframes staff-dock-enter { from { transform: translateY(110%); opacity: 0; } }
 @keyframes staff-dock-fade { from { opacity: 0; } }
 @keyframes staff-dock-pop { 0% { transform: scale(.8); } 55% { transform: scale(1.15); } }
-@keyframes staff-dock-pulse { 0% { transform:scale(.9); opacity:.26; } 65%,100% { transform:scale(1); opacity:0; } }
 @keyframes staff-dock-ripple { from { transform:scale(.72); opacity:.4; } to { transform:scale(1); opacity:0; } }
-@keyframes staff-dock-spin { to { transform:rotate(90deg); } }
+@keyframes staff-dock-glyph-out { to { opacity:0; } }
+@keyframes staff-dock-glyph-in { 0% { opacity:0; transform:scale(.8); } 60% { transform:scale(1.12); } }
+@keyframes staff-dock-glyph-fade { from { opacity:0; } }
 @media (prefers-reduced-motion: reduce) {
   .staff-dock, .staff-dock *, .staff-dock *::before, .staff-dock *::after { animation: none !important; transition: none !important; }
   .staff-dock-away { transform: none; opacity: 1; pointer-events: auto; }
+  .staff-dock .staff-dock-glyph-in { animation: staff-dock-glyph-fade .15s ease-out both !important; animation-duration: .15s !important; }
+  .staff-dock .staff-dock-glyph-out { animation: staff-dock-glyph-out .15s ease-out both !important; animation-duration: .15s !important; }
 }
