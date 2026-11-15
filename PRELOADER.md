@@ -1,27 +1,38 @@
-# PrintBee 3D preloader
+# PrintBee preloader
 
-The six customer pages load the shared preloader from the document head. The site is plain HTML, CSS and JavaScript. Start it with Start PrintBee.cmd or run python server.py and open http://127.0.0.1:4188/.
+A 2D clay intro that hands off to the hero. No 3D, no WebGL, no models.
 
-- preloader.js handles the GSAP timeline, loading progress, session behavior, fallback and scroll restoration. Edit CONFIG at the top to change the duration, model deadline, asset paths or colors. Timings are milliseconds.
-- preloader-3d.mjs contains the Three.js scene. preloader-3d.bundle.js is the bundled version served to the browser. The scene uses a transparent canvas, two studio lights, a soft shadow and pointer parallax. It releases the renderer and model resources on exit.
-- preloader.css styles the logo fallback, wordmark, progress bar and canvas. preloader-art.js supplies the orbit paths and motion guides.
-- public/models contains the Draco-compressed GLBs with WebP textures capped at 1024 px. public/draco contains the local decoder.
+## Files
 
-To rebuild the scene bundle after editing its source, install three@0.179.1 and esbuild locally, then run:
+- `preloader.js`: the whole component. Edit the `CONFIG` object at the top for timing, beats, durations, float, tagline and session key.
+- `preloader.css`: layout and look. Colours and sizes are custom properties on `#pb-loader`.
+- `preloader-bee.webp` (440×406) and `preloader-wordmark.webp` (640×167): layers cut from the horizontal logo.
+- `gsap-3.13.0.min.js`: loaded lazily by `preloader.js`.
 
-    npx esbuild preloader-3d.mjs --bundle --format=esm --minify --outfile=preloader-3d.bundle.js
+Included with `<script src="/preloader.js?v=…"></script>` in the `<head>` of the customer pages and the `/home` tab shell (`navigation.html`). It never runs inside a tab iframe; on phones the direct pages redirect into the shell, so the shell shows it instead.
 
-Restart the Python server after rebuilding so it refreshes the compressed bundle it serves.
+## Sequence
 
-| GLB | Bytes | Tripo credits |
-| --- | ---: | ---: |
-| bee_main.glb | 149,360 | 30 |
-| paper_sheet.glb | 99,688 | 20 |
-| bee_mini.glb | 114,592 | 20 |
-| Total | 363,640 | 70 |
+1. **0.0 s** Cream screen. The bee fades and springs in (scale 0.8 to 1), then floats (±6 px, slight tilt) over a breathing clay shadow. The logo is one flat image, so the wing buzz is a tiny rotate/scale pulse.
+2. **0.4 s** A rounded yellow ring draws around the bee, with a head dot and a short dotted trail. A pill counter under it rolls its digits.
+3. **0.8 s** The `PrintBee` wordmark slides up through a mask (700 ms, `cubic-bezier(.22,1,.36,1)`).
+4. **1.4 s** `Upload. Print. Delivered.` rises word by word while the icon morphs document, printer, truck.
+5. **Exit** once progress is 100% and at least 2.8 s have passed (or at 4 s at the latest): the ring closes, the bee arcs to the hero printer (or the header logo on pages without one), the cream then yellow curtain lifts (900 ms), and the hero arrives: navbar drops, headline lines slide up through masks, the hero card settles from 0.96.
 
-The main bee came back with its wings and paper intact. The scene uses squash and stretch on the combined model, with a separate paper model for the exit and colored light pulses over the baked CMYK chips. Three Tripo generations were used, with no retries.
+## Progress
 
-Progress uses completed model requests and decoding, font readiness and eager images. The first visit has a 1.8-second minimum and a six-second watchdog. The 3D sequence itself runs for about three seconds after the models are ready. Reloading in the same tab shows a short logo fade. Navigation between PrintBee pages skips the loader. For a full replay, use a fresh session or clear the sessionStorage key printbee:preloader:seen:v2. Reduced motion uses a static logo and bar. A failed model, unavailable WebGL or an exceeded model deadline uses the bobbing logo and bar.
+Real tasks only, weighted so the number never goes backwards: loader assets (GSAP, bee, wordmark) 30%, fonts 20%, eager hero images including decode 50%. The display eases toward the real value, creeps only inside the in-flight slice, and is paced so a cached page still shows one smooth sweep.
 
-Local Chrome checks covered desktop and mobile 3D, repeat visits, reduced motion and a blocked model request. With a cold cache and simulated Fast 3G (150 ms latency, 1.6 Mbps download, 750 kbps upload), the logo fallback revealed the homepage at about 5.5 seconds. The hero image was complete by the reveal. Unthrottled Chrome with software WebGL showed the complete 3D sequence and revealed the homepage at about 5.0 seconds from preloader startup.
+## Behaviour
+
+- Full intro once per tab session (`sessionStorage`); repeat visits get a 600 ms fade.
+- `prefers-reduced-motion`: no float, buzz or flight; the ring still shows progress and the loader fades out.
+- No GSAP: a CSS bob and fade still exit on time.
+- Safety net: the page is released by 6.6 s in every case (2 s on repeat visits), including background tabs where animation frames stop. A cut-short exit still restores the hero.
+- Scroll is locked and the page is `inert` while loading; both are restored. Status text is announced politely at 25% steps.
+
+## Check it
+
+```js
+sessionStorage.removeItem('printbee:preloader:v3'); location.reload();
+```

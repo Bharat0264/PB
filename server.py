@@ -1,5 +1,4 @@
 import argparse
-import gzip
 import hmac
 import json
 import os
@@ -25,7 +24,6 @@ from order_documents import PrivateFiles, invoice_pdf, packing_label_pdf
 from order_rules import LIMIT, TRANSITIONS, advance_order, quote_items
 
 ROOT = Path(__file__).resolve().parent
-PRELOADER_BUNDLE = ROOT / "preloader-3d.bundle.js"
 DATA = Path(os.environ.get("LOCALAPPDATA", ROOT.parent)) / "PrintBeeLocal"
 DATA.mkdir(exist_ok=True)
 DOCUMENT_READERS = BoundedSemaphore(2)
@@ -237,22 +235,9 @@ class PrintBee(SimpleHTTPRequestHandler):
                        "/partner.html", "/partner.css", "/partner.js", "/partner-sw.js", "/admin.html", "/admin-preview.html", "/admin-dashboard.css", "/admin-tokens.css",
                        "/admin-dashboard.js", "/admin-data.js", "/operations.js", "/partner.webmanifest", "/portal-login.js",
                        "/pricing.html", "/terms.html", "/queue.html", "/orders.html", "/profile.html", "/profile.js", "/address.html", "/customer-login.js",
-                       "/preloader.js", "/preloader.css", "/preloader-art.js", "/gsap-3.13.0.min.js",
+                       "/preloader.js", "/preloader.css", "/gsap-3.13.0.min.js",
                        "/navigation.html", "/navigation.css", "/bottom-nav.js", "/nav-tokens.js", "/embedded-tab.js"}
-            if path == "/preloader-3d.bundle.js" and self.server.preloader_gzip:
-                encodings = self.headers.get("Accept-Encoding", "").lower().split(",")
-                if any(encoding.strip() == "gzip" for encoding in encodings):
-                    self.send_response(200)
-                    self.send_header("Content-Type", "text/javascript")
-                    self.send_header("Content-Encoding", "gzip")
-                    self.send_header("Vary", "Accept-Encoding")
-                    self.send_header("Content-Length", str(len(self.server.preloader_gzip)))
-                    self.end_headers()
-                    self.wfile.write(self.server.preloader_gzip)
-                    return
-            if (path in allowed or path == "/preloader-3d.bundle.js"
-                    or re.fullmatch(r"/public/models/(bee_main|paper_sheet|bee_mini)\.glb", path)
-                    or re.fullmatch(r"/public/draco/(draco_decoder\.(js|wasm)|draco_wasm_wrapper\.js)", path)):
+            if path in allowed:
                 return super().do_GET()
             if re.fullmatch(r"/[a-z0-9.-]+\.(png|webp|woff2)", path):
                 return super().do_GET()
@@ -1170,6 +1155,5 @@ if __name__ == "__main__":
         maps_id = os.environ.get("PRINTBEE_MAPS_MAP_ID")
         server.maps = {"key": maps_key, "id": maps_id} if maps_key and maps_id else None
         server.files = PrivateFiles(bucket) if bucket else None
-        server.preloader_gzip = gzip.compress(PRELOADER_BUNDLE.read_bytes()) if PRELOADER_BUNDLE.is_file() else None
         print(f"PrintBee at http://127.0.0.1:{args.port}/ (payments: {payment_mode})", flush=True)
         server.serve_forever()
