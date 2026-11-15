@@ -116,16 +116,19 @@ let adminRevision = 0;
 let refreshingOrders = false;
 let adminTimer;
 let refreshLedger;
+let staffDock;
 
 function syncAdminSection() {
   const tab = location.hash.slice(1);
   const section = ['pricing','ledger'].includes(tab) ? tab : 'dashboard';
   content.dataset.section = section;
+  staffDock?.setActive(tab === 'orders' ? tab : section);
   for (const link of document.querySelectorAll('#admin-sections a')) {
     if (link.hash === '#' + section) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');
   }
   if (section === 'ledger') refreshLedger?.();
+  if (tab === 'orders') document.getElementById('orders')?.scrollIntoView();
 }
 
 function orderNumber(order) {
@@ -404,8 +407,26 @@ async function startAdmin() {
   await admin();
   const navigation = document.querySelector('#admin-sections');
   navigation.hidden = false;
+  const nav = document.getElementById('admin-staff-dock');
+  const go = tab => () => {
+    location.hash = tab;
+    if (tab === 'orders') document.getElementById('orders')?.scrollIntoView();
+    else scrollTo(0,0);
+  };
+  staffDock = window.createStaffDock(nav, [
+    {id:'dashboard',label:'Home',icon:'home',select:go('dashboard')},
+    {id:'orders',label:'Orders',icon:'orders',select:go('orders')},
+    {id:'add',label:'Add',icon:'plus',center:true,select:() => {
+      location.hash = 'orders';
+      syncAdminSection();
+      content.querySelector('[data-editor="offline-orders-title"]')?.click();
+    }},
+    {id:'ledger',label:'Ledger',icon:'ledger',select:go('ledger')},
+    {id:'pricing',label:'Pricing',icon:'orders',select:go('pricing')},
+  ]);
+  nav.hidden = false;
   window.addEventListener('hashchange', syncAdminSection);
-  if (location.hash === '#orders') document.getElementById('orders')?.scrollIntoView();
+  syncAdminSection();
   adminTimer = setInterval(refreshLiveOrders, 10000);
 }
 

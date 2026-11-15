@@ -11,7 +11,9 @@
 <link rel="stylesheet" href="/partner.css?v=streamlined-cockpit">
 <script>try { const t = new URLSearchParams(location.search).get('theme'); document.documentElement.dataset.theme = t ? (t === 'moon' ? 'moon' : 'sun') : localStorage.getItem('printbee-rider-night') === '1' ? 'moon' : 'sun'; } catch { document.documentElement.dataset.theme = 'sun'; }</script>
 <script src="/portal-login.js" defer></script>
-<script src="/partner.js?v=streamlined-cockpit" defer></script>
+<link rel="stylesheet" href="/staff-dock.css?v=1">
+<script src="/staff-dock.js?v=1" defer></script>
+<script src="/partner.js?v=staff-dock" defer></script>
 </head>
 <body class="hive">
 <a href="#main" class="hive-skip">Skip to deliveries</a>
@@ -30,6 +32,7 @@
 
 <!-- Floating dock (desktop) / bottom pill (tablet) / bottom nav (mobile) -->
 <nav id="rider-nav" class="hive-dock" aria-label="Partner sections" hidden></nav>
+<nav id="partner-staff-dock" class="staff-dock" aria-label="Mobile partner sections" hidden></nav>
 
 <main id="main" class="hive-main" tabindex="-1">
   <div id="portal-login" class="hive-login">

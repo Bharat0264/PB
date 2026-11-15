@@ -22,7 +22,6 @@ const sections = {
   partners: ['Delivery Partners', 'M3 6h12v11H3z M15 9h4l3 4v4h-7 M6 17a2 2 0 1 0 4 0 M17 17a2 2 0 1 0 4 0'],
   warehouses: ['Warehouses', 'M3 21V8l9-5 9 5v13z M7 21V11h10v10 M7 15h10 M7 18h10'],
 };
-const mobileSections = ['dashboard', 'orders', 'customers', 'analytics'];
 const oldSections = {reports:'orders', products:'inventory', revenue:'analytics'};
 const icon = path => `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${path}"/></svg>`;
 const escape = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[char]);
@@ -313,8 +312,7 @@ function render(animate = false) {
     if (link.dataset.nav === route) link.setAttribute('aria-current','page');
     else link.removeAttribute('aria-current');
   });
-  if (!mobileSections.includes(route)) $('mobile-more').setAttribute('aria-current','page');
-  else $('mobile-more').removeAttribute('aria-current');
+  staffDock.setActive(route);
   root.innerHTML = `<div class="grid${animate ? ' arrive' : ''}">${widgets}</div>`;
   if (route === 'ledger') buildLedger($('preview-ledger'), previewLedger, {demo:true})();
   if (route === 'pricing') {
@@ -354,9 +352,15 @@ function navLink(route) {
 
 const routes = Object.keys(sections);
 $('sidebar-nav').innerHTML = routes.map(navLink).join('');
-$('mobile-nav').innerHTML = mobileSections.map(navLink).join('') +
-  `<button class="nav-link" id="mobile-more" type="button" aria-expanded="false" aria-controls="mobile-menu">${icon('M5 6h14 M5 12h14 M5 18h14')}<span>More</span></button>
-  <div class="popover card mobile-menu" id="mobile-menu" hidden>${routes.filter(route => !mobileSections.includes(route)).map(navLink).join('')}</div>`;
+const goTo = route => () => { location.hash = route; };
+const staffDock = window.createStaffDock($('preview-staff-dock'), [
+  {id:'dashboard',label:'Home',icon:'home',select:goTo('dashboard')},
+  {id:'orders',label:'Orders',icon:'orders',select:goTo('orders')},
+  {id:'add',label:'Add',icon:'plus',center:true,select:() => openEditor('order')},
+  {id:'ledger',label:'Ledger',icon:'ledger',select:goTo('ledger')},
+  {id:'more',label:'More',icon:'more',children:routes.filter(route => !['dashboard','orders','ledger'].includes(route))
+    .map(id => ({id,label:sections[id][0],select:goTo(id)}))},
+]);
 $('notification-list').outerHTML = feed();
 $('search-icon').innerHTML = icon('M16 16l5 5 M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z');
 $('collapse').innerHTML = icon('M4 5h16v14H4z M9 5v14');
@@ -380,7 +384,7 @@ $('collapse').onclick = () => {
   $('collapse').setAttribute('aria-label',compact ? 'Expand sidebar' : 'Collapse sidebar');
 };
 
-const popovers = [['notifications','notification-panel'],['profile','profile-panel'],['mobile-more','mobile-menu']];
+const popovers = [['notifications','notification-panel'],['profile','profile-panel']];
 function closePopovers() {
   popovers.forEach(([button,panel]) => { $(panel).hidden=true; $(button).setAttribute('aria-expanded','false'); });
 }

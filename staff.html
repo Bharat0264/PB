@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>PrintBee warehouse</title>
 <link rel="stylesheet" href="/clay.css?v=1">
 <link rel="stylesheet" href="/warehouse.css?v=print-to-ready">
@@ -10,7 +10,9 @@
 <link rel="stylesheet" href="/warehouse-hive.css?v=plain-clay">
 <script src="/hive-theme.js?v=1"></script>
 <script src="/portal-login.js" defer></script>
-<script src="/warehouse.js?v=print-to-ready" defer></script>
+<link rel="stylesheet" href="/staff-dock.css?v=1">
+<script src="/staff-dock.js?v=1" defer></script>
+<script src="/warehouse.js?v=staff-dock" defer></script>
 </head>
 <body class="warehouse">
 <a class="wh-skip" href="#warehouse-main">Skip to warehouse</a>
@@ -61,6 +63,7 @@
       </div>
     </div>
   </div>
+  <nav id="warehouse-staff-dock" class="staff-dock" aria-label="Mobile warehouse sections" hidden></nav>
   <div id="warehouse-feedback" class="wh-feedback">
     <p id="staff-status" role="status"></p>
     <p id="detail-status" role="status"></p>

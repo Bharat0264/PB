@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Admin · PrintBee</title>
 <link rel="stylesheet" href="studio.css?v=mobile-touch">
 <link rel="stylesheet" href="clay.css">
@@ -16,7 +16,9 @@
 if (new URLSearchParams(location.search).get('preview') === '1') location.replace('/admin-preview.html');
 </script>
 <link rel="stylesheet" href="admin-mobile.css">
-<script type="module" src="operations.js?v=mobile-layout"></script>
+<link rel="stylesheet" href="/staff-dock.css?v=1">
+<script src="/staff-dock.js?v=1" defer></script>
+<script type="module" src="operations.js?v=staff-dock"></script>
 </head>
 <body data-portal="admin">
 <header class="frame top"><a href="/">PrintBee</a></header>
@@ -32,5 +34,6 @@ if (new URLSearchParams(location.search).get('preview') === '1') location.replac
 </nav>
 <div id="ops-content"></div>
 </main>
+<nav id="admin-staff-dock" class="staff-dock" aria-label="Mobile admin sections" hidden></nav>
 </body>
 </html>

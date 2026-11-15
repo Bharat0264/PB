@@ -1,0 +1,113 @@
+@font-face {
+  font-family: 'Staff Dock Inter';
+  src: url('/warehouse-inter.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+}
+.staff-dock { display: none; }
+@media screen and (max-width: 850px) {
+  :root:not([data-theme="dark"], [data-theme="moon"]) body.has-staff-dock { background: #F5F6FA; }
+  .has-staff-dock #rider-nav, .has-staff-dock #warehouse-nav, .has-staff-dock #admin-sections {
+    display: none;
+  }
+  .has-staff-dock .workspace, .has-staff-dock .workspace.compact,
+  .has-staff-dock .wh-workspace, .has-staff-dock .staff-console {
+    padding-bottom: calc(116px + env(safe-area-inset-bottom));
+  }
+  .has-staff-dock[data-page="Cockpit"] .hive-main {
+    padding-bottom: calc(116px + env(safe-area-inset-bottom));
+  }
+  .has-staff-dock .hive-activebar {
+    bottom: calc(108px + env(safe-area-inset-bottom));
+  }
+  .wh-has-sheet .staff-dock { display: none; }
+  .staff-dock {
+    --dock-purple: #5B4CF0;
+    position: fixed;
+    z-index: 42;
+    inset: auto 16px calc(12px + env(safe-area-inset-bottom)) 16px;
+    width: min(520px, calc(100% - 32px));
+    height: 76px;
+    margin: auto;
+    display: block;
+    isolation: isolate;
+    font-family: 'Staff Dock Inter', Inter, system-ui, sans-serif;
+    transition: transform .25s ease-out, opacity .2s ease-out;
+    animation: staff-dock-enter .6s cubic-bezier(.2,.85,.28,1.13) backwards;
+  }
+  .staff-dock[hidden] { display: none !important; }
+  .staff-dock-away { transform: translateY(calc(114px + env(safe-area-inset-bottom))); opacity: 0; pointer-events: none; }
+  .staff-dock-surface {
+    position: absolute; inset: auto 0 0; width: 100%; height: 90px; z-index: -1;
+    overflow: visible; fill: #fff; pointer-events: none;
+    filter: drop-shadow(0 10px 15px #14143222) drop-shadow(0 2px 3px #00000012);
+  }
+  .staff-dock-items { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); height: 100%; align-items: stretch; }
+  .staff-dock .staff-dock-tab {
+    -webkit-tap-highlight-color: transparent;
+    display: grid; place-content: center; justify-items: center; gap: 4px; position: relative;
+    min-width: 0; min-height: 44px; margin: 5px 0; padding: 0;
+    border: 0; border-radius: 16px; background: transparent; box-shadow: none;
+    color: #636a80; cursor: pointer; font: inherit; text-align: center;
+    transition: color .2s, transform .26s cubic-bezier(.24,1.3,.46,1);
+  }
+  .staff-dock .staff-dock-tab:active { transform: scale(.9); box-shadow: none; }
+  .staff-dock .staff-dock-tab:focus-visible, .staff-dock-menu button:focus-visible {
+    outline: 2px solid var(--dock-purple) !important; outline-offset: -2px; box-shadow: none !important;
+  }
+  .staff-dock .staff-dock-tab[aria-current] { color: var(--dock-purple); font-weight: 650; }
+  .staff-dock-symbol { display: grid; place-items: center; position: relative; color: #8A8FA3; }
+  .staff-dock-symbol svg { width: 24px; height: 24px; }
+  .staff-dock-tab[aria-current] .staff-dock-symbol { color: inherit; }
+  .staff-dock-symbol .fill { fill: transparent; transition: fill .2s; }
+  .staff-dock-tab[aria-current] .staff-dock-symbol .fill { fill: currentColor; }
+  .staff-dock-tab[aria-current] .staff-dock-symbol .detail { stroke: #fff; }
+  .staff-dock-tab[aria-current] svg { animation: staff-dock-pop .29s ease-out; }
+  .staff-dock-label { font-size: clamp(10px,3vw,12px); line-height: 1.2; font-weight: 550; white-space: nowrap; }
+  .staff-dock-tab > span { animation: staff-dock-fade .34s ease-out backwards; animation-delay: calc(75ms + var(--dock-order) * 50ms); }
+  .staff-dock .staff-dock-center { place-content: end center; padding-bottom: 13px; margin: 0; }
+  .staff-dock-center .staff-dock-label { color: var(--dock-purple); }
+  .staff-dock-center .staff-dock-symbol {
+    position: absolute; top: -21px; left: 50%; transform: translateX(-50%);
+    width: 64px; height: 64px; border-radius: 50%; color: white !important;
+    background: var(--dock-purple); box-shadow: 0 8px 20px #5B4CF073;
+  }
+  .staff-dock-center .staff-dock-symbol::before, .staff-dock-center .staff-dock-symbol::after {
+    content: ''; position: absolute; inset: 0; border-radius: 50%; border: 2px solid var(--dock-purple); pointer-events: none;
+  }
+  .staff-dock-center .staff-dock-symbol::before { animation: staff-dock-pulse 2.5s ease-out infinite; }
+  .staff-dock-center .staff-dock-symbol::after { opacity: 0; }
+  .staff-dock-center .staff-dock-pressed::after { animation: staff-dock-ripple .45s ease-out; }
+  .staff-dock-center .staff-dock-pressed svg { animation: staff-dock-spin .35s ease-out; }
+  .staff-dock-badge {
+    position: absolute; right: -3px; top: -2px; width: 8px; height: 8px;
+    border-radius: 50%; background: var(--dock-purple); box-shadow: 0 0 0 2px white; animation: staff-dock-pop .27s ease-out;
+  }
+  .staff-dock-dot {
+    position: absolute; pointer-events: none; inset: auto auto 4px 0; width: 5px; height: 5px;
+    border-radius: 50%; background: var(--dock-purple); opacity: 0;
+    left: calc((var(--dock-active, 0) + .5) * 20%);
+    transform: translateX(-50%); transition: left .28s cubic-bezier(.25,1.15,.45,1), opacity .2s;
+  }
+  .staff-dock-has-active .staff-dock-dot { opacity: 1; }
+  .staff-dock-menu {
+    position: absolute; bottom: 100%; right: 0; margin-bottom: 14px;
+    min-width: min(240px,100%); max-height: min(55dvh,400px); overflow: auto; padding: 8px;
+    border-radius: 22px; background: white; box-shadow: 0 12px 34px #14143229;
+  }
+  .staff-dock-menu button {
+    display: block; min-height: 44px; width: 100%; border: 0; border-radius: 12px;
+    background: transparent; color: #30334a; box-shadow: none; text-align: left; padding: 0 14px;
+  }
+  .staff-dock-menu button[aria-current], .staff-dock-menu button:hover { background: #efedff; color: var(--dock-purple); }
+}
+@keyframes staff-dock-enter { from { transform: translateY(110%); opacity: 0; } }
+@keyframes staff-dock-fade { from { opacity: 0; } }
+@keyframes staff-dock-pop { 0% { transform: scale(.8); } 55% { transform: scale(1.15); } }
+@keyframes staff-dock-pulse { 0% { opacity:.35; } 70%,100% { transform:scale(1.35); opacity:0; } }
+@keyframes staff-dock-ripple { from { opacity:.45; } to { transform:scale(1.48); opacity:0; } }
+@keyframes staff-dock-spin { to { transform:rotate(90deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .staff-dock, .staff-dock *, .staff-dock *::before, .staff-dock *::after { animation: none !important; transition: none !important; }
+  .staff-dock-away { transform: none; opacity: 1; pointer-events: auto; }
+}

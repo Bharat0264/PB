@@ -166,16 +166,7 @@ dialog::backdrop { background: color-mix(in srgb, #8A5E0B 22%, rgba(23,18,10,.45
   .toolbar .collapse { display: none; }
   .toolbar { top: max(8px, env(safe-area-inset-top)); border-radius: 20px; }
   .toolbar > .popover { right: 0; max-height: 60dvh; overflow: auto; }
-  .mobile-nav {
-    display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
-    inset: auto 8px max(8px, env(safe-area-inset-bottom)) 8px; padding: 4px;
-    border-radius: 20px; background: var(--hv-glass); box-shadow: var(--hv-sh-3); backdrop-filter: blur(14px);
-  }
-  .mobile-nav > .nav-link { min-height: 50px; min-width: 0; border-radius: 15px; padding: 4px 0; align-content: center; }
-  .mobile-nav > .nav-link span { line-height: 1.2; }
-  .mobile-nav .nav-link[aria-current]::after { display: none; }
-  .mobile-nav .mobile-menu { right: 0; width: min(310px, 100%); }
-  .mobile-nav .mobile-menu .nav-link { min-height: 48px; border-radius: var(--hv-r-pill); }
+
 }
 @media (max-width: 600px) {
   .toolbar { flex-wrap: nowrap; min-height: 0; padding: 7px; gap: 6px; margin-bottom: 18px; }

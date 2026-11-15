@@ -106,7 +106,7 @@ if (demo) {
 let tab = ['Cockpit', 'Earnings', 'Profile'].find(name => name === new URLSearchParams(location.search).get('tab')) || 'Cockpit', completed, busy = false, reading, interval, localStep = 0;
 let watch, lastSent = 0, point, sending = false, wakeLock, offerIds;
 let shiftSince = demo ? state.shiftSince : null;
-let notices = [], unread = 0;
+let notices = [], unread = 0, staffDock;
 const skipped = new Set();
 let profile = {name: 'Aarav Kumar', vehicle: 'TN 19 AB 4821 · Electric scooter', payout: 'aarav@upi', language: 'English', alerts: true};
 if (demo) { try { profile = {...profile, ...JSON.parse(saved('printbee-rider-profile'))}; } catch {} }
@@ -820,6 +820,8 @@ function updateActiveBar() {
   if (!bar.hidden) { bar.setAttribute('role', 'region'); bar.setAttribute('aria-label', 'Active delivery'); bar.replaceChildren(...activeBarContent(order)); }
 }
 function renderDock() {
+  staffDock?.setActive(tab);
+  staffDock?.setLabel('shift',state.available ? 'Go offline' : 'Go online');
   const nav = $('rider-nav');
   if (!nav.childElementCount) {
     nav.append(h('span', {class: 'hive-dock-indicator', 'aria-hidden': 'true'}));
@@ -866,6 +868,7 @@ function updateClock() {
   timer.textContent = state.available && shiftSince ? `${Math.floor(minutes / 60)}h ${minutes % 60}m on shift` : state.available ? 'Ready for offers' : 'The hive is waiting';
 }
 function updateBell() {
+  staffDock?.setBadge('inbox',unread);
   const bell = $('rider-notifications');
   if (unread) bell.dataset.count = String(Math.min(9, unread)); else delete bell.dataset.count;
   bell.setAttribute('aria-label', unread ? `Notifications, ${unread} new` : 'Notifications');
@@ -951,6 +954,16 @@ async function init() {
   $('rider-app').hidden = false;
   $('portal-login').hidden = true;
   for (const id of ['rider-nav', 'rider-search', 'rider-notifications', 'rider-avatar']) $(id).hidden = false;
+  const dock = $('partner-staff-dock');
+  const open = section => () => selectTab(section);
+  staffDock = window.createStaffDock(dock, [
+    {id:'Cockpit',label:'Home',icon:'home',select:open('Cockpit')},
+    {id:'Earnings',label:'Earnings',icon:'earnings',select:open('Earnings')},
+    {id:'shift',label:'Go online',icon:'plus',center:true,select:() => run(toggleOnline)},
+    {id:'inbox',label:'Inbox',icon:'inbox',select:openNotifications},
+    {id:'Profile',label:'Profile',icon:'profile',select:open('Profile')},
+  ]);
+  dock.hidden = false;
   $('rider-search').replaceChildren(icon('search', 22));
   $('rider-notifications').replaceChildren(icon('bell', 22));
   $('rider-search').onclick = openPalette;

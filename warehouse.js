@@ -35,6 +35,7 @@ const money = new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR'}).f
 let orders = [], known, newBadges = new Set(), online = preview, connected = true, paused = false;
 let view = 'Home', tab = 'New', active, sheet = false, restoreFocus;
 let printAction, printPending = false, previewUrl, previewRequest = 0, arrivalOrder;
+let staffDock;
 let polling, busyRefresh = false, refreshVersion = 0, toastTimer, audio;
 const filters = {colour:'', paper:'', date:'', priority:'', partner:'', from:'', to:''};
 
@@ -177,6 +178,8 @@ function render() {
   const previous=board.contains(document.activeElement)?document.activeElement.dataset.focus:null;
   const filterOpen=board.querySelector('.wh-filters')?.open;
   board.replaceChildren();
+  staffDock?.setActive(view);
+  staffDock?.setBadge('Print Queue', newBadges.has('New') ? 1 : 0);
   byId('warehouse-title').textContent=view==='Home'?'Mission control':view;
   for (const control of byId('warehouse-nav').children) control.toggleAttribute('aria-current',control.dataset.section===view);
   const tools=['Printers','Settings','Inventory'].includes(view);
@@ -803,6 +806,17 @@ async function start() {
     control.append(icon(glyph),node('span',title));
     byId('warehouse-nav').append(control);
   }
+  const nav=byId('warehouse-staff-dock');
+  const open=section=>()=>{go(section);scrollTo(0,0);};
+  staffDock=window.createStaffDock(nav,[
+    {id:'Home',label:'Home',icon:'home',select:open('Home')},
+    {id:'Ready',label:'Ready',icon:'ready',select:open('Ready')},
+    {id:'Print Queue',label:'Print',icon:'plus',center:true,select:open('Print Queue')},
+    {id:'History',label:'History',icon:'history',select:open('History')},
+    {id:'more',label:'More',icon:'more',children:['Printers','Inventory','Settings'].map(id=>({id,label:id,select:open(id)}))},
+  ]);
+  nav.hidden=false;
+  staffDock.setActive(view);
   syncPreferences();
   renderStation();
   try {await refresh(true);}
