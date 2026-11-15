@@ -21,6 +21,7 @@ if (new URLSearchParams(location.search).get('preview') === '1') location.replac
 <link rel="stylesheet" href="/status-model.css?v=1">
 <script src="/status-model.js?v=1" defer></script>
 <script src="/live.js?v=1" defer></script>
+<script src="/portal-switch.js?v=1" defer></script>
 <script type="module" src="operations.js?v=staff-dock"></script>
 </head>
 <body data-portal="admin">
@@ -28,6 +29,7 @@ if (new URLSearchParams(location.search).get('preview') === '1') location.replac
 <main class="frame section staff-console">
 <h1>Admin</h1>
 <div id="portal-login" class="clay-card"><a class="clay-button" href="/api/auth/google?portal=admin">Continue with Google</a></div>
+<div class="pb-switch" data-portal-switch="admin" hidden></div>
 <button id="portal-logout" class="clay-button" type="button" hidden>Sign out</button>
 <p id="ops-status" role="status"></p>
 <nav id="admin-sections" class="admin-section-nav" aria-label="Admin sections" hidden>

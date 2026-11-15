@@ -7,3 +7,4 @@ PrintBeeLocal/
 *.sqlite
 *.sqlite-*
 staff-keys.json
+.demo-data/

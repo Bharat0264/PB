@@ -29,7 +29,7 @@ def print_command(item, file, printer, sumatra=None):
             "-o", "print-color-mode=" + ("color" if item["colour"] else "monochrome"), "--", str(file)]
 
 
-def run(origin, key, printer, sumatra, once):
+def run(origin, key, printer, sumatra, once, mock=False):
     def request(path, body=None, claim=""):
         data = None if body is None else json.dumps(body).encode()
         headers = {"X-Staff-Key": key, "Content-Type": "application/json", "X-Print-Claim": claim}
@@ -72,8 +72,9 @@ def run(origin, key, printer, sumatra, once):
             with tempfile.TemporaryDirectory(prefix="printbee-job-") as directory:
                 file = Path(directory) / "document.pdf"
                 file.write_bytes(body)
-                subprocess.run(print_command(job["item"], file, printer, sumatra),
-                               check=True, timeout=120, capture_output=True)
+                command = print_command(job["item"], file, printer, sumatra)
+                if not mock:        # mock printer: everything but the spooler call runs, so jobs complete end to end
+                    subprocess.run(command, check=True, timeout=120, capture_output=True)
             result = {"state": "done"}
         except subprocess.TimeoutExpired:
             raise SystemExit(f"Print job {job['id']} may have reached the printer. Check the spooler before recovering it.")
@@ -97,6 +98,8 @@ if __name__ == "__main__":
     parser.add_argument("--printer")
     parser.add_argument("--dry-run", metavar="PDF", type=Path,
                         help="Validate a local sample PDF and exit without contacting the server or printer.")
+    parser.add_argument("--mock-printer", action="store_true",
+                        help="Run the real job loop against the server but do not call the printer (demo and tests).")
     parser.add_argument("--sumatra", help="Path to SumatraPDF.exe on Windows")
     parser.add_argument("--once", action="store_true")
     args = parser.parse_args()
@@ -110,14 +113,14 @@ if __name__ == "__main__":
             parser.error(str(error))
         print(f"Mock printer validated {pages} page(s). No job was sent.")
         raise SystemExit(0)
-    if not args.printer:
-        parser.error("Provide --printer for live printing.")
+    if not args.printer and not args.mock_printer:
+        parser.error("Provide --printer for live printing, or --mock-printer for a demo.")
     origin = urlsplit(args.origin)
     if origin.scheme != "https" and not (origin.scheme == "http" and origin.hostname in ("localhost", "127.0.0.1")):
         parser.error("Use HTTPS or a local server.")
-    if os.name == "nt" and not args.sumatra:
+    if os.name == "nt" and not args.sumatra and not args.mock_printer:
         parser.error("Provide --sumatra on Windows.")
     key = os.environ.get("PRINTBEE_PRINT_AGENT_KEY")
     if not key:
         parser.error("Set PRINTBEE_PRINT_AGENT_KEY.")
-    run(args.origin.rstrip("/"), key, args.printer, args.sumatra, args.once)
+    run(args.origin.rstrip("/"), key, args.printer or "Mock printer", args.sumatra, args.once, args.mock_printer)

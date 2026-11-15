@@ -33,7 +33,7 @@ def validate_terms(raw):
     paper = raw.get("paperRates", {})
     binding = raw.get("bindingRates", {})
     if not isinstance(paper, dict) or any(
-        key not in ("A4", "A3", "A5") or not isinstance(rates, list) or len(rates) != 4
+        key not in ("A4", "A3", "A5") or not isinstance(rates, (list, tuple)) or len(rates) != 4
         or any(type(rate) is not int or rate < 100 for rate in rates)
         for key, rates in paper.items()
     ):

@@ -61,6 +61,20 @@ def order_number(db):
             return value
 
 
+# Demo identities for local testing (PRINTBEE_DEMO=1, test payments, local origin only).
+DEMO_USERS = {
+    "customer": {"email": "customer@demo.printbee.test", "label": "Customer", "customer": True, "destination": "/index.html"},
+    "warehouse": {"email": "warehouse@demo.printbee.test", "label": "Warehouse", "portal": "warehouse", "destination": "/warehouse"},
+    "partner": {"email": "partner@demo.printbee.test", "label": "Delivery partner 1", "portal": "partner", "destination": "/partner"},
+    "partner2": {"email": "partner2@demo.printbee.test", "label": "Delivery partner 2", "portal": "partner", "destination": "/partner"},
+    "admin": {"email": "admin@demo.printbee.test", "label": "Admin", "portal": "admin", "destination": "/admin"},
+    "all": {"email": "all@demo.printbee.test", "label": "All roles (try Switch portal)", "customer": True,
+            "portal": "admin", "destination": "/admin"},
+}
+DEMO_PARTNERS = {"partner@demo.printbee.test": "demo-rider-1", "partner2@demo.printbee.test": "demo-rider-2",
+                 "all@demo.printbee.test": "demo-rider-3"}
+
+
 def eta_minutes(here, there, speed_kmh=18):
     """Rough minutes to go (straight line at campus-scooter speed). An estimate, never a promise."""
     import math
@@ -85,10 +99,76 @@ class PrintBee(SimpleHTTPRequestHandler):
         self.send_header("Content-Type", "application/json")
         self.send_header("Cache-Control", "no-store")
         if cookie:
-            self.send_header("Set-Cookie", cookie)
+            for value in ((cookie,) if isinstance(cookie, str) else cookie):
+                self.send_header("Set-Cookie", value)
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    PORTAL_LABELS = {"customer": ("Customer app", "/index.html"), "warehouse": ("Warehouse", "/warehouse"),
+                     "partner": ("Delivery partner", "/partner"), "admin": ("Admin", "/admin")}
+    SESSION_COOKIES = (("customer_sessions", auth.COOKIE), ("google_portal_sessions", auth.GOOGLE_PORTAL_COOKIE),
+                       ("partner_sessions", "printbee_partner"))
+
+    def previews_allowed(self):
+        """Sample-data screens (?preview=1, /admin-preview.html) exist for local development only,
+        unless PRINTBEE_ALLOW_PREVIEW=1. They never read or write live orders either way."""
+        origin = auth.public_origin()
+        return (os.environ.get("PRINTBEE_ALLOW_PREVIEW") == "1" or not origin
+                or urlsplit(origin).hostname in ("127.0.0.1", "localhost"))
+
+    def dev_login(self, path):
+        """Local demo sign-in: one click per role. Exists only when the server was started with PRINTBEE_DEMO=1."""
+        if not self.server.demo:
+            return self.send_error(404)
+        if path == "/api/dev/roles":
+            return self.json_response(200, {"roles": [{"role": key, "label": user["label"], "email": user["email"]}
+                                                      for key, user in DEMO_USERS.items()]})
+        user = DEMO_USERS.get(parse_qs(urlsplit(self.path).query).get("role", [""])[0])
+        if not user:
+            return self.json_response(400, {"error": "Unknown demo role."})
+        cookies = []
+        with closing(connect()) as db, db:
+            if user.get("customer"):
+                cookies.append(auth.create_session(db, user["email"], auth.session_token(self.headers)))
+            if user.get("portal"):
+                cookies.append(auth.portal_session(db, self.headers, user["email"], user["portal"]))
+        return self.auth_redirect(user["destination"], *cookies)
+
+    def clear_all_sessions(self, db):
+        """One logout for everything: customer, staff-portal and partner sessions, plus their cookies."""
+        cookies = []
+        for table, name in self.SESSION_COOKIES:
+            token = auth.session_token(self.headers, name)
+            if token:
+                db.execute(f"DELETE FROM {table} WHERE digest=?", (auth.digest(token),))
+            cookies.append(auth.session_cookie("", 0, name))
+        return cookies
+
+    def identity_roles(self, db):
+        """Everything the current browser is signed in as: the customer email, the portal roles any
+        of its identities may use, and the identity that holds each role (for switching)."""
+        customer = auth.session_email(db, self.headers)
+        emails = {customer} if customer else set()
+        token = auth.session_token(self.headers, auth.GOOGLE_PORTAL_COOKIE)
+        current = None
+        if token:
+            row = db.execute("SELECT email, portal FROM google_portal_sessions WHERE digest=? AND expires>?",
+                             (auth.digest(token), int(time.time()))).fetchone()
+            if row:
+                emails.add(row["email"])
+                current = row["portal"]
+        holders = {}
+        for email in emails:
+            for role in ("admin", "warehouse", "partner"):
+                if email in self.server.google_access[role]:
+                    holders.setdefault(role, email)
+        partner_token = auth.session_token(self.headers, "printbee_partner")
+        if partner_token and db.execute("SELECT 1 FROM partner_sessions WHERE digest=? AND expires>?",
+                                        (auth.digest(partner_token), int(time.time()))).fetchone():
+            holders.setdefault("partner", None)
+            current = current or "partner"
+        return customer, holders, current
 
     def get_role(self):
         key = self.headers.get("X-Staff-Key", "").encode()
@@ -225,6 +305,27 @@ class PrintBee(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         path = urlsplit(self.path).path
+        origin = auth.public_origin()
+        if origin and urlsplit(origin).hostname in ("127.0.0.1", "localhost") and (
+            path == "/" or path.endswith(".html") or path in ("/warehouse", "/partner", "/admin")
+        ) and self.headers.get("Host", "") != urlsplit(origin).netloc:
+            # localhost and 127.0.0.1 are different origins: cookies and sign-in only work on the configured one.
+            return self.auth_redirect(origin + self.path)
+        preview = parse_qs(urlsplit(self.path).query).get("preview", [""])[0] == "1"
+        if not self.previews_allowed() and (path == "/admin-preview.html" or (preview and path in (
+            "/warehouse", "/partner", "/admin", "/admin.html", "/staff.html", "/partner.html"
+        ))):
+            return self.auth_redirect({"/admin-preview.html": "/admin", "/admin.html": "/admin",
+                                       "/staff.html": "/warehouse", "/partner.html": "/partner"}.get(path, path))
+        if path in ("/api/dev/roles", "/api/dev/login"):
+            return self.dev_login(path)
+        if path == "/api/auth/me":
+            with closing(connect()) as db:
+                customer, holders, current = self.identity_roles(db)
+            portals = [{"role": role, "label": self.PORTAL_LABELS[role][0], "path": self.PORTAL_LABELS[role][1]}
+                       for role in (["customer"] if customer else []) + [r for r in ("admin", "warehouse", "partner") if r in holders]]
+            return self.json_response(200, {"customer": customer, "roles": sorted(holders), "portals": portals,
+                                           "current": current})
         if path == "/":
             self.path = "/welcome.html"
             return super().do_GET()
@@ -264,7 +365,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                        "/partner.html", "/partner.css", "/partner.js", "/partner-sw.js", "/admin.html", "/admin-preview.html", "/admin-dashboard.css", "/admin-tokens.css",
                        "/customer-pricing.js", "/customer-price-table.js", "/pricing-preview.js", "/admin-dashboard.js", "/admin-records.js", "/admin-ledger.js", "/admin-ledger.css", "/admin-pricing.js", "/admin-pricing.css", "/admin-data.js", "/operations.js", "/partner.webmanifest", "/portal-login.js",
                        "/pricing.html", "/terms.html", "/queue.html", "/orders.html", "/profile.html", "/profile.js", "/address.html", "/customer-login.js",
-                       "/preloader.js", "/preloader.css", "/gsap-3.13.0.min.js", "/live.js", "/status-model.js", "/status-model.css",
+                       "/preloader.js", "/preloader.css", "/gsap-3.13.0.min.js", "/live.js", "/status-model.js", "/status-model.css", "/portal-switch.js", "/demo-login.js",
                        "/navigation.html", "/navigation.css", "/bottom-nav.js", "/nav-tokens.js", "/embedded-tab.js"}
             if path in allowed:
                 return super().do_GET()
@@ -593,11 +694,28 @@ class PrintBee(SimpleHTTPRequestHandler):
                 if not self.same_origin():
                     return self.json_response(403, {"error": "Open PrintBee directly and try again."})
                 with closing(connect()) as db, db:
-                    for table, cookie in (("google_portal_sessions", auth.GOOGLE_PORTAL_COOKIE),
-                                          ("partner_sessions", "printbee_partner")):
-                        db.execute(f"DELETE FROM {table} WHERE digest=?",
-                                   (auth.digest(auth.session_token(self.headers, cookie)),))
-                return self.json_response(200, {"saved": True}, auth.session_cookie("", 0, auth.GOOGLE_PORTAL_COOKIE))
+                    cookies = self.clear_all_sessions(db)
+                return self.json_response(200, {"saved": True}, cookies)
+            if path == "/api/auth/switch":
+                if not self.same_origin():
+                    return self.json_response(403, {"error": "Open PrintBee directly and try again."})
+                length = int(self.headers.get("Content-Length", "0"))
+                if not 0 < length <= 1024:
+                    raise ValueError()
+                target = json.loads(self.rfile.read(length))["portal"]
+                if target not in self.PORTAL_LABELS:
+                    raise ValueError()
+                with closing(connect()) as db, db:
+                    customer, holders, _ = self.identity_roles(db)
+                    destination = self.PORTAL_LABELS[target][1]
+                    if target == "customer" and customer:
+                        return self.json_response(200, {"path": destination})
+                    if target not in holders:
+                        return self.json_response(403, {"error": "This account cannot open that portal."})
+                    if holders[target] is None:        # partner signed in by phone: its own cookie already works
+                        return self.json_response(200, {"path": destination})
+                    cookie = auth.portal_session(db, self.headers, holders[target], target)
+                return self.json_response(200, {"path": destination}, cookie)
             if path.startswith(("/api/staff/", "/api/admin/")) and not self.headers.get("X-Staff-Key"):
                 if not self.same_origin():
                     return self.json_response(403, {"error": "Open PrintBee directly and try again."})
@@ -675,9 +793,8 @@ class PrintBee(SimpleHTTPRequestHandler):
                 return self.json_response(400, {"error": "This link has expired or was already used. Request a new one."})
             if path == "/api/auth/logout":
                 with db:
-                    db.execute("DELETE FROM customer_sessions WHERE digest=?",
-                               (auth.digest(auth.session_token(self.headers)),))
-                return self.json_response(200, {"email": None}, auth.session_cookie("", 0))
+                    cookies = self.clear_all_sessions(db)
+                return self.json_response(200, {"email": None}, cookies)
         return self.json_response(404, {"error": "Unknown sign-in request."})
 
     def create_order(self, data, email):
@@ -1331,6 +1448,16 @@ if __name__ == "__main__":
     ):
         raise SystemExit("Set PRINTBEE_GOOGLE_PARTNERS to a JSON object mapping emails to partner IDs.")
     google_access["partner"] = {email.strip().lower(): partner for email, partner in google_partners.items()}
+    demo = os.environ.get("PRINTBEE_DEMO") == "1"
+    if demo:
+        if payment_mode != "test" or urlsplit(auth.public_origin()).hostname not in ("localhost", "127.0.0.1"):
+            raise SystemExit("Demo mode is local-only: use PRINTBEE_PAYMENT_MODE=test and a local PRINTBEE_ORIGIN.")
+        for user in DEMO_USERS.values():
+            if user.get("portal") in ("admin", "warehouse"):
+                google_access[user["portal"]][user["email"]] = user["portal"]
+        for role in ("admin", "warehouse"):
+            google_access[role]["all@demo.printbee.test"] = role
+        google_access["partner"].update(DEMO_PARTNERS)
     if not isinstance(phones, dict) or any(
         not re.fullmatch(r"\+[1-9][0-9]{7,14}", phone) or not isinstance(name, str)
         or not re.fullmatch(r"[a-zA-Z0-9_-]{1,40}", name) or name == "delivery"
@@ -1381,6 +1508,7 @@ if __name__ == "__main__":
         server.partner_phones = phones
         server.partner_verify = verify
         server.payment_mode = payment_mode
+        server.demo = demo
         server.razorpay = gateway
         server.checkout_terms = checkout_terms
         maps_key = os.environ.get("PRINTBEE_MAPS_BROWSER_KEY")

@@ -12,6 +12,8 @@
 <link rel="stylesheet" href="studio.css?v=header-logo">
 <link rel="stylesheet" href="footer-wave.css?v=horizontal-brand">
 <script src="footer-wave.js?v=letter-spacing" defer></script>
+<link rel="stylesheet" href="/status-model.css?v=1">
+<script src="/portal-switch.js?v=1" defer></script>
 <script src="customer-login.js?v=welcome-entry" defer></script>
 </head>
 <body>
@@ -59,6 +61,7 @@
       <form id="email-sign-in-confirm" hidden>
         <button class="pill profile-email-submit" type="submit">Confirm sign-in</button>
       </form>
+      <div class="pb-switch" data-portal-switch="customer" hidden></div>
       <form id="email-sign-out" hidden>
         <button class="pill profile-email-submit" type="submit">Sign out</button>
       </form>

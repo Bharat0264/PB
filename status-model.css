@@ -32,3 +32,12 @@
 .order-events:empty { display: none; }
 .order-events li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 12px; border-radius: 12px; background: rgba(245, 197, 66, .14); }
 .order-events time { opacity: .7; font-variant-numeric: tabular-nums; }
+
+/* "Switch portal" menu (only rendered for people with more than one role). */
+.pb-switch { display: grid; gap: 6px; margin-top: 12px; }
+.pb-switch[hidden] { display: none; }
+.pb-switch-title { margin: 0; font: 800 12px/1.2 Manrope, system-ui, sans-serif; letter-spacing: .06em; text-transform: uppercase; opacity: .7; }
+.pb-switch-list { display: grid; gap: 6px; }
+.pb-switch-link { display: flex; align-items: center; min-height: 48px; padding: 0 14px; border-radius: 14px; background: rgba(245, 197, 66, .18); color: inherit; font: 800 14px/1 Manrope, system-ui, sans-serif; text-decoration: none; }
+.pb-switch-link:hover { background: rgba(245, 197, 66, .32); }
+.pb-switch-link:focus-visible { outline: 3px solid #B9831A; outline-offset: 2px; }

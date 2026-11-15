@@ -970,9 +970,12 @@ async function init() {
   $('rider-search').onclick = openPalette;
   $('rider-notifications').onclick = openNotifications;
   $('rider-avatar').textContent = (demo ? profile.name : 'Partner').split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
-  $('rider-avatar').onclick = () => showDialog('Partner account', body => body.append(
+  $('rider-avatar').onclick = () => showDialog('Partner account', body => { body.append(
     h('p', {class: 'muted'}, demo ? profile.name + ' · PB-R104' : 'Signed in as a delivery partner'),
-    h('button', {class: 'hive-btn', type: 'button', onclick: () => selectTab('Profile', document.querySelector('[data-section=Profile]'))}, 'Open profile')));
+    h('button', {class: 'hive-btn', type: 'button', onclick: () => selectTab('Profile', document.querySelector('[data-section=Profile]'))}, 'Open profile'));
+    body.append(h('div', {class: 'pb-switch', 'data-portal-switch': 'partner', hidden: true}));
+    window.PrintBeePortals?.render();
+  });
   document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); openPalette(); } });
   addEventListener('resize', renderDock);
   setInterval(updateClock, 30000);

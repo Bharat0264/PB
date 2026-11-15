@@ -16,6 +16,7 @@
 <link rel="stylesheet" href="/status-model.css?v=1">
 <script src="/status-model.js?v=1" defer></script>
 <script src="/live.js?v=1" defer></script>
+<script src="/portal-switch.js?v=1" defer></script>
 <script src="/warehouse.js?v=print-floor" defer></script>
 </head>
 <body class="warehouse">
@@ -39,6 +40,7 @@
         <summary aria-label="PB staff account" title="Staff account"><span aria-hidden="true">PB</span></summary>
         <div class="clay-card wh-account-menu">
           <a id="warehouse-mode-link" href="/warehouse?preview=1">Open sample dashboard</a>
+          <div class="pb-switch" data-portal-switch="warehouse" hidden></div>
           <button id="portal-logout" type="button" class="clay-button" hidden>Sign out</button>
         </div>
       </details>
