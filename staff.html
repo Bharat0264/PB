@@ -4,15 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>PrintBee warehouse</title>
+<link rel="icon" href="/printbee-header-bee.webp" type="image/webp">
 <link rel="stylesheet" href="/clay.css?v=1">
 <link rel="stylesheet" href="/warehouse.css?v=print-to-ready">
 <link rel="stylesheet" href="/hive-theme.css?v=plain-clay">
-<link rel="stylesheet" href="/warehouse-hive.css?v=plain-clay">
+<link rel="stylesheet" href="/warehouse-hive.css?v=print-floor">
 <script src="/hive-theme.js?v=1"></script>
 <script src="/portal-login.js" defer></script>
 <link rel="stylesheet" href="/staff-dock.css?v=3">
 <script src="/staff-dock.js?v=3" defer></script>
-<script src="/warehouse.js?v=staff-dock" defer></script>
+<script src="/warehouse.js?v=print-floor" defer></script>
 </head>
 <body class="warehouse">
 <a class="wh-skip" href="#warehouse-main">Skip to warehouse</a>
@@ -25,8 +26,12 @@
   </section>
   <div class="warehouse-shell" id="warehouse-app" hidden>
     <aside class="wh-rail">
-      <a class="wh-brand" href="/warehouse" aria-label="PrintBee warehouse"><img src="/printbee-header-bee.webp" width="42" height="38" alt=""></a>
+      <div class="wh-brand-row">
+      <a class="wh-brand" href="/warehouse" aria-label="PrintBee warehouse"><img src="/printbee-header-bee.webp" width="42" height="38" alt=""><span>PrintBee <small>Warehouse</small></span></a>
+      <button type="button" class="wh-icon-button" id="floor-collapse" aria-label="Collapse sidebar" aria-expanded="true" aria-controls="warehouse-nav">‹</button>
+      </div>
       <nav id="warehouse-nav" aria-label="Warehouse sections"></nav>
+      <div class="wh-rail-footer"><span class="wh-chip wh-shift" id="floor-shift">Print floor</span>
       <details class="wh-account">
         <summary aria-label="PB staff account" title="Staff account"><span aria-hidden="true">PB</span></summary>
         <div class="clay-card wh-account-menu">
@@ -34,6 +39,7 @@
           <button id="portal-logout" type="button" class="clay-button" hidden>Sign out</button>
         </div>
       </details>
+      </div>
     </aside>
     <div class="wh-workspace">
       <header class="wh-top">
@@ -41,9 +47,14 @@
         <div class="wh-indicators">
           <span class="wh-chip wh-agent" id="agent-status"></span>
           <span class="wh-today" id="today-count"></span>
+          <button id="theme" type="button" class="wh-icon-button wh-floor-theme" aria-label="Moon Hive" aria-pressed="false"></button>
           <button id="sound-toggle" type="button" class="wh-icon-button" aria-label="Order chime" aria-pressed="false"></button>
         </div>
       </header>
+      <div id="floor-connection" class="wh-floor-banner" hidden>
+        <span id="floor-connection-copy"></span>
+        <button class="clay-button" id="floor-retry" type="button">Retry</button>
+      </div>
       <div class="wh-columns" id="warehouse-columns">
         <section class="wh-queue" aria-labelledby="warehouse-title">
           <p class="wh-context" id="warehouse-context">PrintBee Warehouse</p>
@@ -53,13 +64,18 @@
         <section id="warehouse-detail" class="clay-card wh-station" aria-labelledby="detail-title" tabindex="-1">
           <div class="wh-station-scroll">
             <div class="wh-station-head">
-              <div><p class="wh-context">Order station</p><h2 id="detail-title">Select an order</h2></div>
+              <div><p class="wh-context" id="floor-detail-context">Order station</p><h2 id="detail-title">Next up</h2></div>
               <button type="button" class="wh-icon-button" id="station-close" aria-label="Close order" hidden></button>
             </div>
             <div id="detail-body"></div>
           </div>
           <div id="detail-action" class="wh-action-dock" hidden></div>
         </section>
+      </div>
+      <div class="wh-keybar" aria-label="Warehouse shortcuts">
+        <span><kbd>↑</kbd><kbd>↓</kbd> Move</span>
+        <span><kbd>Enter</kbd> Open</span><span><kbd>P</kbd> Print</span><span><kbd>/</kbd> Search</span>
+        <button type="button" id="floor-key-help"><kbd>?</kbd> All shortcuts</button>
       </div>
     </div>
   </div>
@@ -73,9 +89,10 @@
 <dialog class="clay-card wh-dialog" id="warehouse-confirm" aria-labelledby="confirm-title">
   <h2 id="confirm-title">Confirm print</h2>
   <div id="confirm-body"></div>
+  <p id="floor-print-tip" class="wh-muted">Drag the handle or press Enter to print.</p>
   <form method="dialog" class="wh-dialog-actions">
     <button type="submit" value="cancel" class="clay-button">Cancel</button>
-    <button type="submit" value="print" class="clay-button wh-primary">Print now</button>
+    <button type="submit" value="print" class="clay-button wh-primary wh-print-slide" id="floor-print-slide" aria-describedby="floor-print-tip"><span aria-hidden="true">→</span> Slide to print</button>
   </form>
 </dialog>
 <dialog class="clay-card wh-dialog wh-preview" id="warehouse-preview" aria-labelledby="preview-title">
@@ -83,9 +100,28 @@
   <div id="preview-body"></div>
 </dialog>
 <dialog class="clay-card wh-dialog" id="warehouse-new" aria-labelledby="arrival-title">
-  <h2 id="arrival-title">New paid order</h2>
+  <img src="/printbee-header-bee.webp" width="150" height="120" alt=""><h2 id="arrival-title">New paid order</h2>
   <p id="arrival-number"></p>
-  <form method="dialog" class="wh-dialog-actions"><button class="clay-button" value="dismiss">Dismiss</button><button class="clay-button wh-primary" value="open">Open order</button></form>
+  <p id="floor-arrival-timer"></p>
+  <form method="dialog" class="wh-dialog-actions"><button class="clay-button" value="dismiss">Dismiss</button><button class="clay-button wh-primary" value="open">Accept to queue</button></form>
+</dialog>
+<dialog class="clay-card wh-dialog" id="floor-handover" aria-labelledby="floor-handover-title">
+  <h2 id="floor-handover-title">Hand over</h2>
+  <div id="floor-handover-body"></div>
+  <form method="dialog" class="wh-dialog-actions" id="floor-handover-actions">
+    <button class="clay-button">Close</button>
+  </form>
+</dialog>
+<dialog class="clay-card wh-dialog" id="floor-shortcuts" aria-labelledby="floor-shortcuts-title">
+  <h2 id="floor-shortcuts-title">Keyboard shortcuts</h2>
+  <dl class="wh-shortcut-list">
+    <div><dt><kbd>↑</kbd> <kbd>↓</kbd></dt><dd>Move between orders</dd></div>
+    <div><dt><kbd>Enter</kbd></dt><dd>Open an order or confirm print</dd></div>
+    <div><dt><kbd>P</kbd></dt><dd>Print from the order station</dd></div>
+    <div><dt><kbd>/</kbd></dt><dd>Search orders</dd></div>
+    <div><dt><kbd>Esc</kbd></dt><dd>Close a dialog or order drawer</dd></div>
+  </dl>
+  <form method="dialog"><button class="clay-button">Close</button></form>
 </dialog>
 </body>
 </html>
