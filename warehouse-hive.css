@@ -205,12 +205,30 @@ body.warehouse {
 .wh-ready-stamp.wh-arrive { animation: wh-stamp .35s var(--hv-spring) both; }
 @keyframes wh-stamp { from { opacity: 0; transform: rotate(-9deg) scale(1.35); } }
 
-.wh-conveyor { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 6px; margin-top: 20px; padding: 8px; background: var(--hv-surface-2); border-radius: 22px; box-shadow: var(--hv-field); }
-.wh-conveyor .wh-stat { display: grid; gap: 4px; align-content: start; grid-template-rows: minmax(2.5em,auto) auto auto; min-height: 116px; padding: 10px; }
-.wh-conveyor .wh-stat[aria-pressed="true"] { background: var(--hv-honey-grad); color: #2A2112; }
-.wh-conveyor .wh-stat strong { font-variant-numeric: tabular-nums; }
-.wh-parcels { display: flex; align-items: center; gap: 3px; min-height: 22px; background: linear-gradient(transparent 65%,var(--hv-border) 65%,var(--hv-border) 75%,transparent 75%); }
-.wh-parcel { display: inline-block; width: clamp(6px,1.18vw,16px); height: 13px; border-radius: 3px; background: var(--hv-honey-grad); border: 1px solid var(--hv-honey-700); box-shadow: inset 0 2px 3px #fff7; }
+/* Mission control filters use the same semantic tints as the rest of the portal. */
+.wh-conveyor { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; margin-top: 18px; }
+.wh-conveyor .wh-stat {
+  --stage-bg: var(--hv-warning-bg); --stage-ink: var(--hv-warning-ink);
+  display: grid; grid-template-columns: auto minmax(0,1fr); grid-template-rows: auto 1fr;
+  align-items: center; gap: 7px 6px; min-width: 0; min-height: 92px; padding: 10px 12px;
+  border: 1px solid var(--hv-border); border-radius: 17px;
+  background: linear-gradient(145deg,var(--hv-surface),color-mix(in srgb,var(--stage-bg) 30%,var(--hv-surface)));
+  box-shadow: inset 0 1px 0 var(--hv-hi), 0 3px 6px var(--hv-drop);
+  transition: border-color .18s, background-color .18s, box-shadow .18s;
+}
+.wh-stat[data-stage="printing"] { --stage-bg: var(--hv-info-bg); --stage-ink: var(--hv-info-ink); }
+.wh-stat[data-stage="ready"] { --stage-bg: var(--hv-success-bg); --stage-ink: var(--hv-success-ink); }
+.wh-stat[data-stage="handover"] { --stage-bg: var(--hv-surface-3); --stage-ink: var(--hv-honey-ink); }
+.wh-stat-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 11px; color: var(--stage-ink); background: var(--stage-bg); }
+.wh-stat-icon svg { width: 18px; height: 18px; }
+.wh-conveyor .wh-stat strong { justify-self: end; font-size: 1.85em; line-height: 1; }
+.wh-stat-label { grid-column: 1 / -1; align-self: start; line-height: 1.2; overflow-wrap: anywhere; }
+.wh-conveyor .wh-stat:hover { border-color: var(--hv-honey-700); }
+.wh-conveyor .wh-stat[aria-pressed="true"] {
+  border-color: var(--hv-honey-700);
+  background: color-mix(in srgb,var(--hv-honey-500) 19%,var(--hv-surface));
+  box-shadow: inset 0 -3px 0 var(--hv-honey-600), 0 3px 6px var(--hv-drop);
+}
 .wh-order { --ticket-edge:var(--hv-success); isolation: isolate; }
 .wh-order[data-priority="Urgent"] { --ticket-edge:var(--hv-danger); }
 .wh-order[data-priority="Express"] { --ticket-edge:var(--hv-honey-600); }
@@ -330,9 +348,8 @@ body.wh-contrast {
   .wh-setting-groups { grid-template-columns: minmax(0,1fr); }
   .wh-order { padding-inline: 18px 14px; }
   .wh-order .wh-open { grid-column: 1 / -1; grid-row: auto; }
-  .wh-conveyor .wh-stat { padding: 6px; font-size: clamp(10px,3.5vw,14px) !important; }
-  .wh-conveyor .wh-stat strong { font-size: 1.8em; }
-  .wh-conveyor .wh-parcel { height: 10px; }
+  .wh-conveyor { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .wh-conveyor .wh-stat { min-height: 76px; padding: 8px 10px; }
   .wh-station.wh-sheet { inset: 0; width: 100%; height: 100dvh; max-height: none; border-radius: 0; }
 }
 @media (hover:none) { .wh-history-order .wh-order-copy { opacity: 1; } }
@@ -379,7 +396,7 @@ html:has(body.warehouse) { overscroll-behavior-x: none; }
   .wh-top { margin-bottom: 16px; padding-block: 6px; min-height: 64px; }
   .wh-floor-banner { margin-bottom: 16px; padding-block: 8px; }
   .wh-queue:has(.wh-conveyor) .wh-conveyor { margin-top: 12px; }
-  .wh-queue:has(.wh-conveyor) .wh-stat { min-height: 94px; grid-template-rows: minmax(2em,auto) auto auto; padding-block: 7px; }
+  .wh-queue:has(.wh-conveyor) .wh-stat { min-height: 80px; padding-block: 8px; }
   .wh-queue:has(.wh-conveyor) .wh-board-head { margin-top: 16px; }
   .wh-queue:has(.wh-conveyor) .wh-order { padding-block: 12px; }
 }

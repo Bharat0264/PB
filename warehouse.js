@@ -10,7 +10,12 @@ const mobile = matchMedia('(max-width:1100px)');
 const handover=byId('floor-handover');
 const shortcutDialog = byId('floor-shortcuts');
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
-const floorStages = ['New','Printing','Ready','Handed over'];
+const floorStages = [
+  ['New','incoming','file'],
+  ['Printing','printing','printer'],
+  ['Ready','ready','check'],
+  ['Handed over','handover','package'],
+];
 const conveyorStage = order => buckets.includes(stage(order))?stage(order):'Handed over';
 const buckets = ['New', 'Printing', 'Ready'];
 const sections = [['Home','home'],['Print Queue','printer'],['Printers','monitor'],['History','history'],['Settings','settings']];
@@ -28,6 +33,7 @@ const glyphs = {
   copy:'<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
   sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l2 2m10 10 2 2M5 19l2-2M17 7l2-2"/>',
   moon:'<path d="M20.5 15A9 9 0 0 1 9 3.5 9 9 0 1 0 20.5 15Z"/>',
+  package:'<path d="m3 7 9-5 9 5v10l-9 5-9-5V7zm0 0 9 5 9-5m-9 5v10M7.5 4.5l9 5"/>',
   check:'<path d="m5 12 4 4L19 6"/>',
 };
 function icon(name) {
@@ -43,7 +49,7 @@ let orders = [], known, newBadges = new Set(), online = preview, connected = tru
 let view = 'Home', tab = 'New', active, sheet = false, restoreFocus;
 let printAction, printPending = false, previewUrl, previewRequest = 0, arrivalOrder;
 let staffDock, floorFilter, arrivalTimer, historyPreset='';
-let conveyorPositions=new Map(), lastStages=new Map(), newlyReady=new Set(), renderedOrderSnapshot;
+let lastStages=new Map(), newlyReady=new Set(), renderedOrderSnapshot;
 let polling, liveFeed, busyRefresh = false, refreshVersion = 0, toastTimer, audio;
 const filters = {colour:'', paper:'', date:'', priority:'', partner:'', from:'', to:''};
 
@@ -193,8 +199,6 @@ function render(refreshStation=true,focusDate=false) {
   renderedOrderSnapshot=JSON.stringify(orders);
   const previous=board.contains(document.activeElement)?document.activeElement.dataset.focus:null;
   const filterOpen=board.querySelector('.wh-filters')?.open;
-  const oldParcels=[...board.querySelectorAll('[data-parcel]')];
-  conveyorPositions=new Map(oldParcels.map(el=>[el.dataset.parcel,el.getBoundingClientRect()]));
   board.replaceChildren();
   staffDock?.setActive(view);
   staffDock?.setBadge('Print Queue', newBadges.has('New') ? 1 : 0);
@@ -221,36 +225,32 @@ function heading(title,controls) {
   if (controls) bar.append(controls);
   return bar;
 }
+function updateStageCount(control,label) {
+  const total=orders.filter(order=>conveyorStage(order)===label).length;
+  const count=control.querySelector('strong');
+  if (count.textContent===String(total)) return;
+  count.textContent=total;
+  control.setAttribute('aria-label',label+', '+total+(total===1?' order':' orders'));
+}
 function renderHome() {
   const metrics=node('div',null,'wh-conveyor');
   metrics.setAttribute('role','group');
   metrics.setAttribute('aria-label','Production stages');
-  floorStages.forEach(label=>{
-    const inStage=orders.filter(order=>conveyorStage(order)===label);
-    const stat=button('',()=>{floorFilter=floorFilter===label?null:label;render();},'wh-stat');
+  for (const [label,stageKey,glyph] of floorStages) {
+    const stat=button('',()=>{
+      floorFilter=floorFilter===label?null:label;
+      render();
+    },'wh-stat');
     stat.dataset.focus='stat-'+label;
+    stat.dataset.stage=stageKey;
     stat.setAttribute('aria-pressed',String(floorFilter===label));
-    const parcels=node('span',null,'wh-parcels');
-    parcels.setAttribute('aria-hidden','true');
-    inStage.slice(0,5).forEach(order=>{
-      const parcel=node('span',null,'wh-parcel');
-      parcel.dataset.parcel=order.id;
-      parcels.append(parcel);
-    });
-    stat.append(node('span',label),node('strong',inStage.length),parcels);
+    const symbol=icon(glyph);
+    symbol.className='wh-stat-icon';
+    stat.append(symbol,node('strong'),node('span',label,'wh-stat-label'));
+    updateStageCount(stat,label);
     metrics.append(stat);
-  });
-  board.append(metrics);
-  if (!reducedMotion.matches) {
-    for (const parcel of metrics.querySelectorAll('[data-parcel]')) {
-      const previous=conveyorPositions.get(parcel.dataset.parcel);
-      const current=parcel.getBoundingClientRect();
-      if (previous && Math.abs(previous.left-current.left)>4) {
-        parcel.animate([{transform:'translateX('+(previous.left-current.left)+'px)'},{transform:'translateX(0)'}],
-          {duration:380,easing:'cubic-bezier(.2,.8,.2,1)'});
-      }
-    }
   }
+  board.append(metrics);
   const late=orders.filter(order=>buckets.includes(stage(order)) && elapsed(order)>=45).length;
   if (late) {
     const alert=chip(late+(late===1?' late order':' late orders'),'wh-attention');
@@ -992,6 +992,11 @@ async function refresh(force=false) {
       setTimeout(()=>newBadges.delete('New'),240);
     }
   } else {
+    if (ordersChanged) {
+      for (const control of board.querySelectorAll('.wh-stat')) {
+        updateStageCount(control,control.querySelector('.wh-stat-label').textContent);
+      }
+    }
     for (const card of board.querySelectorAll('.wh-order[data-order]')) {
       const order=findOrder(card.dataset.order);
       if (order) updateCardAge(card,order);
