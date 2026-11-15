@@ -7,11 +7,11 @@
 <title>Dashboard · PrintBee Admin</title>
 <link rel="icon" href="/printbee-tab-bee.png">
 <link rel="stylesheet" href="admin-tokens.css">
-<link rel="stylesheet" href="admin-dashboard.css?v=admin-directory">
+<link rel="stylesheet" href="admin-dashboard.css?v=fixed-order-window">
 <link rel="stylesheet" href="hive-theme.css?v=toggle-fit">
 <link rel="stylesheet" href="admin-hive.css?v=1">
 <script src="hive-theme.js?v=1" data-follow-system="false"></script>
-<script type="module" src="admin-dashboard.js?v=overview"></script>
+<script type="module" src="admin-dashboard.js?v=fixed-order-window"></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to dashboard</a>
@@ -25,7 +25,6 @@
     <header class="toolbar">
       <button class="icon-button collapse" id="collapse" type="button" aria-label="Collapse sidebar" aria-expanded="true"></button>
       <label class="search-clay"><span id="search-icon" aria-hidden="true"></span><input id="global-search" type="search" aria-label="Search orders" placeholder="Search orders"></label>
-      <label class="range"><span class="sr-only">Dashboard date range</span><select id="range"><option value="30">Last 30 days</option><option value="7">Last 7 days</option><option value="90">Last 90 days</option></select></label>
       <button class="icon-button" id="theme" type="button" aria-label="Dark mode" aria-pressed="false"></button>
       <button class="icon-button" id="notifications" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-panel"></button>
       <button class="avatar" id="profile" type="button" aria-label="Admin profile" aria-expanded="false" aria-controls="profile-panel">PB</button>

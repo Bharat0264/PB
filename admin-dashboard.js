@@ -21,7 +21,8 @@ const escape = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;',
 const reduced = matchMedia('(prefers-reduced-motion: reduce)');
 const partners = [{name:'Ananya Roy', email:'ananya.rider@example.com'}];
 const warehouses = [{name:'Main campus print room', location:'SRM Main Campus', email:'warehouse@example.com'}];
-const state = {range:30, period:'Daily', query:'', filter:'', sort:'date', direction:-1, page:0};
+const orderWindowDays = 30;
+const state = { period:'Daily', query:'', filter:'', sort:'date', direction:-1, page:0};
 const getStored = key => { try { return localStorage.getItem(key); } catch { return null; } };
 const store = (key, value) => { try { localStorage.setItem(key, value); } catch {} };
 
@@ -32,7 +33,7 @@ function day(offset) {
 }
 
 function selectedOrders() {
-  return orders.filter(order => order.date > day(state.range));
+  return orders.filter(order => order.date > day(orderWindowDays));
 }
 
 function aggregate(items, key, amount = () => 1) {
@@ -89,8 +90,8 @@ function card(title, inner, size = '', extra = '') {
 }
 
 function kpis(items) {
-  const values = metrics(items,state.range);
-  const prior = metrics(orders.filter(o => o.date <= day(state.range) && o.date > day(state.range * 2)),state.range);
+  const values = metrics(items,orderWindowDays);
+  const prior = metrics(orders.filter(o => o.date <= day(orderWindowDays) && o.date > day(orderWindowDays * 2)),orderWindowDays);
   const timeline = buckets(items,'Weekly').map(([,group]) => metrics(group,7));
   return `<div class="metrics">${values.map((value,i) => {
     const change = prior[i] ? (value / prior[i] - 1) * 100 : null;
@@ -234,11 +235,10 @@ function render(animate = false) {
   const slug = location.hash.slice(1);
   const route = Object.hasOwn(sections, slug) ? slug : Object.hasOwn(oldSections, slug) ? oldSections[slug] : 'dashboard';
   if (slug && slug !== route) history.replaceState(history.state, '', '#' + route);
-  const items = selectedOrders(), paid = sales(items), values = metrics(items,state.range);
+  const items = selectedOrders(), paid = sales(items), values = metrics(items,orderWindowDays);
   const productsRank = aggregate(paid,'product',o => o.total).slice(0,5);
   const customersRank = aggregate(paid,'customer',o => o.total).slice(0,5);
   const regionRank = aggregate(items,'region');
-  const trafficSplit = traffic.map(([name,value]) => [name,Math.round(value*state.range/30)]);
   let widgets;
   switch (route) {
     case 'orders': widgets = orderTable(); break;
@@ -246,9 +246,9 @@ function render(animate = false) {
     case 'inventory': widgets = productList() + stock(); break;
     case 'analytics':
       widgets = revenueChart(items) + bars('Sales by category',aggregate(paid,'category',o => o.total),money) +
-        bars('Top 5 products',productsRank,money) + goals(metrics(orders.filter(o => o.date > day(30)),30)) + heatmap(items) +
-        breakdown('Traffic sources',trafficSplit,false) +
-        bars('Conversion funnel',[['Visitors',state.range*333],['Signups',values[3]],['Orders',paid.length],['Repeat customers',Math.min(paid.length,Math.round(values[6]*values[2]/100))]],number,'',true);
+        bars('Top 5 products',productsRank,money) + goals(metrics(orders.filter(o => o.date > day(orderWindowDays)),orderWindowDays)) + heatmap(items) +
+        breakdown('Traffic sources',traffic,false) +
+        bars('Conversion funnel',[['Visitors',orderWindowDays*333],['Signups',values[3]],['Orders',paid.length],['Repeat customers',Math.min(paid.length,Math.round(values[6]*values[2]/100))]],number,'',true);
       break;
     case 'partners': widgets = directory('Verified delivery partners', partners, partner =>
       `<span>${escape(partner.email)}</span>`, '<small class="directory-verified">Verified</small>'); break;
@@ -351,7 +351,6 @@ addEventListener('hashchange',() => {
   if (document.activeElement !== $('global-search')) $('main').focus({preventScroll:true});
   scrollTo(0,0);
 });
-$('range').onchange = event => { state.range = Number(event.target.value); state.page = 0; render(); };
 $('global-search').oninput = event => {
   state.query = event.target.value;
   state.page = 0;

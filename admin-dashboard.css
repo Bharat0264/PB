@@ -123,7 +123,7 @@ dialog::backdrop { background:#21180b7a }
 @media(max-width:560px) {
   .toolbar { flex-wrap:wrap; gap:7px; margin-bottom:20px }
   .search-clay { flex:1 0 100% }
-  .range { margin-right:auto }
+  .toolbar #theme { margin-left:auto }
   .grid { gap:16px }
   .grid > .card:not(.full) { grid-column:1/-1 }
   .metrics { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px }

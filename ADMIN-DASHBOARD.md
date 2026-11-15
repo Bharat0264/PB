@@ -2,7 +2,7 @@
 
 Open /admin-preview.html, or use /admin.html?preview=1. The dashboard uses synthetic campus print data. Sample additions reset when you reload. Theme preference stays on this device.
 
-The date-range filter updates the order dataset and the charts. Conversion, signups, satisfaction and traffic use estimates or fixtures for display. CSV exports the filtered orders. Print / Save PDF opens the browser print dialog for the current dashboard view.
+The preview shows the last 30 days of orders. Conversion, signups, satisfaction and traffic use estimates or fixtures for display. CSV exports the filtered orders. Print / Save PDF opens the browser print dialog for the current dashboard view.
 
 Theme variables live in admin-tokens.css. The renderer is in admin-dashboard.js and the fixtures are in admin-data.js.
 
