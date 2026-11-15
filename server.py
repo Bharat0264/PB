@@ -26,8 +26,8 @@ from order_documents import PrivateFiles, invoice_pdf, packing_label_pdf
 from order_rules import LIMIT, TRANSITIONS, advance_order, quote_items
 
 ROOT = Path(__file__).resolve().parent
-DATA = Path(os.environ.get("LOCALAPPDATA", ROOT.parent)) / "PrintBeeLocal"
-DATA.mkdir(exist_ok=True)
+DATA = Path(os.environ.get("PRINTBEE_DATA_DIR") or (Path(os.environ.get("LOCALAPPDATA", ROOT.parent)) / "PrintBeeLocal"))
+DATA.mkdir(parents=True, exist_ok=True)
 DOCUMENT_READERS = BoundedSemaphore(2)
 
 
@@ -250,7 +250,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                        "/footer-wave.css", "/footer-wave.js",
                        "/hive-theme.css", "/hive-theme.js", "/admin-hive.css", "/admin-live-hive.css", "/warehouse-hive.css",
                        "/partner.html", "/partner.css", "/partner.js", "/partner-sw.js", "/admin.html", "/admin-preview.html", "/admin-dashboard.css", "/admin-tokens.css",
-                       "/customer-pricing.js", "/customer-price-table.js", "/admin-dashboard.js", "/admin-records.js", "/admin-ledger.js", "/admin-ledger.css", "/admin-pricing.js", "/admin-pricing.css", "/admin-data.js", "/operations.js", "/partner.webmanifest", "/portal-login.js",
+                       "/customer-pricing.js", "/customer-price-table.js", "/pricing-preview.js", "/admin-dashboard.js", "/admin-records.js", "/admin-ledger.js", "/admin-ledger.css", "/admin-pricing.js", "/admin-pricing.css", "/admin-data.js", "/operations.js", "/partner.webmanifest", "/portal-login.js",
                        "/pricing.html", "/terms.html", "/queue.html", "/orders.html", "/profile.html", "/profile.js", "/address.html", "/customer-login.js",
                        "/preloader.js", "/preloader.css", "/gsap-3.13.0.min.js",
                        "/navigation.html", "/navigation.css", "/bottom-nav.js", "/nav-tokens.js", "/embedded-tab.js"}
@@ -1173,6 +1173,7 @@ class PrintBee(SimpleHTTPRequestHandler):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=4188)
     parser.add_argument("--show-staff-keys", action="store_true")
     args = parser.parse_args()
@@ -1242,7 +1243,7 @@ if __name__ == "__main__":
         if active_checkout_terms(db, checkout_terms).get("autoDispatch"):
             eligible = {"delivery", *partners, *phones.values(), *google_access["partner"].values()}
         ops.ready_printed_orders(db, "warehouse", eligible_partners=eligible)
-    with ThreadingHTTPServer(("127.0.0.1", args.port), PrintBee) as server:
+    with ThreadingHTTPServer((args.host, args.port), PrintBee) as server:
         server.keys = keys
         server.google_access = google_access
         server.partners = {"delivery": keys["delivery"], **partners}
@@ -1255,5 +1256,5 @@ if __name__ == "__main__":
         maps_id = os.environ.get("PRINTBEE_MAPS_MAP_ID")
         server.maps = {"key": maps_key, "id": maps_id} if maps_key and maps_id else None
         server.files = PrivateFiles(bucket) if bucket else None
-        print(f"PrintBee at http://127.0.0.1:{args.port}/ (payments: {payment_mode})", flush=True)
+        print(f"PrintBee at http://{args.host}:{args.port}/ (payments: {payment_mode})", flush=True)
         server.serve_forever()

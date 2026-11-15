@@ -4,6 +4,7 @@ import {addOfflineOrderFields, pickupMapUrl} from './admin-records.js';
 
 import {buildLedger} from './admin-ledger.js';
 import {buildPricingForm} from './admin-pricing.js';
+import {previewPricingUrl, readPreviewPricing, savePreviewPricing} from './pricing-preview.js';
 
 const $ = id => document.getElementById(id);
 const root = $('dashboard');
@@ -28,7 +29,6 @@ const escape = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;',
 const reduced = matchMedia('(prefers-reduced-motion: reduce)');
 const partners = [{name:'Ananya Roy', email:'ananya.rider@example.com'}];
 const warehouses = [{name:'Main campus print room', location:'SRM Main Campus', address:'SRM Institute of Science and Technology, Kattankulathur', email:'warehouse@example.com'}];
-const previewPricing = {paperRates:{A4:[175,300,850,1400]}, bindingRates:{glossy:5000,blue:4000}};
 const orderWindowDays = 30;
 const state = { period:'Daily', query:'', filter:'', sort:'date', direction:-1, page:0};
 const getStored = key => { try { return localStorage.getItem(key); } catch { return null; } };
@@ -311,10 +311,17 @@ function render(animate = false) {
   else $('mobile-more').removeAttribute('aria-current');
   root.innerHTML = `<div class="grid${animate ? ' arrive' : ''}">${widgets}</div>`;
   if (route === 'ledger') buildLedger($('preview-ledger'), previewLedger, {demo:true})();
-  if (route === 'pricing') $('pricing-form').append(buildPricingForm(previewPricing, changes => {
-    Object.assign(previewPricing, changes);
-    return 'Preview pricing saved.';
-  }, {demo:true}));
+  if (route === 'pricing') {
+    const customerPreview = document.createElement('a');
+    customerPreview.href = previewPricingUrl;
+    customerPreview.target = '_blank';
+    customerPreview.rel = 'noopener';
+    customerPreview.textContent = 'Open customer pricing preview';
+    $('pricing-form').append(buildPricingForm(readPreviewPricing(), changes => {
+      savePreviewPricing(changes);
+      return 'Preview pricing saved in this browser.';
+    }, {demo:true}), customerPreview);
+  }
   root.removeAttribute('aria-busy');
   if ($('order-search')) {
     $('order-search').value = state.query;

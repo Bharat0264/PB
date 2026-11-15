@@ -1,0 +1,12 @@
+**
+!Dockerfile
+!requirements.txt
+!/*.py
+test_*.py
+!/*.html
+!/*.js
+!/*.css
+!/*.webmanifest
+!/*.woff2
+!/*.webp
+!/*.png

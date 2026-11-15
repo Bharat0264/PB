@@ -33,7 +33,7 @@ export function buildPricingForm(terms, save, {demo = false} = {}) {
     if (!Number.isSafeInteger(paise)) throw new Error('Enter a smaller amount.');
     return paise;
   };
-  form.append(element('p', demo ? 'Preview changes apply to this session only.' : 'Enter amounts in rupees. Published rates apply to new checkout orders.'));
+  form.append(element('p', demo ? 'Preview changes appear in the customer pricing preview in this browser.' : 'Enter amounts in rupees. Published rates apply to new checkout orders.'));
   const papers = {};
   for (const paper of ['A4','A3','A5']) {
     const fields = group(paper + ' printing · ₹ per page');

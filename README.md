@@ -4,6 +4,38 @@ Install dependencies with `python -m pip install -r requirements.txt`, run
 `python server.py`, and open http://127.0.0.1:4188/. Use
 `python -m unittest -v` for the automated tests.
 
+## Deploying shared pricing
+
+Serve the site and its API from the same PrintBee Python server. The static
+Vercel configuration serves HTML and assets. It returns 404 for the Python API.
+Live Admin uses /api/admin/pricing and customers read /api/checkout. Both need
+the same running server and persistent SQLite data.
+
+1. Deploy one instance on an HTTPS-enabled Docker host, or run server.py
+   behind an HTTPS reverse proxy. Set PRINTBEE_ORIGIN to that public origin and
+   configure Google sign-in and PRINTBEE_GOOGLE_ADMIN_EMAILS using
+   [EMAIL-SIGN-IN.md](EMAIL-SIGN-IN.md).
+2. Keep the database and staff keys on persistent storage. With Docker, create
+   and reuse a named volume. Keep the server environment file outside Git.
+
+       docker build -t printbee .
+       docker volume create printbee-data
+       docker run -d --name printbee --restart unless-stopped \
+         --env-file /secure/printbee.env -p 127.0.0.1:4188:4188 \
+         --mount source=printbee-data,target=/var/lib/printbee printbee
+
+   Point the host's HTTPS reverse proxy at 127.0.0.1:4188. For a direct Python
+   deployment, set PRINTBEE_DATA_DIR to your persistent data directory. The
+   default bind is 127.0.0.1 on port 4188. If you already have live orders,
+   migrate the existing SQLite database and staff keys before switching hosts.
+3. Open /api/checkout on the public origin and verify it returns JSON.
+   Sign into /admin#pricing and publish a change. An open /pricing.html on the
+   same origin updates within about five seconds.
+
+The login-free admin preview provides an **Open customer pricing preview** link.
+Saving preview rates updates that page in the same browser. Checkout uses the
+server's published prices.
+
 ## Phase 1: Audit and foundation
 
 The existing site uses HTML, CSS, browser JavaScript, Python and SQLite. The customer
