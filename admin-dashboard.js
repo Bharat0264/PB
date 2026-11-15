@@ -103,9 +103,11 @@ function kpis(items) {
     start.setHours(0, 0, 0, 0);
     return metrics(orders.filter(order => order.date >= start && order.date <= end), 1);
   });
-  return `<div class="metrics">${values.map((value,i) => {
+  // Lead with today's activity, then period totals, the order queue, and customer metrics.
+  const displayOrder = [4, 5, 0, 1, 8, 2, 3, 6, 7, 9];
+  return `<div class="metrics">${displayOrder.map(i => {
     const isDaily = i === 4 || i === 5;
-    if (isDaily) value = daily.at(-1)[i];
+    const value = isDaily ? daily.at(-1)[i] : values[i];
     const baseline = isDaily ? daily.at(-2)[i] : prior[i];
     const change = baseline ? (value / baseline - 1) * 100 : null;
     const negative = change !== null && ([7,8].includes(i) ? change > 0 : change < 0);
