@@ -412,6 +412,7 @@ addEventListener('hashchange',() => {
   closePopovers();
   render(true);
   if (document.activeElement !== $('global-search')) $('main').focus({preventScroll:true});
+  $('admin-workarea').scrollTop = 0;
   scrollTo(0,0);
 });
 $('global-search').oninput = event => {

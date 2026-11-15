@@ -9,14 +9,14 @@
 <link rel="stylesheet" href="admin-tokens.css">
 <link rel="stylesheet" href="admin-dashboard.css?v=staff-dock">
 <link rel="stylesheet" href="hive-theme.css?v=toggle-fit">
-<link rel="stylesheet" href="admin-hive.css?v=staff-dock">
+<link rel="stylesheet" href="admin-hive.css?v=stable-workspace">
 <script src="hive-theme.js?v=1" data-follow-system="false"></script>
 <link rel="stylesheet" href="admin-pricing.css">
 <link rel="stylesheet" href="admin-ledger.css">
 <link rel="stylesheet" href="admin-mobile.css">
 <link rel="stylesheet" href="/staff-dock.css?v=3">
 <script src="/staff-dock.js?v=3" defer></script>
-<script type="module" src="admin-dashboard.js?v=staff-dock"></script>
+<script type="module" src="admin-dashboard.js?v=stable-workspace"></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to dashboard</a>
@@ -36,26 +36,28 @@
       <div class="popover card" id="notification-panel" hidden><h2>Notifications</h2><ul id="notification-list" class="activity"></ul></div>
       <div class="popover card" id="profile-panel" hidden><strong>PrintBee Admin</strong><p>Demo workspace</p><a href="/admin#orders">Live customer orders ↗</a><br><a href="mailto:printbee.co.in@gmail.com">Contact support</a></div>
     </header>
-    <div class="intro">
-      <div><p class="eyebrow">PrintBee operations <span>Sample data</span></p><h1 id="page-title">Dashboard</h1><p id="page-description">Track campus print orders, revenue, and delivery activity.</p></div>
-      <div class="actions" data-page-actions="orders" hidden>
-        <button id="add-order" class="primary" type="button">+ Add offline orders</button>
-        <button id="export-csv" type="button">Export CSV</button>
-        <button id="export-pdf" type="button">Print / Save PDF</button>
+    <div id="admin-workarea" class="admin-workarea">
+      <div class="intro">
+        <div><p class="eyebrow">PrintBee operations <span>Sample data</span></p><h1 id="page-title">Dashboard</h1><p id="page-description">Track campus print orders, revenue, and delivery activity.</p></div>
+        <div class="actions" data-page-actions="orders" hidden>
+          <button id="add-order" class="primary" type="button">+ Add offline orders</button>
+          <button id="export-csv" type="button">Export CSV</button>
+          <button id="export-pdf" type="button">Print / Save PDF</button>
+        </div>
+        <div class="actions" data-page-actions="inventory" hidden>
+          <button id="add-product" class="primary" type="button">+ Add product</button>
+        </div>
+        <div class="actions" data-page-actions="partners" hidden>
+          <button id="add-partner" class="primary" type="button">+ Add verified partner</button>
+        </div>
+        <div class="actions" data-page-actions="warehouses" hidden>
+          <button id="add-warehouse" class="primary" type="button">+ Add warehouse</button>
+        </div>
       </div>
-      <div class="actions" data-page-actions="inventory" hidden>
-        <button id="add-product" class="primary" type="button">+ Add product</button>
+      <p id="notice" class="notice" role="status"></p>
+      <div id="dashboard" aria-busy="true">
+        <div class="skeletons" role="status" aria-label="Loading dashboard"><span></span><span></span><span></span></div>
       </div>
-      <div class="actions" data-page-actions="partners" hidden>
-        <button id="add-partner" class="primary" type="button">+ Add verified partner</button>
-      </div>
-      <div class="actions" data-page-actions="warehouses" hidden>
-        <button id="add-warehouse" class="primary" type="button">+ Add warehouse</button>
-      </div>
-    </div>
-    <p id="notice" class="notice" role="status"></p>
-    <div id="dashboard" aria-busy="true">
-      <div class="skeletons" role="status" aria-label="Loading dashboard"><span></span><span></span><span></span></div>
     </div>
   </main>
 </div>

@@ -120,11 +120,16 @@ let refreshingOrders = false;
 let adminTimer, adminFeed;
 let refreshLedger;
 let staffDock;
+let activeAdminTab;
 
 function syncAdminSection() {
   const tab = location.hash.slice(1);
   const section = ['pricing','ledger'].includes(tab) ? tab : 'dashboard';
   content.dataset.section = section;
+  if (tab !== activeAdminTab) {
+    activeAdminTab = tab;
+    content.scrollTop = 0;
+  }
   staffDock?.setActive(tab === 'orders' ? tab : section);
   for (const link of document.querySelectorAll('#admin-sections a')) {
     if (link.hash === '#' + section) link.setAttribute('aria-current', 'page');
@@ -241,16 +246,36 @@ function buildLiveOrders(section, data) {
   search.setAttribute('aria-label', 'Search live orders');
   const list = element('ul');
   let orders = [];
-  let snapshot;
+  let snapshot, pending;
+  let renderedRows = new Map();
+  const empty = element('li');
   const matching = () => {
     const query = search.value.trim().toLowerCase();
     return orders.filter(order => [orderNumber(order), order.customer || ''].some(value => value.toLowerCase().includes(query)));
   };
   function render() {
-    list.replaceChildren();
     const results = matching();
-    if (!results.length) list.append(element('li', search.value.trim() ? 'No matching orders.' : 'No orders yet.'));
-    appendOrderRows(list, results);
+    const rows = new Map();
+    for (const order of results) {
+      const fingerprint = JSON.stringify([order, paymentMode]);
+      const previous = renderedRows.get(order.id);
+      rows.set(order.id, previous?.fingerprint === fingerprint ? previous : {fingerprint, node:buildOrderRow(order)});
+    }
+    for (const [id, previous] of renderedRows) {
+      if (rows.get(id)?.node !== previous.node) previous.node.remove();
+    }
+    renderedRows = rows;
+    if (!rows.size) {
+      empty.textContent = search.value.trim() ? 'No matching orders.' : 'No orders yet.';
+      list.append(empty);
+      return;
+    }
+    empty.remove();
+    let position = list.firstChild;
+    for (const {node} of rows.values()) {
+      if (node === position) position = position.nextSibling;
+      else list.insertBefore(node, position);
+    }
   }
   search.addEventListener('input', render);
   const csv = action('Export recent orders CSV', () => {
@@ -274,56 +299,64 @@ function buildLiveOrders(section, data) {
   }, result => result.saved ? 'Offline orders saved.' : 'These orders are already saved.');
   section.append(list);
   function update(next) {
-    const fingerprint = JSON.stringify(next);
-    if (fingerprint === snapshot) return;
-    if (list.contains(document.activeElement)) return;
+    const fingerprint = JSON.stringify([next, paymentMode]);
+    if (fingerprint === snapshot) {
+      pending = undefined;
+      return;
+    }
+    if (list.contains(document.activeElement)) {
+      pending = next;
+      return;
+    }
+    pending = undefined;
     orders = next;
     snapshot = fingerprint;
     render();
   }
+  list.addEventListener('focusout', () => {
+    queueMicrotask(() => { if (pending) update(pending); });
+  });
   update(data);
   return update;
 }
 
-function appendOrderRows(list, orders) {
-  for (const order of orders) {
-    const row = element('li');
-    row.className = 'live-order-row';
-    const details = element('div');
-    details.className = 'live-order-details';
-    details.append(element('strong', orderNumber(order)), element('span', money(order.total / 100)),
-      element('span', [order.customer, order.product].filter(Boolean).join(' · ')),
-      element('span', statusLabel(order.status)));
-    row.append(details);
-    if (order.status === 'out_for_delivery') row.append(action('Renew delivery code', async () => {
-      await api('/api/admin/orders/' + order.id + '/renew-code', {});
-      statusLine.textContent = 'The customer can refresh their order to see the new code.';
-    }));
-    if (order.status === 'out_for_delivery') row.append(action('Mark undeliverable', async () => {
-      if (!window.confirm('Mark this delivery as undeliverable?')) return;
-      await api('/api/admin/orders/' + order.id + '/undeliverable', {});
+function buildOrderRow(order) {
+  const row = element('li');
+  row.className = 'live-order-row';
+  const details = element('div');
+  details.className = 'live-order-details';
+  details.append(element('strong', orderNumber(order)), element('span', money(order.total / 100)),
+    element('span', [order.customer, order.product].filter(Boolean).join(' · ')),
+    element('span', statusLabel(order.status)));
+  row.append(details);
+  if (order.status === 'out_for_delivery') row.append(action('Renew delivery code', async () => {
+    await api('/api/admin/orders/' + order.id + '/renew-code', {});
+    statusLine.textContent = 'The customer can refresh their order to see the new code.';
+  }));
+  if (order.status === 'out_for_delivery') row.append(action('Mark undeliverable', async () => {
+    if (!window.confirm('Mark this delivery as undeliverable?')) return;
+    await api('/api/admin/orders/' + order.id + '/undeliverable', {});
+    await admin();
+  }));
+  if (order.status === 'undeliverable' || (order.status === 'packed' && order.partner)) row.append(action('Reassign delivery', async () => {
+    await api('/api/admin/orders/' + order.id + '/reassign', {});
+    await admin();
+    statusLine.textContent = 'The order is back in the pool for delivery partners.';
+  }));
+  if (order.status === 'paid' && !order.captured) row.append(action('Cancel order', async () => {
+    if (!window.confirm('Cancel this unprinted order?')) return;
+    await api('/api/admin/orders/' + order.id + '/cancel', {});
+    await admin();
+  }));
+  if ((order.captured || paymentMode === 'test') && ['paid', 'undeliverable', 'refund_pending'].includes(order.status)) {
+    row.append(action(order.status === 'refund_pending' ? 'Reconcile refund' : 'Refund order', async () => {
+      if (order.status !== 'refund_pending' && !window.confirm('Request a full refund and stop fulfilment?')) return;
+      const result = await api('/api/admin/orders/' + order.id + '/refund', {});
       await admin();
+      statusLine.textContent = 'Refund ' + result.state + '.';
     }));
-    if (order.status === 'undeliverable' || (order.status === 'packed' && order.partner)) row.append(action('Reassign delivery', async () => {
-      await api('/api/admin/orders/' + order.id + '/reassign', {});
-      await admin();
-      statusLine.textContent = 'The order is back in the pool for delivery partners.';
-    }));
-    if (order.status === 'paid' && !order.captured) row.append(action('Cancel order', async () => {
-      if (!window.confirm('Cancel this unprinted order?')) return;
-      await api('/api/admin/orders/' + order.id + '/cancel', {});
-      await admin();
-    }));
-    if ((order.captured || paymentMode === 'test') && ['paid', 'undeliverable', 'refund_pending'].includes(order.status)) {
-      row.append(action(order.status === 'refund_pending' ? 'Reconcile refund' : 'Refund order', async () => {
-        if (order.status !== 'refund_pending' && !window.confirm('Request a full refund and stop fulfilment?')) return;
-        const result = await api('/api/admin/orders/' + order.id + '/refund', {});
-        await admin();
-        statusLine.textContent = 'Refund ' + result.state + '.';
-      }));
-    }
-    list.append(row);
   }
+  return row;
 }
 
 async function admin() {
@@ -346,6 +379,7 @@ async function admin() {
   const orders = element('section');
   orders.className = 'clay-card';
   orders.id = 'orders';
+  paymentMode = data.paymentMode || paymentMode;
   const updateOrders = buildLiveOrders(orders, data.orders);
   let lastTotals;
   function updateOverview(next) {
@@ -430,6 +464,7 @@ async function startAdmin() {
   await admin();
   const navigation = document.querySelector('#admin-sections');
   navigation.hidden = false;
+  document.body.classList.add('admin-ready');
   const nav = document.getElementById('admin-staff-dock');
   const go = tab => () => {
     location.hash = tab;
