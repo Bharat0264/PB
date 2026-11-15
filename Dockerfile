@@ -10,7 +10,11 @@ RUN pip install --no-cache-dir -r requirements.txt \
 
 COPY *.py *.html *.js *.css *.webmanifest *.woff2 *.webp *.png ./
 
-USER printbee
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh && chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# Starts as root only to fix the data volume's ownership, then drops to the printbee user.
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 VOLUME ["/var/lib/printbee"]
 EXPOSE 4188
 CMD ["python", "server.py", "--host", "0.0.0.0", "--port", "4188"]
