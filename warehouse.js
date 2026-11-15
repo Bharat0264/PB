@@ -201,8 +201,9 @@ function render(refreshStation=true,focusDate=false) {
     else control.removeAttribute('aria-current');
   }
   const tools=['Printers','Settings','Inventory'].includes(view);
-  const context=tools || view==='History';
-  byId('warehouse-columns').classList.toggle('wh-context-layout',context);
+  const columns=byId('warehouse-columns');
+  columns.classList.toggle('wh-context-layout',view==='Printers' || view==='Inventory' || view==='History');
+  columns.classList.toggle('wh-settings-layout',view==='Settings');
   if (tools) renderTools();
   else if (view==='History') renderHistory(filterOpen);
   else if (view==='Home') renderHome();
@@ -467,8 +468,13 @@ function renderTools() {
     const printing=node('section',null,'clay-card wh-tool');
     printing.append(node('h2','Printing'),settingRow('skipConfirm','Skip print confirmation','Send files to the printer in one press.'));
     const display=node('section',null,'clay-card wh-tool');
+    const example=node('div',null,'wh-station-contact wh-display-preview');
+    const displayStatus=node('span');
+    displayStatus.id='floor-display-preview';
+    displayStatus.setAttribute('role','status');
+    example.append(node('strong','Display preview'),displayStatus);
     display.append(node('h2','Display'),settingRow('large','Large text','Increase type size across the Print Floor.'),
-      settingRow('contrast','High contrast','Use stronger colours for labels, controls and focus.'));
+      settingRow('contrast','High contrast','Use stronger colours for labels, controls and focus.'),example);
     const integration=node('section',null,'clay-card wh-tool');
     integration.append(node('h2','Integrations'));
     if ('Notification' in window) integration.append(button('Enable browser notifications',async()=>{
@@ -477,6 +483,7 @@ function renderTools() {
     integration.append(button('View inventory',()=>go('Inventory')));
     groups.append(alerts,printing,display,integration);
     board.append(groups);
+    syncPreferences();
   }
 }
 function exportHistory(rows) {
@@ -496,7 +503,7 @@ function download(link, filename) {
 function syncSheet() {
   const open=mobile.matches && sheet;
   station.classList.toggle('wh-sheet',open);
-  station.classList.toggle('wh-context-station',['Printers','Settings','History','Inventory'].includes(view) && !active);
+  station.classList.toggle('wh-context-station',['Printers','History','Inventory'].includes(view) && !active);
   byId('station-close').hidden=!open;
   document.body.classList.toggle('wh-has-sheet',open);
   for (const target of [station.previousElementSibling,document.querySelector('.wh-rail'),document.querySelector('.wh-top')]) target.inert=open;
@@ -539,7 +546,9 @@ function renderStation(order=findOrder()) {
   body.replaceChildren();
   dock.replaceChildren();
   dock.hidden=true;
-  station.classList.toggle('wh-context-station',['Printers','Settings','History','Inventory'].includes(view) && !order);
+  station.hidden=view==='Settings';
+  if (station.hidden) return;
+  station.classList.toggle('wh-context-station',['Printers','History','Inventory'].includes(view) && !order);
   byId('floor-detail-context').textContent='Order station';
   byId('detail-title').textContent=order?labelOrder(order):'Next up';
   if (!order) {
@@ -586,16 +595,6 @@ function renderStationContext(body,dock) {
     const steps=node('ol',null,'wh-pair-steps');
     ['Connect the printer and print a test page from the workstation.','Start the PrintBee agent with the printer name and its print-agent key.','Return here and wait for the agent to show Online.'].forEach(text=>steps.append(node('li',text)));
     body.append(steps);
-    return;
-  }
-  if (view==='Settings') {
-    title.textContent='Display preview';
-    const example=node('div',null,'wh-station-contact');
-    const detail=node('span');
-    detail.id='floor-display-preview';
-    example.append(node('strong','Order station'),detail);
-    body.append(example);
-    syncPreferences();
     return;
   }
   if (view==='Inventory') {title.textContent='Stock overview';body.append(node('p','Check stock before starting a print run.','wh-muted'));return;}
