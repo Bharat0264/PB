@@ -1,3 +1,5 @@
+import {addOfflineOrderFields, pickupMapUrl} from './admin-records.js';
+
 const portal = document.body.dataset.portal;
 const statusLine = document.querySelector('#ops-status');
 const content = document.querySelector('#ops-content');
@@ -115,6 +117,98 @@ function orderNumber(order) {
   return order.order_number || 'PB-' + order.id.slice(0, 8).toUpperCase();
 }
 
+function buildEditor(section, title, endpoint, addFields, savedMessage) {
+  const editor = element('dialog');
+  editor.className = 'clay-card admin-record-editor';
+  const heading = element('h2', title);
+  heading.id = endpoint.split('/').at(-1) + '-title';
+  editor.setAttribute('aria-labelledby', heading.id);
+  const form = element('form');
+  const fields = element('fieldset');
+  fields.className = 'admin-record-fields';
+  let read = addFields(fields);
+  const notice = element('p');
+  notice.setAttribute('role', 'status');
+  const close = action('Close', () => editor.close());
+  const save = element('button', 'Save');
+  save.type = 'submit';
+  save.className = 'clay-button';
+  form.append(fields, notice, close, save);
+  editor.append(heading, form);
+  editor.addEventListener('cancel', event => {
+    if (save.disabled) event.preventDefault();
+  });
+  form.onsubmit = async event => {
+    event.preventDefault();
+    const data = read();
+    fields.disabled = save.disabled = close.disabled = true;
+    notice.textContent = 'Saving…';
+    try {
+      const result = await api(endpoint, data);
+      editor.close();
+      fields.replaceChildren();
+      read = addFields(fields);
+      notice.textContent = '';
+      statusLine.textContent = savedMessage(result);
+      try {
+        await admin();
+      } catch {
+        statusLine.textContent += ' Refresh the dashboard to see the update.';
+        return;
+      }
+      // The successful refresh rebuilt the form and its order IDs.
+      content.querySelector('[data-editor="' + heading.id + '"]')?.focus();
+    } catch (error) {
+      notice.textContent = error.message;
+    } finally {
+      fields.disabled = save.disabled = close.disabled = false;
+    }
+  };
+  const open = action(title, () => editor.showModal());
+  open.dataset.editor = heading.id;
+  section.append(open, editor);
+}
+
+function buildWarehouses(records) {
+  const card = element('section');
+  card.className = 'clay-card warehouse-directory';
+  card.append(element('h2', 'Warehouses'));
+  buildEditor(card, 'Add warehouse', '/api/admin/warehouses', fields => {
+    const textField = (title, type, length) => {
+      const label = element('label', title);
+      const input = element('input');
+      Object.assign(input, {type, maxLength:length, required:true, className:'clay-input'});
+      label.append(input);
+      fields.append(label);
+      return input;
+    };
+    const name = textField('Warehouse name', 'text', 70);
+    const address = textField('Google Maps pickup address or coordinates', 'text', 500);
+    const email = textField('Staff Google account email', 'email', 254);
+    const pickup = element('label', 'Use for new order pickups');
+    pickup.className = 'pickup-default';
+    const checkbox = element('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = !records.length;
+    pickup.prepend(checkbox);
+    fields.append(pickup);
+    return () => ({name:name.value, address:address.value, email:email.value, useForPickup:checkbox.checked});
+  }, () => 'Warehouse saved.');
+  const list = element('ul');
+  for (const warehouse of records) {
+    const row = element('li');
+    const map = element('a', warehouse.address);
+    map.href = pickupMapUrl(warehouse.address);
+    map.target = '_blank';
+    map.rel = 'noopener';
+    row.append(element('strong', warehouse.name + (warehouse.is_default ? ' · Default pickup' : '')),
+      element('span', warehouse.email), map);
+    list.append(row);
+  }
+  if (records.length) card.append(list);
+  return card;
+}
+
 function buildLiveOrders(section, data) {
   const search = element('input');
   search.type = 'search';
@@ -131,7 +225,7 @@ function buildLiveOrders(section, data) {
   function render() {
     list.replaceChildren();
     const results = matching();
-    if (!results.length) list.append(element('li', search.value.trim() ? 'No matching orders.' : 'No customer orders yet.'));
+    if (!results.length) list.append(element('li', search.value.trim() ? 'No matching orders.' : 'No orders yet.'));
     appendOrderRows(list, results);
   }
   search.addEventListener('input', render);
@@ -149,7 +243,12 @@ function buildLiveOrders(section, data) {
   const controls = element('div');
   controls.className = 'live-order-controls';
   controls.append(search, csv);
-  section.append(element('h2', 'Live customer orders'), controls, list);
+  section.append(element('h2', 'Orders'), controls);
+  buildEditor(section, 'Add offline orders', '/api/admin/offline-orders', fields => {
+    const read = addOfflineOrderFields(fields);
+    return () => ({orders:read()});
+  }, result => result.saved ? 'Offline orders saved.' : 'These orders are already saved.');
+  section.append(list);
   function update(next) {
     const fingerprint = JSON.stringify(next);
     if (fingerprint === snapshot) return;
@@ -166,7 +265,7 @@ function appendOrderRows(list, orders) {
   for (const order of orders) {
     const row = element('li', [
       orderNumber(order),
-      order.customer, order.status.replaceAll('_', ' '), money(order.total / 100),
+      order.customer, order.product, order.status.replaceAll('_', ' '), money(order.total / 100),
     ].filter(Boolean).join(' · '));
     if (order.status === 'out_for_delivery') row.append(action('Renew delivery code', async () => {
       await api('/api/admin/orders/' + order.id + '/renew-code', {});
@@ -197,16 +296,23 @@ async function admin() {
   totals.className = 'clay-card';
   const captured = element('p');
   const counts = element('ul');
-  totals.append(element('h2', 'Order overview'), captured, counts);
+  const daily = element('dl');
+  daily.className = 'daily-overview';
+  const revenue = element('dd');
+  const todayOrders = element('dd');
+  daily.append(element('dt', 'Today’s revenue'), revenue, element('dt', 'Today’s orders'), todayOrders);
+  totals.append(element('h2', 'Order overview'), daily, captured, counts);
   const orders = element('section');
   orders.className = 'clay-card';
   orders.id = 'orders';
   const updateOrders = buildLiveOrders(orders, data.orders);
   let lastTotals;
   function updateOverview(next) {
-    const signature = JSON.stringify([next.counts, next.captured]);
+    const signature = JSON.stringify([next.counts, next.captured, next.today]);
     if (signature === lastTotals) return;
     lastTotals = signature;
+    revenue.textContent = money(next.today.revenue / 100);
+    todayOrders.textContent = new Intl.NumberFormat('en-IN').format(next.today.orders);
     captured.textContent = money(next.captured / 100) + ' captured in Razorpay';
     counts.replaceChildren(...Object.entries(next.counts).map(([state, count]) =>
       element('li', state.replaceAll('_', ' ') + ' · ' + count)));
@@ -252,7 +358,7 @@ async function admin() {
     }));
     settlements.append(row);
   }
-  content.replaceChildren(action('Refresh dashboard', admin), totals, orders, pricing, settlements, audit);
+  content.replaceChildren(action('Refresh dashboard', admin), totals, orders, pricing, settlements, audit, buildWarehouses(data.warehouses));
   liveOrders = update;
 }
 

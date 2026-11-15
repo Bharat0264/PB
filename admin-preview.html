@@ -7,11 +7,11 @@
 <title>Dashboard · PrintBee Admin</title>
 <link rel="icon" href="/printbee-tab-bee.png">
 <link rel="stylesheet" href="admin-tokens.css">
-<link rel="stylesheet" href="admin-dashboard.css?v=fixed-order-window">
+<link rel="stylesheet" href="admin-dashboard.css?v=offline-orders">
 <link rel="stylesheet" href="hive-theme.css?v=toggle-fit">
 <link rel="stylesheet" href="admin-hive.css?v=1">
 <script src="hive-theme.js?v=1" data-follow-system="false"></script>
-<script type="module" src="admin-dashboard.js?v=fixed-order-window"></script>
+<script type="module" src="admin-dashboard.js?v=offline-orders"></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to dashboard</a>
@@ -34,7 +34,7 @@
     <div class="intro">
       <div><p class="eyebrow">PrintBee operations <span>Sample data</span></p><h1 id="page-title">Dashboard</h1><p id="page-description">Track campus print orders, revenue, and delivery activity.</p></div>
       <div class="actions" data-page-actions="orders" hidden>
-        <button id="add-order" class="primary" type="button">+ Add order</button>
+        <button id="add-order" class="primary" type="button">+ Add offline orders</button>
         <button id="export-csv" type="button">Export CSV</button>
         <button id="export-pdf" type="button">Print / Save PDF</button>
       </div>

@@ -230,7 +230,7 @@ function stepOf(order) {
 }
 function navigateUrl(order) {
   if (!order) return null;
-  const destination = order.status === 'packed' ? 'SRM Institute of Science and Technology, Kattankulathur'
+  const destination = order.status === 'packed' ? (order.pickupWarehouse?.address || 'SRM Institute of Science and Technology, Kattankulathur')
     : order.address?.match(/Delivery pin: (-?[\d.]+,\s*-?[\d.]+)/i)?.[1] || order.address || 'SRM Institute of Science and Technology';
   return 'https://www.google.com/maps/dir/?' + new URLSearchParams({api: 1, destination, travelmode: 'two-wheeler'});
 }
@@ -918,7 +918,7 @@ function offerCard(order) {
   const pay = h('span', {class: 'offer-pay num'}, money(order.payout));
   return h('article', {class: 'offer', 'aria-label': `${orderNo(order)}, ${money(order.payout)}`},
     h('div', {class: 'offer-top'}, h('div', {}, h('div', {class: 'offer-id'}, orderNo(order)), pay), hot ? h('span', {class: 'tag tag-hot'}, 'Hot zone +₹15') : null),
-    h('div', {class: 'offer-route'}, h('i'), h('span', {}, 'Print room, PrintBee hive'), h('i', {class: 'to'}), h('span', {}, order.to || order.address || 'Customer')),
+    h('div', {class: 'offer-route'}, h('i'), h('span', {}, order.pickupWarehouse?.name || 'Print room, PrintBee hive'), h('i', {class: 'to'}), h('span', {}, order.to || order.address || 'Customer')),
     h('div', {class: 'offer-meta'}, ...(order.summary || '').split(' · ').filter(Boolean).slice(1).map(t => h('span', {class: 'tag'}, t))),
     slideToAct({label: 'Slide to accept', ariaLabel: `Accept ${orderNo(order)} for ${money(order.payout)}. Drag, or press Enter.`,
       thumb: `<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#2A2112" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`,
@@ -941,7 +941,16 @@ function activeCell(order) {
   const advance = next => { if (demo) state.step = next; else localStep = next; changed(); };
   const title = ['Fly to the hive', 'Collect the packets', 'Deliver to ' + (order.to || 'customer'), 'Verify the delivery code'][step];
   const body = [];
-  if (step === 0) body.push(h('p', {class: 'active-meta'}, 'PrintBee print room, SRM campus'), slideToAct({label: 'Slide when you’ve arrived', onConfirm: () => advance(1), ariaLabel: 'I’ve arrived at the hive. Drag, or press Enter.'}));
+  if (step <= 1) {
+    const pickup = order.pickupWarehouse;
+    body.push(
+      h('div', {class: 'active-meta'}, h('strong', {}, pickup?.name || 'PrintBee print room'),
+        h('span', {}, pickup?.address || 'SRM campus')),
+      h('div', {class: 'row-actions'}, h('a', {class: 'hive-btn', href: navigateUrl(order),
+        target: '_blank', rel: 'noopener noreferrer'}, icon('nav', 18), 'Navigate to warehouse'))
+    );
+  }
+  if (step === 0) body.push(slideToAct({label: 'Slide when you’ve arrived', onConfirm: () => advance(1), ariaLabel: 'I’ve arrived at the hive. Drag, or press Enter.'}));
   if (step === 1) {
     const checks = h('fieldset', {class: 'checks'}, h('legend', {}, 'Before you leave'),
       ...['Packet count matches', 'Labels match this order'].map(t => h('label', {}, h('input', {type: 'checkbox'}), t)));

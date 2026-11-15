@@ -143,3 +143,10 @@ dialog::backdrop { background:#21180b7a }
 @font-face { font-family:Manrope; src:url("manrope-latin-400-normal.woff2") format("woff2"); font-weight:400; font-display:swap }
 @font-face { font-family:Manrope; src:url("manrope-latin-800-normal.woff2") format("woff2"); font-weight:700 900; font-display:swap }
 @media(max-width:380px) { .mobile-nav .nav-link { font-size:9px } }
+
+#editor-fields .offline-rows,
+#editor-fields .offline-row { display: grid; gap: 12px; min-inline-size: 0; }
+#editor-fields .offline-row { padding: 12px; border: 1px solid var(--line); border-radius: var(--control-radius); }
+#editor-fields .offline-row legend { padding: 0 6px; font-weight: 750; }
+#editor-fields .offline-row button { justify-self: start; }
+#editor-fields .offline-row :is(input, select) { width: 100%; min-width: 0; }

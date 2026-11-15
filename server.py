@@ -14,6 +14,7 @@ from urllib.parse import parse_qs, urlsplit
 from http.cookies import CookieError, SimpleCookie
 from threading import BoundedSemaphore
 
+import admin_records
 import customer_auth as auth
 import fulfillment as ops
 import partner_auth
@@ -220,9 +221,9 @@ class PrintBee(SimpleHTTPRequestHandler):
         if path in ("/warehouse", "/partner"):
             self.path = "/staff.html" if path == "/warehouse" else "/partner.html"
             return super().do_GET()
-        pages = {"/admin": "/admin.html"}
-        if path in pages:
-            return self.auth_redirect(pages[path])
+        if path == "/admin":
+            self.path = "/admin.html"
+            return super().do_GET()
         if path in ("/api/auth/google", auth.GOOGLE_CALLBACK):
             return self.google_sign_in(path)
         if path == "/api/auth/session":
@@ -245,7 +246,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                        "/footer-wave.css", "/footer-wave.js",
                        "/hive-theme.css", "/hive-theme.js", "/admin-hive.css", "/admin-live-hive.css", "/warehouse-hive.css",
                        "/partner.html", "/partner.css", "/partner.js", "/partner-sw.js", "/admin.html", "/admin-preview.html", "/admin-dashboard.css", "/admin-tokens.css",
-                       "/admin-dashboard.js", "/admin-data.js", "/operations.js", "/partner.webmanifest", "/portal-login.js",
+                       "/admin-dashboard.js", "/admin-records.js", "/admin-data.js", "/operations.js", "/partner.webmanifest", "/portal-login.js",
                        "/pricing.html", "/terms.html", "/queue.html", "/orders.html", "/profile.html", "/profile.js", "/address.html", "/customer-login.js",
                        "/preloader.js", "/preloader.css", "/gsap-3.13.0.min.js",
                        "/navigation.html", "/navigation.css", "/bottom-nav.js", "/nav-tokens.js", "/embedded-tab.js"}
@@ -544,6 +545,8 @@ class PrintBee(SimpleHTTPRequestHandler):
             self.json_response(404, {"error": "Unknown request."})
         except ops.Conflict as error:
             self.json_response(409, {"error": str(error)})
+        except admin_records.InputError as error:
+            self.json_response(400, {"error": str(error)})
         except (ValueError, KeyError, TypeError, AttributeError):
             self.json_response(400, {"error": "Check the order details and try again."})
 
@@ -612,6 +615,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                 stored = json.loads(existing["details"])
                 bill = stored.pop("bill", None)
                 stored.pop("partnerPayout", None)
+                stored.pop("pickupWarehouse", None)
                 if stored != details:
                     return self.json_response(409, {"error": "Order details changed. Reopen checkout to try again."})
             else:
@@ -623,7 +627,10 @@ class PrintBee(SimpleHTTPRequestHandler):
                 bill = bill_for(total, binding_total, coupon, terms)
                 if type(data.get("expectedTotal")) is not int or data["expectedTotal"] != bill["total"]:
                     return self.json_response(409, {"error": "Prices changed. Refresh and review your order."})
-                encoded = json.dumps({**details, "bill": bill, "partnerPayout": terms.get("partnerPayout", 0)}, sort_keys=True)
+                encoded = json.dumps({
+                    **details, "bill": bill, "partnerPayout": terms.get("partnerPayout", 0),
+                    "pickupWarehouse": admin_records.default_pickup(db),
+                }, sort_keys=True)
                 db.execute("INSERT INTO orders VALUES (?, ?, 'pending', ?)", (order_id, token, encoded))
                 db.execute("INSERT INTO order_owners (order_id, email, order_number) VALUES (?, ?, ?)",
                            (order_id, email, order_number(db)))
@@ -825,6 +832,8 @@ class PrintBee(SimpleHTTPRequestHandler):
             record = {key: row[key] for key in ("id", "status", "order_number", "partner")}
             details = json.loads(row["details"])
             record["payout"] = details.get("partnerPayout", 0)
+            if row["status"] == "packed" and details.get("pickupWarehouse"):
+                record["pickupWarehouse"] = details["pickupWarehouse"]
             if row["partner"] and row["status"] == "out_for_delivery":
                 record.update({key: details.get(key) for key in ("customer", "address", "phone", "slot", "notes")})
             orders.append(record)
@@ -908,13 +917,20 @@ class PrintBee(SimpleHTTPRequestHandler):
         orders = [dict(row) for row in db.execute(
             "SELECT orders.id, status, order_number, json_extract(details,'$.customer') AS customer, "
             "CAST(COALESCE(json_extract(details,'$.bill.total'), "
-            "json_extract(details,'$.subtotal')) AS INTEGER) AS total, payment_id IS NOT NULL AS captured "
+            "json_extract(details,'$.subtotal')) AS INTEGER) AS total, payment_id IS NOT NULL AS captured, "
+            "(SELECT max(created) FROM audit WHERE order_id=orders.id AND action='paid') AS created "
             "FROM orders LEFT JOIN order_owners ON orders.id=order_owners.order_id "
             "LEFT JOIN razorpay_orders ON orders.id=razorpay_orders.order_id ORDER BY orders.rowid DESC LIMIT 500"
         )]
+        offline = [dict(row) for row in db.execute(
+            "SELECT id, 'offline' AS status, 'PB-OFF-' || upper(substr(id,1,8)) AS order_number, "
+            "customer, product, total, created FROM offline_sales ORDER BY created DESC, rowid DESC LIMIT 500"
+        )]
+        orders = sorted(orders + offline, key=lambda row: row["created"] or 0, reverse=True)[:500]
         counts = {row["status"]: row["count"] for row in db.execute(
             "SELECT status, count(*) AS count FROM orders GROUP BY status"
         )}
+        counts["offline"] = db.execute("SELECT count(*) FROM offline_sales").fetchone()[0]
         captured = db.execute("SELECT COALESCE(sum(amount),0) FROM razorpay_orders WHERE payment_id IS NOT NULL").fetchone()[0]
         history = [dict(row) for row in db.execute(
             "SELECT actor, action, order_id, created FROM audit ORDER BY id DESC LIMIT 50"
@@ -924,7 +940,9 @@ class PrintBee(SimpleHTTPRequestHandler):
             "ORDER BY earned LIMIT 100"
         )]
         return self.json_response(200, {"orders": orders, "counts": counts, "captured": captured,
-                                        "terms": self.checkout_terms(db), "audit": history, "payouts": payouts})
+                                        "terms": self.checkout_terms(db), "audit": history, "payouts": payouts,
+                                        "today": admin_records.today_totals(db),
+                                        "warehouses": admin_records.warehouse_directory(db)})
 
     def operations_post(self, path):
         area = path.split("/")[2]
@@ -945,7 +963,17 @@ class PrintBee(SimpleHTTPRequestHandler):
             return self.refund_order(refund[1])
         with closing(connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
-            if path == "/api/admin/pricing":
+            if path in ("/api/admin/offline-orders", "/api/admin/warehouses"):
+                if not isinstance(data, dict):
+                    raise ValueError("Invalid admin request.")
+                actor = "admin" if self.headers.get("X-Staff-Key") else auth.portal_google_email(
+                    db, self.headers, "admin"
+                ) or "admin"
+                if path == "/api/admin/offline-orders":
+                    result = admin_records.record_offline_sales(db, data.get("orders"), actor)
+                else:
+                    result = admin_records.save_warehouse(db, data, actor)
+            elif path == "/api/admin/pricing":
                 terms = validate_terms({**data, "bindingRates": {
                     key: rate for key, rate in data.get("bindingRates", {}).items() if key != "none"
                 }})
@@ -1142,6 +1170,7 @@ if __name__ == "__main__":
             db.execute("ALTER TABLE google_portal_sessions ADD COLUMN portal TEXT")
         db.executescript(razorpay_checkout.SCHEMA)
         db.executescript(ops.SCHEMA)
+        db.executescript(admin_records.SCHEMA)
         db.executescript(partner_auth.SCHEMA)
         db.executescript("""
             CREATE TABLE IF NOT EXISTS orders (id TEXT PRIMARY KEY, token TEXT, status TEXT, details TEXT);

@@ -7,13 +7,13 @@
 <link rel="stylesheet" href="studio.css?v=mobile-touch">
 <link rel="stylesheet" href="clay.css">
 <link rel="stylesheet" href="hive-theme.css?v=plain-clay">
-<link rel="stylesheet" href="admin-live-hive.css?v=live-orders">
+<link rel="stylesheet" href="admin-live-hive.css?v=offline-orders">
 <script src="hive-theme.js?v=1"></script>
 <script src="portal-login.js" defer></script>
 <script>
 if (new URLSearchParams(location.search).get('preview') === '1') location.replace('/admin-preview.html');
 </script>
-<script src="operations.js?v=live-orders" defer></script>
+<script type="module" src="operations.js?v=offline-orders"></script>
 </head>
 <body data-portal="admin">
 <header class="frame top"><a href="/">PrintBee</a></header>

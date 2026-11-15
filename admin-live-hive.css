@@ -100,3 +100,21 @@ body[data-portal="admin"] [hidden] { display: none !important; }
   body[data-portal="admin"] .clay-card { animation: none; }
   body[data-portal="admin"] .clay-button, #ops-content li { transition: none; }
 }
+
+#ops-content > .warehouse-directory { grid-column: 1 / -1; }
+.warehouse-directory li { display: grid; gap: 4px; padding: 12px 0; overflow-wrap: anywhere; }
+.warehouse-directory li + li { border-top: 1px solid var(--hv-border); }
+.warehouse-directory li a { justify-self: start; text-decoration: underline; }
+.daily-overview { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px 12px; align-items: baseline; }
+.daily-overview dd { margin: 0; font-size: 1.2rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+#ops-content #orders > .clay-button, .warehouse-directory > .clay-button { margin-top: 12px; }
+.admin-record-editor { margin: auto; width: min(100% - 24px, 32rem); border: 0; max-height: calc(100% - 24px); }
+.admin-record-editor::backdrop { background: #21180b7a; }
+.admin-record-editor :is(.admin-record-fields, .offline-rows, .offline-row, label) { display: grid; gap: 10px; min-inline-size: 0; }
+.admin-record-editor .admin-record-fields { border: 0; padding: 0; margin: 0; }
+.admin-record-editor .offline-row { border: 1px solid var(--hv-border); border-radius: var(--hv-r-tile); padding: 12px; margin: 0; }
+.admin-record-editor .offline-row > button { justify-self: start; }
+.admin-record-editor input:not([type=checkbox]) { width: 100%; }
+.admin-record-editor label.pickup-default { display: flex; align-items: center; min-height: 48px; }
+.admin-record-editor .pickup-default input { width: 18px; height: 18px; accent-color: var(--hv-honey-700); }
+.admin-record-editor form > .clay-button + .clay-button { margin-left: 8px; background: var(--hv-honey-grad); color: #2A2112; }

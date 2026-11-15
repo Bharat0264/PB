@@ -1,5 +1,5 @@
-const version = 'printbee-partner-preview-v5-plain-clay';
-const shell = ['/partner?preview=1','/partner.css?v=plain-clay','/partner.js?v=plain-clay','/portal-login.js','/printbee-header-bee.webp','/partner.webmanifest','/partner-icon-192.png','/partner-icon-512.png','/printbee-tab-bee.png','/manrope-latin-400-normal.woff2','/manrope-latin-700-normal.woff2','/manrope-latin-800-normal.woff2'];
+const version = 'printbee-partner-preview-v6-warehouse-pickup';
+const shell = ['/partner?preview=1','/partner.css?v=plain-clay','/partner.js?v=warehouse-pickup','/portal-login.js','/printbee-header-bee.webp','/partner.webmanifest','/partner-icon-192.png','/partner-icon-512.png','/printbee-tab-bee.png','/manrope-latin-400-normal.woff2','/manrope-latin-700-normal.woff2','/manrope-latin-800-normal.woff2'];
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(version).then(cache=>cache.addAll(shell)));
 });

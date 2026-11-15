@@ -1,5 +1,7 @@
 import {orders, products, activity, traffic, targets, today} from './admin-data.js';
 
+import {addOfflineOrderFields, pickupMapUrl} from './admin-records.js';
+
 const $ = id => document.getElementById(id);
 const root = $('dashboard');
 const money = new Intl.NumberFormat('en-IN', {style:'currency', currency:'INR', minimumFractionDigits:0, maximumFractionDigits:2}).format;
@@ -20,7 +22,7 @@ const icon = path => `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="
 const escape = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[char]);
 const reduced = matchMedia('(prefers-reduced-motion: reduce)');
 const partners = [{name:'Ananya Roy', email:'ananya.rider@example.com'}];
-const warehouses = [{name:'Main campus print room', location:'SRM Main Campus', email:'warehouse@example.com'}];
+const warehouses = [{name:'Main campus print room', location:'SRM Main Campus', address:'SRM Institute of Science and Technology, Kattankulathur', email:'warehouse@example.com'}];
 const orderWindowDays = 30;
 const state = { period:'Daily', query:'', filter:'', sort:'date', direction:-1, page:0};
 const getStored = key => { try { return localStorage.getItem(key); } catch { return null; } };
@@ -51,16 +53,14 @@ function metrics(items, length) {
   const revenue = booked.reduce((sum, order) => sum + order.total, 0);
   const active = aggregate(items,'customer');
   const refunds = items.filter(order => ['Refunded','Cancelled'].includes(order.status)).length;
-  const visits = length * 333;
   const signups = Math.round(length * 7.1 + items.length / 11);
-  return [revenue, items.length, active.length, signups, revenue / (booked.length || 1),
-    booked.length / visits * 100, active.filter(([,count]) => count > 1).length / (active.length || 1) * 100,
+  return [revenue, items.length, active.length, signups, revenue, booked.length, active.filter(([,count]) => count > 1).length / (active.length || 1) * 100,
     refunds / (items.length || 1) * 100, items.filter(order => order.status === 'Pending').length,
     items.length ? 98 - refunds / items.length * 26 : 0];
 }
 
-const metricLabels = ['Total revenue','Total orders','Active customers','New signups','Average order value','Conversion rate','Repeat customer rate','Refund / cancellation rate','Pending orders','Customer satisfaction'];
-const metricFormats = [money,number,number,number,money,percent,percent,percent,number,percent];
+const metricLabels = ['Total revenue','Total orders','Active customers','New signups',"Today’s revenue","Today’s orders",'Repeat customer rate','Refund / cancellation rate','Pending orders','Customer satisfaction'];
+const metricFormats = [money,number,number,number,money,number,percent,percent,number,percent];
 function percent(n) { return n.toFixed(1) + '%'; }
 
 function points(values, width, height, high = Math.max(...values, 1), pad = 3) {
@@ -93,12 +93,21 @@ function kpis(items) {
   const values = metrics(items,orderWindowDays);
   const prior = metrics(orders.filter(o => o.date <= day(orderWindowDays) && o.date > day(orderWindowDays * 2)),orderWindowDays);
   const timeline = buckets(items,'Weekly').map(([,group]) => metrics(group,7));
+  const daily = Array.from({length:7}, (_, index) => {
+    const end = day(6 - index);
+    const start = new Date(end);
+    start.setHours(0, 0, 0, 0);
+    return metrics(orders.filter(order => order.date >= start && order.date <= end), 1);
+  });
   return `<div class="metrics">${values.map((value,i) => {
-    const change = prior[i] ? (value / prior[i] - 1) * 100 : null;
+    const isDaily = i === 4 || i === 5;
+    if (isDaily) value = daily.at(-1)[i];
+    const baseline = isDaily ? daily.at(-2)[i] : prior[i];
+    const change = baseline ? (value / baseline - 1) * 100 : null;
     const negative = change !== null && ([7,8].includes(i) ? change > 0 : change < 0);
-    const dots = points(timeline.map(group => group[i]),110,26);
+    const dots = points((isDaily ? daily : timeline).map(group => group[i]),110,26);
     return `<section class="card metric"><h2>${metricLabels[i]}</h2><strong data-metric="${i}" data-value="${value}">${metricFormats[i](value)}</strong>
-      <span class="change ${negative ? 'negative' : ''}">${change === null ? 'No prior baseline' : (change === 0 ? '&ndash; ' : change < 0 ? '&#8595; ' : '&#8593; ') + Math.abs(change).toFixed(1) + '% vs prior period'}</span>
+      <span class="change ${negative ? 'negative' : ''}">${change === null ? 'No prior baseline' : (change === 0 ? '&ndash; ' : change < 0 ? '&#8595; ' : '&#8593; ') + Math.abs(change).toFixed(1) + (isDaily ? '% vs yesterday' : '% vs prior period')}</span>
       <svg class="spark" viewBox="0 0 110 26" preserveAspectRatio="none" aria-hidden="true"><polyline points="${dots.join(' ')}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></section>`;
   }).join('')}</div>`;
 }
@@ -253,7 +262,7 @@ function render(animate = false) {
     case 'partners': widgets = directory('Verified delivery partners', partners, partner =>
       `<span>${escape(partner.email)}</span>`, '<small class="directory-verified">Verified</small>'); break;
     case 'warehouses': widgets = directory('Warehouse directory', warehouses, warehouse =>
-      `<span>${escape(warehouse.location)}</span><small>${escape(warehouse.email)}</small>`); break;
+      `<span>${escape(warehouse.location)}</span><small>${escape(warehouse.email)}</small><a href="${escape(pickupMapUrl(warehouse.address))}" target="_blank" rel="noopener">Pickup on Google Maps</a>`); break;
     default:
       widgets = kpis(items) + revenueChart(items) + breakdown('Orders by status',aggregate(items,'status'));
   }
@@ -369,20 +378,23 @@ const directoryEditors = {
   },
   warehouse: {
     title:'Add warehouse',
-    fields:'<label>Warehouse name<input name="name" required maxlength="70"></label><label>Campus or location<input name="location" required maxlength="140"></label><label>Staff Google account email<input name="email" type="email" autocomplete="off" required maxlength="254"></label>',
+    fields:'<label>Warehouse name<input name="name" required maxlength="70"></label><label>Campus or location<input name="location" required maxlength="140"></label><label>Google Maps pickup address or coordinates<input name="address" required maxlength="500"></label><label>Staff Google account email<input name="email" type="email" autocomplete="off" required maxlength="254"></label>',
   },
 };
+
+let readOfflineOrders;
 
 function openEditor(kind, id) {
   const isOrder = kind === 'order';
   const existing = id && orders.find(o => o.id === id);
   const directoryEditor = directoryEditors[kind];
-  $('editor-title').textContent = existing?.id || directoryEditor?.title || (isOrder ? 'Add sample order' : 'Add sample product');
+  $('editor-title').textContent = existing?.id || directoryEditor?.title || (isOrder ? 'Add offline orders' : 'Add sample product');
   $('editor-form').dataset.kind = kind;
   $('save-editor').hidden = Boolean(existing);
   $('editor-fields').innerHTML = existing ? `<p><strong>${escape(existing.customer)}</strong></p><p>${escape(existing.product)} &middot; ${money(existing.total)}</p><p>${escape(existing.status)} &middot; ${escape(existing.region)}</p>` :
-    directoryEditor?.fields ?? (isOrder ? `<label>Customer<input name="customer" required maxlength="70"></label><label>Product<select name="product">${products.map(p => `<option>${escape(p.name)}</option>`).join('')}</select></label><label>Order total (INR)<input name="total" type="number" min="0.01" max="999999" step=".01" required></label>` :
+    directoryEditor?.fields ?? (isOrder ? '' :
     '<label>Product name<input name="name" required maxlength="70"></label><label>Category<input name="category" required maxlength="70"></label><label>Price (INR)<input name="price" type="number" min=".01" max="999999" step=".01" required></label><label>Stock<input name="stock" type="number" min="0" max="999999" required></label>');
+  if (isOrder && !existing) readOfflineOrders = addOfflineOrderFields($('editor-fields'), products);
   $('editor').showModal();
 }
 
@@ -442,10 +454,19 @@ $('editor-form').onsubmit = event => {
     }
     partners.push({name:data.get('name').trim(), email});
   } else if (kind === 'warehouse') {
-    warehouses.push({name:data.get('name').trim(), location:data.get('location').trim(), email:data.get('email').trim().toLowerCase()});
+    warehouses.push({name:data.get('name').trim(), location:data.get('location').trim(), address:data.get('address').trim(), email:data.get('email').trim().toLowerCase()});
   } else if (kind === 'order') {
-    const product = products.find(p => p.name === data.get('product'));
-    orders.unshift({id:'PB-DEMO-' + Date.now(),customer:data.get('customer').trim(),product:product.name,category:product.category,region:'Main campus',date:new Date(),total:Number(data.get('total')),status:'Pending'});
+    const batch = readOfflineOrders().map(order => {
+      const product = products.find(item => item.name === order.product);
+      return {id:'PB-DEMO-' + order.id.slice(0,8).toUpperCase(),customer:order.customer,
+        product:product.name,category:product.category,region:'Offline',date:new Date(),
+        total:Number(order.amount),status:'Offline'};
+    });
+    orders.unshift(...batch);
+    $('editor').close();
+    $('notice').textContent = batch.length + ' offline ' + (batch.length === 1 ? 'order' : 'orders') + ' added for this session.';
+    render();
+    return;
   } else {
     products.push({name:data.get('name').trim(),category:data.get('category').trim(),price:Number(data.get('price')),stock:Number(data.get('stock'))});
   }
