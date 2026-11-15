@@ -40,6 +40,8 @@ export function buildLedger(section, load, {demo = false} = {}) {
   const status = element('p');
   status.setAttribute('role', 'status');
   const table = element('table');
+  table.className = 'admin-record-table';
+  table.setAttribute('role','table');
   table.setAttribute('aria-label','Ledger transactions');
   const scroll = element('div');
   scroll.className = 'ledger-table';
@@ -47,12 +49,14 @@ export function buildLedger(section, load, {demo = false} = {}) {
   scroll.setAttribute('role','region');
   scroll.setAttribute('aria-label','Scrollable ledger transactions');
   const headers = table.createTHead().insertRow();
-  for (const title of ['Date (IST)','Type','Order','Description','Reference','Amount']) {
+  const columns = ['Date (IST)','Type','Order','Description','Reference','Amount'];
+  for (const title of columns) {
     const header = element('th',title);
     header.scope = 'col';
     headers.append(header);
   }
   const body = table.createTBody();
+  body.setAttribute('role','rowgroup');
   scroll.append(table);
 
   const pagination = element('div');
@@ -85,7 +89,13 @@ export function buildLedger(section, load, {demo = false} = {}) {
         const values = [entry.date == null ? 'Unavailable' : date.format(entry.date * 1000),
           labels[entry.kind], entry.order_number, entry.description, entry.reference || '—',
           money(entry.amount / 100)];
-        for (const value of values) row.insertCell().textContent = value;
+        row.setAttribute('role','row');
+        values.forEach((value,index) => {
+          const cell = row.insertCell();
+          cell.setAttribute('role','cell');
+          cell.dataset.label = columns[index];
+          cell.textContent = value;
+        });
       }
       status.textContent = data.entries.length ? '' : 'No transactions match this selection.';
       previous.disabled = page <= 1;

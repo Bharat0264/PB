@@ -1,6 +1,6 @@
 import {addOfflineOrderFields, pickupMapUrl} from './admin-records.js';
 
-import {buildLedger} from './admin-ledger.js';
+import {buildLedger} from './admin-ledger.js?v=mobile-layout';
 import {buildPricingForm} from './admin-pricing.js';
 
 const portal = document.body.dataset.portal;
@@ -148,7 +148,10 @@ function buildEditor(section, title, endpoint, addFields, savedMessage) {
   const save = element('button', 'Save');
   save.type = 'submit';
   save.className = 'clay-button';
-  form.append(fields, notice, close, save);
+  const actions = element('div');
+  actions.className = 'record-actions';
+  actions.append(close, save);
+  form.append(fields, notice, actions);
   editor.append(heading, form);
   editor.addEventListener('cancel', event => {
     if (save.disabled) event.preventDefault();
@@ -278,10 +281,14 @@ function buildLiveOrders(section, data) {
 
 function appendOrderRows(list, orders) {
   for (const order of orders) {
-    const row = element('li', [
-      orderNumber(order),
-      order.customer, order.product, order.status.replaceAll('_', ' '), money(order.total / 100),
-    ].filter(Boolean).join(' · '));
+    const row = element('li');
+    row.className = 'live-order-row';
+    const details = element('div');
+    details.className = 'live-order-details';
+    details.append(element('strong', orderNumber(order)), element('span', money(order.total / 100)),
+      element('span', [order.customer, order.product].filter(Boolean).join(' · ')),
+      element('span', order.status.replaceAll('_', ' ')));
+    row.append(details);
     if (order.status === 'out_for_delivery') row.append(action('Renew delivery code', async () => {
       await api('/api/admin/orders/' + order.id + '/renew-code', {});
       statusLine.textContent = 'The customer can refresh their order to see the new code.';

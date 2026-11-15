@@ -158,19 +158,62 @@ dialog::backdrop { background: color-mix(in srgb, #8A5E0B 22%, rgba(23,18,10,.45
 }
 /* ---------- Mobile: bottom tab bar ---------- */
 @media (max-width: 850px) {
-  .workspace, .workspace.compact { padding: 12px 16px 104px; }
-  .toolbar { top: 8px; border-radius: 20px; }
-  .mobile-nav { inset: auto 8px max(8px, env(safe-area-inset-bottom)) 8px; padding: 6px; border-radius: 24px; background: var(--hv-glass); box-shadow: var(--hv-sh-3); backdrop-filter: blur(14px); }
-  .mobile-nav .nav-link { min-height: 56px; min-width: 56px; border-radius: 18px; padding: 4px; }
+  .workspace, .workspace.compact {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 12px clamp(12px, 3.5vw, 24px) calc(86px + env(safe-area-inset-bottom));
+  }
+  .workspace > main { min-width: 0; }
+  .toolbar .collapse { display: none; }
+  .toolbar { top: max(8px, env(safe-area-inset-top)); border-radius: 20px; }
+  .toolbar > .popover { right: 0; max-height: 60dvh; overflow: auto; }
+  .mobile-nav {
+    display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+    inset: auto 8px max(8px, env(safe-area-inset-bottom)) 8px; padding: 4px;
+    border-radius: 20px; background: var(--hv-glass); box-shadow: var(--hv-sh-3); backdrop-filter: blur(14px);
+  }
+  .mobile-nav > .nav-link { min-height: 50px; min-width: 0; border-radius: 15px; padding: 4px 0; align-content: center; }
+  .mobile-nav > .nav-link span { line-height: 1.2; }
   .mobile-nav .nav-link[aria-current]::after { display: none; }
+  .mobile-nav .mobile-menu { right: 0; width: min(310px, 100%); }
   .mobile-nav .mobile-menu .nav-link { min-height: 48px; border-radius: var(--hv-r-pill); }
 }
-@media (max-width: 560px) {
-  .toolbar { padding: 8px; gap: 8px; }
-  .grid { gap: 16px; }
-  .metrics { gap: 12px; }
-  .metric { padding: 16px; }
-  .card { padding: 20px; }
+@media (max-width: 600px) {
+  .toolbar { flex-wrap: nowrap; min-height: 0; padding: 7px; gap: 6px; margin-bottom: 18px; }
+  .toolbar .search-clay { flex: 1; padding: 0 9px; min-height: 44px; }
+  .toolbar #search-icon { display: inline-flex; }
+  .toolbar .search-clay input { font-size: 16px; }
+  .toolbar :is(.icon-button, .avatar) { width: 44px; height: 44px; min-height: 44px; }
+  .toolbar #theme { --switch-width: 44px; margin: 0; display: grid; position: relative; }
+  .toolbar #theme::before { display: none; }
+  .toolbar #theme > svg { position: static; transform: none; color: currentColor; }
+  .grid { gap: 14px; margin-top: 16px; }
+  .grid > .card:not(.full) { grid-column: 1 / -1; }
+  .card { padding: 15px; border-radius: 20px; }
+  .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+  .metric { padding: 12px; gap: 5px; }
+  .metric::before { width: 38px; height: 43px; opacity: .6; }
+  .metric strong { font-size: clamp(17px, 5.5vw, 25px); letter-spacing: -.035em; overflow-wrap: normal; white-space: nowrap; }
+  .metric h2 { font-size: 12px; }
+  .metric .change { font-size: 11px; }
+  .spark { height: 20px; }
+  .intro, .intro > div { min-width: 0; }
+  .intro .actions { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .intro .actions .primary { grid-column: 1 / -1; }
+  .segment button { min-height: 44px; }
+  .bar-label > span { min-width: 0; overflow-wrap: anywhere; }
+  .heatmap { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+  .table-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .table-controls :is(input,select) { width: 100%; min-width: 0; font-size: 16px; }
+  .table-controls input { grid-column: 1 / -1; }
+  .table-controls select { padding-inline: 10px 28px; background-position: right 8px center; }
+  .pagination { gap: 5px; text-align: center; font-size: 12px; }
+  .pagination button { min-height: 44px; padding-inline: 10px; }
+  #editor { padding: 14px; max-height: calc(100dvh - 24px); }
+  #editor form { display: flex; flex-direction: column; max-height: calc(100dvh - 52px); }
+  #editor-fields { overflow: auto; overscroll-behavior: contain; padding: 3px; }
+  #editor-fields :is(input,select) { width: 100%; min-width: 0; font-size: 16px; }
+  #editor form > .actions { gap: 10px; }
+  #editor form > .actions button { flex: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
   button, .metric, tbody tr { transition: none !important; }

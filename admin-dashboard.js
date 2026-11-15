@@ -2,7 +2,7 @@ import {orders, products, activity, traffic, targets, today} from './admin-data.
 
 import {addOfflineOrderFields, pickupMapUrl} from './admin-records.js';
 
-import {buildLedger} from './admin-ledger.js';
+import {buildLedger} from './admin-ledger.js?v=mobile-layout';
 import {buildPricingForm} from './admin-pricing.js';
 import {previewPricingUrl, readPreviewPricing, savePreviewPricing} from './pricing-preview.js';
 
@@ -206,8 +206,13 @@ function stock() {
 
 function orderTable() {
   const options = [...new Set(orders.map(order => order.status))];
-  return card('Recent orders',`<div class="table-controls"><input id="order-search" type="search" aria-label="Search recent orders" placeholder="Order, customer or product"><select id="order-filter" aria-label="Filter by order status"><option value="">All statuses</option>${options.map(value => `<option value="${escape(value)}">${escape(value)}</option>`).join('')}</select></div>
-    <div class="table-scroll" tabindex="0" role="region" aria-label="Recent orders table"><table><thead><tr>${[['id','Order'],['customer','Customer'],['product','Product'],['date','Date'],['status','Status'],['total','Total']].map(([key,label]) => `<th scope="col"><button type="button" data-sort="${key}">${label}</button></th>`).join('')}<th scope="col">Action</th></tr></thead><tbody id="order-rows"></tbody></table></div>
+  const columns = [['id','Order'],['customer','Customer'],['product','Product'],['date','Date'],['status','Status'],['total','Total']];
+  const sorts = columns.flatMap(([key,label]) => [
+    [key + ':1', label + (key === 'date' ? ' ↑ Oldest' : ' ↑')],
+    [key + ':-1', label + (key === 'date' ? ' ↓ Newest' : ' ↓')],
+  ]);
+  return card('Recent orders',`<div class="table-controls"><input id="order-search" type="search" aria-label="Search recent orders" placeholder="Order, customer or product"><select id="order-filter" aria-label="Filter by order status"><option value="">All statuses</option>${options.map(value => `<option value="${escape(value)}">${escape(value)}</option>`).join('')}</select><select class="mobile-sort" id="order-sort" aria-label="Sort orders">${sorts.map(([value,label]) => `<option value="${value}">${label}</option>`).join('')}</select></div>
+    <div class="table-scroll" tabindex="0" role="region" aria-label="Recent orders table"><table class="admin-record-table" role="table"><thead><tr>${columns.map(([key,label]) => `<th scope="col"><button type="button" data-sort="${key}">${label}</button></th>`).join('')}<th scope="col">Action</th></tr></thead><tbody id="order-rows" role="rowgroup"></tbody></table></div>
     <div class="pagination"><button type="button" id="prev">Previous</button><span id="page-count" aria-live="polite"></span><button type="button" id="next">Next</button></div>`,'full');
 }
 
@@ -226,9 +231,10 @@ function updateTable() {
   const pages = Math.max(1,Math.ceil(filtered.length/pageSize));
   state.page = Math.min(state.page,pages-1);
   const statuses = ['Pending','Printing','Delivered','Out for delivery','Packed','Refunded','Cancelled'];
-  $('order-rows').innerHTML = filtered.slice(state.page*pageSize,(state.page+1)*pageSize).map(o => `<tr>
-    <td><strong>${escape(o.id)}</strong></td><td>${escape(o.customer)}</td><td>${escape(o.product)}</td><td>${o.date.toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</td>
-    <td><span class="chip" style="--chip:${colors[statuses.indexOf(o.status)]}">${escape(o.status)}</span></td><td>${money(o.total)}</td><td><button type="button" data-view="${escape(o.id)}" aria-label="View ${escape(o.id)}">View</button></td></tr>`).join('') || '<tr><td colspan="7">No matching orders.</td></tr>';
+  $('order-rows').innerHTML = filtered.slice(state.page*pageSize,(state.page+1)*pageSize).map(o => `<tr role="row">
+    <td role="cell" data-label="Order"><strong>${escape(o.id)}</strong></td><td role="cell" data-label="Customer">${escape(o.customer)}</td><td role="cell" data-label="Product">${escape(o.product)}</td><td role="cell" data-label="Date">${o.date.toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</td>
+    <td role="cell" data-label="Status"><span class="chip" style="--chip:${colors[statuses.indexOf(o.status)]}">${escape(o.status)}</span></td><td role="cell" data-label="Total">${money(o.total)}</td><td role="cell"><button type="button" data-view="${escape(o.id)}" aria-label="View ${escape(o.id)}">View order</button></td></tr>`).join('') || '<tr role="row"><td role="cell" colspan="7">No matching orders.</td></tr>';
+  $('order-sort').value = state.sort + ':' + state.direction;
   $('page-count').textContent = filtered.length ? 'Page ' + (state.page+1) + ' of ' + pages + ' / ' + number(filtered.length) + ' orders' : '0 orders';
   $('prev').disabled = state.page === 0;
   $('next').disabled = state.page >= pages-1;
@@ -413,6 +419,13 @@ $('global-search').oninput = event => {
 root.addEventListener('input',event => {
   if (event.target.id === 'order-search') { state.query = event.target.value; $('global-search').value = state.query; state.page = 0; updateTable(); }
   if (event.target.id === 'order-filter') { state.filter = event.target.value; state.page = 0; updateTable(); }
+  if (event.target.id === 'order-sort') {
+    const [key, direction] = event.target.value.split(':');
+    state.sort = key;
+    state.direction = Number(direction);
+    state.page = 0;
+    updateTable();
+  }
 });
 
 const directoryEditors = {
