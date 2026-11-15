@@ -13,11 +13,10 @@ const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 const floorStages = ['New','Printing','Ready','Handed over'];
 const conveyorStage = order => buckets.includes(stage(order))?stage(order):'Handed over';
 const buckets = ['New', 'Printing', 'Ready'];
-const sections = [['Home','home'],['Print Queue','printer'],['Ready','truck'],['Printers','monitor'],['History','history'],['Settings','settings']];
+const sections = [['Home','home'],['Print Queue','printer'],['Printers','monitor'],['History','history'],['Settings','settings']];
 const glyphs = {
   home:'<path d="m3 10 9-7 9 7v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 21v-7h6v7"/>',
   printer:'<path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6zM6 12h.01"/>',
-  truck:'<path d="M10 17H5V5h12v12h-3m3-10h3l3 4v6h-2m-4 0h-3"/><circle cx="8" cy="17" r="2"/><circle cx="19" cy="17" r="2"/>',
   monitor:'<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/>',
   history:'<path d="M3 12a9 9 0 1 1 2.2 5.9M3 4v8h8m1-4v5l3 2"/>',
   settings:'<path d="M4 6h16M4 12h16M4 18h16M8 4v4m8 2v4m-6 2v4"/>',
@@ -160,7 +159,7 @@ function go(section, selectedTab, keepSearch=false) {
   view=section;
   floorFilter=null;
   if (!keepSearch) byId('warehouse-search').value='';
-  tab=selectedTab || (section==='Ready'?'Ready':null) || 'New';
+  tab=selectedTab || 'New';
   if (['Printers','Settings','Inventory','History'].includes(section)) {
     active=null;
     closeSheet(false);
@@ -293,7 +292,6 @@ function renderQueue(filterOpen) {
   for (const label of buckets) {
     const control=button(label,()=>{
       tab=label;
-      view=label==='Ready'?'Ready':'Print Queue';
       newBadges.delete(label);
       render();
     },'wh-tab');
@@ -893,11 +891,6 @@ function updateTop() {
   ring.setAttribute('aria-hidden','true');
   todayBadge.replaceChildren(ring,node('span',paidToday.length+' today'));
   todayBadge.title=handedOver+' handed over today';
-  const total=counts();
-  for (const key of buckets) {
-    const count=byId('floor-count-'+key);
-    if (count) count.textContent=total[key];
-  }
   const banner=byId('floor-connection');
   banner.hidden=connected && online && !paused;
   byId('floor-connection-copy').textContent=!connected?'Connection lost. The queue reconnects automatically.':
@@ -1043,7 +1036,6 @@ function initFloorControls() {
   };
   phoneLayout.addEventListener('change',placeAccount);
   placeAccount();
-  byId('floor-key-help').addEventListener('click',()=>shortcutDialog.showModal());
   const slide=byId('floor-print-slide');
   let start, travel;
   slide.addEventListener('pointerdown',event=>{
@@ -1112,24 +1104,12 @@ async function start() {
     control.title=label;
     control.setAttribute('aria-label',label);
     control.append(icon(glyph),node('span',label,'wh-nav-label'));
-    const stages=title==='Print Queue'?['New','Printing']:title==='Ready'?['Ready']:[];
-    if (stages.length) {
-      const counters=node('span',null,'wh-nav-counts');
-      stages.forEach(stage=>{
-        const badge=node('span',stage+' ','wh-nav-count');
-        const number=node('b','0');number.id='floor-count-'+stage;
-        badge.append(number);
-        counters.append(badge);
-      });
-      control.append(counters);
-    }
     byId('warehouse-nav').append(control);
   }
   const nav=byId('warehouse-staff-dock');
   const open=section=>()=>{go(section);scrollTo(0,0);};
   staffDock=window.createStaffDock(nav,[
     {id:'Home',label:'Home',icon:'home',select:open('Home')},
-    {id:'Ready',label:'Ready',icon:'ready',select:open('Ready')},
     {id:'Print Queue',label:'Print',icon:'plus',center:true,select:open('Print Queue')},
     {id:'History',label:'History',icon:'history',select:open('History')},
     {id:'more',label:'More',icon:'more',children:['Printers','Inventory','Settings'].map(id=>({id,label:id,select:open(id)}))},

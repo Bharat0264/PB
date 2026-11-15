@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="/clay.css?v=1">
 <link rel="stylesheet" href="/warehouse.css?v=print-to-ready">
 <link rel="stylesheet" href="/hive-theme.css?v=plain-clay">
-<link rel="stylesheet" href="/warehouse-hive.css?v=print-floor">
+<link rel="stylesheet" href="/warehouse-hive.css?v=queue-nav">
 <script src="/hive-theme.js?v=1"></script>
 <script src="/portal-login.js" defer></script>
 <link rel="stylesheet" href="/staff-dock.css?v=3">
@@ -17,7 +17,7 @@
 <script src="/status-model.js?v=1" defer></script>
 <script src="/live.js?v=1" defer></script>
 <script src="/portal-switch.js?v=1" defer></script>
-<script src="/warehouse.js?v=print-floor" defer></script>
+<script src="/warehouse.js?v=queue-nav" defer></script>
 </head>
 <body class="warehouse">
 <a class="wh-skip" href="#warehouse-main">Skip to warehouse</a>
@@ -76,11 +76,6 @@
           </div>
           <div id="detail-action" class="wh-action-dock" hidden></div>
         </section>
-      </div>
-      <div class="wh-keybar" aria-label="Warehouse shortcuts">
-        <span><kbd>↑</kbd><kbd>↓</kbd> Move</span>
-        <span><kbd>Enter</kbd> Open</span><span><kbd>P</kbd> Print</span><span><kbd>/</kbd> Search</span>
-        <button type="button" id="floor-key-help"><kbd>?</kbd> All shortcuts</button>
       </div>
     </div>
   </div>
