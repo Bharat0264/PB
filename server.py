@@ -238,15 +238,18 @@ class PrintBee(SimpleHTTPRequestHandler):
         if path == "/api/orders/notifications":
             return self.customer_notifications()
         if path == "/api/checkout":
-            terms = {key: value for key, value in self.checkout_terms().items() if key != "coupons"}
+            with closing(connect()) as db:
+                db.execute("BEGIN")
+                terms = {key: value for key, value in self.checkout_terms(db).items() if key != "coupons"}
+                version = db.execute("SELECT COALESCE(max(id),0) FROM pricing_versions").fetchone()[0]
             return self.json_response(200, {"mode": self.server.payment_mode, "terms": terms,
-                                           "maps": self.server.maps})
+                                           "maps": self.server.maps, "pricingVersion": version})
         if not path.startswith("/api/"):
             allowed = {"/welcome.html", "/welcome.css", "/index.html", "/studio.js", "/studio.css", "/clay.css", "/staff.html", "/staff.js", "/warehouse.css", "/warehouse.js", "/delivery-map.js",
                        "/footer-wave.css", "/footer-wave.js",
                        "/hive-theme.css", "/hive-theme.js", "/admin-hive.css", "/admin-live-hive.css", "/warehouse-hive.css",
                        "/partner.html", "/partner.css", "/partner.js", "/partner-sw.js", "/admin.html", "/admin-preview.html", "/admin-dashboard.css", "/admin-tokens.css",
-                       "/admin-dashboard.js", "/admin-records.js", "/admin-pricing.js", "/admin-pricing.css", "/admin-data.js", "/operations.js", "/partner.webmanifest", "/portal-login.js",
+                       "/customer-pricing.js", "/customer-price-table.js", "/admin-dashboard.js", "/admin-records.js", "/admin-pricing.js", "/admin-pricing.css", "/admin-data.js", "/operations.js", "/partner.webmanifest", "/portal-login.js",
                        "/pricing.html", "/terms.html", "/queue.html", "/orders.html", "/profile.html", "/profile.js", "/address.html", "/customer-login.js",
                        "/preloader.js", "/preloader.css", "/gsap-3.13.0.min.js",
                        "/navigation.html", "/navigation.css", "/bottom-nav.js", "/nav-tokens.js", "/embedded-tab.js"}
@@ -635,7 +638,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                 pickup = admin_records.default_pickup(db)
                 bill = bill_for(total, binding_total, coupon, terms, pickup=pickup, address=details["address"])
                 if type(data.get("expectedTotal")) is not int or data["expectedTotal"] != bill["total"]:
-                    return self.json_response(409, {"error": "Prices changed. Refresh and review your order."})
+                    return self.json_response(409, {"error": "Prices changed. Review your updated total.", "pricingChanged": True})
                 encoded = json.dumps({
                     **details, "bill": bill, "partnerPayout": terms.get("partnerPayout", 0),
                     "pickupWarehouse": pickup,

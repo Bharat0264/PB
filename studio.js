@@ -68,9 +68,7 @@ async function showQueue() {
       status.textContent = 'An order can contain up to 100 files. Remove files to continue.';
       return;
     }
-    await paymentConfig;
-    await loadPaymentConfig();
-    openCheckout(entries);
+    if (await pricingAvailable()) openCheckout(entries);
   };
   for (const [id, entry] of entries) {
     const row = document.createElement('li');
@@ -225,8 +223,7 @@ function reviewFiles(files) {
 fileInput?.addEventListener('change', async () => {
   const files = Array.from(fileInput.files);
   fileInput.value = '';
-  await paymentConfig;
-  reviewFiles(files);
+  if (await pricingAvailable()) reviewFiles(files);
 });
 form?.addEventListener('dragover', event => {
   if (event.dataTransfer.types.includes('Files')) event.preventDefault();
@@ -235,8 +232,7 @@ form?.addEventListener('drop', async event => {
   if (!event.dataTransfer.types.includes('Files')) return;
   event.preventDefault();
   const files = Array.from(event.dataTransfer.files);
-  await paymentConfig;
-  reviewFiles(files);
+  if (await pricingAvailable()) reviewFiles(files);
 });
 reviewSettings?.addEventListener('input', updateDraftTotal);
 
@@ -277,8 +273,8 @@ const checkoutError = document.querySelector('#checkout-error');
 const checkoutClose = document.querySelector('#checkout-close');
 const checkoutSubmit = checkoutForm?.querySelector('[type="submit"]');
 const orderHistory = document.querySelector('#order-history');
-let paperRates = {A4: [175, 300, 850, 1400]};
-let bindingRates = {none: 0, glossy: 5000, blue: 4000};
+let paperRates = {};
+let bindingRates = {};
 const bindingNames = {none: 'No binding', glossy: 'Glossy soft binding', blue: 'Blue sheet binding',
   spiral: 'Spiral binding', staple: 'Staple binding'};
 const rupees = new Intl.NumberFormat('en-IN', {style: 'currency', currency: 'INR'});
@@ -286,30 +282,84 @@ let checkoutEntries = [];
 let paymentStep = false;
 let paymentMode = 'disabled';
 let mapsReady = false;
-function loadPaymentConfig() {
-  return fetch('/api/checkout').then(async response => {
-    if (!response.ok) return;
-    const {mode, terms, maps} = await response.json();
-    paperRates = terms.paperRates;
-    bindingRates = terms.bindingRates;
-    paymentMode = mode;
-    const slot = checkoutForm.elements.slot;
-    slot.replaceChildren(...terms.slots.map(label => new Option(label, label)));
-    slot.disabled = terms.slots.length === 0;
-    slot.closest('label').hidden = slot.disabled;
-    if (maps && !mapsReady) {
-      setupDeliveryMap(maps);
-      mapsReady = true;
-    }
-  }).catch(() => {});
-}
-const paymentConfig = checkout ? loadPaymentConfig() : null;
 let activeBill;
 let appliedCoupon = '';
 let quoteVersion = 0;
 let quoteTimer;
 let quotedAddress = '';
 let placingOrder = false;
+let queuedConfig;
+
+function updatePrintOptions(group) {
+  const id = group.dataset.printId;
+  const paper = group.querySelector('select');
+  const sizes = Object.keys(paperRates);
+  const selectedPaper = paper.value;
+  if (sizes.join() !== [...paper.options].filter(option => option.value).map(option => option.value).join()) {
+    const options = sizes.map(size => new Option(size, size));
+    if (!sizes.includes(selectedPaper)) options.unshift(new Option('Choose a paper size', ''));
+    paper.replaceChildren(...options);
+    paper.value = sizes.includes(selectedPaper) ? selectedPaper : '';
+  }
+  const oldBinding = group.querySelector('.binding-options');
+  const selectedBinding = oldBinding.querySelector('input:checked')?.value;
+  const binding = bindingChoices(id);
+  for (const input of binding.querySelectorAll('input')) input.checked = input.value === selectedBinding;
+  if (!Object.hasOwn(bindingRates, selectedBinding)) binding.querySelector('input').required = true;
+  if (oldBinding.contains(document.activeElement)) {
+    const focused = document.activeElement.value;
+    oldBinding.replaceWith(binding);
+    [...binding.querySelectorAll('input')].find(input => input.value === focused)?.focus();
+  } else {
+    oldBinding.replaceWith(binding);
+  }
+}
+
+function applyCheckoutConfig(config) {
+  if (placingOrder) {
+    queuedConfig = config;
+    return;
+  }
+  const {mode, terms, maps} = config;
+  const printChanged = JSON.stringify([paperRates,bindingRates]) !== JSON.stringify([terms.paperRates,terms.bindingRates]);
+  paperRates = terms.paperRates;
+  bindingRates = terms.bindingRates;
+  paymentMode = mode;
+  const slot = checkoutForm.elements.slot;
+  if (JSON.stringify([...slot.options].map(option => option.value)) !== JSON.stringify(terms.slots)) {
+    const selected = slot.value;
+    slot.replaceChildren(...terms.slots.map(label => new Option(label, label)));
+    if (terms.slots.includes(selected)) slot.value = selected;
+  }
+  slot.disabled = terms.slots.length === 0;
+  slot.closest('label').hidden = slot.disabled;
+  if (maps && !mapsReady) {
+    setupDeliveryMap(maps);
+    mapsReady = true;
+  }
+  if (printChanged) {
+    for (const group of document.querySelectorAll('.print-options')) updatePrintOptions(group);
+    if (draftFiles.length) updateDraftTotal();
+  }
+  if (!checkout.open) return;
+  if (!paymentStep) {
+    updateCheckoutTotal();
+  } else if (checkoutItems().includes(null)) {
+    setCheckoutStep(false);
+    checkoutError.textContent = 'Print options changed. Review your selected settings.';
+  } else {
+    refreshBill();
+  }
+}
+
+async function pricingAvailable() {
+  const config = await window.printbeePricing.refresh();
+  if (config) return true;
+  status.textContent = 'Current prices are temporarily unavailable. Try again.';
+  return false;
+}
+
+if (checkout) window.printbeePricing.subscribe(applyCheckoutConfig);
 
 function fileCount(files) {
   return files.length + (files.length === 1 ? ' file' : ' files');
@@ -445,6 +495,7 @@ function openCheckout(entries) {
 function createPrintOptions(id, entry, onChange) {
   const group = document.createElement('fieldset');
   group.className = 'checkout-fields print-options';
+  group.dataset.printId = id;
   const title = document.createElement('legend');
   title.textContent = entry.file.name;
   group.append(title);
@@ -470,6 +521,7 @@ function createPrintOptions(id, entry, onChange) {
   paper.textContent = 'Paper size';
   const paperSelect = document.createElement('select');
   paperSelect.name = 'paper-' + id;
+  paperSelect.required = true;
   paperSelect.append(...Object.keys(paperRates).map(size => new Option(size, size)));
   paper.append(paperSelect);
   group.append(quantity, paper,
@@ -613,6 +665,7 @@ function readPrintItems(settingsForm, entries) {
     const binding = data.get('binding-' + id);
     const paper = data.get('paper-' + id);
     const rates = paperRates[paper];
+    if (!rates || !Object.hasOwn(bindingRates, binding)) return null;
     const duplex = Number(data.get('sides-' + id));
     const colourCount = colourPages?.length ?? (colour ? pages : 0);
     const subtotal = copies * ((pages - colourCount) * rates[duplex] + colourCount * rates[2 + duplex] + bindingRates[binding]);
@@ -962,7 +1015,9 @@ async function orderRequest(path, key, options = {}) {
   if (response.status === 401) {
     throw Object.assign(new Error('Sign in by email before placing an order.'), {signInRequired: true});
   }
-  if (!response.ok) throw new Error(data.error || 'The order service is unavailable.');
+  if (!response.ok) {
+    throw Object.assign(new Error(data.error || 'The order service is unavailable.'), {pricingChanged:data.pricingChanged === true});
+  }
   return data;
 }
 
@@ -1015,7 +1070,6 @@ checkoutForm?.addEventListener('submit', async event => {
   if (!paymentStep) {
     if (checkoutItems().includes(null)) return;
     checkoutSubmit.disabled = true;
-    await paymentConfig;
     setCheckoutStep(true);
     checkout.scrollTop = 0;
     checkoutForm.elements.customer.focus();
@@ -1049,6 +1103,7 @@ checkoutForm?.addEventListener('submit', async event => {
   back.disabled = true;
   checkoutError.textContent = '';
   let placedId;
+  let reprice = false;
   try {
     const signatureText = JSON.stringify({fields: [...data], ids: items.map(item => item.id)});
     const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(signatureText));
@@ -1069,6 +1124,7 @@ checkoutForm?.addEventListener('submit', async event => {
     sessionStorage.removeItem(checkoutDraftKey);
     placedId = order.id;
   } catch (error) {
+    reprice = error.pricingChanged === true;
     checkoutError.textContent = error.message || 'Could not complete checkout. Try again.';
     if (error.signInRequired) {
       const link = document.createElement('a');
@@ -1085,6 +1141,17 @@ checkoutForm?.addEventListener('submit', async event => {
     placingOrder = false;
     applyCoupon.disabled = false;
     checkoutForm.elements.coupon.readOnly = false;
+    const next = queuedConfig;
+    queuedConfig = undefined;
+    if (!placedId) {
+      if (next) applyCheckoutConfig(next);
+      else if (reprice) {
+        checkoutSubmit.disabled = true;
+        const previousQuote = quoteVersion;
+        await window.printbeePricing.refresh();
+        if (paymentStep && previousQuote === quoteVersion) refreshBill();
+      }
+    }
   }
   checkout.close();
   if (window.parent !== window) window.parent.location.assign('/orders?placed=' + placedId + '#orders');

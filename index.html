@@ -9,9 +9,11 @@
 <script src="/preloader.js?v=7"></script>
 <script src="embedded-tab.js?v=customer-tabs" defer></script>
 <script type="module" src="bottom-nav.js?v=customer-tabs"></script>
-<link rel="stylesheet" href="studio.css?v=header-logo">
+<link rel="stylesheet" href="studio.css?v=published-rates">
 <link rel="stylesheet" href="footer-wave.css?v=horizontal-brand">
 <script src="footer-wave.js?v=letter-spacing" defer></script>
+<script src="customer-pricing.js?v=published-rates" defer></script>
+<script src="customer-price-table.js?v=published-rates" defer></script>
 
 </head>
 <body>
@@ -71,27 +73,31 @@
       </li>
     </ol>
   </section>
-  <section class="section price-section" id="pricing" aria-labelledby="pricing-title">
+  <section class="section price-section" id="pricing" aria-labelledby="pricing-title" data-print-catalog>
     <h2 id="pricing-title">Print &amp; binding <span>prices</span></h2>
+    <p class="price-note" data-price-status role="status">Loading current prices…</p>
     <div class="price-grid">
       <div class="price-panel price-print">
         <h3 id="print-rates-title">A4 printing</h3>
         <p>Per page</p>
+        <label hidden>Paper size <select data-paper-picker></select></label>
         <table aria-labelledby="print-rates-title">
           <thead><tr><th scope="col">Ink</th><th scope="col">Single-sided</th><th scope="col">Double-sided</th></tr></thead>
           <tbody>
-            <tr><th scope="row">Black &amp; white</th><td data-print-rate="175">₹1.75</td><td data-print-rate="300">₹3</td></tr>
-            <tr><th scope="row">Colour</th><td data-print-rate="850">₹8.50</td><td data-print-rate="1400">₹14</td></tr>
+            <tr><th scope="row">Black &amp; white</th><td data-print-rate="0">—</td><td data-print-rate="1">—</td></tr>
+            <tr><th scope="row">Colour</th><td data-print-rate="2">—</td><td data-print-rate="3">—</td></tr>
           </tbody>
         </table>
         <p class="price-note">Double-sided availability depends on the store.</p>
       </div>
       <div class="price-panel price-binding">
-        <h3>Soft binding</h3>
+        <h3>Binding</h3>
         <p>Added per copy</p>
         <dl>
-          <div><dt>Glossy binding <small>White transparent cover</small></dt><dd data-binding-rate="5000">+₹50</dd></div>
-          <div><dt>Blue binding <small>Blue sheet cover</small></dt><dd data-binding-rate="4000">+₹40</dd></div>
+          <div><dt>Glossy binding <small>White transparent cover</small></dt><dd data-binding-rate="glossy">—</dd></div>
+          <div><dt>Blue binding <small>Blue sheet cover</small></dt><dd data-binding-rate="blue">—</dd></div>
+          <div hidden><dt>Spiral binding</dt><dd data-binding-rate="spiral">—</dd></div>
+          <div hidden><dt>Staple binding</dt><dd data-binding-rate="staple">—</dd></div>
         </dl>
       </div>
     </div>
