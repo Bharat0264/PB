@@ -395,3 +395,19 @@ html:has(body.warehouse) { overscroll-behavior-x: none; }
   .wh-today-ring::after { width: 10px; height: 10px; }
   .wh-indicators .wh-floor-theme { --switch-width:56px; --switch-thumb:28px; --switch-inset:5px; }
 }
+
+@media (min-width: 1101px) and (min-height: 620px) {
+  html:has(#warehouse-app:not([hidden])) { scrollbar-gutter: auto; }
+  .warehouse-shell { height: 100dvh; grid-template-rows: minmax(0,1fr); }
+  .wh-rail { position: relative; top: auto; height: auto; align-self: stretch; }
+  .wh-workspace { min-height: 0; }
+  .wh-top { position: relative; top: auto; flex: none; }
+  .wh-floor-banner { flex: none; }
+  .wh-workspace > .wh-columns {
+    flex: 1; min-height: 0; margin: 0 -12px; padding: 4px 12px 16px;
+    overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable;
+    container-type: size;
+  }
+  .wh-station { top: 4px; max-height: calc(100cqh - 8px); }
+  .wh-station-scroll { overscroll-behavior-y: auto; }
+}

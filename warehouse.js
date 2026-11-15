@@ -43,7 +43,7 @@ let orders = [], known, newBadges = new Set(), online = preview, connected = tru
 let view = 'Home', tab = 'New', active, sheet = false, restoreFocus;
 let printAction, printPending = false, previewUrl, previewRequest = 0, arrivalOrder;
 let staffDock, floorFilter, arrivalTimer, historyPreset='';
-let conveyorPositions=new Map(), lastStages=new Map(), newlyReady=new Set();
+let conveyorPositions=new Map(), lastStages=new Map(), newlyReady=new Set(), renderedOrderSnapshot;
 let polling, liveFeed, busyRefresh = false, refreshVersion = 0, toastTimer, audio;
 const filters = {colour:'', paper:'', date:'', priority:'', partner:'', from:'', to:''};
 
@@ -156,6 +156,7 @@ function makeSamples() {
 }
 
 function go(section, selectedTab, keepSearch=false) {
+  const sectionChanged=view!==section;
   view=section;
   floorFilter=null;
   if (!keepSearch) byId('warehouse-search').value='';
@@ -165,6 +166,7 @@ function go(section, selectedTab, keepSearch=false) {
     closeSheet(false);
   }
   render();
+  if (sectionChanged) byId('warehouse-columns').scrollTop=0;
   if (!reducedMotion.matches) board.animate([{opacity:.6,transform:'translateY(6px)'},{opacity:1,transform:'translateY(0)'}],
     {duration:210,easing:'ease-out'});
 }
@@ -188,6 +190,7 @@ function counts() {
   return Object.fromEntries(buckets.map(label=>[label,orders.filter(order=>stage(order)===label).length]));
 }
 function render(refreshStation=true,focusDate=false) {
+  renderedOrderSnapshot=JSON.stringify(orders);
   const previous=board.contains(document.activeElement)?document.activeElement.dataset.focus:null;
   const filterOpen=board.querySelector('.wh-filters')?.open;
   const oldParcels=[...board.querySelectorAll('[data-parcel]')];
@@ -306,6 +309,20 @@ function renderQueue(filterOpen) {
   actions.append(queueFilters(filterOpen));
   board.append(heading(tab,actions),list(selectedOrders([tab])));
 }
+function updateCardAge(meta,order) {
+  const label=meta.querySelector('.wh-card-age');
+  const text=age(order);
+  if (label.textContent!==text) label.textContent=text;
+  const ring=meta.querySelector('.wh-ring');
+  const minutes=elapsed(order);
+  if (!ring || minutes===null) return;
+  const title=minutes>=45?'Overdue':45-minutes+' min left';
+  if (ring.title===title) return;
+  ring.style.setProperty('--remaining',(minutes>=45?100:(45-minutes)/45*100)+'%');
+  ring.style.setProperty('--ring',minutes>=45?'var(--danger)':minutes>=30?'var(--warning)':'var(--success)');
+  ring.title=title;
+  ring.setAttribute('aria-label',title);
+}
 function list(items) {
   const result=node('div',null,'wh-list');
   if (!items.length) {
@@ -324,17 +341,13 @@ function list(items) {
     card.dataset.urgent=String(order.priority==='Urgent');
     card.dataset.priority=order.priority || 'Normal';
     const meta=node('div',null,'wh-meta');
-    const minutes=elapsed(order);
-    if (minutes!==null) {
+    if (order.paidAt) {
       const ring=node('span',null,'wh-ring');
-      ring.style.setProperty('--remaining',(minutes>=45?100:(45-minutes)/45*100)+'%');
-      ring.style.setProperty('--ring',minutes>=45?'var(--danger)':minutes>=30?'var(--warning)':'var(--success)');
-      ring.title=minutes>=45?'Overdue':45-minutes+' min left';
       ring.setAttribute('role','img');
-      ring.setAttribute('aria-label',ring.title);
       meta.append(ring);
     }
-    meta.append(node('span',age(order),'wh-muted'));
+    meta.append(node('span',null,'wh-muted wh-card-age'));
+    updateCardAge(meta,order);
     if (order.priority) meta.append(chip(order.priority,'wh-attention'));
     const specs=node('div',null,'wh-chips');
     const pageCount=order.items.reduce((total,item)=>total+(item.pageRange?.length || item.pages)*item.copies,0);
@@ -964,22 +977,30 @@ async function refresh(force=false) {
   known=new Set(orders.map(order=>order.id));
   notifyNew(fresh);
   if (newlyReady.size) playChime(523,784);
+  const ordersChanged=renderedOrderSnapshot!==JSON.stringify(orders);
   for (const control of board.querySelectorAll('.wh-tab')) {
     const label=control.dataset.focus.slice(4);
-    control.querySelector('.wh-count').textContent=orders.filter(order=>stage(order)===label).length;
+    const count=control.querySelector('.wh-count');
+    const total=String(orders.filter(order=>stage(order)===label).length);
+    if (count.textContent!==total) count.textContent=total;
   }
   const safeToRender=!board.contains(document.activeElement) && !board.querySelector('details[open]') && view!=='Settings';
-  if (force || fresh.length || safeToRender) {
+  if (force || fresh.length || (ordersChanged && safeToRender)) {
     render(false);
     if (fresh.length) {
       setTimeout(()=>fresh.forEach(order=>delete order.fresh),240);
       setTimeout(()=>newBadges.delete('New'),240);
     }
+  } else {
+    for (const card of board.querySelectorAll('.wh-order[data-order]')) {
+      const order=findOrder(card.dataset.order);
+      if (order) updateCardAge(card,order);
+    }
   }
   const selected=findOrder();
   if (!selected && active) {active=null;closeSheet();}
   if (force || previous!==JSON.stringify(selected) || wasAvailable!==(connected && online && !paused) ||
-      (safeToRender && !station.contains(document.activeElement) && !selected)) renderStation();
+      (ordersChanged && safeToRender && !station.contains(document.activeElement) && !selected)) renderStation();
   else if (selected) {
     const timer=station.querySelector('.wh-sla');
     const minutes=elapsed(selected);
@@ -994,10 +1015,12 @@ async function refreshLive() {
   busyRefresh=true;
   try {await refresh();}
   catch {
-    if (connected) announce('Connection lost. Retrying automatically…');
-    connected=false;
-    updateTop();
-    renderStation();
+    if (connected) {
+      announce('Connection lost. Retrying automatically…');
+      connected=false;
+      updateTop();
+      renderStation();
+    }
   } finally {busyRefresh=false;}
 }
 function initFloorControls() {
