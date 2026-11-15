@@ -105,24 +105,69 @@ function stopSharing() {
   locationWatch = undefined;
 }
 
-async function admin() {
-  const data = await api('/api/admin');
-  const money = value => new Intl.NumberFormat('en-IN', {style: 'currency', currency: 'INR'}).format(value / 100);
-  const totals = element('section');
-  totals.className = 'clay-card';
-  totals.append(element('h2', 'Order overview'), element('p', money(data.captured) + ' captured in Razorpay'));
-  const counts = element('ul');
-  for (const [state, count] of Object.entries(data.counts)) counts.append(element('li', state.replaceAll('_', ' ') + ' · ' + count));
-  totals.append(counts);
-  const orders = element('section');
-  orders.className = 'clay-card';
-  orders.append(element('h2', 'Recent orders'));
+const money = new Intl.NumberFormat('en-IN', {style:'currency', currency:'INR'}).format;
+let liveOrders;
+let adminRevision = 0;
+let refreshingOrders = false;
+let adminTimer;
+
+function orderNumber(order) {
+  return order.order_number || 'PB-' + order.id.slice(0, 8).toUpperCase();
+}
+
+function buildLiveOrders(section, data) {
+  const search = element('input');
+  search.type = 'search';
+  search.className = 'clay-input';
+  search.placeholder = 'Order number or customer';
+  search.setAttribute('aria-label', 'Search live orders');
   const list = element('ul');
-  for (const order of data.orders) {
+  let orders = [];
+  let snapshot;
+  const matching = () => {
+    const query = search.value.trim().toLowerCase();
+    return orders.filter(order => [orderNumber(order), order.customer || ''].some(value => value.toLowerCase().includes(query)));
+  };
+  function render() {
+    list.replaceChildren();
+    const results = matching();
+    if (!results.length) list.append(element('li', search.value.trim() ? 'No matching orders.' : 'No customer orders yet.'));
+    appendOrderRows(list, results);
+  }
+  search.addEventListener('input', render);
+  const csv = action('Export recent orders CSV', () => {
+    const rows = matching().map(order => [orderNumber(order), order.status, order.total]);
+    const blob = new Blob([['Order,Status,Total (paise)', ...rows.map(row => row.join(','))].join('\r\n')],
+      {type:'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const link = element('a');
+    link.href = url;
+    link.download = 'printbee-orders.csv';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+  const controls = element('div');
+  controls.className = 'live-order-controls';
+  controls.append(search, csv);
+  section.append(element('h2', 'Live customer orders'), controls, list);
+  function update(next) {
+    const fingerprint = JSON.stringify(next);
+    if (fingerprint === snapshot) return;
+    if (list.contains(document.activeElement)) return;
+    orders = next;
+    snapshot = fingerprint;
+    render();
+  }
+  update(data);
+  return update;
+}
+
+function appendOrderRows(list, orders) {
+  for (const order of orders) {
     const row = element('li', [
-      order.order_number || 'PB-' + order.id.slice(0, 8).toUpperCase(),
-      order.status.replaceAll('_', ' '), money(order.total),
-    ].join(' · '));
+      orderNumber(order),
+      order.customer, order.status.replaceAll('_', ' '), money(order.total / 100),
+    ].filter(Boolean).join(' · '));
     if (order.status === 'out_for_delivery') row.append(action('Renew delivery code', async () => {
       await api('/api/admin/orders/' + order.id + '/renew-code', {});
       statusLine.textContent = 'The customer can refresh their order to see the new code.';
@@ -142,19 +187,32 @@ async function admin() {
     }
     list.append(row);
   }
-  const csv = action('Export recent orders CSV', () => {
-    const rows = data.orders.map(order => [order.order_number || order.id, order.status, order.total]);
-    const blob = new Blob([['Order,Status,Total (paise)', ...rows.map(row => row.join(','))].join('\r\n')],
-      {type: 'text/csv'});
-    const url = URL.createObjectURL(blob);
-    const link = element('a');
-    link.href = url;
-    link.download = 'printbee-orders.csv';
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  });
-  orders.append(csv);
-  orders.append(list);
+}
+
+async function admin() {
+  const revision = ++adminRevision;
+  const data = await api('/api/admin');
+  if (revision !== adminRevision) return;
+  const totals = element('section');
+  totals.className = 'clay-card';
+  const captured = element('p');
+  const counts = element('ul');
+  totals.append(element('h2', 'Order overview'), captured, counts);
+  const orders = element('section');
+  orders.className = 'clay-card';
+  orders.id = 'orders';
+  const updateOrders = buildLiveOrders(orders, data.orders);
+  let lastTotals;
+  function updateOverview(next) {
+    const signature = JSON.stringify([next.counts, next.captured]);
+    if (signature === lastTotals) return;
+    lastTotals = signature;
+    captured.textContent = money(next.captured / 100) + ' captured in Razorpay';
+    counts.replaceChildren(...Object.entries(next.counts).map(([state, count]) =>
+      element('li', state.replaceAll('_', ' ') + ' · ' + count)));
+  }
+  const update = next => { updateOverview(next); updateOrders(next.orders); };
+  update(data);
   const pricing = element('section');
   pricing.className = 'clay-card';
   const label = element('label', 'Checkout pricing');
@@ -187,7 +245,7 @@ async function admin() {
     reference.maxLength = 100;
     reference.className = 'clay-input';
     label.append(reference);
-    row.append(element('p', money(payout.amount)), label, action('Record settlement', async () => {
+    row.append(element('p', money(payout.amount / 100)), label, action('Record settlement', async () => {
       if (!reference.value.trim()) throw new Error('Enter the completed transfer reference.');
       await api('/api/admin/payouts/' + payout.order_id + '/record', {reference: reference.value});
       await admin();
@@ -195,6 +253,29 @@ async function admin() {
     settlements.append(row);
   }
   content.replaceChildren(action('Refresh dashboard', admin), totals, orders, pricing, settlements, audit);
+  liveOrders = update;
 }
 
-connectPortal(portal, statusLine, portal === 'partner' ? partnerOrders : admin, stopSharing);
+async function refreshLiveOrders() {
+  if (document.hidden || refreshingOrders || !liveOrders) return;
+  const revision = adminRevision;
+  const update = liveOrders;
+  refreshingOrders = true;
+  try {
+    const data = await api('/api/admin');
+    if (revision === adminRevision && update === liveOrders) update(data);
+  } catch {
+    // Keep the last successful view. The next poll or manual refresh can retry.
+  } finally {
+    refreshingOrders = false;
+  }
+}
+
+async function startAdmin() {
+  await admin();
+  if (location.hash === '#orders') document.getElementById('orders')?.scrollIntoView();
+  adminTimer = setInterval(refreshLiveOrders, 10000);
+}
+
+if (portal === 'partner') connectPortal(portal, statusLine, partnerOrders, stopSharing);
+else connectPortal(portal, statusLine, startAdmin, () => clearInterval(adminTimer));

@@ -5,22 +5,17 @@ const root = $('dashboard');
 const money = new Intl.NumberFormat('en-IN', {style:'currency', currency:'INR', minimumFractionDigits:0, maximumFractionDigits:2}).format;
 const number = new Intl.NumberFormat('en-IN').format;
 const colors = ['accent','lavender','mint','peach','sky','pink','track'].map(name => 'var(--' + name + ')');
-const sections = ['Dashboard','Orders','Customers','Products / Services','Revenue','Analytics','Reports','Inventory','Support','Settings','Delivery Partners','Warehouses'];
-const routes = ['dashboard','orders','customers','products','revenue','analytics','reports','inventory','support','settings','partners','warehouses'];
-const icons = [
-  'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',
-  'M4 7h16v14H4z M8 7V5h8v2 M9 12h6',
-  'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z M22 21v-2a4 4 0 0 0-3-4 M17 3a4 4 0 0 1 0 8',
-  'm12 3 9 5v8l-9 5-9-5V8z M3 8l9 5 9-5 M12 13v8',
-  'M6 5h12 M6 9h12 M8 5c8 0 8 9 0 9H6l8 7',
-  'M3 3v18h18 M7 15l4-5 4 2 5-7',
-  'M6 3h9l4 4v14H6z M14 3v5h5 M9 12h7 M9 16h7',
-  'M3 9h18v12H3z M5 9V4h14v5 M9 14h6',
-  'M4 4h16v13H9l-5 4z M8 9h8 M8 12h5',
-  'M4 7h16 M4 12h16 M4 17h16 M8 5v4 M15 10v4 M10 15v4',
-  'M3 6h12v11H3z M15 9h4l3 4v4h-7 M6 17a2 2 0 1 0 4 0 M17 17a2 2 0 1 0 4 0',
-  'M3 21V8l9-5 9 5v13z M7 21V11h10v10 M7 15h10 M7 18h10',
-];
+const sections = {
+  dashboard: ['Dashboard', 'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z'],
+  orders: ['Orders', 'M4 7h16v14H4z M8 7V5h8v2 M9 12h6'],
+  customers: ['Customers', 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z M22 21v-2a4 4 0 0 0-3-4 M17 3a4 4 0 0 1 0 8'],
+  analytics: ['Analytics', 'M3 3v18h18 M7 15l4-5 4 2 5-7'],
+  inventory: ['Inventory', 'M3 9h18v12H3z M5 9V4h14v5 M9 14h6'],
+  partners: ['Delivery Partners', 'M3 6h12v11H3z M15 9h4l3 4v4h-7 M6 17a2 2 0 1 0 4 0 M17 17a2 2 0 1 0 4 0'],
+  warehouses: ['Warehouses', 'M3 21V8l9-5 9 5v13z M7 21V11h10v10 M7 15h10 M7 18h10'],
+};
+const mobileSections = ['dashboard', 'orders', 'customers', 'analytics'];
+const oldSections = {reports:'orders', products:'inventory', revenue:'analytics'};
 const icon = path => `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${path}"/></svg>`;
 const escape = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[char]);
 const reduced = matchMedia('(prefers-reduced-motion: reduce)');
@@ -237,7 +232,8 @@ function directory(title, records, details, status = '') {
 
 function render(animate = false) {
   const slug = location.hash.slice(1);
-  const route = routes.includes(slug) ? slug : 'dashboard';
+  const route = Object.hasOwn(sections, slug) ? slug : Object.hasOwn(oldSections, slug) ? oldSections[slug] : 'dashboard';
+  if (slug && slug !== route) history.replaceState(history.state, '', '#' + route);
   const items = selectedOrders(), paid = sales(items), values = metrics(items,state.range);
   const productsRank = aggregate(paid,'product',o => o.total).slice(0,5);
   const customersRank = aggregate(paid,'customer',o => o.total).slice(0,5);
@@ -248,25 +244,21 @@ function render(animate = false) {
   switch (route) {
     case 'orders': widgets = orderTable(); break;
     case 'customers': widgets = growth(items) + bars('Top 5 customers',customersRank,money) + bars('Delivery regions',regionRank); break;
-    case 'products': case 'inventory': widgets = productList() + stock(); break;
-    case 'revenue': widgets = revenueChart(items) + bars('Sales by category',aggregate(paid,'category',o => o.total),money) + goals(metrics(orders.filter(o => o.date > day(30)),30)); break;
-    case 'analytics': widgets = growth(items) + heatmap(items) + breakdown('Traffic sources',trafficSplit,false) + bars('Conversion funnel',[['Visitors',state.range*333],['Signups',values[3]],['Orders',paid.length],['Repeat customers',Math.min(paid.length,Math.round(values[6]*values[2]/100))]],number,'',true); break;
-    case 'reports': widgets = revenueChart(items) + orderTable(); break;
-    case 'support': widgets = activityCard + card('PrintBee support','<p>For live order issues, contact <a href="mailto:printbee.co.in@gmail.com"><u>printbee.co.in@gmail.com</u></a>.</p>','wide'); break;
+    case 'inventory': widgets = productList() + stock(); break;
+    case 'analytics':
+      widgets = revenueChart(items) + bars('Sales by category',aggregate(paid,'category',o => o.total),money) +
+        bars('Top 5 products',productsRank,money) + goals(metrics(orders.filter(o => o.date > day(30)),30)) + heatmap(items) +
+        breakdown('Traffic sources',trafficSplit,false) +
+        bars('Conversion funnel',[['Visitors',state.range*333],['Signups',values[3]],['Orders',paid.length],['Repeat customers',Math.min(paid.length,Math.round(values[6]*values[2]/100))]],number,'',true);
+      break;
     case 'partners': widgets = directory('Verified delivery partners', partners, partner =>
       `<span>${escape(partner.email)}</span>`, '<small class="directory-verified">Verified</small>'); break;
     case 'warehouses': widgets = directory('Warehouse directory', warehouses, warehouse =>
       `<span>${escape(warehouse.location)}</span><small>${escape(warehouse.email)}</small>`); break;
-    case 'settings': widgets = card('Workspace appearance','<p>Choose a clay theme for this device.</p><button type="button" id="settings-theme">Toggle dark mode</button>','wide'); break;
     default:
-      widgets = kpis(items) + revenueChart(items) + breakdown('Orders by status',aggregate(items,'status')) + orderTable() +
-        bars('Sales by category',aggregate(paid,'category',o => o.total),money) + growth(items) +
-        breakdown('Traffic sources',trafficSplit,false) +
-        bars('Conversion funnel',[['Visitors',state.range*333],['Signups',values[3]],['Orders',paid.length],['Repeat customers',Math.min(paid.length,Math.round(values[6]*values[2]/100))]],number,'',true) +
-        heatmap(items) + bars('Delivery regions',regionRank) + bars('Top 5 products',productsRank,money) +
-        bars('Top 5 customers',customersRank,money) + goals(metrics(orders.filter(o => o.date > day(30)),30)) + activityCard + stock();
+      widgets = kpis(items) + revenueChart(items) + breakdown('Orders by status',aggregate(items,'status')) + activityCard + stock();
   }
-  $('page-title').textContent = sections[routes.indexOf(route)];
+  $('page-title').textContent = sections[route][0];
   $('page-description').hidden = route !== 'dashboard';
   document.querySelectorAll('[data-page-actions]').forEach(group => {
     group.hidden = group.dataset.pageActions !== route;
@@ -275,7 +267,7 @@ function render(animate = false) {
     if (link.dataset.nav === route) link.setAttribute('aria-current','page');
     else link.removeAttribute('aria-current');
   });
-  if (!['dashboard','orders','customers','analytics'].includes(route)) $('mobile-more').setAttribute('aria-current','page');
+  if (!mobileSections.includes(route)) $('mobile-more').setAttribute('aria-current','page');
   else $('mobile-more').removeAttribute('aria-current');
   root.innerHTML = `<div class="grid${animate ? ' arrive' : ''}">${widgets}</div>`;
   root.removeAttribute('aria-busy');
@@ -298,12 +290,15 @@ function render(animate = false) {
 }
 
 function navLink(route) {
-  const i = routes.indexOf(route);
-  return `<a class="nav-link" data-nav="${route}" href="#${route}" aria-label="${sections[i]}">${icon(icons[i])}<span>${route === 'products' ? 'Products' : sections[i]}</span></a>`;
+  const [label, glyph] = sections[route];
+  return `<a class="nav-link" data-nav="${route}" href="#${route}" aria-label="${label}">${icon(glyph)}<span>${label}</span></a>`;
 }
 
+const routes = Object.keys(sections);
 $('sidebar-nav').innerHTML = routes.map(navLink).join('');
-$('mobile-nav').innerHTML = ['dashboard','orders','customers','analytics'].map(navLink).join('') + `<button class="nav-link" id="mobile-more" type="button" aria-expanded="false" aria-controls="mobile-menu">${icon(icons[9])}<span>More</span></button><div class="popover card mobile-menu" id="mobile-menu" hidden>${['products','revenue','reports','inventory','partners','warehouses','support','settings'].map(navLink).join('')}</div>`;
+$('mobile-nav').innerHTML = mobileSections.map(navLink).join('') +
+  `<button class="nav-link" id="mobile-more" type="button" aria-expanded="false" aria-controls="mobile-menu">${icon('M5 6h14 M5 12h14 M5 18h14')}<span>More</span></button>
+  <div class="popover card mobile-menu" id="mobile-menu" hidden>${routes.filter(route => !mobileSections.includes(route)).map(navLink).join('')}</div>`;
 $('notification-list').outerHTML = feed();
 $('search-icon').innerHTML = icon('M16 16l5 5 M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z');
 $('collapse').innerHTML = icon('M4 5h16v14H4z M9 5v14');
@@ -410,7 +405,6 @@ root.addEventListener('click',event => {
   }
   if (button.id === 'prev' || button.id === 'next') { state.page += button.id === 'prev' ? -1 : 1; updateTable(); }
   if (button.dataset.view) openEditor('order',button.dataset.view);
-  if (button.id === 'settings-theme') toggleTheme();
 });
 
 function tooltip(event,show) {

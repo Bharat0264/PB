@@ -906,7 +906,8 @@ class PrintBee(SimpleHTTPRequestHandler):
         if self.get_role() != "admin":
             return self.json_response(403, {"error": "Admin access is required."})
         orders = [dict(row) for row in db.execute(
-            "SELECT orders.id, status, order_number, CAST(COALESCE(json_extract(details,'$.bill.total'), "
+            "SELECT orders.id, status, order_number, json_extract(details,'$.customer') AS customer, "
+            "CAST(COALESCE(json_extract(details,'$.bill.total'), "
             "json_extract(details,'$.subtotal')) AS INTEGER) AS total, payment_id IS NOT NULL AS captured "
             "FROM orders LEFT JOIN order_owners ON orders.id=order_owners.order_id "
             "LEFT JOIN razorpay_orders ON orders.id=razorpay_orders.order_id ORDER BY orders.rowid DESC LIMIT 500"

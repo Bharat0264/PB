@@ -11,7 +11,7 @@
 <link rel="stylesheet" href="hive-theme.css?v=toggle-fit">
 <link rel="stylesheet" href="admin-hive.css?v=1">
 <script src="hive-theme.js?v=1" data-follow-system="false"></script>
-<script type="module" src="admin-dashboard.js?v=admin-directory"></script>
+<script type="module" src="admin-dashboard.js?v=focused-admin"></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to dashboard</a>
@@ -19,7 +19,7 @@
   <aside class="sidebar" aria-label="Admin sidebar">
     <a class="brand" href="#dashboard"><img src="printbee-header-bee.webp" width="44" height="40" alt=""><span><strong>PrintBee</strong><small>Admin workspace</small></span></a>
     <nav id="sidebar-nav" aria-label="Admin sections"></nav>
-    <a class="live-link" href="/admin.html">Live admin sign-in <span aria-hidden="true">↗</span></a>
+    <a class="live-link" href="/admin#orders">Live customer orders <span aria-hidden="true">↗</span></a>
   </aside>
   <main id="main" tabindex="-1">
     <header class="toolbar">
@@ -30,7 +30,7 @@
       <button class="icon-button" id="notifications" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-panel"></button>
       <button class="avatar" id="profile" type="button" aria-label="Admin profile" aria-expanded="false" aria-controls="profile-panel">PB</button>
       <div class="popover card" id="notification-panel" hidden><h2>Notifications</h2><ul id="notification-list" class="activity"></ul></div>
-      <div class="popover card" id="profile-panel" hidden><strong>PrintBee Admin</strong><p>Demo workspace</p><a href="/admin.html">Live admin sign-in ↗</a></div>
+      <div class="popover card" id="profile-panel" hidden><strong>PrintBee Admin</strong><p>Demo workspace</p><a href="/admin#orders">Live customer orders ↗</a><br><a href="mailto:printbee.co.in@gmail.com">Contact support</a></div>
     </header>
     <div class="intro">
       <div><p class="eyebrow">PrintBee operations <span>Sample data</span></p><h1 id="page-title">Dashboard</h1><p id="page-description">Track campus print orders, revenue, and delivery activity.</p></div>
