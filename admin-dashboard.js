@@ -239,7 +239,6 @@ function render(animate = false) {
   const customersRank = aggregate(paid,'customer',o => o.total).slice(0,5);
   const regionRank = aggregate(items,'region');
   const trafficSplit = traffic.map(([name,value]) => [name,Math.round(value*state.range/30)]);
-  const activityCard = card('Recent activity',feed());
   let widgets;
   switch (route) {
     case 'orders': widgets = orderTable(); break;
@@ -256,7 +255,7 @@ function render(animate = false) {
     case 'warehouses': widgets = directory('Warehouse directory', warehouses, warehouse =>
       `<span>${escape(warehouse.location)}</span><small>${escape(warehouse.email)}</small>`); break;
     default:
-      widgets = kpis(items) + revenueChart(items) + breakdown('Orders by status',aggregate(items,'status')) + activityCard + stock();
+      widgets = kpis(items) + revenueChart(items) + breakdown('Orders by status',aggregate(items,'status'));
   }
   $('page-title').textContent = sections[route][0];
   $('page-description').hidden = route !== 'dashboard';
