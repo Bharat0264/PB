@@ -170,6 +170,32 @@ def pickup(db, order_id, partner):
     audit(db, partner, "delivery_picked_up", order_id)
 
 
+def mark_undeliverable(db, order_id, actor, partner=None):
+    """A delivery that cannot be completed. Partners may only flag their own; admin may flag any."""
+    changed = db.execute(
+        "UPDATE orders SET status='undeliverable' WHERE id=? AND status='out_for_delivery' AND "
+        "(? IS NULL OR EXISTS(SELECT 1 FROM deliveries WHERE order_id=? AND partner=?))",
+        (order_id, partner, order_id, partner),
+    ).rowcount
+    if not changed:
+        raise Conflict("Only an active delivery can be marked undeliverable.")
+    db.execute("UPDATE deliveries SET nonce=NULL, expires=NULL WHERE order_id=?", (order_id,))
+    audit(db, actor, "delivery_undeliverable", order_id)
+
+
+def reassign(db, order_id):
+    """Return an order to the ready pool so another partner can accept it (admin only)."""
+    row = db.execute("SELECT status FROM orders WHERE id=?", (order_id,)).fetchone()
+    if not row or row["status"] not in ("packed", "undeliverable"):
+        raise Conflict("Only an order that has not been picked up, or an undeliverable one, can be reassigned.")
+    removed = db.execute("DELETE FROM deliveries WHERE order_id=? RETURNING partner", (order_id,)).fetchone()
+    if row["status"] == "packed" and not removed:
+        raise Conflict("This order has no assigned partner to replace.")
+    if row["status"] == "undeliverable":
+        db.execute("UPDATE orders SET status='packed' WHERE id=?", (order_id,))
+    audit(db, "admin", "delivery_reassigned", order_id)
+
+
 def renew_delivery_code(db, order_id):
     row = db.execute(
         "UPDATE deliveries SET nonce=?, expires=?, attempts=0 WHERE order_id=? AND "

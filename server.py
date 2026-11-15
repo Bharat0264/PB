@@ -17,12 +17,13 @@ from threading import BoundedSemaphore
 import admin_ledger
 import admin_records
 import event_feed
+import finance
 import order_status
 import customer_auth as auth
 import fulfillment as ops
 import partner_auth
 import razorpay_checkout
-from checkout_terms import DeliveryQuoteError, bill_for, configured_terms, require_pickup_coordinates, validate_terms
+from checkout_terms import DeliveryQuoteError, bill_for, configured_terms, coordinates, require_pickup_coordinates, validate_terms
 from document_pages import count_pages
 from order_documents import PrivateFiles, invoice_pdf, packing_label_pdf
 from order_rules import LIMIT, TRANSITIONS, advance_order, quote_items
@@ -58,6 +59,15 @@ def order_number(db):
         value = f"PB-{date}-{secrets.token_hex(2).upper()}"
         if not db.execute("SELECT 1 FROM order_owners WHERE order_number=?", (value,)).fetchone():
             return value
+
+
+def eta_minutes(here, there, speed_kmh=18):
+    """Rough minutes to go (straight line at campus-scooter speed). An estimate, never a promise."""
+    import math
+    lat1, lng1, lat2, lng2 = map(math.radians, (*here, *there))
+    a = math.sin((lat2 - lat1) / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin((lng2 - lng1) / 2) ** 2
+    km = 6371 * 2 * math.asin(math.sqrt(min(1, a)))
+    return max(1, math.ceil(km / speed_kmh * 60))
 
 
 def active_checkout_terms(db, default):
@@ -254,7 +264,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                        "/partner.html", "/partner.css", "/partner.js", "/partner-sw.js", "/admin.html", "/admin-preview.html", "/admin-dashboard.css", "/admin-tokens.css",
                        "/customer-pricing.js", "/customer-price-table.js", "/pricing-preview.js", "/admin-dashboard.js", "/admin-records.js", "/admin-ledger.js", "/admin-ledger.css", "/admin-pricing.js", "/admin-pricing.css", "/admin-data.js", "/operations.js", "/partner.webmanifest", "/portal-login.js",
                        "/pricing.html", "/terms.html", "/queue.html", "/orders.html", "/profile.html", "/profile.js", "/address.html", "/customer-login.js",
-                       "/preloader.js", "/preloader.css", "/gsap-3.13.0.min.js",
+                       "/preloader.js", "/preloader.css", "/gsap-3.13.0.min.js", "/live.js", "/status-model.js", "/status-model.css",
                        "/navigation.html", "/navigation.css", "/bottom-nav.js", "/nav-tokens.js", "/embedded-tab.js"}
             if path in allowed:
                 return super().do_GET()
@@ -368,6 +378,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                     result = {"status": row["status"], "number": row["order_number"],
                               "paymentStarted": bool(row["provider_id"])}
                     if owner:
+                        result["timeline"] = event_feed.timeline(db, match[1])
                         result["delivery"] = self.customer_delivery(db, match[1], row["status"])
                         if row["status"] != "pending":
                             result["trackingKey"] = self.tracking_key(match[1])
@@ -396,8 +407,6 @@ class PrintBee(SimpleHTTPRequestHandler):
             origin = auth.public_origin() or f"http://{self.headers.get('Host')}"
             if self.headers.get("Origin") != origin:
                 return self.json_response(403, {"error": "Open PrintBee directly and try again."})
-        visible = ("paid", "printing", "packed", "delivery_picked_up", "delivery_completed",
-                   "order_cancelled", "refund_requested", "refund.processed", "refund.failed")
         with closing(connect()) as db, db:
             email = auth.session_email(db, self.headers)
             if not email:
@@ -409,11 +418,20 @@ class PrintBee(SimpleHTTPRequestHandler):
                 db.execute("INSERT INTO notification_reads VALUES (?,?) ON CONFLICT(email) DO UPDATE "
                            "SET last_seen=max(last_seen, excluded.last_seen)", (email, through))
                 return self.json_response(200, {"saved": True})
+            # Notifications are the order's real status changes (plus "partner assigned"), so a
+            # step can never be skipped just because its audit action had a different name.
             rows = db.execute(
-                "SELECT audit.id, audit.action, audit.order_id, audit.created, order_number, "
-                "audit.id>COALESCE(last_seen,0) AS unread FROM audit JOIN order_owners USING(order_id) "
-                "LEFT JOIN notification_reads USING(email) WHERE email=? AND audit.action IN ("
-                + ",".join("?" for _ in visible) + ") ORDER BY audit.id DESC LIMIT 30", (email, *visible)
+                "SELECT e.id, CASE WHEN e.event='delivery_accepted' THEN 'delivery_accepted' ELSE CASE e.to_status "
+                "WHEN 'paid' THEN 'paid' WHEN 'printing' THEN 'printing' WHEN 'packed' THEN 'packed' "
+                "WHEN 'out_for_delivery' THEN 'delivery_picked_up' WHEN 'delivered' THEN 'delivery_completed' "
+                "WHEN 'undeliverable' THEN 'delivery_undeliverable' WHEN 'cancelled' THEN 'order_cancelled' "
+                "WHEN 'refund_pending' THEN 'refund_requested' WHEN 'refunded' THEN 'refund.processed' "
+                "WHEN 'refund_failed' THEN 'refund.failed' END END AS action, e.order_id, e.created, "
+                "o.order_number, e.id>COALESCE(r.last_seen,0) AS unread "
+                "FROM order_events e JOIN order_owners o ON o.order_id=e.order_id "
+                "LEFT JOIN notification_reads r ON r.email=o.email WHERE o.email=? AND "
+                "(e.event='delivery_accepted' OR (e.to_status IS NOT e.from_status AND e.to_status!='pending')) "
+                "ORDER BY e.id DESC LIMIT 30", (email,)
             )
             return self.json_response(200, {"updates": [dict(row) for row in rows]})
 
@@ -1002,16 +1020,23 @@ class PrintBee(SimpleHTTPRequestHandler):
         return self.json_response(200, {"signedIn": True}, auth.session_cookie(token, age, "printbee_partner"))
 
     def customer_delivery(self, db, order_id, status):
-        if status != "out_for_delivery":
+        """What the customer may see about the delivery. The code is shown to the owner only."""
+        if status not in ("packed", "out_for_delivery"):
             return None
         row = db.execute("SELECT * FROM deliveries WHERE order_id=?", (order_id,)).fetchone()
         if not row:
             return None
-        delivery = {}
+        delivery = {"partner": re.sub(r"[-_.]+", " ", row["partner"].split("@")[0]).strip().title()}
+        if status != "out_for_delivery":
+            return delivery
         if row["nonce"] and row["expires"] > time.time() and row["attempts"] < 3:
             delivery["code"] = ops.delivery_code(self.server.keys["delivery-code"].encode(), row["nonce"])
         if row["located_at"] and row["located_at"] > time.time() - 300:
             delivery["location"] = [row["lat"], row["lng"]]
+            address = json.loads(db.execute("SELECT details FROM orders WHERE id=?", (order_id,)).fetchone()["details"]).get("address")
+            destination = coordinates(address, delivery=True)
+            if destination:
+                delivery["etaMinutes"] = eta_minutes((row["lat"], row["lng"]), destination)
         return delivery
 
     def admin_ledger(self, db):
@@ -1033,9 +1058,11 @@ class PrintBee(SimpleHTTPRequestHandler):
             "SELECT orders.id, status, order_number, json_extract(details,'$.customer') AS customer, "
             "CAST(COALESCE(json_extract(details,'$.bill.total'), "
             "json_extract(details,'$.subtotal')) AS INTEGER) AS total, payment_id IS NOT NULL AS captured, "
-            "(SELECT max(created) FROM audit WHERE order_id=orders.id AND action='paid') AS created "
+            "(SELECT max(created) FROM audit WHERE order_id=orders.id AND action='paid') AS created, "
+            "deliveries.partner AS partner "
             "FROM orders LEFT JOIN order_owners ON orders.id=order_owners.order_id "
-            "LEFT JOIN razorpay_orders ON orders.id=razorpay_orders.order_id ORDER BY orders.rowid DESC LIMIT 500"
+            "LEFT JOIN razorpay_orders ON orders.id=razorpay_orders.order_id "
+            "LEFT JOIN deliveries ON orders.id=deliveries.order_id ORDER BY orders.rowid DESC LIMIT 500"
         )]
         offline = [dict(row) for row in db.execute(
             "SELECT id, 'offline' AS status, 'PB-OFF-' || upper(substr(id,1,8)) AS order_number, "
@@ -1057,6 +1084,7 @@ class PrintBee(SimpleHTTPRequestHandler):
         return self.json_response(200, {"orders": orders, "counts": counts, "captured": captured,
                                         "terms": self.checkout_terms(db), "audit": history, "payouts": payouts,
                                         "today": admin_records.today_totals(db),
+                                        "finance": finance.summary(db), "paymentMode": self.server.payment_mode,
                                         "warehouses": admin_records.warehouse_directory(db),
                                         "pricingVersion": db.execute("SELECT COALESCE(max(id),0) FROM pricing_versions").fetchone()[0]})
 
@@ -1116,6 +1144,12 @@ class PrintBee(SimpleHTTPRequestHandler):
             elif role == "admin" and (reset := re.fullmatch(r"/api/admin/orders/([a-f0-9]{32})/renew-code", path)):
                 ops.renew_delivery_code(db, reset[1])
                 result = {"saved": True}
+            elif role == "admin" and (reroute := re.fullmatch(r"/api/admin/orders/([a-f0-9]{32})/(reassign|undeliverable)", path)):
+                if reroute[2] == "reassign":
+                    ops.reassign(db, reroute[1])
+                else:
+                    ops.mark_undeliverable(db, reroute[1], "admin")
+                result = {"saved": True}
             elif role == "admin" and (cancel := re.fullmatch(r"/api/admin/orders/([a-f0-9]{32})/cancel", path)):
                 ops.cancel_order(db, cancel[1])
                 result = {"saved": True}
@@ -1161,7 +1195,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                            (partner, data["available"], int(time.time())))
                 result = {"saved": True}
             else:
-                match = re.fullmatch(r"/api/partner/orders/([a-f0-9]{32})/(accept|pickup|deliver|location)", path)
+                match = re.fullmatch(r"/api/partner/orders/([a-f0-9]{32})/(accept|pickup|deliver|location|undeliverable)", path)
                 if not match:
                     return self.json_response(404, {"error": "Unknown operation."})
                 order_id, action = match.groups()
@@ -1180,6 +1214,8 @@ class PrintBee(SimpleHTTPRequestHandler):
                     ops.assign_delivery(db, order_id, partner)
                 elif action == "pickup":
                     ops.pickup(db, order_id, partner)
+                elif action == "undeliverable":
+                    ops.mark_undeliverable(db, order_id, partner, partner=partner)
                 elif action == "deliver":
                     code = data["code"]
                     if not re.fullmatch(r"[0-9]{4}", code):
@@ -1200,6 +1236,18 @@ class PrintBee(SimpleHTTPRequestHandler):
         self.json_response(409 if "error" in result else 200, result)
 
     def refund_order(self, order_id):
+        if self.server.payment_mode == "test":
+            # Local test payments have no Razorpay record, so the refund completes immediately.
+            with closing(connect()) as db, db:
+                db.execute("BEGIN IMMEDIATE")
+                row = db.execute("SELECT status FROM orders WHERE id=?", (order_id,)).fetchone()
+                if not row or row["status"] not in ("paid", "undeliverable"):
+                    raise ops.Conflict("Only a paid order that has not been delivered can be refunded.")
+                db.execute("UPDATE orders SET status='refund_pending' WHERE id=?", (order_id,))
+                ops.audit(db, "admin", "refund_requested", order_id)
+                db.execute("UPDATE orders SET status='refunded' WHERE id=?", (order_id,))
+                ops.audit(db, "checkout", "refund.processed", order_id)
+            return self.json_response(200, {"state": "processed"})
         gateway = self.server.razorpay
         if not gateway:
             return self.json_response(503, {"error": "Razorpay is unavailable."})
@@ -1209,9 +1257,9 @@ class PrintBee(SimpleHTTPRequestHandler):
                 "SELECT status, amount, payment_id FROM orders JOIN razorpay_orders "
                 "ON orders.id=razorpay_orders.order_id WHERE orders.id=?", (order_id,)
             ).fetchone()
-            if not row or not row["payment_id"] or row["status"] not in ("paid", "refund_pending"):
-                raise ops.Conflict("Only a paid, unprinted order can be refunded.")
-            if row["status"] == "paid":
+            if not row or not row["payment_id"] or row["status"] not in ("paid", "undeliverable", "refund_pending"):
+                raise ops.Conflict("Only a paid order that has not been delivered can be refunded.")
+            if row["status"] in ("paid", "undeliverable"):
                 db.execute("UPDATE orders SET status='refund_pending' WHERE id=?", (order_id,))
                 db.execute("INSERT INTO razorpay_refunds(order_id,state) VALUES (?, 'requested')", (order_id,))
                 ops.audit(db, "admin", "refund_requested", order_id)

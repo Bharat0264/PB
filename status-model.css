@@ -1,0 +1,34 @@
+/* Shared status badge: the same colours and shape in every portal (day + night). */
+.pb-status {
+  --pbs-bg: #F1E9D6; --pbs-ink: #5B4C2C; --pbs-dot: #7A6A4A;
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px;
+  background: var(--pbs-bg); color: var(--pbs-ink);
+  font: 800 12px/1.2 Manrope, system-ui, sans-serif; letter-spacing: .01em; white-space: nowrap;
+}
+.pb-status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--pbs-dot); flex: none; }
+.pb-status[data-tone="info"] { --pbs-bg: #E3EEFC; --pbs-ink: #1F4F94; --pbs-dot: #3B7DD8; }
+.pb-status[data-tone="honey"] { --pbs-bg: #FFF0C4; --pbs-ink: #6E4A05; --pbs-dot: #E0A91E; }
+.pb-status[data-tone="warning"] { --pbs-bg: #FFE6C2; --pbs-ink: #7A4506; --pbs-dot: #C77D12; }
+.pb-status[data-tone="success"] { --pbs-bg: #E2F2E7; --pbs-ink: #23593A; --pbs-dot: #3E8E5A; }
+.pb-status[data-tone="danger"] { --pbs-bg: #FCE3E0; --pbs-ink: #9A2626; --pbs-dot: #D64545; }
+:root[data-theme="dark"] .pb-status, .rider-night .pb-status { --pbs-bg: #382A15; --pbs-ink: #E9D9B4; --pbs-dot: #CDB78E; }
+:root[data-theme="dark"] .pb-status[data-tone="info"] { --pbs-bg: #18263E; --pbs-ink: #B9D3FF; --pbs-dot: #8DB8FF; }
+:root[data-theme="dark"] .pb-status[data-tone="honey"] { --pbs-bg: #3D2D0C; --pbs-ink: #FFD98A; --pbs-dot: #FFC24D; }
+:root[data-theme="dark"] .pb-status[data-tone="warning"] { --pbs-bg: #402A0E; --pbs-ink: #FFD08A; --pbs-dot: #FFB04D; }
+:root[data-theme="dark"] .pb-status[data-tone="success"] { --pbs-bg: #1C3322; --pbs-ink: #A8E3B9; --pbs-dot: #7CCB93; }
+:root[data-theme="dark"] .pb-status[data-tone="danger"] { --pbs-bg: #3F1D17; --pbs-ink: #FFB3A8; --pbs-dot: #FF8A7A; }
+
+/* A small "Live" indicator any portal can place near its title. */
+.pb-live { display: inline-flex; align-items: center; gap: 6px; font: 700 12px/1 Manrope, system-ui, sans-serif; color: inherit; opacity: .8; }
+.pb-live::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #9A8A68; }
+.pb-live[data-state="live"]::before { background: #3E8E5A; box-shadow: 0 0 0 0 rgba(62,142,90,.5); animation: pb-live 1.8s ease-out infinite; }
+.pb-live[data-state="polling"]::before { background: #E0A91E; }
+.pb-live[data-state="offline"]::before { background: #D64545; }
+@keyframes pb-live { 70% { box-shadow: 0 0 0 7px rgba(62,142,90,0); } 100% { box-shadow: 0 0 0 0 rgba(62,142,90,0); } }
+@media (prefers-reduced-motion: reduce) { .pb-live[data-state="live"]::before { animation: none; } }
+
+/* Customer tracking: live order history under the status steps. */
+.order-events { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; font-size: 13px; }
+.order-events:empty { display: none; }
+.order-events li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 12px; border-radius: 12px; background: rgba(245, 197, 66, .14); }
+.order-events time { opacity: .7; font-variant-numeric: tabular-nums; }

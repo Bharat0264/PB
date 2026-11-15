@@ -103,6 +103,7 @@ if (demo) {
     if (scene === 'active') { Object.assign(state.orders[0], {partner: 'sample', status: 'out_for_delivery'}); state.step = 2; }
   }
 }
+let liveFeed;
 let tab = ['Cockpit', 'Earnings', 'Profile'].find(name => name === new URLSearchParams(location.search).get('tab')) || 'Cockpit', completed, busy = false, reading, interval, localStep = 0;
 let watch, lastSent = 0, point, sending = false, wakeLock, offerIds;
 let shiftSince = demo ? state.shiftSince : null;
@@ -613,7 +614,7 @@ function activeCell(order) {
   }
   if (step === 3) body.push(otpKeys(order));
   return h('section', {class: 'cell active-cell'},
-    h('div', {class: 'cell-head'}, h('h2', {}, h('span', {class: 'hexdot', 'aria-hidden': 'true'}), 'Active delivery'), h('span', {class: 'tag'}, orderNo(order))),
+    h('div', {class: 'cell-head'}, h('h2', {}, h('span', {class: 'hexdot', 'aria-hidden': 'true'}), 'Active delivery'), h('span', {class: 'tag'}, orderNo(order)), window.PrintBeeStatus?.model && order.status ? PrintBeeStatus.badge(order.status) : null),
     stepper(step), h('h3', {}, title), ...body);
 }
 function deliveredCell() {
@@ -978,10 +979,12 @@ async function init() {
   if (demo) { render(); return; }
   content.replaceChildren(h('div', {class: 'grid-12'}, h('div', {class: 'skel skel-cell span-5'}), h('div', {class: 'skel skel-cell span-7'}), h('div', {class: 'skel skel-cell span-12'})));
   function poll() { if (!busy) refresh().catch(() => {}); sendLocation(); }
+  // New offers, assignments and status changes arrive over the live feed; polling is a safety net.
+  liveFeed = PrintBeeLive.start({as: 'partner', onSync: () => { if (!busy) refresh().catch(() => {}); }});
   addEventListener('online', poll);
   addEventListener('offline', () => { $('network').hidden = false; });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { poll(); keepAwake(); } });
-  try { await refresh(); } finally { interval = setInterval(poll, 5000); }
+  try { await refresh(); } finally { interval = setInterval(poll, 20000); }
 }
 
 const brand = $('partner-home');
@@ -1006,7 +1009,7 @@ if (demo) {
   init();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/partner-sw.js').catch(() => {});
 } else {
-  connectPortal('partner', status, init, () => { clearInterval(interval); stopLocation(); });
+  connectPortal('partner', status, init, () => { clearInterval(interval); liveFeed?.stop(); stopLocation(); });
   $('phone-login').onsubmit = event => {
     event.preventDefault();
     const form = event.currentTarget, control = form.querySelector('button');

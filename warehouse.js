@@ -45,7 +45,7 @@ let view = 'Home', tab = 'New', active, sheet = false, restoreFocus;
 let printAction, printPending = false, previewUrl, previewRequest = 0, arrivalOrder;
 let staffDock, floorFilter, arrivalTimer, historyPreset='';
 let conveyorPositions=new Map(), lastStages=new Map(), newlyReady=new Set();
-let polling, busyRefresh = false, refreshVersion = 0, toastTimer, audio;
+let polling, liveFeed, busyRefresh = false, refreshVersion = 0, toastTimer, audio;
 const filters = {colour:'', paper:'', date:'', priority:'', partner:'', from:'', to:''};
 
 function readSetting(key) {
@@ -549,7 +549,7 @@ function renderStation(order=findOrder()) {
     return;
   }
   const bucket=stage(order), summary=node('div',null,'wh-meta');
-  summary.append(chip(bucket,statusStyle(bucket)),chip('Paid','wh-good'));
+  summary.append(chip(bucket,statusStyle(bucket)),window.PrintBeeStatus?.model && order.status?PrintBeeStatus.badge(order.status):chip('Paid','wh-good'));
   const minutes=elapsed(order);
   if (minutes!==null && buckets.includes(bucket)) summary.append(chip(minutes>=45?'SLA overdue':45-minutes+' min left','wh-sla '+(minutes>=45?'wh-bad':minutes>=30?'wh-attention':'')));
   body.append(summary,orderTracker(bucket));
@@ -1169,6 +1169,8 @@ if (preview) {
 } else {
   connectPortal('warehouse',status,async()=>{
     await start();
-    polling=setInterval(refreshLive,5000);
-  },()=>clearInterval(polling));
+    // Orders arrive over the live feed (instant); this slow poll is only a safety net.
+    polling=setInterval(refreshLive,30000);
+    liveFeed=PrintBeeLive.start({as:'warehouse',onSync:refreshLive});
+  },()=>{clearInterval(polling);liveFeed?.stop();});
 }

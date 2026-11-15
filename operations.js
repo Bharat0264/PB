@@ -111,10 +111,13 @@ function stopSharing() {
 }
 
 const money = new Intl.NumberFormat('en-IN', {style:'currency', currency:'INR'}).format;
+// Status wording is shared by every portal (server model); fall back to the raw key if it is unavailable.
+const statusLabel = key => window.PrintBeeStatus ? PrintBeeStatus.label(key) : String(key).replaceAll('_', ' ');
+let paymentMode = 'disabled';
 let liveOrders;
 let adminRevision = 0;
 let refreshingOrders = false;
-let adminTimer;
+let adminTimer, adminFeed;
 let refreshLedger;
 let staffDock;
 
@@ -290,20 +293,30 @@ function appendOrderRows(list, orders) {
     details.className = 'live-order-details';
     details.append(element('strong', orderNumber(order)), element('span', money(order.total / 100)),
       element('span', [order.customer, order.product].filter(Boolean).join(' · ')),
-      element('span', order.status.replaceAll('_', ' ')));
+      element('span', statusLabel(order.status)));
     row.append(details);
     if (order.status === 'out_for_delivery') row.append(action('Renew delivery code', async () => {
       await api('/api/admin/orders/' + order.id + '/renew-code', {});
       statusLine.textContent = 'The customer can refresh their order to see the new code.';
+    }));
+    if (order.status === 'out_for_delivery') row.append(action('Mark undeliverable', async () => {
+      if (!window.confirm('Mark this delivery as undeliverable?')) return;
+      await api('/api/admin/orders/' + order.id + '/undeliverable', {});
+      await admin();
+    }));
+    if (order.status === 'undeliverable' || (order.status === 'packed' && order.partner)) row.append(action('Reassign delivery', async () => {
+      await api('/api/admin/orders/' + order.id + '/reassign', {});
+      await admin();
+      statusLine.textContent = 'The order is back in the pool for delivery partners.';
     }));
     if (order.status === 'paid' && !order.captured) row.append(action('Cancel order', async () => {
       if (!window.confirm('Cancel this unprinted order?')) return;
       await api('/api/admin/orders/' + order.id + '/cancel', {});
       await admin();
     }));
-    if (order.captured && ['paid', 'refund_pending'].includes(order.status)) {
-      row.append(action(order.status === 'paid' ? 'Refund order' : 'Reconcile refund', async () => {
-        if (order.status === 'paid' && !window.confirm('Request a full refund and stop fulfilment?')) return;
+    if ((order.captured || paymentMode === 'test') && ['paid', 'undeliverable', 'refund_pending'].includes(order.status)) {
+      row.append(action(order.status === 'refund_pending' ? 'Reconcile refund' : 'Refund order', async () => {
+        if (order.status !== 'refund_pending' && !window.confirm('Request a full refund and stop fulfilment?')) return;
         const result = await api('/api/admin/orders/' + order.id + '/refund', {});
         await admin();
         statusLine.textContent = 'Refund ' + result.state + '.';
@@ -325,7 +338,10 @@ async function admin() {
   daily.className = 'daily-overview';
   const revenue = element('dd');
   const todayOrders = element('dd');
-  daily.append(element('dt', 'Today’s revenue'), revenue, element('dt', 'Today’s orders'), todayOrders);
+  const money_in = element('dd'), profit = element('dd'), earnings = element('dd'), refunds = element('dd');
+  daily.append(element('dt', 'Today’s revenue'), revenue, element('dt', 'Today’s orders'), todayOrders,
+    element('dt', 'Revenue (paid orders)'), money_in, element('dt', 'Profit (delivered, after tax and partner pay)'), profit,
+    element('dt', 'Partner earnings (accrued · unsettled)'), earnings, element('dt', 'Refunded'), refunds);
   totals.append(element('h2', 'Order overview'), daily, captured, counts);
   const orders = element('section');
   orders.className = 'clay-card';
@@ -333,14 +349,21 @@ async function admin() {
   const updateOrders = buildLiveOrders(orders, data.orders);
   let lastTotals;
   function updateOverview(next) {
-    const signature = JSON.stringify([next.counts, next.captured, next.today]);
+    paymentMode = next.paymentMode || paymentMode;
+    const signature = JSON.stringify([next.counts, next.captured, next.today, next.finance]);
     if (signature === lastTotals) return;
     lastTotals = signature;
     revenue.textContent = money(next.today.revenue / 100);
     todayOrders.textContent = new Intl.NumberFormat('en-IN').format(next.today.orders);
+    if (next.finance) {
+      money_in.textContent = money(next.finance.revenue / 100);
+      profit.textContent = money(next.finance.profit / 100);
+      earnings.textContent = money(next.finance.partnerEarnings.accrued / 100) + ' · ' + money(next.finance.partnerEarnings.outstanding / 100);
+      refunds.textContent = money(next.finance.refunded / 100);
+    }
     captured.textContent = money(next.captured / 100) + ' captured in Razorpay';
     counts.replaceChildren(...Object.entries(next.counts).map(([state, count]) =>
-      element('li', state.replaceAll('_', ' ') + ' · ' + count)));
+      element('li', statusLabel(state) + ' · ' + count)));
   }
   const update = next => { updateOverview(next); updateOrders(next.orders); };
   update(data);
@@ -427,8 +450,10 @@ async function startAdmin() {
   nav.hidden = false;
   window.addEventListener('hashchange', syncAdminSection);
   syncAdminSection();
-  adminTimer = setInterval(refreshLiveOrders, 10000);
+  // Orders update instantly over the live feed; the slow timer is only a safety net.
+  adminTimer = setInterval(refreshLiveOrders, 45000);
+  adminFeed = window.PrintBeeLive?.start({as: 'admin', onSync: refreshLiveOrders});
 }
 
 if (portal === 'partner') connectPortal(portal, statusLine, partnerOrders, stopSharing);
-else connectPortal(portal, statusLine, startAdmin, () => clearInterval(adminTimer));
+else connectPortal(portal, statusLine, startAdmin, () => { clearInterval(adminTimer); adminFeed?.stop(); });

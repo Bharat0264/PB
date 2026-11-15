@@ -756,6 +756,7 @@ async function showOrders() {
     accountUnavailable = true;
   }
   const accountIds = new Set(accountOrders.map(order => order.id));
+  if (accountIds.size) startOrderFeed();
   const legacyOrders = await getLegacyOrders(accountIds).catch(() => []);
   for (const details of orderHistory.querySelectorAll('details[open]')) details.open = false;
   orderHistory.replaceChildren();
@@ -777,8 +778,30 @@ async function showOrders() {
     const steps = document.createElement('ol');
     steps.className = 'order-timeline';
     const deliveryInfo = document.createElement('div');
+    const history = document.createElement('ol');
+    history.className = 'order-events';
+    history.setAttribute('aria-label', 'Order history');
+    function showTimeline(events) {
+      if (!events) return;
+      history.replaceChildren(...events.map(event => {
+        const row = document.createElement('li');
+        const name = document.createElement('span');
+        name.textContent = window.PrintBeeStatus?.eventLabel(event.event) || event.event;
+        const time = document.createElement('time');
+        time.dateTime = new Date(event.at * 1000).toISOString();
+        time.textContent = new Date(event.at * 1000).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'});
+        row.append(name, time);
+        return row;
+      }));
+    }
     function showDelivery(delivery) {
       deliveryInfo.replaceChildren();
+      if (delivery?.partner) {
+        const partner = document.createElement('p');
+        partner.textContent = 'Delivery partner · ' + delivery.partner
+          + (delivery.etaMinutes ? ' · about ' + delivery.etaMinutes + ' min away' : '');
+        deliveryInfo.append(partner);
+      }
       if (delivery?.code) {
         const code = document.createElement('p');
         code.className = 'raised table-card';
@@ -806,15 +829,16 @@ async function showOrders() {
       }));
     }
     renderStage(order.status);
-    details.append(summary, state, steps, deliveryInfo);
+    details.append(summary, state, steps, deliveryInfo, history);
     let updating = false;
     async function refreshStatus() {
       if (updating) return;
       updating = true;
       try {
-        const {status: currentStatus, delivery} = await orderRequest('/api/orders/' + order.id, order.orderKey);
+        const {status: currentStatus, delivery, timeline} = await orderRequest('/api/orders/' + order.id, order.orderKey);
         if (state.textContent !== orderStates[currentStatus]) renderStage(currentStatus);
         showDelivery(delivery);
+        showTimeline(timeline);
       } catch {
         deliveryInfo.replaceChildren();
         state.textContent = 'Could not refresh delivery status.';
@@ -823,27 +847,15 @@ async function showOrders() {
       }
     }
     let timer;
-    let stream;
     details.addEventListener('toggle', () => {
       clearInterval(timer);
-      stream?.close();
+      liveRefreshers.delete(order.id);
       if (!details.open) return;
       refreshStatus();
-      if (accountIds.has(order.id) && window.EventSource) {
-        stream = new EventSource('/api/orders/' + order.id + '/events');
-        stream.onmessage = event => {
-          const update = JSON.parse(event.data);
-          if (state.textContent !== orderStates[update.status]) renderStage(update.status);
-          showDelivery(update.delivery);
-        };
-        stream.onerror = () => {
-          if (stream.readyState === EventSource.CLOSED && !timer) {
-            timer = setInterval(() => { if (!document.hidden) refreshStatus(); }, 15000);
-          }
-        };
-      } else {
-        timer = setInterval(() => { if (!document.hidden) refreshStatus(); }, 15000);
-      }
+      // Account orders update instantly through the shared live feed (startOrderFeed);
+      // the timer is only a safety net. Orders tracked by key alone poll.
+      if (accountIds.has(order.id)) liveRefreshers.set(order.id, refreshStatus);
+      timer = setInterval(() => { if (!document.hidden) refreshStatus(); }, accountIds.has(order.id) ? 60000 : 15000);
     });
     details.append(queueButton('Refresh status', refreshStatus));
     const files = document.createElement('ul');
@@ -913,7 +925,8 @@ async function loadOrderUpdates() {
   const {updates} = await orderRequest('/api/orders/notifications');
   panel.hidden = !updates.length;
   if (!updates.length) return;
-  const labels = {paid: 'Order received', printing: 'Printing', packed: 'Packed',
+  const labels = {delivery_accepted: 'Delivery partner assigned', delivery_undeliverable: 'Could not be delivered',
+    paid: 'Order received', printing: 'Printing', packed: 'Packed',
     delivery_picked_up: 'Out for delivery', delivery_completed: 'Delivered', order_cancelled: 'Cancelled',
     refund_requested: 'Refund requested', 'refund.processed': 'Refunded', 'refund.failed': 'Refund needs assistance'};
   const unread = updates.filter(update => update.unread).length;
@@ -921,7 +934,7 @@ async function loadOrderUpdates() {
   panel.querySelector('ul').replaceChildren(...updates.map(update => {
     const row = document.createElement('li');
     row.textContent = (update.order_number || 'PB-' + update.order_id.slice(0, 8).toUpperCase()) +
-      ' · ' + labels[update.action] + ' · ' + new Date(update.created * 1000).toLocaleString();
+      ' · ' + (labels[update.action] || window.PrintBeeStatus?.eventLabel(update.action) || update.action) + ' · ' + new Date(update.created * 1000).toLocaleString();
     return row;
   }));
   panel.ontoggle = async () => {
@@ -965,9 +978,24 @@ const orderStates = {
   paid: 'Order received · With warehouse',
   printing: 'Printing', packed: 'Packed · Awaiting delivery',
   out_for_delivery: 'Out for delivery', delivered: 'Delivered',
-  cancelled: 'Cancelled',
+  cancelled: 'Cancelled', undeliverable: 'Undeliverable',
   refund_pending: 'Refund pending', refund_failed: 'Refund needs assistance', refunded: 'Refunded',
 };
+// Wording comes from the one shared status model (order_status.py), so every portal says the same thing.
+window.PrintBeeStatus?.ready.then(model => {
+  if (model) for (const [key, value] of Object.entries(model.statuses)) if (Object.hasOwn(orderStates, key)) orderStates[key] = value.label;
+});
+// Live updates: one shared feed; each open order card registers a refresher here.
+const liveRefreshers = new Map();
+let orderFeed;
+function startOrderFeed() {
+  if (orderFeed || !window.PrintBeeLive) return;
+  orderFeed = PrintBeeLive.start({
+    as: 'customer',
+    onEvent: event => liveRefreshers.get(event.order)?.(),
+    onSync: () => { loadOrderUpdates().catch(() => {}); },
+  });
+}
 const checkoutDraftKey = 'printbee-checkout-attempt';
 let razorpayScript;
 
