@@ -1,0 +1,99 @@
+/* Live admin (admin.html) — Hive theme layer. Loads after studio.css and clay.css.
+   Appearance only: the sections rendered by operations.js keep their DOM order and text. */
+
+body[data-portal="admin"] {
+  --clay-bg: var(--hv-surface-2); --clay-surface: var(--hv-surface); --clay-primary: var(--hv-honey-500); --clay-ink: var(--hv-ink); --clay-muted: var(--hv-muted);
+  --clay-radius: var(--hv-r-card); --clay-raised: var(--hv-sh-2);
+  --base: transparent; --ink: var(--hv-ink); --muted: var(--hv-muted); --line: var(--hv-border);
+  margin: 0; min-height: 100dvh; background: transparent; color: var(--hv-ink); font: 400 15px/1.55 Manrope, system-ui, sans-serif;
+}
+body[data-portal="admin"] :focus-visible { outline: none !important; box-shadow: var(--hv-focus) !important; border-radius: 12px; }
+
+/* Sticky 72px top bar with the existing brand link */
+body[data-portal="admin"] > .top { position: sticky; top: 16px; z-index: 5; display: flex; align-items: center; width: min(1440px, calc(100% - 64px)); height: 72px; margin: 16px auto 0; padding: 0 24px; border: 0; border-radius: 24px; background: var(--hv-glass); box-shadow: var(--hv-sh-2); backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px) saturate(1.2); }
+body[data-portal="admin"] > .top a { display: inline-flex; align-items: center; gap: 10px; min-height: 48px; font-size: 20px; font-weight: 800; letter-spacing: -.02em; text-decoration: none; color: var(--hv-ink); }
+body[data-portal="admin"] > .top a::before { content: ""; width: 44px; height: 35px; background: url("/printbee-header-bee.webp") center / contain no-repeat; }
+
+/* Content: 1440 max, 12-col grid, 24px gutters, 32px outer padding */
+body[data-portal="admin"] .staff-console { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 24px; width: min(1440px, 100%); margin: 0 auto; padding: 32px; }
+.staff-console > h1 { grid-column: 1 / -1; margin: 8px 0 0; font-size: clamp(30px, 3.2vw, 44px); line-height: 1.15; letter-spacing: -.02em; font-weight: 800; }
+.staff-console > #portal-login { grid-column: span 6; }
+.staff-console > #portal-logout { grid-column: 1 / -1; justify-self: start; }
+.staff-console > #ops-status { grid-column: 1 / -1; margin: 0; }
+.staff-console > #ops-status:not(:empty) { justify-self: start; padding: 10px 16px; border-radius: var(--hv-r-pill); background: var(--hv-warning-bg); color: var(--hv-warning-ink); font-weight: 700; }
+.staff-console > #ops-content { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 24px; align-items: start; }
+#ops-content > .clay-button:first-child { grid-column: 1 / -1; justify-self: start; }
+#ops-content > section:nth-child(2) { grid-column: span 4; }   /* Order overview (hero) */
+#ops-content > section:nth-child(3) { grid-column: span 8; }   /* Recent orders */
+#ops-content > section:nth-child(4) { grid-column: span 6; }   /* Checkout pricing (settings) */
+#ops-content > section:nth-child(5) { grid-column: span 6; }   /* Partner settlements */
+#ops-content > section:nth-child(6) { grid-column: 1 / -1; }  /* Activity */
+
+/* Clay cards */
+body[data-portal="admin"] .clay-card { padding: 24px; border-radius: var(--hv-r-card); background: var(--hv-surface); color: var(--hv-ink); box-shadow: var(--hv-sh-2); min-width: 0; animation: hv-enter .28s var(--hv-ease) both; }
+#ops-content > :nth-child(3) { animation-delay: 40ms; } #ops-content > :nth-child(4) { animation-delay: 80ms; } #ops-content > :nth-child(5) { animation-delay: 120ms; } #ops-content > :nth-child(6) { animation-delay: 160ms; }
+#ops-content h2 { display: flex; align-items: center; gap: 10px; margin: 0 0 16px; font-size: 18px; line-height: 1.2; letter-spacing: -.015em; font-weight: 800; }
+#ops-content h2::before { content: ""; width: 12px; height: 14px; flex: none; background: var(--hv-honey-500); clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); }
+
+/* Order overview as the hero KPI card */
+#ops-content > section:nth-child(2) { background: linear-gradient(160deg, #FFF3C9, var(--hv-surface) 60%); }
+:root[data-theme="dark"] #ops-content > section:nth-child(2) { background: linear-gradient(160deg, #3D2C11, var(--hv-surface) 65%); }
+#ops-content > section:nth-child(2) > p { font-size: clamp(20px, 1.7vw, 26px); line-height: 1.25; font-weight: 800; letter-spacing: -.015em; color: var(--hv-ink); font-variant-numeric: tabular-nums; }
+#ops-content > section:nth-child(2) > ul { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 16px 0 0; padding: 0; list-style: none; }
+#ops-content > section:nth-child(2) > ul > li { min-height: 52px; display: flex; align-items: center; padding: 0 14px; border-radius: 16px; background: var(--hv-surface); box-shadow: var(--hv-sh-1); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* Lists as table-like rows: 56px, hairline dividers, honey hover */
+#ops-content ul { margin: 0; padding: 0; list-style: none; }
+#ops-content > section:nth-child(3) > ul, #ops-content > section:nth-child(6) > ul { margin-top: 16px; border-radius: var(--hv-r-tile); overflow: hidden; box-shadow: 0 0 0 1px var(--hv-border); }
+#ops-content > section:nth-child(3) > ul > li, #ops-content > section:nth-child(6) > ul > li { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-height: 56px; padding: 8px 16px; border-top: 1px solid var(--hv-border); font-variant-numeric: tabular-nums; transition: background .15s; }
+#ops-content > section:nth-child(3) > ul > li:first-child, #ops-content > section:nth-child(6) > ul > li:first-child { border-top: 0; }
+#ops-content li:hover { background: color-mix(in srgb, var(--hv-honey-300) 30%, transparent); }
+#ops-content li > .clay-button:first-of-type { margin-left: auto; }
+
+/* Buttons */
+body[data-portal="admin"] .clay-button { min-height: 48px; padding: 0 20px; border: 0; border-radius: var(--hv-r-pill); background: var(--hv-surface); color: var(--hv-ink); box-shadow: var(--hv-sh-1); font-weight: 800; transition: transform .2s var(--hv-spring), box-shadow .2s; }
+body[data-portal="admin"] .clay-button:hover:not(:disabled) { transform: translateY(-2px); box-shadow: var(--hv-sh-2); }
+body[data-portal="admin"] .clay-button:active:not(:disabled) { transform: translateY(1px); box-shadow: var(--hv-press); }
+#ops-content li .clay-button { min-height: 40px; padding: 0 14px; font-size: 13px; }
+#portal-login .clay-button, #ops-content > section:nth-child(4) .clay-button, #ops-content > section:nth-child(5) .clay-button { background: var(--hv-honey-grad); color: #2A2112; }
+
+/* Checkout pricing: grouped settings card with an inset editor */
+#ops-content > section:nth-child(4) { display: grid; gap: 16px; background: linear-gradient(180deg, var(--hv-surface-2), var(--hv-surface) 40%); }
+#ops-content > section:nth-child(4) > label { display: grid; gap: 12px; font-size: 18px; font-weight: 800; letter-spacing: -.015em; }
+#ops-content > section:nth-child(4) > .clay-button { justify-self: start; }
+body[data-portal="admin"] .clay-input { min-height: 48px; padding: 12px 16px; border: 0; border-radius: var(--hv-r-input); background: var(--hv-surface-2); color: var(--hv-ink); box-shadow: var(--hv-field); font: 500 14px/1.6 ui-monospace, "Cascadia Mono", Consolas, monospace; }
+body[data-portal="admin"] textarea.clay-input { resize: vertical; }
+body[data-portal="admin"] .clay-input:focus-visible { box-shadow: var(--hv-field), 0 0 0 3px color-mix(in srgb, var(--hv-honey-500) 55%, transparent) !important; }
+#ops-content .order-actions { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: end; gap: 12px; padding: 16px 0; border-top: 1px solid var(--hv-border); }
+#ops-content .order-actions > p { align-self: center; font-weight: 800; font-size: 18px; font-variant-numeric: tabular-nums; }
+#ops-content .order-actions label { display: grid; gap: 6px; font-weight: 700; font-size: 14px; }
+#ops-content > section:nth-child(5) > p { color: var(--hv-muted); }
+
+/* Sign-in card (never override the page's own [hidden] state) */
+body[data-portal="admin"] [hidden] { display: none !important; }
+#portal-login:not([hidden]) { display: grid; justify-items: start; gap: 16px; }
+
+/* Tablet + mobile */
+@media (max-width: 1279px) {
+  body[data-portal="admin"] .staff-console { padding: 24px; }
+  body[data-portal="admin"] > .top { width: calc(100% - 48px); }
+  #ops-content > section:nth-child(2) { grid-column: span 5; }
+  #ops-content > section:nth-child(3) { grid-column: span 7; }
+}
+@media (max-width: 900px) {
+  #ops-content > section:nth-child(n) { grid-column: 1 / -1; }
+  .staff-console > #portal-login { grid-column: 1 / -1; }
+}
+@media (max-width: 600px) {
+  body[data-portal="admin"] > .top { width: calc(100% - 32px); top: 8px; margin-top: 8px; height: 64px; padding: 0 16px; }
+  body[data-portal="admin"] .staff-console { padding: 16px; gap: 16px; }
+  .staff-console > #ops-content { gap: 16px; }
+  body[data-portal="admin"] .clay-card { padding: 20px; }
+  #ops-content .order-actions { grid-template-columns: 1fr; }
+  #ops-content li > .clay-button:first-of-type { margin-left: 0; }
+  #ops-content > section:nth-child(2) > ul { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body[data-portal="admin"] .clay-card { animation: none; }
+  body[data-portal="admin"] .clay-button, #ops-content li { transition: none; }
+}

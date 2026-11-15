@@ -1,0 +1,87 @@
+/* PrintBee "Hive" design system — shared tokens and recipes.
+   Used by the admin portal (admin-hive.css, admin-live-hive.css) and the warehouse panel
+   (warehouse-hive.css). Same palette as the delivery partner portal (partner.css).
+   Theme only: nothing here adds, removes or reorders content. */
+
+@font-face { font-family: Manrope; src: url("/manrope-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: Manrope; src: url("/manrope-latin-700-normal.woff2") format("woff2"); font-weight: 500 700; font-display: swap; }
+@font-face { font-family: Manrope; src: url("/manrope-latin-800-normal.woff2") format("woff2"); font-weight: 750 900; font-display: swap; }
+
+/* ---------- Sun Hive ---------- */
+:root {
+  --hv-bg: #FFF8E8; --hv-surface: #FFFFFF; --hv-surface-2: #FFF6DD; --hv-surface-3: #FFEFC7;
+  --hv-honey-300: #FBE08A; --hv-honey-500: #F5C542; --hv-honey-600: #E0A91E; --hv-honey-700: #B9831A; --hv-honey-ink: #7A5208;
+  --hv-ink: #2A2112; --hv-muted: #6E5E3E; --hv-border: #F0E3BE;
+  --hv-success: #3E8E5A; --hv-warning: #E0A91E; --hv-danger: #D64545; --hv-info: #3B7DD8;
+  --hv-success-ink: #23593A; --hv-warning-ink: #6E4A05; --hv-danger-ink: #9A2626; --hv-info-ink: #1F4F94;
+  --hv-success-bg: #E2F2E7; --hv-warning-bg: #FFF0C4; --hv-danger-bg: #FCE3E0; --hv-info-bg: #E3EEFC;
+  --hv-hi: rgba(255,255,255,.95); --hv-shade: rgba(185,131,26,.13); --hv-drop: rgba(122,90,30,.10); --hv-drop-2: rgba(122,90,30,.17);
+  --hv-sh-1: inset 0 1px 0 var(--hv-hi), inset 0 -2px 4px var(--hv-shade), 0 0 0 1px var(--hv-border), 0 2px 4px var(--hv-drop);
+  --hv-sh-2: inset 0 2px 1px var(--hv-hi), inset 0 -6px 12px var(--hv-shade), 0 0 0 1px var(--hv-border), 0 4px 8px var(--hv-drop), 0 14px 28px var(--hv-drop);
+  --hv-sh-3: inset 0 2px 1px var(--hv-hi), inset 0 -8px 16px var(--hv-shade), 0 0 0 1px var(--hv-border), 0 10px 20px var(--hv-drop-2), 0 28px 56px var(--hv-drop-2);
+  --hv-press: inset 0 3px 8px var(--hv-drop-2), inset 0 -1px 0 var(--hv-hi), 0 0 0 1px var(--hv-border);
+  --hv-field: inset 0 2px 5px var(--hv-drop-2), inset 0 -1px 0 var(--hv-hi), 0 0 0 1px var(--hv-border);
+  --hv-glass: rgba(255,251,241,.84);
+  --hv-honey-grad: linear-gradient(180deg, #FFE495, #F5C542 70%, #EDB52F);
+  --hv-focus: 0 0 0 3px var(--hv-honey-500), 0 0 0 5px var(--hv-ink);
+  --hv-r-card: 28px; --hv-r-tile: 20px; --hv-r-input: 14px; --hv-r-pill: 999px;
+  --hv-ease: cubic-bezier(.22,1,.36,1); --hv-spring: cubic-bezier(.34,1.4,.64,1);
+  --hv-comb: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='96' viewBox='0 0 56 96'%3E%3Cpath d='M28 2l26 15v30L28 62 2 47V17zM28 66l26 15v30M28 66L2 81v30' fill='none' stroke='%23B9831A' stroke-opacity='.07' stroke-width='1.6'/%3E%3C/svg%3E");
+  color-scheme: light;
+}
+/* ---------- Moon Hive: warm brown + amber glow (designed, not inverted) ---------- */
+:root[data-theme="dark"] {
+  --hv-bg: #17120A; --hv-surface: #231B0F; --hv-surface-2: #2C2213; --hv-surface-3: #382A15;
+  --hv-honey-300: #6B4C17; --hv-honey-500: #F5C542; --hv-honey-600: #FFB938; --hv-honey-700: #FFCB5C; --hv-honey-ink: #FFD978;
+  --hv-ink: #FFF3D6; --hv-muted: #D3BE93; --hv-border: #3A2C17;
+  --hv-success: #7CCB93; --hv-warning: #FFC24D; --hv-danger: #FF8A7A; --hv-info: #8DB8FF;
+  --hv-success-ink: #A8E3B9; --hv-warning-ink: #FFD98A; --hv-danger-ink: #FFB3A8; --hv-info-ink: #B9D3FF;
+  --hv-success-bg: #1C3322; --hv-warning-bg: #3D2D0C; --hv-danger-bg: #3F1D17; --hv-info-bg: #18263E;
+  --hv-hi: rgba(255,214,140,.10); --hv-shade: rgba(0,0,0,.34); --hv-drop: rgba(0,0,0,.34); --hv-drop-2: rgba(0,0,0,.5);
+  --hv-sh-2: inset 0 1px 0 var(--hv-hi), inset 0 -6px 12px var(--hv-shade), 0 0 0 1px var(--hv-border), 0 4px 10px var(--hv-drop), 0 16px 32px var(--hv-drop), 0 0 36px rgba(255,170,40,.04);
+  --hv-sh-3: inset 0 1px 0 var(--hv-hi), inset 0 -8px 16px var(--hv-shade), 0 0 0 1px var(--hv-border), 0 10px 22px var(--hv-drop-2), 0 30px 60px var(--hv-drop-2), 0 0 48px rgba(255,170,40,.07);
+  --hv-glass: rgba(35,27,15,.86);
+  --hv-honey-grad: linear-gradient(180deg, #FFD978, #F5C542 65%, #E3A321);
+  --hv-focus: 0 0 0 3px var(--hv-honey-500), 0 0 0 5px #000;
+  --hv-comb: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='96' viewBox='0 0 56 96'%3E%3Cpath d='M28 2l26 15v30L28 62 2 47V17zM28 66l26 15v30M28 66L2 81v30' fill='none' stroke='%23FFC94D' stroke-opacity='.05' stroke-width='1.6'/%3E%3C/svg%3E");
+  color-scheme: dark;
+}
+
+/* Page identity: faint honeycomb + soft honey glow */
+.hv-page {
+  background-color: var(--hv-bg);
+  background-image: radial-gradient(1200px 600px at 85% -10%, color-mix(in srgb, var(--hv-honey-500) 10%, transparent), transparent 70%), var(--hv-comb);
+  background-size: auto, 56px 96px;
+  background-attachment: fixed;
+  color: var(--hv-ink);
+  font-family: Manrope, system-ui, sans-serif;
+  transition: background-color .35s ease, color .35s ease;
+}
+.hv-num, .hv-page :is(td, .num) { font-variant-numeric: tabular-nums; }
+
+/* Theme switch: existing toggle button restyled as an animated sun ⇄ moon switch */
+.hv-switch { position: relative; width: 76px !important; padding: 0 !important; border-radius: var(--hv-r-pill) !important; background: linear-gradient(180deg, #CDEBF5, #FFE9B0) !important; box-shadow: var(--hv-press) !important; overflow: hidden; }
+.hv-switch::before { content: ""; position: absolute; top: 6px; left: 6px; width: 32px; height: 32px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #FFF3B0, #F5B52E); box-shadow: 0 0 12px #FFC94D99; transition: transform .45s var(--hv-spring), background .45s; }
+.hv-switch > svg { position: relative; z-index: 1; transform: translateX(-16px); color: #6E4A05; transition: transform .45s var(--hv-spring), color .3s; }
+:root[data-theme="dark"] .hv-switch { background: linear-gradient(180deg, #2B1C0B, #4A3112) !important; }
+:root[data-theme="dark"] .hv-switch::before { transform: translateX(32px); background: radial-gradient(circle at 40% 40%, #FFF6DA, #F2D598); box-shadow: 0 0 14px #FFE2A066; }
+:root[data-theme="dark"] .hv-switch > svg { transform: translateX(16px); color: #3B2913; }
+
+/* Gliding active indicator for sidebars (decorative span added by hive-theme.js) */
+.hv-glide-host { position: relative; }
+.hv-glide { position: absolute; left: 0; top: 0; z-index: 0; border-radius: var(--hv-r-pill); background: var(--hv-honey-grad); box-shadow: var(--hv-sh-1); pointer-events: none; transition: transform .32s var(--hv-ease), width .32s var(--hv-ease), height .32s var(--hv-ease), opacity .2s; }
+.hv-glide-host > :not(.hv-glide) { position: relative; z-index: 1; }
+
+/* Status badge recipe (tinted fills) */
+.hv-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: var(--hv-r-pill); font-weight: 800; font-size: 12px; }
+
+/* Circular reveal for theme changes (View Transitions); fade fallback is the body transition above */
+::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+
+@keyframes hv-enter { from { opacity: 0; transform: translateY(8px); } }
+@keyframes hv-pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(245,197,66,.55), var(--hv-sh-2); } 70% { box-shadow: 0 0 0 14px rgba(245,197,66,0), var(--hv-sh-2); } 100% { box-shadow: 0 0 0 0 rgba(245,197,66,0), var(--hv-sh-2); } }
+@keyframes hv-shimmer { from { background-position: 120% 0; } to { background-position: -120% 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .hv-page, .hv-switch::before, .hv-switch > svg, .hv-glide { transition: none !important; }
+}
