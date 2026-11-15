@@ -9,6 +9,11 @@ button,input{font:inherit;color:inherit}
 a{color:inherit;text-decoration:none}
 button{cursor:pointer}
 :is(a,button,input,select,textarea,summary):focus-visible{outline:3px solid #835400;outline-offset:4px}
+/* Keep editable field focus inside the field edge. */
+:is(input:not(:is([type=button],[type=checkbox],[type=color],[type=file],[type=image],[type=radio],[type=range],[type=reset],[type=submit])),select,textarea):focus{
+  outline:2px solid #69725f;
+  outline-offset:-2px
+}
 @media (any-pointer: coarse) {
   :root { -webkit-tap-highlight-color: transparent; }
   input:is([type="checkbox"], [type="radio"]) { accent-color: #835400; }
