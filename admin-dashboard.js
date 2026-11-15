@@ -5,8 +5,8 @@ const root = $('dashboard');
 const money = new Intl.NumberFormat('en-IN', {style:'currency', currency:'INR', minimumFractionDigits:0, maximumFractionDigits:2}).format;
 const number = new Intl.NumberFormat('en-IN').format;
 const colors = ['accent','lavender','mint','peach','sky','pink','track'].map(name => 'var(--' + name + ')');
-const sections = ['Dashboard','Orders','Customers','Products / Services','Revenue','Analytics','Reports','Inventory','Support','Settings'];
-const routes = ['dashboard','orders','customers','products','revenue','analytics','reports','inventory','support','settings'];
+const sections = ['Dashboard','Orders','Customers','Products / Services','Revenue','Analytics','Reports','Inventory','Support','Settings','Delivery Partners','Warehouses'];
+const routes = ['dashboard','orders','customers','products','revenue','analytics','reports','inventory','support','settings','partners','warehouses'];
 const icons = [
   'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',
   'M4 7h16v14H4z M8 7V5h8v2 M9 12h6',
@@ -18,10 +18,14 @@ const icons = [
   'M3 9h18v12H3z M5 9V4h14v5 M9 14h6',
   'M4 4h16v13H9l-5 4z M8 9h8 M8 12h5',
   'M4 7h16 M4 12h16 M4 17h16 M8 5v4 M15 10v4 M10 15v4',
+  'M3 6h12v11H3z M15 9h4l3 4v4h-7 M6 17a2 2 0 1 0 4 0 M17 17a2 2 0 1 0 4 0',
+  'M3 21V8l9-5 9 5v13z M7 21V11h10v10 M7 15h10 M7 18h10',
 ];
 const icon = path => `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${path}"/></svg>`;
 const escape = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[char]);
 const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+const partners = [{name:'Ananya Roy', email:'ananya.rider@example.com'}];
+const warehouses = [{name:'Main campus print room', location:'SRM Main Campus', email:'warehouse@example.com'}];
 const state = {range:30, period:'Daily', query:'', filter:'', sort:'date', direction:-1, page:0};
 const getStored = key => { try { return localStorage.getItem(key); } catch { return null; } };
 const store = (key, value) => { try { localStorage.setItem(key, value); } catch {} };
@@ -226,6 +230,11 @@ function productList() {
   return card('Print services',`<ul class="activity">${products.map(p => `<li><strong>${escape(p.name)}</strong><small>${escape(p.category)} &middot; ${p.price.toFixed(2)} INR &middot; ${p.stock} in stock</small></li>`).join('')}</ul>`,'wide');
 }
 
+function directory(title, records, details, status = '') {
+  return card(title, `<ul class="activity admin-directory">${records.map(record =>
+    `<li><strong>${escape(record.name)}</strong>${details(record)}${status}</li>`).join('')}</ul>`, 'full');
+}
+
 function render(animate = false) {
   const slug = location.hash.slice(1);
   const route = routes.includes(slug) ? slug : 'dashboard';
@@ -244,6 +253,10 @@ function render(animate = false) {
     case 'analytics': widgets = growth(items) + heatmap(items) + breakdown('Traffic sources',trafficSplit,false) + bars('Conversion funnel',[['Visitors',state.range*333],['Signups',values[3]],['Orders',paid.length],['Repeat customers',Math.min(paid.length,Math.round(values[6]*values[2]/100))]],number,'',true); break;
     case 'reports': widgets = revenueChart(items) + orderTable(); break;
     case 'support': widgets = activityCard + card('PrintBee support','<p>For live order issues, contact <a href="mailto:printbee.co.in@gmail.com"><u>printbee.co.in@gmail.com</u></a>.</p>','wide'); break;
+    case 'partners': widgets = directory('Verified delivery partners', partners, partner =>
+      `<span>${escape(partner.email)}</span>`, '<small class="directory-verified">Verified</small>'); break;
+    case 'warehouses': widgets = directory('Warehouse directory', warehouses, warehouse =>
+      `<span>${escape(warehouse.location)}</span><small>${escape(warehouse.email)}</small>`); break;
     case 'settings': widgets = card('Workspace appearance','<p>Choose a clay theme for this device.</p><button type="button" id="settings-theme">Toggle dark mode</button>','wide'); break;
     default:
       widgets = kpis(items) + revenueChart(items) + breakdown('Orders by status',aggregate(items,'status')) + orderTable() +
@@ -255,6 +268,9 @@ function render(animate = false) {
   }
   $('page-title').textContent = sections[routes.indexOf(route)];
   $('page-description').hidden = route !== 'dashboard';
+  document.querySelectorAll('[data-page-actions]').forEach(group => {
+    group.hidden = group.dataset.pageActions !== route;
+  });
   document.querySelectorAll('[data-nav]').forEach(link => {
     if (link.dataset.nav === route) link.setAttribute('aria-current','page');
     else link.removeAttribute('aria-current');
@@ -287,7 +303,7 @@ function navLink(route) {
 }
 
 $('sidebar-nav').innerHTML = routes.map(navLink).join('');
-$('mobile-nav').innerHTML = ['dashboard','orders','customers','analytics'].map(navLink).join('') + `<button class="nav-link" id="mobile-more" type="button" aria-expanded="false" aria-controls="mobile-menu">${icon(icons[9])}<span>More</span></button><div class="popover card mobile-menu" id="mobile-menu" hidden>${['products','revenue','reports','inventory','support','settings'].map(navLink).join('')}</div>`;
+$('mobile-nav').innerHTML = ['dashboard','orders','customers','analytics'].map(navLink).join('') + `<button class="nav-link" id="mobile-more" type="button" aria-expanded="false" aria-controls="mobile-menu">${icon(icons[9])}<span>More</span></button><div class="popover card mobile-menu" id="mobile-menu" hidden>${['products','revenue','reports','inventory','partners','warehouses','support','settings'].map(navLink).join('')}</div>`;
 $('notification-list').outerHTML = feed();
 $('search-icon').innerHTML = icon('M16 16l5 5 M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z');
 $('collapse').innerHTML = icon('M4 5h16v14H4z M9 5v14');
@@ -353,15 +369,27 @@ root.addEventListener('input',event => {
   if (event.target.id === 'order-filter') { state.filter = event.target.value; state.page = 0; updateTable(); }
 });
 
+const directoryEditors = {
+  partner: {
+    title:'Add verified delivery partner',
+    fields:'<label>Full name<input name="name" required maxlength="70"></label><label>Google account email<input name="email" type="email" autocomplete="off" required maxlength="254"></label><label class="directory-confirm"><input name="verified" type="checkbox" required> I have verified this delivery partner’s identity.</label>',
+  },
+  warehouse: {
+    title:'Add warehouse',
+    fields:'<label>Warehouse name<input name="name" required maxlength="70"></label><label>Campus or location<input name="location" required maxlength="140"></label><label>Staff Google account email<input name="email" type="email" autocomplete="off" required maxlength="254"></label>',
+  },
+};
+
 function openEditor(kind, id) {
   const isOrder = kind === 'order';
   const existing = id && orders.find(o => o.id === id);
-  $('editor-title').textContent = existing ? existing.id : isOrder ? 'Add sample order' : 'Add sample product';
+  const directoryEditor = directoryEditors[kind];
+  $('editor-title').textContent = existing?.id || directoryEditor?.title || (isOrder ? 'Add sample order' : 'Add sample product');
   $('editor-form').dataset.kind = kind;
   $('save-editor').hidden = Boolean(existing);
   $('editor-fields').innerHTML = existing ? `<p><strong>${escape(existing.customer)}</strong></p><p>${escape(existing.product)} &middot; ${money(existing.total)}</p><p>${escape(existing.status)} &middot; ${escape(existing.region)}</p>` :
-    isOrder ? `<label>Customer<input name="customer" required maxlength="70"></label><label>Product<select name="product">${products.map(p => `<option>${escape(p.name)}</option>`).join('')}</select></label><label>Order total (INR)<input name="total" type="number" min="0.01" max="999999" step=".01" required></label>` :
-    '<label>Product name<input name="name" required maxlength="70"></label><label>Category<input name="category" required maxlength="70"></label><label>Price (INR)<input name="price" type="number" min=".01" max="999999" step=".01" required></label><label>Stock<input name="stock" type="number" min="0" max="999999" required></label>';
+    directoryEditor?.fields ?? (isOrder ? `<label>Customer<input name="customer" required maxlength="70"></label><label>Product<select name="product">${products.map(p => `<option>${escape(p.name)}</option>`).join('')}</select></label><label>Order total (INR)<input name="total" type="number" min="0.01" max="999999" step=".01" required></label>` :
+    '<label>Product name<input name="name" required maxlength="70"></label><label>Category<input name="category" required maxlength="70"></label><label>Price (INR)<input name="price" type="number" min=".01" max="999999" step=".01" required></label><label>Stock<input name="stock" type="number" min="0" max="999999" required></label>');
   $('editor').showModal();
 }
 
@@ -395,27 +423,42 @@ function tooltip(event,show) {
 for (const [event,show] of [['pointerover',true],['pointerout',false],['focusin',true],['focusout',false]]) root.addEventListener(event,e => tooltip(e,show));
 $('add-order').onclick = () => openEditor('order');
 $('add-product').onclick = () => openEditor('product');
+$('add-partner').onclick = () => openEditor('partner');
+$('add-warehouse').onclick = () => openEditor('warehouse');
 $('close-editor').onclick = () => $('editor').close();
 $('editor-form').onsubmit = event => {
   event.preventDefault();
   const form = event.currentTarget;
   const data = new FormData(form);
-  for (const field of form.querySelectorAll('input:not([type="number"])')) {
-    if (field.value.trim()) continue;
-    field.setCustomValidity('Enter a value.');
+  function invalid(field, message) {
+    field.setCustomValidity(message);
     field.reportValidity();
     field.addEventListener('input', () => field.setCustomValidity(''), {once:true});
+  }
+  for (const field of form.querySelectorAll('input:not([type="number"], [type="checkbox"])')) {
+    if (field.value.trim()) continue;
+    invalid(field, 'Enter a value.');
     return;
   }
-  const isOrder = form.dataset.kind === 'order';
-  if (isOrder) {
+  const kind = form.dataset.kind;
+  if (kind === 'partner') {
+    if (!data.has('verified')) return;
+    const email = data.get('email').trim().toLowerCase();
+    if (partners.some(partner => partner.email === email)) {
+      invalid(form.elements.email, 'This partner is already in the directory.');
+      return;
+    }
+    partners.push({name:data.get('name').trim(), email});
+  } else if (kind === 'warehouse') {
+    warehouses.push({name:data.get('name').trim(), location:data.get('location').trim(), email:data.get('email').trim().toLowerCase()});
+  } else if (kind === 'order') {
     const product = products.find(p => p.name === data.get('product'));
     orders.unshift({id:'PB-DEMO-' + Date.now(),customer:data.get('customer').trim(),product:product.name,category:product.category,region:'Main campus',date:new Date(),total:Number(data.get('total')),status:'Pending'});
   } else {
     products.push({name:data.get('name').trim(),category:data.get('category').trim(),price:Number(data.get('price')),stock:Number(data.get('stock'))});
   }
   $('editor').close();
-  $('notice').textContent = isOrder ? 'Sample order added for this session.' : 'Sample product added for this session.';
+  $('notice').textContent = 'Sample ' + (kind === 'partner' ? 'delivery partner' : kind) + ' added for this session.';
   render();
 };
 

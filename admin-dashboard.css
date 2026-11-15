@@ -103,6 +103,10 @@ dialog { max-width:min(440px,calc(100% - 24px)); width:100%; border:0; border-ra
 dialog::backdrop { background:#21180b7a }
 #editor-fields { display:grid; gap:12px; margin:15px 0 }
 #editor-fields label { display:grid; gap:4px }
+#editor-fields .directory-confirm { display:flex; align-items:center; gap:10px; min-height:48px }
+#editor-fields .directory-confirm input { appearance:auto; flex:none; width:20px; height:20px; min-height:0; padding:0; box-shadow:none; accent-color:var(--hv-honey-700) }
+.admin-directory li { overflow-wrap:anywhere }
+.activity .directory-verified { justify-self:start; padding:3px 10px; border-radius:999px; background:var(--hv-success-bg); color:var(--hv-success-ink); font-weight:800 }
 .mobile-nav { display:none }
 .skeletons { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:22px }
 .skeletons span { min-height:110px; border-radius:var(--radius); background:var(--surface); box-shadow:var(--clay); animation:pulse 1s alternate infinite }
@@ -134,7 +138,7 @@ dialog::backdrop { background:#21180b7a }
   .card { box-shadow:none; break-inside:avoid }
   .table-scroll { overflow:visible }
 }
-.mobile-nav .mobile-menu { top:auto; bottom:calc(100% + 10px); padding:10px; width: min(250px,100%) }
+.mobile-nav .mobile-menu { top:auto; bottom:calc(100% + 10px); padding:10px; width: min(250px,100%); max-height:calc(100dvh - 112px); overflow-y:auto }
 .mobile-nav .mobile-menu .nav-link { display:flex; justify-content:flex-start; gap:10px; font-size:14px; padding:8px }
 @font-face { font-family:Manrope; src:url("manrope-latin-400-normal.woff2") format("woff2"); font-weight:400; font-display:swap }
 @font-face { font-family:Manrope; src:url("manrope-latin-800-normal.woff2") format("woff2"); font-weight:700 900; font-display:swap }

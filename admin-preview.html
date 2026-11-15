@@ -7,11 +7,11 @@
 <title>Dashboard · PrintBee Admin</title>
 <link rel="icon" href="/printbee-tab-bee.png">
 <link rel="stylesheet" href="admin-tokens.css">
-<link rel="stylesheet" href="admin-dashboard.css?v=mobile-touch">
+<link rel="stylesheet" href="admin-dashboard.css?v=admin-directory">
 <link rel="stylesheet" href="hive-theme.css?v=plain-clay">
 <link rel="stylesheet" href="admin-hive.css?v=1">
 <script src="hive-theme.js?v=1" data-follow-system="false"></script>
-<script type="module" src="admin-dashboard.js"></script>
+<script type="module" src="admin-dashboard.js?v=admin-directory"></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to dashboard</a>
@@ -34,7 +34,20 @@
     </header>
     <div class="intro">
       <div><p class="eyebrow">PrintBee operations <span>Sample data</span></p><h1 id="page-title">Dashboard</h1><p id="page-description">Track campus print orders, revenue, and delivery activity.</p></div>
-      <div class="actions"><button id="add-order" class="primary" type="button">+ Add order</button><button id="add-product" type="button">+ Add product</button><button id="export-csv" type="button">Export CSV</button><button id="export-pdf" type="button">Print / Save PDF</button></div>
+      <div class="actions" data-page-actions="orders" hidden>
+        <button id="add-order" class="primary" type="button">+ Add order</button>
+        <button id="export-csv" type="button">Export CSV</button>
+        <button id="export-pdf" type="button">Print / Save PDF</button>
+      </div>
+      <div class="actions" data-page-actions="inventory" hidden>
+        <button id="add-product" class="primary" type="button">+ Add product</button>
+      </div>
+      <div class="actions" data-page-actions="partners" hidden>
+        <button id="add-partner" class="primary" type="button">+ Add verified partner</button>
+      </div>
+      <div class="actions" data-page-actions="warehouses" hidden>
+        <button id="add-warehouse" class="primary" type="button">+ Add warehouse</button>
+      </div>
     </div>
     <p id="notice" class="notice" role="status"></p>
     <div id="dashboard" aria-busy="true">
