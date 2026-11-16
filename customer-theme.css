@@ -25,7 +25,14 @@
 [data-theme="dark"] .customer-theme :is(.price-binding dd,.footer-directory-contact svg) { color: var(--hv-honey-ink); }
 [data-theme="dark"] .customer-theme :is(.desktop-nav,.mobile-dock) { color: var(--ink); background: var(--hv-surface); box-shadow: var(--raised); }
 [data-theme="dark"] .customer-theme :is(.desktop-nav,.mobile-dock) a { color: var(--muted); }
-[data-theme="dark"] .customer-theme :is(.desktop-nav,.mobile-dock) a:is(:hover,[aria-current]) {
+[data-theme="dark"] .customer-theme .desktop-nav a:is(:hover,[aria-current]) {
+  color: var(--hv-honey-ink); background: transparent; box-shadow: none;
+}
+[data-theme="dark"] .customer-theme .desktop-nav a[aria-current]::before {
+  background: var(--hv-honey-500);
+  box-shadow: 0 4px 12px 2px #f5c54255;
+}
+[data-theme="dark"] .customer-theme .mobile-dock a:is(:hover,[aria-current]) {
   color: var(--hv-honey-ink); background: var(--hv-surface-3); box-shadow: none;
 }
 [data-theme="dark"] .customer-theme :is(.checkout-fields,.profile-email-form) :is(input,select,textarea),
