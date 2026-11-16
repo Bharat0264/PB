@@ -366,18 +366,6 @@ $('search-icon').innerHTML = icon('M16 16l5 5 M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16
 $('collapse').innerHTML = icon('M4 5h16v14H4z M9 5v14');
 $('notifications').innerHTML = icon('M18 8a6 6 0 0 0-12 0v5l-2 3h16l-2-3z M10 20h4');
 
-function applyTheme(dark) {
-  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-  $('theme').setAttribute('aria-pressed',String(dark));
-  $('theme').innerHTML = icon(dark ? 'M12 7v-4 M12 21v-4 M7 12H3 M21 12h-4 M8 8 5 5 M19 19l-3-3 M16 8l3-3 M5 19l3-3 M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z' : 'M20 15a8 8 0 0 1-11-11 9 9 0 1 0 11 11Z');
-}
-function toggleTheme() {
-  const dark = document.documentElement.dataset.theme !== 'dark';
-  applyTheme(dark);
-  store('printbee-admin-theme',dark ? 'dark' : 'light');
-}
-applyTheme(getStored('printbee-admin-theme') === 'dark');
-$('theme').onclick = toggleTheme;
 $('collapse').onclick = () => {
   const compact = document.querySelector('.workspace').classList.toggle('compact');
   $('collapse').setAttribute('aria-expanded',String(!compact));

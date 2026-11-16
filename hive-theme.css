@@ -54,52 +54,47 @@
 }
 .hv-num, .hv-page :is(td, .num) { font-variant-numeric: tabular-nums; }
 
-/* Theme switch: existing toggle button restyled as an animated sun ⇄ moon switch */
+/* Sun and crescent track shared with the Delivery Partner portal. */
 .hv-switch {
   --switch-width: 76px;
   --switch-thumb: 32px;
-  --switch-inset: 8px;
-  --switch-icon: 18px;
-  --switch-position: 0px;
+  --switch-inset: 6px;
+  --switch-shift: calc(var(--switch-width) - var(--switch-thumb) - 2 * var(--switch-inset));
   position: relative;
   width: var(--switch-width) !important;
+  min-height: 44px;
+  flex: none;
   padding: 0 !important;
-  border-radius: var(--hv-r-pill) !important;
-  background: linear-gradient(180deg, #CDEBF5, #FFE9B0) !important;
-  box-shadow: var(--hv-press) !important;
+  border: 0;
+  border-radius: 999px !important;
+  background: linear-gradient(180deg,#BFE6F5,#FFE9B0) !important;
+  box-shadow: inset 0 2px 6px #44341d38 !important;
   overflow: hidden;
+  cursor: pointer;
+  vertical-align: middle;
 }
-.hv-switch::before, .hv-switch > svg {
-  position: absolute;
-  top: 50%;
-  transform: translate(var(--switch-position), -50%);
-  transition: transform .45s var(--hv-spring);
-}
-.hv-switch::before {
+.hv-switch::before,.hv-switch::after {
   content: "";
+  position: absolute;
+  top: calc(50% - var(--switch-thumb) / 2);
   left: var(--switch-inset);
   width: var(--switch-thumb);
   height: var(--switch-thumb);
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #FFF3B0, #F5B52E);
-  box-shadow: 0 0 8px #FFC94D66;
+  transition: transform .45s cubic-bezier(.34,1.56,.64,1), background .45s, box-shadow .45s;
 }
-.hv-switch > svg {
-  z-index: 1;
-  left: calc(var(--switch-inset) + (var(--switch-thumb) - var(--switch-icon)) / 2);
-  width: var(--switch-icon);
-  height: var(--switch-icon);
-  color: #6E4A05;
+.hv-switch::before { background: radial-gradient(circle at 35% 35%,#FFF3B0,#F5B52E); box-shadow: 0 0 12px #FFC94D99; }
+.hv-switch::after { background: #3B2913; transform: translate(-40px,-8px) scale(.4); }
+.hv-switch[aria-pressed="true"] { background: linear-gradient(180deg,#2B1C0B,#4A3112) !important; }
+.hv-switch[aria-pressed="true"]::before {
+  transform: translateX(var(--switch-shift)); background: radial-gradient(circle at 40% 40%,#FFF6DA,#F2D598);
+  box-shadow: 0 0 14px #FFE2A066;
 }
-:root[data-theme="dark"] .hv-switch {
-  --switch-position: calc(var(--switch-width) - var(--switch-thumb) - var(--switch-inset) - var(--switch-inset));
-  background: linear-gradient(180deg, #2B1C0B, #4A3112) !important;
+.hv-switch[aria-pressed="true"]::after { transform: translate(calc(var(--switch-shift) + 10px),-4px) scale(.82); }
+.hv-switch:focus-visible { outline: 2px solid var(--hv-honey-700); outline-offset: 3px; }
+@media (max-width: 600px) {
+  .hv-switch { --switch-width: 56px; --switch-thumb: 28px; --switch-inset: 5px; }
 }
-:root[data-theme="dark"] .hv-switch::before {
-  background: radial-gradient(circle at 40% 40%, #FFF6DA, #F2D598);
-  box-shadow: 0 0 8px #FFE2A066;
-}
-:root[data-theme="dark"] .hv-switch > svg { color: #3B2913; }
 
 /* Gliding active indicator for sidebars (decorative span added by hive-theme.js) */
 .hv-glide-host { position: relative; }
@@ -117,5 +112,5 @@
 @keyframes hv-shimmer { from { background-position: 120% 0; } to { background-position: -120% 0; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .hv-page, .hv-switch::before, .hv-switch > svg, .hv-glide { transition: none !important; }
+  .hv-page, .hv-switch::before, .hv-switch::after, .hv-glide { transition: none !important; }
 }

@@ -96,12 +96,6 @@ body.hive { margin: 0; min-height: 100dvh; background: var(--bg); color: var(--i
 .hive-avatar { font-weight: 800; font-size: 14px; background: linear-gradient(160deg, #FFE7A0, var(--honey-500)); color: #2A2112; }
 
 /* Sun ⇄ moon toggle */
-.hive-theme { position: relative; width: 76px; height: 44px; border: 0; border-radius: var(--r-pill); background: linear-gradient(180deg, #BFE6F5, #FFE9B0); box-shadow: var(--sh-press); overflow: hidden; }
-.hive-theme::before { content: ""; position: absolute; top: 6px; left: 6px; width: 32px; height: 32px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #FFF3B0, #F5B52E); box-shadow: 0 0 12px #FFC94D99; transition: transform .45s cubic-bezier(.34,1.56,.64,1), background .45s, box-shadow .45s; }
-.hive-theme::after { content: ""; position: absolute; top: 6px; left: 6px; width: 32px; height: 32px; border-radius: 50%; background: #2A1D0F; transform: translate(-40px, -8px) scale(.4); transition: transform .45s cubic-bezier(.34,1.56,.64,1); }
-:root[data-theme="moon"] .hive-theme { background: linear-gradient(180deg, #2B1C0B, #4A3112); }
-:root[data-theme="moon"] .hive-theme::before { transform: translateX(32px); background: radial-gradient(circle at 40% 40%, #FFF6DA, #F2D598); box-shadow: 0 0 14px #FFE2A066; }
-:root[data-theme="moon"] .hive-theme::after { background: #3B2913; transform: translate(42px, -4px) scale(.82); }
 
 .hive-dock { position: fixed; z-index: 40; left: var(--dock-x); top: 50%; transform: translateY(-50%); width: var(--dock-w); display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 0; border-radius: var(--r-pill); background: var(--glass); box-shadow: var(--sh-3); backdrop-filter: blur(14px); }
 .hive-tab { position: relative; z-index: 1; display: grid; place-items: center; width: 56px; height: 56px; border: 0; border-radius: 50%; background: transparent; color: var(--muted); }
@@ -370,8 +364,6 @@ body[data-page="Cockpit"] .hive-main { padding-bottom: 40px; }
 .hive-ripple.is-on { animation: ripple .3s ease-out forwards; }
 .assemble > * { animation: assemble .3s cubic-bezier(.22,1,.36,1) both; animation-delay: calc(var(--k, 0) * 40ms + 60ms); }
 
-/* View transition: circular reveal from the theme toggle */
-::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
 
 /* ---------- Keyframes ---------- */
 @keyframes pop { from { opacity: 0; transform: scale(.92); } }
@@ -418,10 +410,6 @@ body[data-page="Cockpit"] .hive-main { padding-bottom: 40px; }
   .hive-brand small { display: none; }
   .hive-top { top: calc(12px + env(safe-area-inset-top)); right: 12px; height: 48px; gap: 4px; padding: 0 4px 0 8px; }
   .hive-top .hive-chip { display: none; }
-  .hive-theme { width: 52px; height: 44px; }
-  .hive-theme::before, .hive-theme::after { top: 8px; width: 28px; height: 28px; }
-  :root[data-theme="moon"] .hive-theme::before { transform: translateX(12px); }
-  :root[data-theme="moon"] .hive-theme::after { transform: translate(22px,-4px) scale(.82); }
   .hive-icon, .hive-avatar { width: 44px; height: 44px; }
   .hive-top { height: 52px; }
   #rider-notifications { display: none; }

@@ -1,5 +1,5 @@
-const version = 'printbee-partner-preview-v11-rolling-dock';
-const shell = ['/partner?preview=1','/partner.css?v=delivery-spacing','/partner.js?v=staff-dock','/portal-login.js','/staff-dock.css?v=3','/staff-dock.js?v=3','/warehouse-inter.woff2','/printbee-header-bee.webp','/partner.webmanifest','/partner-icon-192.png','/partner-icon-512.png','/printbee-tab-bee.png','/manrope-latin-400-normal.woff2','/manrope-latin-700-normal.woff2','/manrope-latin-800-normal.woff2'];
+const version = 'printbee-partner-preview-v12-sun-moon';
+const shell = ['/partner?preview=1','/partner.css?v=sun-moon','/partner.js?v=sun-moon','/hive-theme.css?v=sun-moon','/hive-theme.js?v=sun-moon','/portal-login.js','/staff-dock.css?v=3','/staff-dock.js?v=3','/warehouse-inter.woff2','/printbee-header-bee.webp','/partner.webmanifest','/partner-icon-192.png','/partner-icon-512.png','/printbee-tab-bee.png','/manrope-latin-400-normal.woff2','/manrope-latin-700-normal.woff2','/manrope-latin-800-normal.woff2'];
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(version).then(cache=>cache.addAll(shell)));
 });

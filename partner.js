@@ -933,22 +933,8 @@ function openPalette() {
   input.focus();
 }
 
-function applyTheme(moon) {
-  document.documentElement.dataset.theme = moon ? 'moon' : 'sun';
-  const t = $('night-mode');
-  t.setAttribute('aria-pressed', String(moon));
-  t.setAttribute('aria-label', moon ? 'Sun Hive (day theme)' : 'Moon Hive (night theme)');
-  document.querySelector('meta[name=theme-color]').content = moon ? '#1A1209' : '#FFF8E8';
-  if (!new URLSearchParams(location.search).get('theme')) save('printbee-rider-night', moon ? '1' : '0');
-}
 function toggleTheme() {
-  const moon = document.documentElement.dataset.theme !== 'moon';
-  const r = $('night-mode').getBoundingClientRect();
-  const x = r.left + r.width / 2, y = r.top + r.height / 2;
-  if (!document.startViewTransition || reduced.matches) { applyTheme(moon); return; }
-  const radius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
-  const t = document.startViewTransition(() => applyTheme(moon));
-  t.ready.then(() => document.documentElement.animate({clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`]}, {duration: 650, easing: 'cubic-bezier(.22,1,.36,1)', pseudoElement: '::view-transition-new(root)'})).catch(() => {});
+  window.PrintBeeTheme.toggle($('night-mode'));
 }
 /* ===================================================================== boot */
 async function init() {
@@ -1003,8 +989,6 @@ brand.addEventListener('click', event => {
   else scrollTo(0, 0);
 });
 
-applyTheme(document.documentElement.dataset.theme === 'moon');
-$('night-mode').onclick = toggleTheme;
 reduced.addEventListener?.('change', () => { if (!$('rider-app').hidden) render(); });
 if (demo) {
   $('portal-login').hidden = true;

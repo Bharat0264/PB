@@ -1029,23 +1029,6 @@ async function refreshLive() {
   } finally {busyRefresh=false;}
 }
 function initFloorControls() {
-  const root=document.documentElement;
-  const theme=byId('theme');
-  const syncTheme=()=>{
-    const dark=root.dataset.theme==='dark';
-    const symbol=icon(dark?'sun':'moon').firstElementChild;
-    symbol.setAttribute('aria-hidden','true');
-    theme.replaceChildren(symbol);
-    theme.setAttribute('aria-pressed',String(dark));
-    theme.title=dark?'Switch to Sun Hive':'Switch to Moon Hive';
-    theme.setAttribute('aria-label',theme.title);
-  };
-  syncTheme();
-  new MutationObserver(syncTheme).observe(root,{attributeFilter:['data-theme']});
-  theme.addEventListener('click',()=>{
-    root.dataset.theme=root.dataset.theme==='dark'?'light':'dark';
-    try {localStorage.setItem('printbee-admin-theme',root.dataset.theme);} catch {}
-  });
   const collapse=byId('floor-collapse');
   collapse.addEventListener('click',()=>{
     const narrow=byId('warehouse-app').classList.toggle('wh-collapsed');

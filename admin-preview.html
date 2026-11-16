@@ -8,15 +8,15 @@
 <link rel="icon" href="/printbee-tab-bee.png">
 <link rel="stylesheet" href="admin-tokens.css">
 <link rel="stylesheet" href="admin-dashboard.css?v=staff-dock">
-<link rel="stylesheet" href="hive-theme.css?v=toggle-fit">
-<link rel="stylesheet" href="admin-hive.css?v=stable-workspace">
-<script src="hive-theme.js?v=1" data-follow-system="false"></script>
+<link rel="stylesheet" href="hive-theme.css?v=sun-moon">
+<link rel="stylesheet" href="admin-hive.css?v=sun-moon">
+<script src="hive-theme.js?v=sun-moon" data-follow-system="false"></script>
 <link rel="stylesheet" href="admin-pricing.css">
 <link rel="stylesheet" href="admin-ledger.css">
 <link rel="stylesheet" href="admin-mobile.css">
 <link rel="stylesheet" href="/staff-dock.css?v=3">
 <script src="/staff-dock.js?v=3" defer></script>
-<script type="module" src="admin-dashboard.js?v=stable-workspace"></script>
+<script type="module" src="admin-dashboard.js?v=sun-moon"></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to dashboard</a>
@@ -30,7 +30,7 @@
     <header class="toolbar">
       <button class="icon-button collapse" id="collapse" type="button" aria-label="Collapse sidebar" aria-expanded="true"></button>
       <label class="search-clay"><span id="search-icon" aria-hidden="true"></span><input id="global-search" type="search" aria-label="Search orders" placeholder="Search orders"></label>
-      <button class="icon-button" id="theme" type="button" aria-label="Dark mode" aria-pressed="false"></button>
+      <button class="icon-button hv-switch" id="theme" data-hive-toggle type="button" aria-label="Dark mode" aria-pressed="false"></button>
       <button class="icon-button" id="notifications" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-panel"></button>
       <button class="avatar" id="profile" type="button" aria-label="Admin profile" aria-expanded="false" aria-controls="profile-panel">PB</button>
       <div class="popover card" id="notification-panel" hidden><h2>Notifications</h2><ul id="notification-list" class="activity"></ul></div>

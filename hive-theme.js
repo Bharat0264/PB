@@ -1,51 +1,78 @@
-/* PrintBee "Hive" theme helper — presentation only.
- * 1. Applies the saved theme before first paint (no flash). Pages without a theme toggle
- *    follow the device setting unless a choice was saved.
- * 2. Adds decorative hooks: page class, sun/moon switch class, gliding nav indicator.
- * 3. Plays a circular reveal around the existing theme toggle (View Transitions), by replaying
- *    the page's own click inside the transition. No text, data or behaviour changes.
- */
+/* Shared Sun Hive / Moon Hive controls and motion. */
 (() => {
   'use strict';
   const KEY = 'printbee-admin-theme';
   const script = document.currentScript;
-  const followSystem = script?.dataset.followSystem !== 'false';
+  const partner = script?.dataset.palette === 'partner';
+  const override = partner ? new URLSearchParams(location.search).get('theme') : null;
   const root = document.documentElement;
   const system = matchMedia('(prefers-color-scheme: dark)');
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
-  const stored = () => { try { return localStorage.getItem(KEY); } catch { return null; } };
-  const apply = dark => { root.dataset.theme = dark ? 'dark' : 'light'; };
-  const choice = stored();
-  apply(choice ? choice === 'dark' : followSystem && system.matches);
-  root.classList.add('hv-page');
-  if (followSystem) system.addEventListener('change', e => { if (!stored()) apply(e.matches); });
-  // Keep pages in sync when the choice changes in another tab.
-  addEventListener('storage', e => { if (e.key === KEY && e.newValue) apply(e.newValue === 'dark'); });
+  const selectors = '[data-hive-toggle]';
+  const read = key => { try { return localStorage.getItem(key); } catch { return null; } };
+  const dark = () => ['dark','moon'].includes(root.dataset.theme);
+  const followingSystem = script?.dataset.followSystem !== 'false';
 
-  // Circular reveal from the toggle that was pressed (fade fallback via CSS transitions).
-  // Skipped when the page can't render (hidden tab) or a reveal is already running, so a
-  // click is never delayed or lost.
-  let revealing = false;
-  document.addEventListener('click', event => {
-    if (event.hvReplay) return;
-    const toggle = event.target.closest?.('#theme, #settings-theme');
-    if (!toggle || !document.startViewTransition || reduced.matches || revealing || document.visibilityState !== 'visible' || !innerWidth) return;
-    event.stopPropagation();
-    event.preventDefault();
-    const origin = (toggle.id === 'theme' ? toggle : document.getElementById('theme') || toggle).getBoundingClientRect();
-    const x = origin.left + origin.width / 2, y = origin.top + origin.height / 2;
+  function syncControls() {
+    const moon = dark();
+    for (const toggle of document.querySelectorAll(selectors)) {
+      toggle.setAttribute('aria-pressed', String(moon));
+      toggle.setAttribute('aria-label', moon ? 'Switch to Sun Hive' : 'Switch to Moon Hive');
+    }
+    const chrome = document.querySelector('meta[name="theme-color"]');
+    if (chrome) chrome.content = moon ? '#17120A' : '#FFF8E8';
+  }
+
+  function apply(moon) {
+    root.dataset.theme = partner ? (moon ? 'moon' : 'sun') : (moon ? 'dark' : 'light');
+    syncControls();
+  }
+
+  const saved = read(KEY);
+  const partnerLegacy = partner ? read('printbee-rider-night') : null;
+  apply(override ? override === 'moon' : saved ? saved === 'dark' :
+    partnerLegacy !== null ? partnerLegacy === '1' : followingSystem && system.matches);
+  if (!partner) root.classList.add('hv-page');
+  if (!override && followingSystem) system.addEventListener('change', e => {
+    if (!read(KEY) && (!partner || read('printbee-rider-night') === null)) apply(e.matches);
+  });
+  addEventListener('storage', e => {
+    if (!override && e.key === KEY && e.newValue) apply(e.newValue === 'dark');
+  });
+
+  let reveal;
+  function toggleTheme(toggle) {
+    const update = () => {
+      const moon = !dark();
+      apply(moon);
+      if (!override) {
+        try { localStorage.setItem(KEY, moon ? 'dark' : 'light'); } catch {}
+      }
+    };
+    const box = toggle?.getBoundingClientRect();
+    if (!box?.width || !document.startViewTransition || reduced.matches || document.hidden) {
+      update();
+      return;
+    }
+    reveal?.skipTransition();
+    const x = box.left + box.width / 2, y = box.top + box.height / 2;
     const radius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
-    revealing = true;
-    const transition = document.startViewTransition(() => {
-      const replay = new MouseEvent('click', {bubbles: true, cancelable: true, view: window});
-      replay.hvReplay = true;
-      toggle.dispatchEvent(replay);
+    const transition = document.startViewTransition(update);
+    reveal = transition;
+    transition.finished.then(() => {
+      if (reveal === transition) reveal = undefined;
+    }, () => {
+      if (reveal === transition) reveal = undefined;
     });
-    transition.finished.finally(() => { revealing = false; });
     transition.ready.then(() => root.animate(
-      {clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`]},
-      {duration: 600, easing: 'cubic-bezier(.22,1,.36,1)', pseudoElement: '::view-transition-new(root)'})).catch(() => {});
-  }, true);
+      {clipPath: ['circle(0px at ' + x + 'px ' + y + 'px)', 'circle(' + radius + 'px at ' + x + 'px ' + y + 'px)']},
+      {duration: 650, easing: 'cubic-bezier(.22,1,.36,1)', pseudoElement: '::view-transition-new(root)'})).catch(() => {});
+  }
+  window.PrintBeeTheme = {toggle: toggleTheme};
+  document.addEventListener('click', event => {
+    const toggle = event.target.closest?.(selectors);
+    if (toggle) toggleTheme(toggle);
+  });
 
   // Gliding active indicator behind the current nav item (decorative, aria-hidden).
   function glide(nav) {
@@ -70,7 +97,7 @@
     place();
   }
   const ready = () => {
-    document.getElementById('theme')?.classList.add('hv-switch');
+    syncControls();
     glide(document.getElementById('sidebar-nav'));
     glide(document.getElementById('warehouse-nav'));
   };

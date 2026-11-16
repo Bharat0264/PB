@@ -15,8 +15,11 @@
 <script src="customer-pricing.js?v=published-rates" defer></script>
 <script type="module" src="customer-price-table.js?v=pricing-preview"></script>
 
+<link rel="stylesheet" href="/hive-theme.css?v=sun-moon">
+<link rel="stylesheet" href="/customer-theme.css?v=1">
+<script src="/hive-theme.js?v=sun-moon"></script>
 </head>
-<body>
+<body class="customer-theme">
 <a href="#main" class="skip">Skip to content</a>
 <header class="frame top" id="home">
   <a class="brand" href="index.html"><img class="brand-logo" src="printbee-header-logo.webp" width="632" height="210" alt="PrintBee"></a>
@@ -27,12 +30,15 @@
     <a href="address.html?v=nav-order">Address</a>
     <a href="profile.html">Profile</a>
   </nav>
-  <a class="header-cart raised" href="queue.html#queue" aria-label="Cart — open print queue">
-    <svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="M2.5 4h3l2.4 11h11.3l2.1-8H6.2"/>
-      <circle cx="9" cy="19.5" r="1.2"/><circle cx="18" cy="19.5" r="1.2"/>
-    </svg>
-  </a>
+  <div class="customer-header-actions">
+    <button class="hv-switch" type="button" data-hive-toggle aria-label="Switch to Moon Hive" aria-pressed="false"></button>
+    <a class="header-cart raised" href="queue.html#queue" aria-label="Cart — open print queue">
+      <svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M2.5 4h3l2.4 11h11.3l2.1-8H6.2"/>
+        <circle cx="9" cy="19.5" r="1.2"/><circle cx="18" cy="19.5" r="1.2"/>
+      </svg>
+    </a>
+  </div>
 </header>
 <main id="main" class="frame inner-page">
   <section class="section price-section" id="pricing" aria-labelledby="pricing-title" data-print-catalog>

@@ -174,9 +174,7 @@ dialog::backdrop { background: color-mix(in srgb, #8A5E0B 22%, rgba(23,18,10,.45
   .toolbar #search-icon { display: inline-flex; }
   .toolbar .search-clay input { font-size: 16px; }
   .toolbar :is(.icon-button, .avatar) { width: 44px; height: 44px; min-height: 44px; }
-  .toolbar #theme { --switch-width: 44px; margin: 0; display: grid; position: relative; }
-  .toolbar #theme::before { display: none; }
-  .toolbar #theme > svg { position: static; transform: none; color: currentColor; }
+  .toolbar #theme { --switch-width: 56px; margin: 0; display: grid; position: relative; }
   .grid { gap: 14px; margin-top: 16px; }
   .grid > .card:not(.full) { grid-column: 1 / -1; }
   .card { padding: 15px; border-radius: 20px; }

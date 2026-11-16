@@ -14,6 +14,8 @@ body[data-portal="admin"] > .top { position: sticky; top: 16px; z-index: 5; disp
 body[data-portal="admin"] > .top a { display: inline-flex; align-items: center; gap: 10px; min-height: 48px; font-size: 20px; font-weight: 800; letter-spacing: -.02em; text-decoration: none; color: var(--hv-ink); }
 body[data-portal="admin"] > .top a::before { content: ""; width: 44px; height: 35px; background: url("/printbee-header-bee.webp") center / contain no-repeat; }
 
+body[data-portal="admin"] > .top .hv-switch { margin-left: auto; }
+
 /* Content: 1440 max, 12-col grid, 24px gutters, 32px outer padding */
 body[data-portal="admin"] .staff-console { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 24px; width: min(1440px, 100%); margin: 0 auto; padding: 32px; }
 .staff-console > h1 { grid-column: 1 / -1; margin: 8px 0 0; font-size: clamp(30px, 3.2vw, 44px); line-height: 1.15; letter-spacing: -.02em; font-weight: 800; }

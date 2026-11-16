@@ -1,0 +1,54 @@
+/* Customer screens share the Hive switch and keep their own layout and typography. */
+.customer-header-actions { display: flex; flex: none; align-items: center; gap: 8px; }
+.customer-header-actions .header-cart { margin-left: 0; }
+@media (max-width: 700px) {
+  .customer-theme .top { gap: 8px; }
+  .customer-theme .top .brand-logo { max-width: min(210px,43vw); }
+}
+
+[data-theme="dark"] {
+  --page-clay: var(--hv-bg);
+}
+[data-theme="dark"] .customer-theme {
+  --base: var(--hv-surface); --ink: var(--hv-ink); --muted: var(--hv-muted);
+  --line: var(--hv-border); --raised: var(--hv-sh-2); --inset: var(--hv-field);
+  color: var(--ink); background: var(--hv-bg);
+}
+[data-theme="dark"] .customer-theme :is(.raised,.hero,.step,.price-panel,.order-timeline [aria-current="step"],
+  .upload-panel,.upload-drop-hint,.orders-card,.file-review,.print-options,.review-tile-visual,
+  #queue .review-add,#queue .review-remove,.review-summary,.colour-pages-field,.copy-stepper,
+  .print-choices label:has(:checked),#order-history details > button,.footer-surface,.footer-wordmark-panel) {
+  color: var(--ink); background: var(--hv-surface-2); border-color: var(--line); box-shadow: var(--raised);
+}
+[data-theme="dark"] .customer-theme :is(.hero .lede,.profile-login-divider,.footer-intro p,
+  .footer-directory a,.footer-actions p,.footer-bottom) { color: var(--muted); }
+[data-theme="dark"] .customer-theme :is(.price-binding dd,.footer-directory-contact svg) { color: var(--hv-honey-ink); }
+[data-theme="dark"] .customer-theme :is(.desktop-nav,.mobile-dock) { color: var(--ink); background: var(--hv-surface); box-shadow: var(--raised); }
+[data-theme="dark"] .customer-theme :is(.desktop-nav,.mobile-dock) a { color: var(--muted); }
+[data-theme="dark"] .customer-theme :is(.desktop-nav,.mobile-dock) a:is(:hover,[aria-current]) {
+  color: var(--hv-honey-ink); background: var(--hv-surface-3); box-shadow: none;
+}
+[data-theme="dark"] .customer-theme :is(.checkout-fields,.profile-email-form) :is(input,select,textarea),
+[data-theme="dark"] .customer-theme :is(.copy-stepper button,.copy-stepper input) {
+  color: var(--ink); background: var(--hv-surface); box-shadow: var(--inset);
+}
+[data-theme="dark"] .customer-theme .profile-login {
+  --profile-surface: var(--hv-surface-2); --profile-button-shadow: var(--raised);
+  box-shadow: var(--raised);
+}
+[data-theme="dark"] .customer-theme .profile-login .profile-login-banner h1 { color: var(--ink); }
+[data-theme="dark"] .customer-theme .profile-login-body .google-login-button { color: var(--ink); background: var(--hv-surface-3); }
+[data-theme="dark"] .customer-theme .customer-header-actions .header-cart { color: var(--hv-honey-ink); }
+[data-theme="dark"] .customer-theme .bottom-nav {
+  --nav-ink: var(--hv-ink) !important;
+  --nav-surface: var(--hv-surface) !important;
+  --nav-bubble: var(--hv-honey-500) !important;
+  --nav-shadow: 0 2px 10px #0009 !important;
+}
+[data-theme="dark"] .customer-theme .bottom-nav [role="tab"]:focus-visible { outline-color: var(--hv-honey-500); }
+
+[data-theme="dark"] .customer-theme :is(.top .brand-logo,.footer-intro img) {
+  filter: drop-shadow(0 1px 1px #fff0c990);
+}
+[data-theme="dark"] .customer-theme .desktop-nav { border-color: var(--line); }
+[data-theme="dark"] .customer-theme input::placeholder { color: var(--muted); opacity: 1; }

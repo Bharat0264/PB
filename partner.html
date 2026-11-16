@@ -8,8 +8,9 @@
 <link rel="manifest" href="/partner.webmanifest">
 <link rel="icon" href="/printbee-tab-bee.png">
 <link rel="preload" href="/manrope-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/partner.css?v=delivery-spacing">
-<script>try { const t = new URLSearchParams(location.search).get('theme'); document.documentElement.dataset.theme = t ? (t === 'moon' ? 'moon' : 'sun') : localStorage.getItem('printbee-rider-night') === '1' ? 'moon' : 'sun'; } catch { document.documentElement.dataset.theme = 'sun'; }</script>
+<link rel="stylesheet" href="/partner.css?v=sun-moon">
+<link rel="stylesheet" href="/hive-theme.css?v=sun-moon">
+<script src="/hive-theme.js?v=sun-moon" data-palette="partner" data-follow-system="false"></script>
 <script src="/portal-login.js" defer></script>
 <link rel="stylesheet" href="/staff-dock.css?v=3">
 <script src="/staff-dock.js?v=3" defer></script>
@@ -17,7 +18,7 @@
 <script src="/status-model.js?v=1" defer></script>
 <script src="/live.js?v=1" defer></script>
 <script src="/portal-switch.js?v=1" defer></script>
-<script src="/partner.js?v=staff-dock" defer></script>
+<script src="/partner.js?v=sun-moon" defer></script>
 </head>
 <body class="hive">
 <a href="#main" class="hive-skip">Skip to deliveries</a>
@@ -30,7 +31,7 @@
   <span id="preview-chip" class="hive-chip" title="Illustrative orders and earnings" hidden>Sample data</span>
   <button id="rider-search" class="hive-icon" type="button" aria-label="Search and commands (Ctrl+K)" aria-keyshortcuts="Control+K Meta+K" hidden></button>
   <button id="rider-notifications" class="hive-icon" type="button" aria-label="Notifications" aria-haspopup="dialog" hidden></button>
-  <button id="night-mode" class="hive-theme" type="button" aria-label="Moon Hive (night theme)" aria-pressed="false"></button>
+  <button id="night-mode" class="hv-switch" type="button" data-hive-toggle aria-label="Moon Hive (night theme)" aria-pressed="false"></button>
   <button id="rider-avatar" class="hive-avatar" type="button" aria-label="Partner account" aria-haspopup="dialog" hidden>AK</button>
 </div>
 

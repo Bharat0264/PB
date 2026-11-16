@@ -6,11 +6,11 @@
 <title>Admin · PrintBee</title>
 <link rel="stylesheet" href="studio.css?v=mobile-touch">
 <link rel="stylesheet" href="clay.css">
-<link rel="stylesheet" href="hive-theme.css?v=plain-clay">
-<link rel="stylesheet" href="admin-live-hive.css?v=stable-workspace">
+<link rel="stylesheet" href="hive-theme.css?v=sun-moon">
+<link rel="stylesheet" href="admin-live-hive.css?v=sun-moon">
 <link rel="stylesheet" href="admin-pricing.css">
 <link rel="stylesheet" href="admin-ledger.css">
-<script src="hive-theme.js?v=1"></script>
+<script src="hive-theme.js?v=sun-moon"></script>
 <script src="portal-login.js" defer></script>
 <script>
 if (new URLSearchParams(location.search).get('preview') === '1') location.replace('/admin-preview.html');
@@ -25,7 +25,7 @@ if (new URLSearchParams(location.search).get('preview') === '1') location.replac
 <script type="module" src="operations.js?v=stable-workspace"></script>
 </head>
 <body data-portal="admin">
-<header class="frame top"><a href="/">PrintBee</a></header>
+<header class="frame top"><a href="/">PrintBee</a><button class="hv-switch" type="button" data-hive-toggle aria-label="Switch to Moon Hive" aria-pressed="false"></button></header>
 <main class="frame section staff-console">
 <h1>Admin</h1>
 <div id="portal-login" class="clay-card"><a class="clay-button" href="/api/auth/google?portal=admin">Continue with Google</a></div>
