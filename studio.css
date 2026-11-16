@@ -650,8 +650,6 @@ body{background:var(--base)}
 .inner-page h1{font-size:clamp(30px,4vw,48px);margin:0 0 8px}
 #profile-status:not(:empty){margin-top:10px}
 
-.header-cart{display:grid;place-items:center;width:44px;height:44px;justify-self:end;margin-left:auto;border-radius:50%;background:#f8e4a6;color:#413719;flex:none}
-.header-cart:hover{background:#ffdb69}
 @media(min-width:701px) and (max-width:980px){.top{grid-template-columns:auto minmax(0,1fr) auto;gap:10px}}
 
 .profile-page {

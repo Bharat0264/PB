@@ -17,7 +17,7 @@
 <script src="/live.js?v=1" defer></script>
 <script src="studio.js?v=published-rates" defer></script>
 <link rel="stylesheet" href="/hive-theme.css?v=sun-moon">
-<link rel="stylesheet" href="/customer-theme.css?v=nav-highlight">
+<link rel="stylesheet" href="/customer-theme.css?v=cart-profile">
 <script src="/hive-theme.js?v=sun-moon"></script>
 </head>
 <body class="customer-theme">
@@ -29,9 +29,17 @@
     <a href="orders.html" aria-current="page">Orders</a>
     <a href="queue.html">Upload</a>
     <a href="address.html?v=nav-order">Address</a>
-    <a href="profile.html">Profile</a>
+    <a href="queue.html#cart">Cart</a>
   </nav>
-  <div class="customer-header-actions"><button class="hv-switch" type="button" data-hive-toggle aria-label="Switch to Moon Hive" aria-pressed="false"></button></div>
+  <div class="customer-header-actions">
+    <a class="header-profile raised" href="profile.html" aria-label="Profile">
+      <svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="8" r="3.5"/>
+        <path d="M4.5 20v-1a5 5 0 0 1 5-5h5a5 5 0 0 1 5 5v1"/>
+      </svg>
+    </a>
+    <button class="hv-switch" type="button" data-hive-toggle aria-label="Switch to Moon Hive" aria-pressed="false"></button>
+  </div>
 </header>
 <main id="main" class="frame inner-page">
   <section class="section orders-layout" id="orders">

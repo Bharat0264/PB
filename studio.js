@@ -31,6 +31,18 @@ function queueButton(label, onClick) {
 
 const cartCheckout = document.querySelector('#cart-checkout');
 const cartCount = document.querySelector('#cart-count');
+const cartEmpty = document.querySelector('#cart-empty');
+if (cartEmpty) {
+  const uploadLink = document.querySelector('.desktop-nav a[href="queue.html"]');
+  const cartLink = document.querySelector('.desktop-nav a[href="queue.html#cart"]');
+  function syncCartNavigation() {
+    const cartActive = location.hash === '#cart';
+    (cartActive ? uploadLink : cartLink).removeAttribute('aria-current');
+    (cartActive ? cartLink : uploadLink).setAttribute('aria-current', cartActive ? 'location' : 'page');
+  }
+  window.addEventListener('hashchange', syncCartNavigation);
+  syncCartNavigation();
+}
 const maxOrderFiles = 100;
 
 async function addToCart(entries) {
@@ -57,6 +69,7 @@ async function showQueue() {
   });
   queueList.replaceChildren();
   cartCheckout.hidden = entries.length === 0;
+  if (cartEmpty) cartEmpty.hidden = entries.length > 0;
   cartCount.textContent = fileCount(entries);
   cartCheckout.querySelector('button').onclick = async () => {
     if (saveButton.disabled) return;

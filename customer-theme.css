@@ -1,6 +1,13 @@
 /* Customer screens share the Hive switch and keep their own layout and typography. */
 .customer-header-actions { display: flex; flex: none; align-items: center; gap: clamp(8px,1vw,12px); }
-.customer-header-actions .header-cart { margin-left: 0; }
+.customer-header-actions .header-profile {
+  display: grid; place-items: center; width: 44px; height: 44px; flex: none;
+  border-radius: 50%; background: #f8e4a6; color: #413719;
+}
+.customer-header-actions .header-profile:is(:hover,[aria-current="page"]) { background: #ffdb69; }
+.customer-header-actions .header-profile[aria-current="page"] { box-shadow: var(--hv-press); }
+#cart { margin-top: 16px; scroll-margin-top: 16px; }
+#cart-title { margin: 0; }
 @media (max-width: 700px) {
   .customer-theme .top { gap: 8px; }
   .customer-theme .top .brand-logo { max-width: min(210px,43vw); }
@@ -45,7 +52,9 @@
 }
 [data-theme="dark"] .customer-theme .profile-login .profile-login-banner h1 { color: var(--ink); }
 [data-theme="dark"] .customer-theme .profile-login-body .google-login-button { color: var(--ink); background: var(--hv-surface-3); }
-[data-theme="dark"] .customer-theme .customer-header-actions .header-cart { color: var(--hv-honey-ink); }
+[data-theme="dark"] .customer-theme .customer-header-actions .header-profile {
+  color: var(--hv-honey-ink); background: var(--hv-surface-3);
+}
 [data-theme="dark"] .customer-theme .bottom-nav {
   --nav-ink: var(--hv-ink) !important;
   --nav-surface: var(--hv-surface) !important;
