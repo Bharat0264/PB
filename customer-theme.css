@@ -63,8 +63,14 @@
 }
 [data-theme="dark"] .customer-theme .bottom-nav [role="tab"]:focus-visible { outline-color: var(--hv-honey-500); }
 
+/* The logo has dark lettering, so in dark mode it sits on a soft cream plate instead of a glowing outline. */
 [data-theme="dark"] .customer-theme :is(.top .brand-logo,.footer-intro img) {
-  filter: drop-shadow(0 1px 1px #fff0c990);
+  box-sizing: border-box;
+  padding: 4px 12px;
+  border-radius: 16px;
+  background: #f6efdc;
+  box-shadow: 0 4px 14px #0006, inset 0 1px 2px #fffdf6;
+  filter: none;
 }
 [data-theme="dark"] .customer-theme .desktop-nav { border-color: var(--line); }
 [data-theme="dark"] .customer-theme input::placeholder { color: var(--muted); opacity: 1; }
