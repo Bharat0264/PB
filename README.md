@@ -7,10 +7,8 @@ Install dependencies with `python -m pip install -r requirements.txt`, run
 ## Deploying shared pricing
 
 Cheapest option (one service, your own domain, about $7/month): [DEPLOY-RENDER.md](DEPLOY-RENDER.md).
-Serve the site and its API from the same PrintBee Python server. For a Vercel
-frontend (pb-lake.vercel.app) with the Python backend hosted elsewhere, see
-[DEPLOY-VERCEL.md](DEPLOY-VERCEL.md): `/` opens the sign-in page and `/api` is proxied.
-Without a backend the static Vercel site returns 404 for the Python API.
+Serve the site and its API from the same PrintBee Python server. To put it online, see
+[DEPLOY-RENDER.md](DEPLOY-RENDER.md).
 Live Admin uses /api/admin/pricing and customers read /api/checkout. Both need
 the same running server and persistent SQLite data.
 

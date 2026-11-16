@@ -361,9 +361,9 @@ class PrintBee(SimpleHTTPRequestHandler):
         if not path.startswith("/api/"):
             allowed = {"/welcome.html", "/welcome.css", "/index.html", "/studio.js", "/studio.css", "/clay.css", "/staff.html", "/staff.js", "/warehouse.css", "/warehouse.js", "/delivery-map.js",
                        "/footer-wave.css", "/footer-wave.js",
-                       "/hive-theme.css", "/hive-theme.js", "/customer-theme.css", "/admin-hive.css", "/admin-live-hive.css", "/admin-mobile.css", "/warehouse-hive.css", "/staff-dock.css", "/staff-dock.js",
+                       "/hive-theme.css", "/hive-theme.js", "/customer-theme.css", "/admin-hive.css", "/admin-mobile.css", "/warehouse-hive.css", "/staff-dock.css", "/staff-dock.js",
                        "/partner.html", "/partner.css", "/partner.js", "/partner-sw.js", "/admin.html", "/admin-preview.html", "/admin-dashboard.css", "/admin-tokens.css",
-                       "/customer-pricing.js", "/customer-price-table.js", "/pricing-preview.js", "/admin-dashboard.js", "/admin-records.js", "/admin-ledger.js", "/admin-ledger.css", "/admin-pricing.js", "/admin-pricing.css", "/admin-data.js", "/admin-live-data.js", "/operations.js", "/partner.webmanifest", "/portal-login.js",
+                       "/customer-pricing.js", "/customer-price-table.js", "/pricing-preview.js", "/admin-dashboard.js", "/admin-records.js", "/admin-ledger.js", "/admin-ledger.css", "/admin-pricing.js", "/admin-pricing.css", "/admin-data.js", "/admin-live-data.js", "/partner.webmanifest", "/portal-login.js",
                        "/pricing.html", "/terms.html", "/queue.html", "/orders.html", "/profile.html", "/profile.js", "/address.html", "/customer-login.js",
                        "/preloader.js", "/preloader.css", "/gsap-3.13.0.min.js", "/live.js", "/status-model.js", "/status-model.css", "/portal-switch.js", "/demo-login.js", "/backend-check.js",
                        "/navigation.html", "/navigation.css", "/bottom-nav.js", "/nav-tokens.js", "/embedded-tab.js"}

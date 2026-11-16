@@ -1,7 +1,7 @@
 # Deploy PrintBee on Render (lowest cost: about $7 to $8 a month plus your domain)
 
 One Render service runs the whole site: the pages, the API and the SQLite database on a small disk.
-No Vercel needed, so there is no upload-size limit and no second bill. This handles a few hundred people
+No separate frontend host is needed, so there is no upload-size limit and no second bill. This handles a few hundred people
 online at the same time, which is plenty for a 10,000-customer base. If it ever feels slow at peak
 hours, switch the plan from Starter to Standard (about $25) in the Render dashboard.
 
@@ -53,4 +53,3 @@ Not included: Razorpay's fee per payment, and any SMS you send for partner phone
 
 One service means one database file, so the site is limited to roughly a few hundred simultaneous users.
 For thousands at once, move to Postgres and several servers (a separate project).
-The Vercel setup in `DEPLOY-VERCEL.md` is an alternative you do not need for this.
