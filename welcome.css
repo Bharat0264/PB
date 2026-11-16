@@ -2,15 +2,15 @@
    Soft, puffy shapes: large radii, a light highlight on the top-left inside edge, a darker
    tint on the bottom-right inside edge, and a warm drop shadow underneath. */
 .welcome-page {
-  --clay-cream: #fff8e6;
-  --clay-honey: #ffcf4d;
-  --clay-honey-light: #ffe392;
-  --clay-ink: #2b2415;
-  --clay-muted: #6b5a38;
-  --clay-hi: rgba(255, 255, 255, .92);
-  --clay-lo: rgba(163, 112, 18, .22);
-  --clay-drop: rgba(137, 95, 16, .30);
-  --clay-out: 16px 20px 38px var(--clay-drop), -8px -8px 22px rgba(255, 255, 255, .8);
+  --clay-cream: #f4ecda;
+  --clay-honey: #ecc468;
+  --clay-honey-light: #f3d68f;
+  --clay-ink: #2e2718;
+  --clay-muted: #5f5033;
+  --clay-hi: rgba(255, 252, 244, .55);
+  --clay-lo: rgba(120, 88, 30, .16);
+  --clay-drop: rgba(110, 80, 28, .20);
+  --clay-out: 16px 20px 38px var(--clay-drop), -8px -8px 20px rgba(255, 252, 244, .45);
   --clay-in: inset -9px -11px 18px var(--clay-lo), inset 9px 11px 18px var(--clay-hi);
   --clay-pop: cubic-bezier(.34, 1.45, .64, 1);
 
@@ -23,9 +23,9 @@
   place-items: center;
   padding: clamp(16px, 4vw, 56px);
   background:
-    radial-gradient(ellipse 70% 55% at 15% 8%, #fff3c7, transparent 70%),
-    radial-gradient(ellipse 60% 50% at 90% 95%, #ffe39a, transparent 70%),
-    #fbe9b6;
+    radial-gradient(ellipse 70% 55% at 15% 8%, #efe6d0, transparent 70%),
+    radial-gradient(ellipse 60% 50% at 90% 95%, #e8dcc0, transparent 70%),
+    #e9dfc9;
   color: var(--clay-ink);
 }
 
@@ -36,12 +36,12 @@
   position: absolute;
   z-index: -1;
   border-radius: 50%;
-  background: linear-gradient(145deg, #ffe9a6, #f7c23c);
+  background: linear-gradient(145deg, #ecdcae, #dcb860);
   box-shadow: var(--clay-out), var(--clay-in);
   pointer-events: none;
 }
-.welcome-page::before { width: clamp(120px, 20vw, 260px); aspect-ratio: 1; left: 6%; bottom: 8%; opacity: .85; animation: clay-float 9s ease-in-out infinite; }
-.welcome-page::after { width: clamp(80px, 12vw, 160px); aspect-ratio: 1; right: 9%; top: 9%; opacity: .8; animation: clay-float 11s ease-in-out -4s infinite; }
+.welcome-page::before { width: clamp(120px, 20vw, 260px); aspect-ratio: 1; left: 6%; bottom: 8%; opacity: .55; animation: clay-float 9s ease-in-out infinite; }
+.welcome-page::after { width: clamp(80px, 12vw, 160px); aspect-ratio: 1; right: 9%; top: 9%; opacity: .5; animation: clay-float 11s ease-in-out -4s infinite; }
 @keyframes clay-float { 50% { transform: translateY(-14px) scale(1.03); } }
 
 .welcome-card {
@@ -65,12 +65,12 @@
 @keyframes clay-in { from { opacity: 0; transform: translateY(18px) scale(.97); } }
 
 .welcome-sign-in {
-  background: linear-gradient(150deg, #fffdf5, var(--clay-cream));
+  background: linear-gradient(150deg, #f8f2e4, var(--clay-cream));
   box-shadow: var(--clay-out), var(--clay-in);
 }
 
 .welcome-intro {
-  background: linear-gradient(150deg, var(--clay-honey-light), var(--clay-honey) 70%, #f7bd2c);
+  background: linear-gradient(150deg, var(--clay-honey-light), var(--clay-honey) 70%, #e2b44d);
   box-shadow: var(--clay-out), var(--clay-in);
 }
 
@@ -91,8 +91,8 @@
   margin-bottom: 18px;
   padding: 14px;
   border-radius: 50%;
-  background: linear-gradient(150deg, #fffdf2, #ffeeb5);
-  box-shadow: 8px 10px 20px rgba(137, 95, 16, .26), -5px -5px 14px rgba(255, 255, 255, .7), inset -5px -6px 10px rgba(163, 112, 18, .16), inset 5px 6px 10px var(--clay-hi);
+  background: linear-gradient(150deg, #f9f3e3, #f1e2b4);
+  box-shadow: 8px 10px 18px rgba(110, 80, 28, .2), -5px -5px 12px rgba(255, 252, 244, .4), inset -5px -6px 10px rgba(120, 88, 30, .12), inset 5px 6px 10px rgba(255, 252, 244, .5);
 }
 .welcome-intro p { margin: 8px 0 0; color: #5b4514; font-weight: 600; }
 
@@ -120,17 +120,17 @@
 .welcome-email input:focus-visible { outline: 3px solid #654816; outline-offset: 3px; }
 
 .welcome-google {
-  background: linear-gradient(150deg, #ffffff, #fff4d4);
-  box-shadow: 8px 10px 20px rgba(137, 95, 16, .26), -5px -5px 14px rgba(255, 255, 255, .9), inset -4px -5px 9px rgba(163, 112, 18, .14), inset 4px 5px 9px var(--clay-hi);
+  background: linear-gradient(150deg, #faf5e8, #efe4c8);
+  box-shadow: 7px 9px 18px rgba(110, 80, 28, .2), -5px -5px 12px rgba(255, 252, 244, .5), inset -4px -5px 9px rgba(120, 88, 30, .1), inset 4px 5px 9px rgba(255, 252, 244, .5);
 }
-.welcome-google:active { box-shadow: inset 5px 6px 12px rgba(137, 95, 16, .28), inset -3px -3px 8px var(--clay-hi); }
+.welcome-google:active { box-shadow: inset 5px 6px 12px rgba(110, 80, 28, .22), inset -3px -3px 8px rgba(255, 252, 244, .5); }
 .welcome-google svg { flex: none; }
 
 .welcome-guest {
-  background: linear-gradient(150deg, #fff0bd, #ffd964);
-  box-shadow: 8px 10px 20px rgba(137, 95, 16, .32), -5px -5px 14px rgba(255, 244, 205, .7), inset -4px -5px 9px rgba(163, 112, 18, .2), inset 4px 5px 9px rgba(255, 255, 255, .85);
+  background: linear-gradient(150deg, #f8e6b0, #ebc765);
+  box-shadow: 7px 9px 18px rgba(110, 80, 28, .26), -5px -5px 12px rgba(250, 235, 190, .5), inset -4px -5px 9px rgba(120, 88, 30, .16), inset 4px 5px 9px rgba(255, 250, 230, .55);
 }
-.welcome-guest:active { box-shadow: inset 5px 6px 12px rgba(137, 95, 16, .32), inset -3px -3px 8px rgba(255, 244, 205, .6); }
+.welcome-guest:active { box-shadow: inset 5px 6px 12px rgba(110, 80, 28, .28), inset -3px -3px 8px rgba(250, 235, 190, .5); }
 
 .welcome-divider { margin: 18px 0 4px; color: var(--clay-muted); font-weight: 700; }
 .welcome-sign-in [hidden] { display: none; }
@@ -147,12 +147,12 @@
   padding: 8px 20px;
   border: 0;
   border-radius: 999px;
-  background: #f6ecd0;
+  background: #ebe1c9;
   color: var(--clay-ink);
   font: inherit;
-  box-shadow: inset 5px 6px 11px rgba(137, 95, 16, .22), inset -4px -4px 9px rgba(255, 255, 255, .95);
+  box-shadow: inset 5px 6px 11px rgba(110, 80, 28, .18), inset -4px -4px 9px rgba(255, 252, 244, .6);
 }
-.welcome-email input::placeholder { color: #8c7b55; }
+.welcome-email input::placeholder { color: #7a6a48; }
 .welcome-email button { margin-top: 8px; }
 .welcome-sign-in #account-email { overflow-wrap: anywhere; min-width: 0; max-width: 100%; }
 .welcome-sign-in #email-login-status:not(:empty) { margin-top: 14px; color: #70401e; font-weight: 600; }
