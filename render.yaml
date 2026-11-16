@@ -5,6 +5,7 @@ services:
   - type: web
     name: printbee
     runtime: docker
+    region: singapore              # closest Render region to India: faster for your customers
     dockerfilePath: ./Dockerfile
     plan: starter                  # about $7/month; move to "standard" (2 GB) in one click if peak hours feel slow
     healthCheckPath: /api/status-model

@@ -31,6 +31,13 @@ hours, switch the plan from Starter to Standard (about $25) in the Render dashbo
    `python print_agent.py --origin https://YOUR-DOMAIN --printer "<printer name>" --sumatra "<SumatraPDF.exe path>"`
    with `PRINTBEE_PRINT_AGENT_KEY` set.
 
+## Speed
+
+* The service runs in **Singapore** (closest Render region to India). Paid Render services never sleep, so there is no cold start.
+* Put your domain on **Cloudflare (free plan)**: it caches images, CSS and JavaScript close to each visitor and
+  protects against floods of traffic. At your registrar change the nameservers to Cloudflare's, keep the
+  Render DNS records, and leave the proxy (orange cloud) on. Do not cache `/api/*`.
+
 ## Cost (estimate: check render.com/pricing)
 
 | Item | Per month |
