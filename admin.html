@@ -21,6 +21,24 @@
 .live-gate[hidden]{display:none}
 .live-gate .card{padding:24px;display:grid;gap:14px;width:100%}
 .live-gate a.primary{display:inline-block;text-decoration:none;text-align:center}
+.profile-card{width:min(320px,calc(100vw - 32px));padding:0;overflow:hidden;display:grid}
+.profile-head{display:flex;align-items:center;gap:12px;padding:18px 18px 16px;background:var(--hv-surface-2,#fff6dd)}
+.profile-avatar{display:grid;place-items:center;width:46px;height:46px;border-radius:50%;background:var(--hv-honey-grad,#f5c542);color:#2a2112;font-weight:800;box-shadow:var(--hv-sh-1,none);flex:none}
+.profile-head strong{display:block;font-size:16px;line-height:1.2}
+.profile-head small{display:flex;align-items:center;gap:6px;margin-top:3px;color:var(--hv-muted,#6e5e3e);font-weight:700;font-size:13px}
+.profile-dot{width:8px;height:8px;border-radius:50%;background:var(--hv-success,#3e8e5a);box-shadow:0 0 0 3px var(--hv-success-bg,#e2f2e7)}
+.profile-card .pb-switch{margin:0;padding:14px 12px 6px;gap:4px}
+.profile-card .pb-switch-title{padding:0 6px 4px}
+.profile-card .pb-switch-list{display:grid;gap:2px;flex-wrap:nowrap}
+.profile-card .pb-switch-link{min-height:42px;padding:0 12px;border-radius:12px;background:transparent;justify-content:space-between;font-size:15px}
+.profile-card .pb-switch-link::after{content:"";width:8px;height:8px;border-right:2px solid currentColor;border-top:2px solid currentColor;transform:rotate(45deg);opacity:.45}
+.profile-card .pb-switch-link:hover{background:var(--hv-surface-2,#fff6dd)}
+.profile-foot{display:grid;gap:8px;padding:10px 12px 14px;margin-top:6px;border-top:1px solid var(--hv-border,#f0e3be)}
+.profile-foot button{width:100%;min-height:44px;border-radius:12px;border:0;cursor:pointer;font:800 15px Manrope,system-ui,sans-serif;background:var(--hv-danger-bg,#fce3e0);color:var(--hv-danger-ink,#9a2626);box-shadow:none}
+.profile-foot button:hover{filter:brightness(.97)}
+.profile-foot button[hidden]{display:none}
+.profile-foot a{text-align:center;font-weight:700;font-size:14px;color:var(--hv-muted,#6e5e3e);text-decoration:none;padding:4px}
+.profile-foot a:hover{text-decoration:underline}
 </style>
 <script>
 if (new URLSearchParams(location.search).get('preview') === '1') location.replace('/admin-preview.html');
@@ -52,11 +70,18 @@ if (new URLSearchParams(location.search).get('preview') === '1') location.replac
       <button class="icon-button" id="notifications" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-panel"></button>
       <button class="avatar" id="profile" type="button" aria-label="Admin profile" aria-expanded="false" aria-controls="profile-panel">PB</button>
       <div class="popover card" id="notification-panel" hidden><h2>Notifications</h2><ul id="notification-list" class="activity"></ul></div>
-      <div class="popover card" id="profile-panel" hidden><strong>PrintBee Admin</strong><p>Live workspace</p><div class="pb-switch" data-portal-switch="admin" hidden></div><button id="portal-logout" type="button" hidden>Sign out</button><br><a href="mailto:printbee.co.in@gmail.com">Contact support</a></div>
+      <div class="popover card profile-card" id="profile-panel" hidden>
+        <div class="profile-head"><span class="profile-avatar" aria-hidden="true">PB</span><div><strong>PrintBee Admin</strong><small><i class="profile-dot"></i>Live workspace</small></div></div>
+        <div class="pb-switch" data-portal-switch="admin" hidden></div>
+        <div class="profile-foot">
+          <button id="portal-logout" type="button" hidden>Sign out</button>
+          <a href="mailto:printbee.co.in@gmail.com">Contact support</a>
+        </div>
+      </div>
     </header>
     <div id="admin-workarea" class="admin-workarea">
       <div class="intro">
-        <div><p class="eyebrow">PrintBee operations <span>Live data</span></p><h1 id="page-title">Dashboard</h1><p id="page-description">Track campus print orders, revenue, and delivery activity.</p></div>
+        <div><p class="eyebrow">PrintBee operations</p><h1 id="page-title">Dashboard</h1><p id="page-description">Track campus print orders, revenue, and delivery activity.</p></div>
         <div class="actions" data-page-actions="orders" hidden>
           <button id="add-order" class="primary" type="button">+ Add offline orders</button>
           <button id="export-csv" type="button">Export CSV</button>

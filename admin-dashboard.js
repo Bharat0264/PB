@@ -263,7 +263,7 @@ function updateTable() {
 }
 
 function productList() {
-  return card('Print services',`<ul class="activity">${products.map(p => `<li><strong>${escape(p.name)}</strong><small>${escape(p.category)} &middot; ${p.price.toFixed(2)} INR${live ? '' : ' &middot; ' + p.stock + ' in stock'}</small></li>`).join('')}</ul>`,'wide');
+  return card('Print services',`<ul class="activity">${products.map(p => `<li><strong>${escape(p.name)}</strong><small>${escape(p.category)} &middot; ${p.price.toFixed(2)} INR${live ? '' : ' &middot; ' + p.stock + ' in stock'}</small>${p.removeKey ? `<button type="button" data-remove-service="${escape(p.removeKey)}" data-label="${escape(p.removeLabel)}">Remove ${escape(p.removeLabel)}</button>` : ''}</li>`).join('')}</ul>`,'wide');
 }
 
 function directory(title, records, details, status = '') {
@@ -324,6 +324,51 @@ function liveActions(order) {
   }
   return box;
 }
+
+const servicePapers = {A3: 'A3 printing', A5: 'A5 printing'};
+const serviceBindings = {spiral: 'Spiral binding', staple: 'Staple binding'};
+const serviceRateLabels = ['B&W single-sided', 'B&W double-sided', 'Colour single-sided', 'Colour double-sided'];
+
+function availableServices() {
+  const terms = source.info.terms;
+  return [
+    ...Object.entries(servicePapers).filter(([key]) => !terms.paperRates[key]).map(([key, label]) => ['paper:' + key, label]),
+    ...Object.entries(serviceBindings).filter(([key]) => !(key in terms.bindingRates)).map(([key, label]) => ['binding:' + key, label]),
+  ];
+}
+
+function serviceEditorFields() {
+  const options = availableServices();
+  if (!options.length) return '<p class="muted">All available services are already offered. Use the Pricing page to change their rates.</p>';
+  return `<label>Service<select name="service">${options.map(([value, label]) => `<option value="${value}">${escape(label)}</option>`).join('')}</select></label>
+    <div id="service-paper-rates">${serviceRateLabels.map((label, i) => `<label>${label} (INR per page)<input name="rate${i}" type="number" min="1" step="0.01" inputmode="decimal"></label>`).join('')}</div>
+    <div id="service-binding-rate"><label>Price (INR per copy)<input name="bindingRate" type="number" min="0" step="0.01" inputmode="decimal"></label></div>`;
+}
+
+function wireServiceEditor() {
+  const select = $('editor-form').elements.service;
+  if (!select) { $('save-editor').hidden = true; return; }
+  const sync = () => {
+    const paper = select.value.startsWith('paper:');
+    $('service-paper-rates').hidden = !paper;
+    $('service-binding-rate').hidden = paper;
+    for (const input of $('service-paper-rates').querySelectorAll('input')) input.required = paper;
+    $('service-binding-rate').querySelector('input').required = !paper;
+  };
+  select.onchange = sync;
+  sync();
+}
+
+// Publishes a new pricing version with a service added or removed (everything else stays as it is).
+async function changeServices(change) {
+  const terms = source.info.terms;
+  const changes = {paperRates: {...terms.paperRates}, bindingRates: {...terms.bindingRates}};
+  change(changes);
+  const result = await source.api('/api/admin/pricing', {version: source.info.pricingVersion, changes});
+  source.info.pricingVersion = result.version;
+}
+
+const paise = value => Math.round(Number(value) * 100);
 
 function livePartners() {
   const rows = partners.map(partner => `<li><strong>${escape(partner.email || partner.id)}</strong><span>${partner.deliveries} deliveries &middot; earned ${money(partner.accrued / 100)} &middot; unsettled ${money(partner.outstanding / 100)}</span><small class="directory-verified">Verified</small>${partner.removable ? `<button type="button" data-remove-partner="${escape(partner.email)}">Remove access</button>` : ''}</li>`).join('');
@@ -427,6 +472,15 @@ function render(animate = false) {
   if (route === 'ledger') {
     if (live) buildLedger($('preview-ledger'), (page, kind) => source.api('/api/admin/ledger?' + new URLSearchParams({page, kind})))();
     else buildLedger($('preview-ledger'), previewLedger, {demo:true})();
+  }
+  if (live && route === 'inventory') {
+    for (const button of document.querySelectorAll('[data-remove-service]')) {
+      button.onclick = () => {
+        const [type, key] = button.dataset.removeService.split(':');
+        if (!window.confirm('Stop offering ' + button.dataset.label + ' at checkout? Existing orders are not affected.')) return;
+        runLive(() => changeServices(changes => { delete changes[type === 'paper' ? 'paperRates' : 'bindingRates'][key]; }), button.dataset.label + ' removed.');
+      };
+    }
   }
   if (live && route === 'partners') {
     if ($('live-settlements')) buildSettlements($('live-settlements'));
@@ -561,6 +615,7 @@ const directoryEditors = {
   },
 };
 
+if (live) directoryEditors.product = {title: 'Add print service', fields: ''};
 if (live) directoryEditors.partner.fields = '<label>Google account email<input name="email" type="email" autocomplete="off" required maxlength="254"></label><label class="directory-confirm"><input name="verified" type="checkbox" required> I have verified this delivery partner’s identity.</label>';
 if (live) directoryEditors.warehouse.fields = '<label>Warehouse name<input name="name" required maxlength="70"></label><label>Google Maps pickup address or coordinates<input name="address" required maxlength="500"></label><label>Staff Google account email<input name="email" type="email" autocomplete="off" required maxlength="254"></label><label class="directory-confirm"><input name="useForPickup" type="checkbox"> Use for new order pickups</label>';
 
@@ -576,6 +631,7 @@ function openEditor(kind, id) {
   $('editor-fields').innerHTML = existing ? `<p><strong>${escape(existing.customer)}</strong></p><p>${escape(existing.product)} &middot; ${money(existing.total)}</p><p>${escape(existing.status)} &middot; ${escape(existing.region)}</p>` :
     directoryEditor?.fields ?? (isOrder ? '' :
     '<label>Product name<input name="name" required maxlength="70"></label><label>Category<input name="category" required maxlength="70"></label><label>Price (INR)<input name="price" type="number" min=".01" max="999999" step=".01" required></label><label>Stock<input name="stock" type="number" min="0" max="999999" required></label>');
+  if (live && kind === 'product') { $('editor-fields').innerHTML = serviceEditorFields(); wireServiceEditor(); }
   if (live && existing) $('editor-fields').append(liveActions(existing));
   if (isOrder && !existing) readOfflineOrders = addOfflineOrderFields($('editor-fields'), products);
   $('editor').showModal();
@@ -630,7 +686,14 @@ $('editor-form').onsubmit = async event => {
   const kind = form.dataset.kind;
   if (live) {
     try {
-      if (kind === 'partner') {
+      if (kind === 'product') {
+        const [type, key] = data.get('service').split(':');
+        await changeServices(changes => {
+          if (type === 'paper') changes.paperRates[key] = [0, 1, 2, 3].map(i => paise(data.get('rate' + i)));
+          else changes.bindingRates[key] = paise(data.get('bindingRate'));
+        });
+        $('notice').textContent = 'Service added. Customers can choose it at checkout now.';
+      } else if (kind === 'partner') {
         await source.api('/api/admin/partners', {email: data.get('email').trim().toLowerCase()});
         $('notice').textContent = 'Partner verified. They can now sign in on the delivery partner page with that Google account.';
       } else if (kind === 'warehouse') {
@@ -697,7 +760,7 @@ if (live) {
   const workspace = document.querySelector('.workspace');
   workspace.hidden = true;
   $('preview-staff-dock').hidden = true;
-  for (const group of document.querySelectorAll('[data-page-actions="inventory"]')) group.remove();
+  $('add-product').textContent = '+ Add service';
   let feedConnection;
   connectPortal('admin', $('ops-status'), async () => {
     await source.load();

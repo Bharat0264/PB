@@ -57,11 +57,13 @@ function servicesFrom(terms) {
   const list = [];
   const kinds = ['Black & white', 'Black & white, double-sided', 'Colour', 'Colour, double-sided'];
   for (const [paper, rates] of Object.entries(terms.paperRates || {})) {
-    rates.forEach((paise, index) => list.push({name: `${paper} ${kinds[index]}`, category: 'Document printing', price: paise / 100}));
+    rates.forEach((paise, index) => list.push({name: `${paper} ${kinds[index]}`, category: 'Document printing', price: paise / 100,
+      removeKey: index === 0 && paper !== 'A4' ? 'paper:' + paper : null, removeLabel: paper + ' printing'}));
   }
   const bindings = {glossy: 'Glossy soft binding', blue: 'Blue sheet cover binding', spiral: 'Spiral binding', staple: 'Staple binding'};
   for (const [key, paise] of Object.entries(terms.bindingRates || {})) {
-    if (key !== 'none') list.push({name: bindings[key] || humanise(key), category: 'Binding', price: paise / 100});
+    if (key !== 'none') list.push({name: bindings[key] || humanise(key), category: 'Binding', price: paise / 100,
+      removeKey: ['spiral', 'staple'].includes(key) ? 'binding:' + key : null, removeLabel: bindings[key] || humanise(key)});
   }
   return list;
 }
