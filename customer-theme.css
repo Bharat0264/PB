@@ -1,5 +1,5 @@
 /* Customer screens share the Hive switch and keep their own layout and typography. */
-.customer-header-actions { display: flex; flex: none; align-items: center; gap: 8px; }
+.customer-header-actions { display: flex; flex: none; align-items: center; gap: clamp(8px,1vw,12px); }
 .customer-header-actions .header-cart { margin-left: 0; }
 @media (max-width: 700px) {
   .customer-theme .top { gap: 8px; }
