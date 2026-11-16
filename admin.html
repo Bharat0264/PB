@@ -21,8 +21,6 @@
 .live-gate[hidden]{display:none}
 .live-gate .card{padding:24px;display:grid;gap:14px;width:100%}
 .live-gate a.primary{display:inline-block;text-decoration:none;text-align:center}
-.live-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 16px}
-.live-bar[hidden]{display:none}
 </style>
 <script>
 if (new URLSearchParams(location.search).get('preview') === '1') location.replace('/admin-preview.html');
@@ -41,10 +39,6 @@ if (new URLSearchParams(location.search).get('preview') === '1') location.replac
   <div id="portal-login" class="card"><p>Sign in with your admin Google account to see live orders.</p><a class="primary" href="/api/auth/google?portal=admin">Continue with Google</a></div>
   <p id="ops-status" role="status"></p>
 </section>
-<div class="live-bar">
-  <div class="pb-switch" data-portal-switch="admin" hidden></div>
-  <button id="portal-logout" type="button" hidden>Sign out</button>
-</div>
 <div class="workspace" hidden>
   <aside class="sidebar" aria-label="Admin sidebar">
     <a class="brand" href="#dashboard"><img src="printbee-header-bee.webp" width="44" height="40" alt=""><span><strong>PrintBee</strong><small>Admin workspace</small></span></a>
@@ -58,7 +52,7 @@ if (new URLSearchParams(location.search).get('preview') === '1') location.replac
       <button class="icon-button" id="notifications" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-panel"></button>
       <button class="avatar" id="profile" type="button" aria-label="Admin profile" aria-expanded="false" aria-controls="profile-panel">PB</button>
       <div class="popover card" id="notification-panel" hidden><h2>Notifications</h2><ul id="notification-list" class="activity"></ul></div>
-      <div class="popover card" id="profile-panel" hidden><strong>PrintBee Admin</strong><p>Live workspace</p><a href="mailto:printbee.co.in@gmail.com">Contact support</a></div>
+      <div class="popover card" id="profile-panel" hidden><strong>PrintBee Admin</strong><p>Live workspace</p><div class="pb-switch" data-portal-switch="admin" hidden></div><button id="portal-logout" type="button" hidden>Sign out</button><br><a href="mailto:printbee.co.in@gmail.com">Contact support</a></div>
     </header>
     <div id="admin-workarea" class="admin-workarea">
       <div class="intro">
