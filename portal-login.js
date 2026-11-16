@@ -31,8 +31,11 @@ async function connectPortal(portal, status, onReady, onSignOut = () => {}) {
       login.hidden = true;
       logout.hidden = false;
       await onReady();
+    } else {
+      login.style.visibility = 'visible';
     }
   } catch (error) {
     status.textContent = error.message;
+    login.style.visibility = 'visible';
   }
 }

@@ -20,7 +20,9 @@
 .live-gate{max-width:560px;margin:8vh auto;padding:0 16px;display:grid;gap:14px;justify-items:start}
 .live-gate[hidden]{display:none}
 .live-gate .card{padding:24px;display:grid;gap:14px;width:100%}
-.live-gate a.primary{display:inline-block;text-decoration:none;text-align:center}
+.live-gate a.primary{display:inline-flex;align-items:center;justify-content:center;min-height:52px;padding:0 28px;border-radius:999px;text-decoration:none;font-weight:800;color:var(--hv-ink,#2a2112);background:var(--hv-honey-grad,#f5c542);box-shadow:var(--hv-sh-2,none);justify-self:start}
+.live-gate a.primary:hover{filter:brightness(1.04)}
+.live-gate a.primary:focus-visible{outline:3px solid var(--hv-ink,#2a2112);outline-offset:3px}
 .profile-card{width:min(320px,calc(100vw - 32px));padding:0;overflow:hidden;display:grid}
 .profile-head{display:flex;align-items:center;gap:12px;padding:18px 18px 16px;background:var(--hv-surface-2,#fff6dd)}
 .profile-avatar{display:grid;place-items:center;width:46px;height:46px;border-radius:50%;background:var(--hv-honey-grad,#f5c542);color:#2a2112;font-weight:800;box-shadow:var(--hv-sh-1,none);flex:none}
@@ -47,6 +49,12 @@ if (new URLSearchParams(location.search).get('preview') === '1') location.replac
 <script src="/status-model.js?v=1" defer></script>
 <script src="/live.js?v=1" defer></script>
 <script src="/portal-switch.js?v=1" defer></script>
+<style>
+/* Keep the sign-in card hidden until the session check finishes, so a signed-in refresh never flashes it.
+   If the script never runs, the card appears after 2.5 s so nobody is locked out. */
+#portal-login{visibility:hidden;animation:pb-login-reveal 0s 2.5s forwards}
+@keyframes pb-login-reveal{to{visibility:visible}}
+</style>
 <script src="portal-login.js" defer></script>
 <script type="module" src="admin-dashboard.js?v=live"></script>
 </head>

@@ -10,6 +10,12 @@
 <link rel="stylesheet" href="/hive-theme.css?v=sun-moon">
 <link rel="stylesheet" href="/warehouse-hive.css?v=stage-cards">
 <script src="/hive-theme.js?v=sun-moon"></script>
+<style>
+/* Keep the sign-in card hidden until the session check finishes, so a signed-in refresh never flashes it.
+   If the script never runs, the card appears after 2.5 s so nobody is locked out. */
+#portal-login{visibility:hidden;animation:pb-login-reveal 0s 2.5s forwards}
+@keyframes pb-login-reveal{to{visibility:visible}}
+</style>
 <script src="/portal-login.js" defer></script>
 <link rel="stylesheet" href="/staff-dock.css?v=3">
 <script src="/staff-dock.js?v=3" defer></script>
