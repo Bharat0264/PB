@@ -1378,3 +1378,7 @@ body {
 .cart-empty { padding: clamp(28px, 5vw, 48px) 20px; }
 .cart-empty-orb { width: 76px; height: 76px; }
 .cart-empty-orb svg { width: 34px; height: 34px; }
+
+/* Cart: item cards and the summary start at exactly the same height. */
+.cart-page .cart-summary:not([hidden]) { margin-top: 0 !important; }
+.cart-page #queue-list { align-content: start; align-items: start; }
