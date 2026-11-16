@@ -68,6 +68,7 @@ async function showQueue() {
     }
     if (await pricingAvailable()) openCheckout(entries);
   };
+  const cartPage = Boolean(document.querySelector('.cart-page'));
   for (const [id, entry] of entries) {
     const row = document.createElement('li');
     const name = document.createElement('strong');
@@ -91,9 +92,52 @@ async function showQueue() {
         status.textContent = 'Could not remove this document.';
       }
     });
-    row.append(name, settings, download, remove);
+    if (!cartPage) {
+      row.append(name, settings, download, remove);
+    } else {
+      row.className = 'cart-item';
+      const extension = (entry.file.name.split('.').pop() || 'file').slice(0, 4).toUpperCase();
+      const badge = document.createElement('span');
+      badge.className = 'cart-badge';
+      badge.setAttribute('aria-hidden', 'true');
+      badge.textContent = extension;
+      const body = document.createElement('div');
+      body.className = 'cart-item-body';
+      const chips = document.createElement('div');
+      chips.className = 'cart-chips';
+      for (const text of printSummary(entry)) {
+        const chip = document.createElement('span');
+        chip.textContent = text;
+        chips.append(chip);
+      }
+      body.append(name, chips);
+      const actions = document.createElement('div');
+      actions.className = 'cart-item-actions';
+      download.setAttribute('aria-label', 'Download ' + entry.file.name);
+      remove.setAttribute('aria-label', 'Remove ' + entry.file.name);
+      download.classList.add('cart-download');
+      remove.classList.add('cart-remove');
+      actions.append(download, remove);
+      row.append(badge, body, actions);
+    }
     queueList.append(row);
   }
+}
+
+function printSummary(entry) {
+  const options = entry.printOptions;
+  if (!options) return [entry.settings || 'Saved document'];
+  const pages = Number(options.pages) || 1;
+  const copies = Number(options.copies) || 1;
+  const parts = [
+    pages + (pages === 1 ? ' page' : ' pages') + (copies > 1 ? ' × ' + copies + ' copies' : ''),
+    options.paper || 'A4',
+    options.colourPages?.length ? 'Colour on ' + options.colourPages.length + ' pages' : options.colour ? 'Colour' : 'Black & white',
+    options.duplex ? 'Double-sided' : 'Single-sided',
+  ];
+  if (options.orientation === 'Landscape') parts.push('Landscape');
+  if (options.binding && options.binding !== 'none') parts.push(bindingNames[options.binding] || options.binding);
+  return parts;
 }
 
 const fileInput = document.querySelector('#document-file');

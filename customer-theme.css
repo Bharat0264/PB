@@ -85,3 +85,15 @@
 [data-theme="dark"] .customer-theme .account-tiles a { background: var(--hv-surface-2); box-shadow: var(--raised); color: var(--ink); }
 [data-theme="dark"] .customer-theme :is(.account-tiles small,.account-help) { color: var(--muted); }
 [data-theme="dark"] .customer-theme .tile-icon { background: var(--hv-honey-500); color: #2a2112; box-shadow: none; }
+
+/* Cart page in dark mode */
+[data-theme="dark"] .customer-theme .cart-page #queue-list li.cart-item,
+[data-theme="dark"] .customer-theme .cart-empty { background: var(--hv-surface-2); box-shadow: var(--raised); }
+[data-theme="dark"] .customer-theme .cart-badge,
+[data-theme="dark"] .customer-theme .cart-empty-orb { background: var(--hv-honey-500); color: #2a2112; box-shadow: none; }
+[data-theme="dark"] .customer-theme .cart-chips span { background: var(--hv-surface-3); color: var(--muted); }
+[data-theme="dark"] .customer-theme .cart-page #queue-list li.cart-item button { background: var(--hv-surface-3); color: var(--ink); box-shadow: none; }
+[data-theme="dark"] .customer-theme .cart-page #queue-list li.cart-item .cart-remove { color: #ff9a8f; }
+[data-theme="dark"] .customer-theme .cart-page .cart-summary:not([hidden]) { background: var(--hv-surface-3); box-shadow: var(--raised); color: var(--ink); }
+[data-theme="dark"] .customer-theme .cart-summary .pill { background: var(--hv-honey-500); color: #2a2112; }
+[data-theme="dark"] .customer-theme .cart-eyebrow { color: var(--hv-honey-ink); }
