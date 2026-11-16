@@ -88,3 +88,6 @@
 #address-postal:not([hidden]) { display: contents; }
 .address-fields > label:has([required]):not(:has(.address-error))::after { content: ""; display: block; min-height: 17px; }
 .address-fields > label > .address-error { min-height: 17px; line-height: 17px; }
+
+/* The address form grows with its content, so there is no scrollbar inside the card. */
+.address-composer:not(:modal) { position:static; max-height:none; overflow:visible; }
