@@ -12,12 +12,15 @@
 <link rel="stylesheet" href="studio.css?v=clay-review">
 <link rel="stylesheet" href="footer-wave.css?v=horizontal-brand">
 <script src="footer-wave.js?v=letter-spacing" defer></script>
-<script src="profile.js?v=address-book" defer></script>
+<script src="profile.js?v=delivery-types" defer></script>
+<script src="customer-pricing.js?v=published-rates" defer></script>
+<script src="address-book.js?v=1" defer></script>
+<link rel="stylesheet" href="address-book.css?v=1">
 <link rel="stylesheet" href="/hive-theme.css?v=crescent2">
 <link rel="stylesheet" href="/customer-theme.css?v=darklogo2">
 <script src="/hive-theme.js?v=sun-moon"></script>
 </head>
-<body class="customer-theme">
+<body class="customer-theme address-page">
 <a href="#main" class="skip">Skip to content</a>
 <header class="frame top" id="home">
   <a class="brand" href="index.html"><img class="brand-logo" src="printbee-header-logo.webp" width="632" height="210" alt="PrintBee"></a>
@@ -38,31 +41,88 @@
     </a>
   </div>
 </header>
-<main id="main" class="frame inner-page">
-  <section class="section rates" id="address">
-  <div><h1>Delivery address</h1><p>Manage your saved delivery addresses on this browser.</p>
-    <div id="saved-addresses" class="order-actions"></div>
-    <button class="pill raised" id="add-address" type="button">Add address</button>
-  </div>
-  <form class="raised table-card" id="address-form">
-    <fieldset class="checkout-fields">
-      <legend>Delivery details</legend>
-      <label class="checkout-address">House, flat or hostel room<input name="building" autocomplete="address-line1" required maxlength="500" placeholder="Flat 204 or Hostel B, Room 12"></label>
-      <label class="checkout-address">Street or locality<input name="locality" autocomplete="address-line2" required maxlength="100"></label>
-      <label>City<input name="city" autocomplete="address-level2" required maxlength="60"></label>
-      <label>State<input name="region" autocomplete="address-level1" required maxlength="60"></label>
-      <label>PIN code<input name="pin" autocomplete="postal-code" inputmode="numeric" pattern="[1-9][0-9]{5}" maxlength="6" required></label>
-      <label>Landmark (optional)<input name="landmark" maxlength="100" placeholder="Near the main gate"></label>
-      <div class="checkout-address">
-        <button class="pill raised" type="button" id="use-location">Use current location</button>
-        <button class="pill" type="button" id="clear-location" hidden>Remove location</button>
-        <p id="location-status" role="status">Optional. Add a location pin for delivery.</p>
-      </div>
-    </fieldset>
-    <button class="pill yellow" type="submit">Save address</button>
+<main id="main" class="address-layout">
+  <section class="address-book" aria-labelledby="address-title">
+    <h1 id="address-title">Delivery address</h1>
+    <p>Manage your saved delivery addresses on this browser.</p>
+    <div class="address-list-heading">
+      <h2>Saved addresses</h2>
+      <button class="address-action" id="add-address" type="button" aria-controls="address-composer" aria-expanded="false">Add address</button>
+    </div>
+    <div id="saved-addresses"></div>
+    <button class="address-action" id="show-addresses" type="button" aria-expanded="false" hidden>Show all</button>
     <p id="profile-status" role="status"></p>
-  </form>
-</section>
+  </section>
+  <dialog class="address-composer" id="address-composer" aria-labelledby="delivery-title">
+    <form id="address-form" novalidate>
+      <div class="address-composer-title"><h2 id="delivery-title">Delivery details</h2><button class="address-action address-close" id="close-address" type="button" aria-label="Close address form">×</button></div>
+      <div class="address-segments" role="radiogroup" aria-label="Delivery type">
+        <input type="radio" id="delivery-campus" name="type" value="campus">
+        <label for="delivery-campus"><span aria-hidden="true">⌂</span><strong>On campus</strong><small>Hand-delivered to your hostel or block</small></label>
+        <input type="radio" id="delivery-standard" name="type" value="standard" checked>
+        <label for="delivery-standard"><span aria-hidden="true">⌖</span><strong>Outside campus</strong><small>Regular doorstep delivery</small></label>
+      </div>
+      <div id="campus-fields" class="address-fields" hidden>
+        <label for="addr-campus">Campus<select id="addr-campus" name="campusId" required></select></label>
+        <label for="addr-block">Hostel / Block<input id="addr-block" name="block" list="campus-blocks" maxlength="80" required></label>
+        <datalist id="campus-blocks"></datalist>
+        <label for="addr-floor">Floor<input id="addr-floor" name="floor" maxlength="20"></label>
+        <label for="addr-room">Room number<input id="addr-room" name="room" maxlength="40" required></label>
+        <fieldset class="address-handover"><legend>Handover point</legend>
+          <label><input type="radio" name="handoverPoint" value="room" checked> At my room door</label>
+          <label><input type="radio" name="handoverPoint" value="entrance"> Block entrance</label>
+          <label><input type="radio" name="handoverPoint" value="gate"> Main gate</label>
+        </fieldset>
+        <p class="address-helper">You'll get an OTP to hand over the order.</p>
+      </div>
+      <div class="address-fields">
+        <label for="addr-building">House, flat or hostel room<input id="addr-building" name="building" autocomplete="address-line1" required maxlength="180" placeholder="Flat 204 or Hostel B, Room 12"></label>
+        <div id="campus-summary" class="address-campus-summary" hidden>
+          <span id="campus-postal"></span><button type="button" class="address-link" id="edit-postal">Edit</button>
+        </div>
+        <div id="address-postal" class="address-fields">
+          <label for="addr-locality">Street or locality<input id="addr-locality" name="locality" autocomplete="address-line2" required maxlength="100"></label>
+          <label for="addr-city">City<input id="addr-city" name="city" autocomplete="address-level2" required maxlength="60"></label>
+          <label for="addr-region">State<input id="addr-region" name="region" autocomplete="address-level1" required maxlength="60"></label>
+          <label for="addr-pin">PIN code<input id="addr-pin" name="pin" autocomplete="postal-code" inputmode="numeric" pattern="[1-9][0-9]{5}" maxlength="6" required></label>
+        </div>
+        <label for="addr-landmark">Landmark (optional)<input id="addr-landmark" name="landmark" maxlength="100" placeholder="Near the main gate"></label>
+      </div>
+      <div class="address-pin">
+        <div><p id="location-status" role="status">Optional. Add a location pin for delivery.</p>
+          <div class="address-location-actions"><button class="address-action" type="button" id="use-location">Use current location</button>
+          <button class="address-action address-ghost" type="button" id="clear-location" hidden>Remove location</button></div>
+        </div>
+        <div class="address-map-preview" id="pin-preview" hidden><span aria-hidden="true">⌖</span> Pin added ✓</div>
+      </div>
+      <div id="campus-suggestion" class="address-suggestion" hidden>
+        <span>Looks like you're on campus. Switch to On campus delivery?</span>
+        <button class="address-action" type="button" id="accept-campus">Switch to On campus</button>
+        <button class="address-action address-ghost" type="button" id="dismiss-campus">Dismiss</button>
+      </div>
+      <details class="address-label-preview" id="address-label-preview">
+        <summary>Preview label</summary>
+        <div class="address-ticket">
+          <div><span class="address-badge" id="preview-type"></span><strong id="preview-line"></strong><span id="preview-postal"></span></div>
+          <div><img src="/printbee-header-bee.webp" width="42" height="42" alt=""><span class="address-barcode" aria-hidden="true"></span></div>
+        </div>
+      </details>
+      <fieldset class="address-labels"><legend>Label (optional)</legend>
+        <label><input type="radio" name="label" value="" checked> None</label>
+        <label><input type="radio" name="label" value="Hostel"> Hostel</label>
+        <label><input type="radio" name="label" value="Home"> Home</label>
+        <label><input type="radio" name="label" value="Other"> Other</label>
+      </fieldset>
+      <div class="address-save"><label><input type="checkbox" name="makeDefault"> Set as default</label>
+        <button class="pill yellow" type="submit">Save address</button></div>
+      <p class="address-error" id="address-errors" role="status"></p>
+    </form>
+  </dialog>
+  <div class="address-idle" id="address-idle" hidden>
+    <img src="/printbee-header-bee.webp" width="88" height="88" alt="">
+    <h2>Delivery details</h2>
+    <p id="current-delivery"></p>
+  </div>
 </main>
 <footer class="frame brand-footer" id="contact">
   <div class="footer-surface">

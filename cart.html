@@ -18,7 +18,7 @@
 <link rel="stylesheet" href="/status-model.css?v=2">
 <script src="/status-model.js?v=1" defer></script>
 <script src="/live.js?v=1" defer></script>
-<script src="studio.js?v=cart-redesign" defer></script>
+<script src="studio.js?v=campus-delivery" defer></script>
 <link rel="stylesheet" href="/hive-theme.css?v=crescent">
 <link rel="stylesheet" href="/customer-theme.css?v=cart-redesign">
 <script src="/hive-theme.js?v=sun-moon"></script>
@@ -76,6 +76,7 @@
     <div id="checkout-files"></div>
     <fieldset class="checkout-fields" id="checkout-delivery" hidden disabled>
       <legend>Delivery details</legend>
+      <p class="checkout-address" id="checkout-delivery-type" aria-live="polite"></p>
       <label>Full name<input name="customer" autocomplete="name" required maxlength="100"></label>
       <label>Phone<input name="phone" type="tel" autocomplete="tel" pattern="[+0-9 \(\)\-]{7,20}" required maxlength="20"></label>
       <label class="checkout-address">Delivery address<textarea name="address" autocomplete="street-address" required maxlength="500"></textarea></label>

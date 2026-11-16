@@ -328,6 +328,25 @@ let appliedCoupon = '';
 let quoteVersion = 0;
 let quoteTimer;
 let quotedAddress = '';
+let quotedDelivery = {};
+let deliveryCampuses = [];
+
+function checkoutDelivery(address) {
+  const profile = readProfile();
+  const withoutPin = text => text.replace(/\nDelivery pin:[^\n]*$/i,'').trim();
+  return profile.deliveryType === 'campus' && profile.campus?.campusId &&
+    withoutPin(address) === withoutPin(profile.address || '') ?
+    {deliveryType:'campus',campusId:profile.campus.campusId} : {};
+}
+
+function showDeliveryType(address) {
+  const hint = document.querySelector('#checkout-delivery-type');
+  if (!hint) return;
+  const choice = checkoutDelivery(address);
+  const campus = deliveryCampuses.find(item => item.id === choice.campusId);
+  hint.textContent = choice.deliveryType === 'campus' ?
+    ['On-campus delivery',campus?.eta].filter(Boolean).join(' · ') : 'Outside-campus delivery';
+}
 let placingOrder = false;
 let queuedConfig;
 
@@ -371,6 +390,8 @@ function applyCheckoutConfig(config) {
   }
   if (!checkoutForm) return;
   paymentMode = mode;
+  deliveryCampuses = terms.campuses || [];
+  showDeliveryType(checkoutForm.elements.address.value);
   const slot = checkoutForm.elements.slot;
   if (JSON.stringify([...slot.options].map(option => option.value)) !== JSON.stringify(terms.slots)) {
     const selected = slot.value;
@@ -448,14 +469,17 @@ async function refreshBill({useCouponField = false} = {}) {
   try {
     const coupon = useCouponField ? checkoutForm.elements.coupon.value.trim().toUpperCase() : appliedCoupon;
     const address = checkoutForm.elements.address.value.trim();
+    const delivery = checkoutDelivery(address);
+    showDeliveryType(address);
     const bill = await orderRequest('/api/checkout/quote', null, {
       method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({items: orderDocuments(items), coupon, address}),
+      body: JSON.stringify({items: orderDocuments(items), coupon, address, ...delivery}),
     });
     if (version !== quoteVersion) return;
     activeBill = bill;
     appliedCoupon = coupon;
     quotedAddress = address;
+    quotedDelivery = delivery;
     showOrderBill(items);
     const couponChanged = checkoutForm.elements.coupon.value.trim().toUpperCase() !== appliedCoupon;
     checkoutSubmit.disabled = paymentMode === 'disabled' || couponChanged;
@@ -470,6 +494,7 @@ async function refreshBill({useCouponField = false} = {}) {
 const applyCoupon = document.querySelector('#apply-coupon');
 applyCoupon?.addEventListener('click', () => refreshBill({useCouponField:true}));
 checkoutForm?.elements.address.addEventListener('input', () => {
+  showDeliveryType(checkoutForm.elements.address.value);
   if (!paymentStep || placingOrder) return;
   quoteVersion++;
   activeBill = null;
@@ -523,6 +548,7 @@ function openCheckout(entries) {
   checkoutForm.reset();
   appliedCoupon = '';
   fillProfile(checkoutForm);
+  showDeliveryType(checkoutForm.elements.address.value);
   checkoutError.textContent = '';
   pendingOrder = undefined;
   checkoutFiles.replaceChildren();
@@ -1101,7 +1127,7 @@ async function submitOrder(order) {
   const quote = await orderRequest('/api/orders', order.orderKey, {
     method: 'POST', headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({id: order.id, customer: order.customer, phone: order.phone, address: order.address,
-      slot: order.slot, notes: order.notes, coupon: order.coupon, items, expectedTotal: order.total}),
+      slot: order.slot, notes: order.notes, coupon: order.coupon, items, expectedTotal: order.total, ...order.delivery}),
   });
   if (quote.total !== order.total) throw new Error('The price changed. Review the current rates before paying.');
   const path = '/api/orders/' + order.id;
@@ -1174,7 +1200,7 @@ checkoutForm?.addEventListener('submit', async event => {
   let placedId;
   let reprice = false;
   try {
-    const signatureText = JSON.stringify({fields: [...data], ids: items.map(item => item.id)});
+    const signatureText = JSON.stringify({fields: [...data], ids: items.map(item => item.id), delivery: quotedDelivery});
     const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(signatureText));
     const signature = Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, '0')).join('');
     let attempt = JSON.parse(sessionStorage.getItem(checkoutDraftKey));
@@ -1186,7 +1212,7 @@ checkoutForm?.addEventListener('submit', async event => {
       };
       sessionStorage.setItem(checkoutDraftKey, JSON.stringify(attempt));
     }
-    const order = {...attempt, customer, phone, address, items,
+    const order = {...attempt, customer, phone, address, items, delivery:quotedDelivery,
       slot: data.get('slot') || '', notes: data.get('notes'), coupon: appliedCoupon, total: activeBill.total};
     await submitOrder(order);
     await saveOrder(order);

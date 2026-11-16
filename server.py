@@ -23,7 +23,7 @@ import customer_auth as auth
 import fulfillment as ops
 import partner_auth
 import razorpay_checkout
-from checkout_terms import DeliveryQuoteError, bill_for, configured_terms, coordinates, require_pickup_coordinates, validate_terms
+from checkout_terms import DeliveryQuoteError, bill_for, configured_terms, coordinates, delivery_terms, require_pickup_coordinates, validate_terms
 from document_pages import count_pages
 from order_documents import PrivateFiles, invoice_pdf, packing_label_pdf
 from order_rules import LIMIT, TRANSITIONS, advance_order, quote_items
@@ -86,7 +86,7 @@ def eta_minutes(here, there, speed_kmh=18):
 
 def active_checkout_terms(db, default):
     row = db.execute("SELECT terms FROM pricing_versions ORDER BY id DESC LIMIT 1").fetchone()
-    return {"surge": 0, "deliveryPerKm": 0, **json.loads(row["terms"])} if row else default
+    return {"surge": 0, "deliveryPerKm": 0, **json.loads(row["terms"]), "campuses": default.get("campuses", [])} if row else default
 
 
 class PrintBee(SimpleHTTPRequestHandler):
@@ -367,7 +367,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                        "/hive-theme.css", "/hive-theme.js", "/customer-theme.css", "/admin-hive.css", "/admin-mobile.css", "/warehouse-hive.css", "/staff-dock.css", "/staff-dock.js",
                        "/partner.html", "/partner.css", "/partner.js", "/partner-sw.js", "/admin.html", "/admin-preview.html", "/admin-dashboard.css", "/admin-tokens.css",
                        "/customer-pricing.js", "/customer-price-table.js", "/pricing-preview.js", "/admin-dashboard.js", "/admin-records.js", "/admin-ledger.js", "/admin-ledger.css", "/admin-pricing.js", "/admin-pricing.css", "/admin-data.js", "/admin-live-data.js", "/partner.webmanifest", "/portal-login.js",
-                       "/pricing.html", "/terms.html", "/queue.html", "/cart.html", "/orders.html", "/profile.html", "/profile.js", "/address.html", "/customer-login.js", "/account-home.js",
+                       "/pricing.html", "/terms.html", "/queue.html", "/cart.html", "/orders.html", "/profile.html", "/profile.js", "/address.html", "/address-book.js", "/address-book.css", "/customer-login.js", "/account-home.js",
                        "/preloader.js", "/preloader.css", "/gsap-3.13.0.min.js", "/live.js", "/status-model.js", "/status-model.css", "/portal-switch.js", "/demo-login.js", "/backend-check.js",
                        "/navigation.html", "/navigation.css", "/bottom-nav.js", "/nav-tokens.js", "/embedded-tab.js"}
             if path in allowed:
@@ -811,6 +811,13 @@ class PrintBee(SimpleHTTPRequestHandler):
                 len(re.sub(r"\D", "", details["phone"])) < 7 or
                 not details["address"] or len(details["address"]) > 500):
             raise ValueError()
+        if data.get("deliveryType") == "campus":
+            campus_id = data.get("campusId")
+            if not isinstance(campus_id, str) or not re.fullmatch(r"[a-z0-9-]{1,40}", campus_id):
+                raise ValueError("Choose a valid campus.")
+            details.update(deliveryType="campus", campusId=campus_id)
+        elif data.get("deliveryType", "standard") != "standard":
+            raise ValueError("Choose a valid delivery type.")
         coupon = data.get("coupon", "").strip().upper()
         notes = data.get("notes", "").strip()
         slot = data.get("slot", "")
@@ -849,7 +856,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                 if stored != details or options(previous) != options(selection):
                     return self.json_response(409, {"error": "Order details changed. Reopen checkout to try again."})
             else:
-                terms = self.checkout_terms(db)
+                terms = delivery_terms(self.checkout_terms(db), data, details["address"])
                 documents, total = quote_items(data["items"], terms["paperRates"], terms["bindingRates"])
                 details.update(items=documents, subtotal=total)
                 if (terms["slots"] or slot) and slot not in terms["slots"]:
@@ -882,7 +889,7 @@ class PrintBee(SimpleHTTPRequestHandler):
             raise ValueError("Invalid delivery address.")
         with closing(connect()) as db, db:
             db.execute("BEGIN")
-            terms = self.checkout_terms(db)
+            terms = delivery_terms(self.checkout_terms(db), data, address)
             pickup = admin_records.default_pickup(db) if terms.get("deliveryPerKm") else None
         documents, total = quote_items(data["items"], terms["paperRates"], terms["bindingRates"])
         if coupon and coupon not in terms["coupons"]:
