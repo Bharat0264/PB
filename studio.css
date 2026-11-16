@@ -1179,3 +1179,6 @@ body {
 /* Horizontal header logo: bee + "PrintBee" wordmark + tagline in one row. */
 .top .brand-logo { height:58px; max-width:min(210px, 46vw); }
 @media (max-width: 700px) { .top .brand-logo { height:46px; } }
+
+/* The upload page uses the whole screen width so the dropzone fits left to right. */
+main.inner-page:has(.upload-section) { width: calc(100% - clamp(32px, 5vw, 96px)); }
