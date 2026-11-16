@@ -1211,7 +1211,8 @@ class PrintBee(SimpleHTTPRequestHandler):
         for partner in [*self.server.partners, *self.server.partner_phones.values(), *earned]:
             if partner != "delivery":
                 directory.setdefault(partner, {"id": partner, "email": None})
-        partners = [{**entry, "deliveries": 0, "accrued": 0, "outstanding": 0, **earned.get(entry["id"], {"partner": 0})}
+        saved = admin_records.partner_accounts(db)
+        partners = [{**entry, "removable": entry["email"] in saved, "deliveries": 0, "accrued": 0, "outstanding": 0, **earned.get(entry["id"], {"partner": 0})}
                     for entry in directory.values()]
         for entry in partners:
             entry.pop("partner", None)
@@ -1271,6 +1272,17 @@ class PrintBee(SimpleHTTPRequestHandler):
                 else:
                     result = admin_records.save_warehouse(db, data, actor)
                     require_pickup_coordinates(self.checkout_terms(db), admin_records.default_pickup(db))
+            elif path in ("/api/admin/partners", "/api/admin/partners/remove"):
+                if not isinstance(data, dict):
+                    raise admin_records.InputError("Invalid partner request.")
+                actor = auth.portal_google_email(db, self.headers, "admin") or role
+                if path.endswith("/remove"):
+                    email = admin_records.remove_partner(db, data, actor)
+                    self.server.google_access["partner"].pop(email, None)
+                else:
+                    email, partner = admin_records.add_partner(db, data, actor)
+                    self.server.google_access["partner"][email] = partner
+                result = {"saved": True}
             elif path == "/api/admin/pricing":
                 version = db.execute("SELECT COALESCE(max(id),0) FROM pricing_versions").fetchone()[0]
                 if not isinstance(data, dict):
@@ -1518,6 +1530,7 @@ if __name__ == "__main__":
         db.executescript(razorpay_checkout.SCHEMA)
         db.executescript(ops.SCHEMA)
         db.executescript(admin_records.SCHEMA)
+        google_access["partner"].update(admin_records.partner_accounts(db))
         db.executescript(partner_auth.SCHEMA)
         db.executescript("""
             CREATE TABLE IF NOT EXISTS orders (id TEXT PRIMARY KEY, token TEXT, status TEXT, details TEXT);

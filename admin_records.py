@@ -1,4 +1,5 @@
 import re
+import secrets
 import time
 from datetime import datetime, timedelta, timezone
 
@@ -15,6 +16,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS one_default_pickup
 CREATE TABLE IF NOT EXISTS offline_sales (
     id TEXT PRIMARY KEY, customer TEXT NOT NULL, product TEXT NOT NULL,
     total INTEGER NOT NULL, created INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS partner_accounts (
+    email TEXT PRIMARY KEY, partner TEXT NOT NULL UNIQUE, created INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS offline_sales_created ON offline_sales(created);
 CREATE INDEX IF NOT EXISTS audit_paid_at ON audit(created, order_id) WHERE action='paid';
@@ -68,6 +72,34 @@ def save_warehouse(db, data, actor):
                        (name, address, email, use_default))
     ops.audit(db, actor, "warehouse_added", str(entry.lastrowid))
     return {"saved": True}
+
+
+def partner_accounts(db):
+    return {row["email"]: row["partner"] for row in db.execute("SELECT email, partner FROM partner_accounts")}
+
+
+def add_partner(db, data, actor):
+    """Verify a delivery partner's Google account. Returns (email, partner id)."""
+    email = required_text(data, "email", 254).lower()
+    if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
+        raise InputError("Enter a valid Google email address.")
+    existing = db.execute("SELECT partner FROM partner_accounts WHERE email=?", (email,)).fetchone()
+    if existing:
+        return email, existing["partner"]
+    partner = "rider-" + secrets.token_hex(4)
+    db.execute("INSERT INTO partner_accounts(email, partner, created) VALUES (?,?,?)", (email, partner, int(time.time())))
+    ops.audit(db, actor, "partner_added", partner)
+    return email, partner
+
+
+def remove_partner(db, data, actor):
+    email = required_text(data, "email", 254).lower()
+    row = db.execute("SELECT partner FROM partner_accounts WHERE email=?", (email,)).fetchone()
+    if not row:
+        raise InputError("Only partners added here can be removed.")
+    db.execute("DELETE FROM partner_accounts WHERE email=?", (email,))
+    ops.audit(db, actor, "partner_removed", row["partner"])
+    return email
 
 
 def record_offline_sales(db, rows, actor):

@@ -326,8 +326,8 @@ function liveActions(order) {
 }
 
 function livePartners() {
-  const rows = partners.map(partner => `<li><strong>${escape(partner.email || partner.id)}</strong><span>${partner.deliveries} deliveries &middot; earned ${money(partner.accrued / 100)} &middot; unsettled ${money(partner.outstanding / 100)}</span><small class="directory-verified">Verified</small></li>`).join('');
-  return card('Delivery partners', rows ? `<ul class="activity admin-directory">${rows}</ul>` : '<p class="muted">No delivery partners are set up yet. Add their Google emails in the server settings.</p>', 'full') +
+  const rows = partners.map(partner => `<li><strong>${escape(partner.email || partner.id)}</strong><span>${partner.deliveries} deliveries &middot; earned ${money(partner.accrued / 100)} &middot; unsettled ${money(partner.outstanding / 100)}</span><small class="directory-verified">Verified</small>${partner.removable ? `<button type="button" data-remove-partner="${escape(partner.email)}">Remove access</button>` : ''}</li>`).join('');
+  return card('Delivery partners', rows ? `<ul class="activity admin-directory">${rows}</ul>` : '<p class="muted">No delivery partners yet. Use “Add verified partner” to give someone access with their Google email.</p>', 'full') +
     card('Partner settlements', source.payouts.length ? '<div id="live-settlements" class="settlements"></div>' : '<p class="muted">No outstanding settlements.</p>', 'full');
 }
 
@@ -428,7 +428,16 @@ function render(animate = false) {
     if (live) buildLedger($('preview-ledger'), (page, kind) => source.api('/api/admin/ledger?' + new URLSearchParams({page, kind})))();
     else buildLedger($('preview-ledger'), previewLedger, {demo:true})();
   }
-  if (live && route === 'partners' && $('live-settlements')) buildSettlements($('live-settlements'));
+  if (live && route === 'partners') {
+    if ($('live-settlements')) buildSettlements($('live-settlements'));
+    for (const button of document.querySelectorAll('[data-remove-partner]')) {
+      button.onclick = () => {
+        if (window.confirm('Remove delivery access for ' + button.dataset.removePartner + '?')) {
+          runLive(() => source.api('/api/admin/partners/remove', {email: button.dataset.removePartner}), 'Partner access removed.');
+        }
+      };
+    }
+  }
   if (route === 'pricing' && live) {
     $('pricing-form').append(buildPricingForm(source.info.terms, async changes => {
       const result = await source.api('/api/admin/pricing', {version: source.info.pricingVersion, changes});
@@ -552,6 +561,7 @@ const directoryEditors = {
   },
 };
 
+if (live) directoryEditors.partner.fields = '<label>Google account email<input name="email" type="email" autocomplete="off" required maxlength="254"></label><label class="directory-confirm"><input name="verified" type="checkbox" required> I have verified this delivery partner’s identity.</label>';
 if (live) directoryEditors.warehouse.fields = '<label>Warehouse name<input name="name" required maxlength="70"></label><label>Google Maps pickup address or coordinates<input name="address" required maxlength="500"></label><label>Staff Google account email<input name="email" type="email" autocomplete="off" required maxlength="254"></label><label class="directory-confirm"><input name="useForPickup" type="checkbox"> Use for new order pickups</label>';
 
 let readOfflineOrders;
@@ -620,7 +630,10 @@ $('editor-form').onsubmit = async event => {
   const kind = form.dataset.kind;
   if (live) {
     try {
-      if (kind === 'warehouse') {
+      if (kind === 'partner') {
+        await source.api('/api/admin/partners', {email: data.get('email').trim().toLowerCase()});
+        $('notice').textContent = 'Partner verified. They can now sign in on the delivery partner page with that Google account.';
+      } else if (kind === 'warehouse') {
         await source.api('/api/admin/warehouses', {name: data.get('name').trim(), address: data.get('address').trim(), email: data.get('email').trim().toLowerCase(), useForPickup: data.has('useForPickup') || !warehouses.length});
         $('notice').textContent = 'Warehouse saved.';
       } else if (kind === 'order') {
@@ -684,7 +697,7 @@ if (live) {
   const workspace = document.querySelector('.workspace');
   workspace.hidden = true;
   $('preview-staff-dock').hidden = true;
-  for (const group of document.querySelectorAll('[data-page-actions="inventory"], [data-page-actions="partners"]')) group.remove();
+  for (const group of document.querySelectorAll('[data-page-actions="inventory"]')) group.remove();
   let feedConnection;
   connectPortal('admin', $('ops-status'), async () => {
     await source.load();
