@@ -1,0 +1,33 @@
+# Render Blueprint: the whole PrintBee site (pages + API + SQLite) as ONE low-cost service.
+# Dashboard: New > Blueprint > pick this repo. Render asks for every value marked `sync: false`.
+# Secrets are never stored in git.
+services:
+  - type: web
+    name: printbee
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter                  # about $7/month; move to "standard" (2 GB) in one click if peak hours feel slow
+    healthCheckPath: /api/status-model
+    disk:
+      name: printbee-data          # the database, staff keys and (without S3) uploaded files live here
+      mountPath: /var/lib/printbee
+      sizeGB: 1
+    envVars:
+      - key: PORT
+        value: "4188"
+      - key: PRINTBEE_DATA_DIR
+        value: /var/lib/printbee
+      - key: PRINTBEE_PAYMENT_MODE
+        value: disabled            # change to "razorpay" after adding the Razorpay keys below
+      - key: PRINTBEE_ORIGIN       # your public site address, e.g. https://printbee.co.in (no trailing slash)
+        sync: false
+      - key: PRINTBEE_GOOGLE_CLIENT_ID
+        sync: false
+      - key: PRINTBEE_GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: PRINTBEE_GOOGLE_ADMIN_EMAILS     # comma-separated; these emails open /admin
+        sync: false
+      - key: PRINTBEE_GOOGLE_WAREHOUSE_EMAILS # these open /warehouse
+        sync: false
+      - key: PRINTBEE_GOOGLE_PARTNERS         # JSON, e.g. {"rider@gmail.com":"rider-1"}; these open /partner
+        sync: false

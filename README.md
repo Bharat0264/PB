@@ -6,6 +6,7 @@ Install dependencies with `python -m pip install -r requirements.txt`, run
 
 ## Deploying shared pricing
 
+Cheapest option (one service, your own domain, about $7/month): [DEPLOY-RENDER.md](DEPLOY-RENDER.md).
 Serve the site and its API from the same PrintBee Python server. For a Vercel
 frontend (pb-lake.vercel.app) with the Python backend hosted elsewhere, see
 [DEPLOY-VERCEL.md](DEPLOY-VERCEL.md): `/` opens the sign-in page and `/api` is proxied.
