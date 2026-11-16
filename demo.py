@@ -39,6 +39,23 @@ def wait_for(url, seconds=20):
     return False
 
 
+def add_sample_order(db):
+    """One finished sample order, so the demo customer's Orders page is not empty."""
+    order_id = "d3a1c0de" * 4
+    if db.execute("SELECT 1 FROM orders WHERE id=?", (order_id,)).fetchone():
+        return
+    item = {"name": "Lecture notes.pdf", "pages": 24, "copies": 1, "colour": False, "duplex": True,
+            "orientation": "Portrait", "binding": "spiral", "paper": "A4", "size": 0, "subtotal": 4800}
+    details = {"customer": "Demo Customer", "phone": "9876543210", "address": "SRM University, Kattankulathur",
+               "items": [item], "subtotal": 4800,
+               "bill": {"subtotal": 4800, "total": 9800}}
+    db.execute("INSERT INTO orders VALUES (?, ?, 'pending', ?)", (order_id, "0" * 64, json.dumps(details)))
+    for status in ("paid", "printing", "packed", "out_for_delivery", "delivered"):
+        db.execute("UPDATE orders SET status=? WHERE id=?", (status, order_id))
+    db.execute("INSERT INTO order_owners (order_id, email, order_number) VALUES (?, ?, ?)",
+               (order_id, "customer@demo.printbee.test", "PB-DEMO-0001"))
+
+
 def seed(data):
     """Demo data that does not need a signed-in browser: a default warehouse pickup for partners."""
     sys.path.insert(0, str(ROOT))
@@ -50,6 +67,7 @@ def seed(data):
             admin_records.save_warehouse(db, {
                 "name": "PrintBee print room", "address": "SRM University, Kattankulathur",
                 "email": "warehouse@demo.printbee.test", "useForPickup": True}, "demo")
+            add_sample_order(db)
     finally:
         db.close()
 
