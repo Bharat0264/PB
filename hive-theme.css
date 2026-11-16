@@ -88,8 +88,8 @@
 .hv-switch[aria-pressed="true"] { background: linear-gradient(180deg,#2B1C0B,#4A3112) !important; }
 /* The moon is a single crescent (an inset shadow), so nothing dark is laid over the track. */
 .hv-switch[aria-pressed="true"]::before {
-  transform: translateX(var(--switch-shift)) rotate(-25deg); background: transparent;
-  box-shadow: inset calc(var(--switch-thumb) * -.3) 0 0 0 #F6E3AD;
+  transform: translateX(var(--switch-shift)); background: transparent;
+  box-shadow: inset calc(var(--switch-thumb) * .22) calc(var(--switch-thumb) * -.2) 0 0 #F6E3AD;
   filter: drop-shadow(0 0 5px #FFE2A055);
 }
 .hv-switch:focus-visible { outline: 2px solid var(--hv-honey-700); outline-offset: 3px; }
