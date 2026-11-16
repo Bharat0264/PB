@@ -1179,3 +1179,64 @@ body {
 /* Horizontal header logo: bee + "PrintBee" wordmark + tagline in one row. */
 .top .brand-logo { height:58px; max-width:min(210px, 46vw); }
 @media (max-width: 700px) { .top .brand-logo { height:46px; } }
+
+/* Review step: smaller, roomier and tidier. Only spacing, size and shape are set here so dark mode keeps working. */
+.file-review { padding: clamp(20px, 3.2vw, 34px); border-radius: clamp(24px, 3vw, 36px); }
+.file-review h2 { font-size: clamp(24px, 3vw, 32px); margin: 0; }
+.review-note { margin: 6px 0 20px; font-size: 14px; max-width: 70ch; }
+.review-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 120px), 140px)); gap: 14px; }
+.review-tile-visual, #queue .review-add { aspect-ratio: 1 / 1.1; border-radius: 20px; }
+.review-tile-visual > span { padding: 10px; font-size: 12.5px; line-height: 1.4; }
+.review-tile strong { margin-top: 8px; padding-inline: 4px; font-size: 14px; }
+#queue .review-add { font-size: 14px; }
+
+#review-settings .print-options {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  gap: 20px 28px;
+  margin-top: 20px;
+  padding: clamp(20px, 3vw, 30px);
+  border: 0;
+  border-radius: 26px;
+}
+#review-settings .print-options > legend {
+  float: none;
+  width: auto;
+  max-width: 100%;
+  margin: 0 0 4px;
+  padding: 5px 14px;
+  border-radius: 999px;
+  background: #f7e3a3;
+  color: #3b2d0e;
+  font-size: 14px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+#review-settings .print-options > :is(.print-quantity, .binding-options) { grid-column: 1 / -1; }
+#review-settings .print-quantity { grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 18px 24px; }
+
+#review-settings .print-options label:not(.print-choices label) { display: grid; gap: 8px; font-size: 14px; font-weight: 700; align-content: start; }
+#review-settings .print-options :is(input:not([type="radio"]), select) {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 16px;
+  border-radius: 14px;
+  font: inherit;
+  font-weight: 500;
+}
+#review-settings .print-options [hidden] { display: none !important; }
+#review-settings .print-options small { font-weight: 400; line-height: 1.45; }
+#review-settings .print-options label > strong { font-weight: 800; }
+#review-settings .copy-stepper { grid-template-columns: 46px minmax(0, 1fr) 46px; border-radius: 14px; min-height: 46px; }
+#review-settings .copy-stepper button { height: 46px; font-size: 18px; }
+#review-settings .copy-stepper input { min-height: 0; padding: 0; }
+
+#review-settings .print-choices { margin: 0; gap: 10px; align-content: start; }
+#review-settings .print-choices legend { width: 100%; margin: 0 0 8px; padding: 0 2px; font-size: 14px; font-weight: 800; }
+#review-settings .print-choices label { min-height: 46px; padding: 8px 14px; gap: 10px; border-radius: 14px; font-size: 14.5px; }
+#review-settings .print-choices.binding-options { grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); }
+#review-settings .print-choices.binding-options legend { grid-column: 1 / -1; }
+#review-settings .print-choices.binding-options label { align-items: center; }
+#review-settings .colour-pages-field { padding: 14px 16px; border-radius: 16px; }
+
+.review-summary { padding: 14px 20px; border-radius: 22px; }
+.review-actions.review-summary { margin-top: 18px; }
