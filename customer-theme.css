@@ -63,8 +63,10 @@
 }
 [data-theme="dark"] .customer-theme .bottom-nav [role="tab"]:focus-visible { outline-color: var(--hv-honey-500); }
 
+/* Dark mode uses a logo with light lettering, so there is no glow or outline around it. */
 [data-theme="dark"] .customer-theme :is(.top .brand-logo,.footer-intro img) {
-  filter: drop-shadow(0 1px 1px #fff0c990);
+  content: url("printbee-header-logo-dark.webp");
+  filter: none;
 }
 [data-theme="dark"] .customer-theme .desktop-nav { border-color: var(--line); }
 [data-theme="dark"] .customer-theme input::placeholder { color: var(--muted); opacity: 1; }
