@@ -10,3 +10,4 @@ test_*.py
 !/*.woff2
 !/*.webp
 !/*.png
+!docker-entrypoint.sh
