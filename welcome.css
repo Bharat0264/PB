@@ -1,112 +1,173 @@
+/* Sign-in / welcome page: claymorphism.
+   Soft, puffy shapes: large radii, a light highlight on the top-left inside edge, a darker
+   tint on the bottom-right inside edge, and a warm drop shadow underneath. */
 .welcome-page {
+  --clay-cream: #fff8e6;
+  --clay-honey: #ffcf4d;
+  --clay-honey-light: #ffe392;
+  --clay-ink: #2b2415;
+  --clay-muted: #6b5a38;
+  --clay-hi: rgba(255, 255, 255, .92);
+  --clay-lo: rgba(163, 112, 18, .22);
+  --clay-drop: rgba(137, 95, 16, .30);
+  --clay-out: 16px 20px 38px var(--clay-drop), -8px -8px 22px rgba(255, 255, 255, .8);
+  --clay-in: inset -9px -11px 18px var(--clay-lo), inset 9px 11px 18px var(--clay-hi);
+  --clay-pop: cubic-bezier(.34, 1.45, .64, 1);
+
+  position: relative;
+  isolation: isolate;
+  overflow: clip;
   min-height: 100vh;
   min-height: 100svh;
   display: grid;
   place-items: center;
-  padding: clamp(14px, 4vw, 56px);
-  background: linear-gradient(90deg, #faca56 50%, #f5efe2 50%);
-  color: #2b2415;
+  padding: clamp(16px, 4vw, 56px);
+  background:
+    radial-gradient(ellipse 70% 55% at 15% 8%, #fff3c7, transparent 70%),
+    radial-gradient(ellipse 60% 50% at 90% 95%, #ffe39a, transparent 70%),
+    #fbe9b6;
+  color: var(--clay-ink);
 }
+
+/* Soft clay blobs floating behind the card */
+.welcome-page::before,
+.welcome-page::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #ffe9a6, #f7c23c);
+  box-shadow: var(--clay-out), var(--clay-in);
+  pointer-events: none;
+}
+.welcome-page::before { width: clamp(120px, 20vw, 260px); aspect-ratio: 1; left: 6%; bottom: 8%; opacity: .85; animation: clay-float 9s ease-in-out infinite; }
+.welcome-page::after { width: clamp(80px, 12vw, 160px); aspect-ratio: 1; right: 9%; top: 9%; opacity: .8; animation: clay-float 11s ease-in-out -4s infinite; }
+@keyframes clay-float { 50% { transform: translateY(-14px) scale(1.03); } }
 
 .welcome-card {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  width: min(100%, 900px);
-  border-radius: clamp(24px, 4vw, 36px);
-  box-shadow: 0 18px 34px #543c173d, 0 3px 8px #543c172b;
+  gap: clamp(16px, 2.4vw, 28px);
+  width: min(100%, 940px);
 }
 
 .welcome-card section {
   display: grid;
   align-content: center;
   justify-items: center;
-  min-height: 390px;
-  padding: clamp(26px, 5vw, 64px);
+  min-height: 420px;
+  padding: clamp(28px, 5vw, 60px);
+  border-radius: clamp(32px, 5vw, 56px);
   text-align: center;
+  animation: clay-in .6s var(--clay-pop) both;
 }
+.welcome-intro { animation-delay: .08s !important; }
+@keyframes clay-in { from { opacity: 0; transform: translateY(18px) scale(.97); } }
 
 .welcome-sign-in {
-  border-radius: 36px 0 0 36px;
-  background: #f9f5ea;
-  box-shadow: inset 4px 4px 14px #fffefa;
+  background: linear-gradient(150deg, #fffdf5, var(--clay-cream));
+  box-shadow: var(--clay-out), var(--clay-in);
+}
+
+.welcome-intro {
+  background: linear-gradient(150deg, var(--clay-honey-light), var(--clay-honey) 70%, #f7bd2c);
+  box-shadow: var(--clay-out), var(--clay-in);
 }
 
 .welcome-sign-in h2,
 .welcome-intro h1 {
   margin: 0;
   color: inherit;
-  font-size: clamp(30px, 5vw, 47px);
+  font-size: clamp(30px, 5vw, 46px);
   line-height: 1.08;
   letter-spacing: -.05em;
 }
 
-.welcome-intro {
-  border-radius: 0 36px 36px 0;
-  background: radial-gradient(ellipse at top left, #ffdf82, transparent 72%), #ffc83d;
-  box-shadow: inset -6px -7px 18px #af74132c;
-}
-
+/* The bee sits in its own little clay bubble */
 .welcome-intro img {
-  width: 96px;
-  height: auto;
-  margin-bottom: 12px;
+  width: 112px;
+  height: 112px;
+  object-fit: contain;
+  margin-bottom: 18px;
+  padding: 14px;
+  border-radius: 50%;
+  background: linear-gradient(150deg, #fffdf2, #ffeeb5);
+  box-shadow: 8px 10px 20px rgba(137, 95, 16, .26), -5px -5px 14px rgba(255, 255, 255, .7), inset -5px -6px 10px rgba(163, 112, 18, .16), inset 5px 6px 10px var(--clay-hi);
 }
+.welcome-intro p { margin: 8px 0 0; color: #5b4514; font-weight: 600; }
 
-.welcome-intro p { margin-top: 8px; }
 .welcome-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
-  width: min(100%, 285px);
-  min-height: 52px;
-  margin-top: 24px;
-  padding: 10px 14px;
+  width: min(100%, 290px);
+  min-height: 56px;
+  margin-top: 26px;
+  padding: 10px 18px;
   border: 0;
   border-radius: 999px;
+  color: var(--clay-ink);
+  font: inherit;
   font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform .3s var(--clay-pop), box-shadow .2s;
 }
+.welcome-button:hover { transform: translateY(-3px); }
+.welcome-button:active { transform: translateY(1px) scale(.97); }
+.welcome-button:focus-visible,
+.welcome-email input:focus-visible { outline: 3px solid #654816; outline-offset: 3px; }
 
 .welcome-google {
-  background: #fcf8ee;
-  box-shadow: 5px 6px 14px #62503128, -4px -4px 12px #fffdf8, inset 2px 2px 5px #fff;
+  background: linear-gradient(150deg, #ffffff, #fff4d4);
+  box-shadow: 8px 10px 20px rgba(137, 95, 16, .26), -5px -5px 14px rgba(255, 255, 255, .9), inset -4px -5px 9px rgba(163, 112, 18, .14), inset 4px 5px 9px var(--clay-hi);
 }
-
+.welcome-google:active { box-shadow: inset 5px 6px 12px rgba(137, 95, 16, .28), inset -3px -3px 8px var(--clay-hi); }
 .welcome-google svg { flex: none; }
 
 .welcome-guest {
-  background: #ffe18a;
-  box-shadow: 5px 6px 14px #7e520a34, inset 2px 2px 6px #fff1b7;
+  background: linear-gradient(150deg, #fff0bd, #ffd964);
+  box-shadow: 8px 10px 20px rgba(137, 95, 16, .32), -5px -5px 14px rgba(255, 244, 205, .7), inset -4px -5px 9px rgba(163, 112, 18, .2), inset 4px 5px 9px rgba(255, 255, 255, .85);
 }
+.welcome-guest:active { box-shadow: inset 5px 6px 12px rgba(137, 95, 16, .32), inset -3px -3px 8px rgba(255, 244, 205, .6); }
 
-.welcome-button:active { box-shadow: inset 3px 3px 9px #60451939; }
-.welcome-divider { margin: 14px 0 3px; color: #62543c; }
+.welcome-divider { margin: 18px 0 4px; color: var(--clay-muted); font-weight: 700; }
 .welcome-sign-in [hidden] { display: none; }
 .welcome-email {
   display: grid;
   justify-items: stretch;
-  gap: 7px;
-  width: min(100%, 285px);
+  gap: 8px;
+  width: min(100%, 290px);
 }
-.welcome-email label { text-align: left; font-size: .875rem; font-weight: 700; }
+.welcome-email label { text-align: left; font-size: .875rem; font-weight: 800; padding-left: 6px; }
 .welcome-email input {
   width: 100%;
-  min-height: 48px;
-  padding: 8px 16px;
+  min-height: 52px;
+  padding: 8px 20px;
   border: 0;
   border-radius: 999px;
-  background: #f0eadc;
-  box-shadow: inset 3px 4px 8px #57431f25, inset -3px -3px 7px #fffc;
+  background: #f6ecd0;
+  color: var(--clay-ink);
+  font: inherit;
+  box-shadow: inset 5px 6px 11px rgba(137, 95, 16, .22), inset -4px -4px 9px rgba(255, 255, 255, .95);
 }
-.welcome-email button { margin-top: 6px; }
+.welcome-email input::placeholder { color: #8c7b55; }
+.welcome-email button { margin-top: 8px; }
 .welcome-sign-in #account-email { overflow-wrap: anywhere; min-width: 0; max-width: 100%; }
-.welcome-sign-in #email-login-status:not(:empty) { margin-top: 12px; color: #70401e; }
+.welcome-sign-in #email-login-status:not(:empty) { margin-top: 14px; color: #70401e; font-weight: 600; }
+#backend-notice { border-radius: 20px !important; box-shadow: inset 3px 3px 8px rgba(255, 255, 255, .8), inset -3px -3px 8px rgba(163, 112, 18, .15); }
 
-@media (max-width:660px) {
-  .welcome-page { background: linear-gradient(#faca56 50%, #f5efe2 50%); }
+@media (max-width: 660px) {
   .welcome-card { grid-template-columns: minmax(0, 1fr); max-width: 440px; }
-  .welcome-card section { min-height: 0; }
-  .welcome-sign-in { border-radius: 28px 28px 0 0; }
-  .welcome-intro { border-radius: 0 0 28px 28px; }
-  .welcome-intro img { width: 72px; }
+  .welcome-card section { min-height: 0; border-radius: 40px; }
+  .welcome-intro { order: -1; }
+  .welcome-intro img { width: 84px; height: 84px; margin-bottom: 10px; padding: 10px; }
+  .welcome-page::before { left: -40px; bottom: -30px; }
+  .welcome-page::after { right: -30px; top: -20px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-page::before, .welcome-page::after, .welcome-card section { animation: none; }
+  .welcome-button { transition: none; }
 }
