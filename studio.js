@@ -32,17 +32,7 @@ function queueButton(label, onClick) {
 const cartCheckout = document.querySelector('#cart-checkout');
 const cartCount = document.querySelector('#cart-count');
 const cartEmpty = document.querySelector('#cart-empty');
-if (cartEmpty) {
-  const uploadLink = document.querySelector('.desktop-nav a[href="queue.html"]');
-  const cartLink = document.querySelector('.desktop-nav a[href="queue.html#cart"]');
-  function syncCartNavigation() {
-    const cartActive = location.hash === '#cart';
-    (cartActive ? uploadLink : cartLink).removeAttribute('aria-current');
-    (cartActive ? cartLink : uploadLink).setAttribute('aria-current', cartActive ? 'location' : 'page');
-  }
-  window.addEventListener('hashchange', syncCartNavigation);
-  syncCartNavigation();
-}
+if (form && location.hash === '#cart') window.top.location.replace('/cart');
 const maxOrderFiles = 100;
 
 async function addToCart(entries) {
@@ -72,11 +62,6 @@ async function showQueue() {
   if (cartEmpty) cartEmpty.hidden = entries.length > 0;
   cartCount.textContent = fileCount(entries);
   cartCheckout.querySelector('button').onclick = async () => {
-    if (saveButton.disabled) return;
-    if (draftFiles.length) {
-      status.textContent = 'Add the files you’re reviewing to the cart before checking out.';
-      return;
-    }
     if (entries.length > maxOrderFiles) {
       status.textContent = 'An order can contain up to 100 files. Remove files to continue.';
       return;
@@ -215,7 +200,7 @@ function addDraft(file) {
   draftFiles.push([id, {file, url}]);
 }
 
-const addMore = queueList ? queueButton('＋ Add files', () => fileInput.click()) : null;
+const addMore = fileInput ? queueButton('＋ Add files', () => fileInput.click()) : null;
 if (addMore) {
   addMore.className = 'review-add';
   reviewGrid.append(addMore);
@@ -268,7 +253,6 @@ form?.addEventListener('submit', async event => {
     reviewGrid.replaceChildren(addMore);
     reviewSettings.replaceChildren();
     review.hidden = true;
-    await showQueue();
     status.textContent = fileCount(items) + ' added to cart.';
   } catch {
     status.textContent = 'Could not update your cart. Try again.';
@@ -337,6 +321,11 @@ function applyCheckoutConfig(config) {
   const printChanged = JSON.stringify([paperRates,bindingRates]) !== JSON.stringify([terms.paperRates,terms.bindingRates]);
   paperRates = terms.paperRates;
   bindingRates = terms.bindingRates;
+  if (printChanged) {
+    for (const group of document.querySelectorAll('.print-options')) updatePrintOptions(group);
+    if (draftFiles.length) updateDraftTotal();
+  }
+  if (!checkoutForm) return;
   paymentMode = mode;
   const slot = checkoutForm.elements.slot;
   if (JSON.stringify([...slot.options].map(option => option.value)) !== JSON.stringify(terms.slots)) {
@@ -349,10 +338,6 @@ function applyCheckoutConfig(config) {
   if (maps && !mapsReady) {
     setupDeliveryMap(maps);
     mapsReady = true;
-  }
-  if (printChanged) {
-    for (const group of document.querySelectorAll('.print-options')) updatePrintOptions(group);
-    if (draftFiles.length) updateDraftTotal();
   }
   if (!checkout.open) return;
   if (!paymentStep) {
@@ -372,7 +357,7 @@ async function pricingAvailable() {
   return false;
 }
 
-if (checkout) window.printbeePricing.subscribe(applyCheckoutConfig);
+if (form || checkout) window.printbeePricing.subscribe(applyCheckoutConfig);
 
 function fileCount(files) {
   return files.length + (files.length === 1 ? ' file' : ' files');
@@ -913,8 +898,7 @@ async function showOrders() {
           entries.push({file, settings: 'Saved document', printOptions: item});
         }
         await addToCart(entries);
-        if (window.parent !== window) window.parent.location.assign('/upload');
-        else location.assign('queue.html#queue');
+        window.top.location.assign('/cart');
       } catch {
         status.textContent = 'Could not add this order to the cart. Its files may no longer be available.';
         reorder.disabled = false;
@@ -1220,10 +1204,8 @@ Promise.all([showQueue(), showOrders()]).catch(() => {
   status.textContent = 'Local file storage is unavailable in this browser.';
 });
 
-if (window.parent !== window && queueList) {
-  window.addEventListener('message', event => {
-    if (event.origin === location.origin && event.source === window.parent && event.data === 'printbee:tab-shown') {
-      showQueue().catch(() => {});
-    }
+if (queueList) {
+  window.addEventListener('pageshow', event => {
+    if (event.persisted) showQueue().catch(() => {});
   });
 }

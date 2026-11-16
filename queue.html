@@ -18,9 +18,9 @@
 <link rel="stylesheet" href="/status-model.css?v=2">
 <script src="/status-model.js?v=1" defer></script>
 <script src="/live.js?v=1" defer></script>
-<script src="studio.js?v=cart-profile" defer></script>
+<script src="studio.js?v=separate-cart" defer></script>
 <link rel="stylesheet" href="/hive-theme.css?v=crescent">
-<link rel="stylesheet" href="/customer-theme.css?v=darklogo">
+<link rel="stylesheet" href="/customer-theme.css?v=separate-cart">
 <script src="/hive-theme.js?v=sun-moon"></script>
 </head>
 <body class="customer-theme">
@@ -32,7 +32,7 @@
     <a href="orders.html">Orders</a>
     <a href="queue.html" aria-current="page">Upload</a>
     <a href="address.html?v=nav-order">Address</a>
-    <a href="queue.html#cart">Cart</a>
+    <a href="/cart">Cart</a>
   </nav>
   <div class="customer-header-actions">
     <button class="hv-switch" type="button" data-hive-toggle aria-label="Switch to Moon Hive" aria-pressed="false"></button>
@@ -46,7 +46,10 @@
 </header>
 <main id="main" class="frame inner-page">
   <section class="section upload-section" id="queue">
-    <div><h1>Upload files</h1><p>Add all the files you want printed, then check out together. <a class="text-link" href="/pricing.html">View prices</a></p></div>
+    <div class="cart-page-heading">
+      <div><h1>Upload files</h1><p>Add all the files you want printed, then check out together. <a class="text-link" href="/pricing.html">View prices</a></p></div>
+      <a class="pill raised" href="/cart">View cart</a>
+    </div>
     <div class="upload-card">
       <form id="queue-form">
         <input class="upload-input" id="document-file" type="file" aria-describedby="upload-hint" multiple>
@@ -69,52 +72,10 @@
         </section>
       </form>
       <p id="queue-status" role="status"></p>
-      <section id="cart" aria-labelledby="cart-title" tabindex="-1">
-        <h2 id="cart-title">Cart</h2>
-        <p id="cart-empty" hidden>Your cart is empty.</p>
-        <ul id="queue-list" aria-label="Saved documents"></ul>
-        <div id="cart-checkout" hidden><span id="cart-count"></span><button type="button" class="pill yellow">Checkout all files</button></div>
-      </section>
+
     </div>
   </section>
 </main>
-<dialog id="checkout" aria-labelledby="checkout-title">
-  <form id="checkout-form">
-    <div class="checkout-heading"><h2 id="checkout-title">Print checkout</h2><button type="button" class="pill raised" id="checkout-close">Close</button></div>
-    <div id="checkout-files"></div>
-    <fieldset class="checkout-fields" id="checkout-delivery" hidden disabled>
-      <legend>Delivery details</legend>
-      <label>Full name<input name="customer" autocomplete="name" required maxlength="100"></label>
-      <label>Phone<input name="phone" type="tel" autocomplete="tel" pattern="[+0-9 \(\)\-]{7,20}" required maxlength="20"></label>
-      <label class="checkout-address">Delivery address<textarea name="address" autocomplete="street-address" required maxlength="500"></textarea></label>
-      <div class="checkout-address">
-        <button class="pill raised" type="button" id="open-delivery-map" hidden>Find address and pin</button>
-        <div id="delivery-place-search"></div>
-        <div id="delivery-map" aria-label="Delivery map" hidden></div>
-        <p id="delivery-map-status" role="status"></p>
-      </div>
-      <label id="checkout-slot" hidden>Delivery slot<select name="slot" disabled></select></label>
-      <label class="checkout-address">Delivery notes (optional)<textarea name="notes" maxlength="500"></textarea></label>
-      <label>Coupon code (optional)<input name="coupon" maxlength="30"></label>
-      <button class="pill raised" type="button" id="apply-coupon">Apply coupon</button>
-    </fieldset>
-    <section id="checkout-bill" aria-label="Order bill" hidden><h3>Order bill</h3><ul></ul></section>
-    <p id="checkout-payment-note" hidden></p>
-    <div class="upload-panel checkout-upload" id="checkout-upload" hidden>
-      <div class="upload-panel-heading">
-        <span class="upload-orb" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"/><path d="M5 14v3.5A2.5 2.5 0 0 0 7.5 20h9a2.5 2.5 0 0 0 2.5-2.5V14"/></svg></span>
-        <div><strong>File upload</strong><small id="checkout-upload-status" role="status" aria-atomic="true"></small></div>
-      </div>
-      <progress id="checkout-progress" aria-label="File upload progress"></progress>
-    </div>
-    <p id="checkout-error" role="status"></p>
-    <div class="checkout-bar">
-      <div><span id="checkout-page-count"></span><p class="checkout-total">Order total <output id="checkout-total"></output></p></div>
-      <button class="pill raised" type="button" id="checkout-back" hidden>Back</button>
-      <button class="pill yellow" type="submit">Review order</button>
-    </div>
-  </form>
-</dialog>
 <footer class="frame brand-footer" id="contact">
   <div class="footer-surface">
     <div class="footer-columns">
