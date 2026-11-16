@@ -51,11 +51,11 @@
       <form id="queue-form">
         <input class="upload-input" id="document-file" type="file" aria-describedby="upload-hint" multiple>
         <label class="upload-panel upload-picker" for="document-file">
-          <span class="upload-panel-heading">
-            <span class="upload-folder" aria-hidden="true"><span></span></span>
-            <span><strong>Choose files</strong><small id="upload-hint">Up to 50 MB per file</small></span>
+          <span class="upload-drop-hint">
+            <span class="upload-orb" aria-hidden="true"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"/><path d="M5 14v3.5A2.5 2.5 0 0 0 7.5 20h9a2.5 2.5 0 0 0 2.5-2.5V14"/></svg></span>
+            <strong>Drop your files here, or tap to choose</strong>
+            <small id="upload-hint">PDF, Word or images · up to 50 MB per file</small>
           </span>
-          <span class="upload-drop-hint" aria-hidden="true">Drop files here</span>
         </label>
         <section class="file-review" id="file-review" aria-labelledby="review-title" hidden>
           <h2 id="review-title">Review your files</h2>
@@ -98,7 +98,7 @@
     <p id="checkout-payment-note" hidden></p>
     <div class="upload-panel checkout-upload" id="checkout-upload" hidden>
       <div class="upload-panel-heading">
-        <span class="upload-folder" aria-hidden="true"><span></span></span>
+        <span class="upload-orb" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"/><path d="M5 14v3.5A2.5 2.5 0 0 0 7.5 20h9a2.5 2.5 0 0 0 2.5-2.5V14"/></svg></span>
         <div><strong>File upload</strong><small id="checkout-upload-status" role="status" aria-atomic="true"></small></div>
       </div>
       <progress id="checkout-progress" aria-label="File upload progress"></progress>
