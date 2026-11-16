@@ -76,3 +76,12 @@
 .cart-panel #cart-checkout[hidden] { display: none; }
 .cart-panel #cart-empty { margin: 0; color: var(--muted); }
 .cart-page #queue-status:empty { display: none; }
+
+/* Profile account home in dark mode keeps its own surfaces off the honey tones. */
+[data-theme="dark"] .customer-theme .account-hero { background: var(--hv-surface-3); box-shadow: var(--raised); }
+[data-theme="dark"] .customer-theme .account-avatar { background: var(--hv-honey-500); color: #2a2112; box-shadow: var(--raised); }
+[data-theme="dark"] .customer-theme :is(.account-who,.account-help a) { color: var(--ink); }
+[data-theme="dark"] .customer-theme .account-chip { background: var(--hv-surface); }
+[data-theme="dark"] .customer-theme .account-tiles a { background: var(--hv-surface-2); box-shadow: var(--raised); color: var(--ink); }
+[data-theme="dark"] .customer-theme :is(.account-tiles small,.account-help) { color: var(--muted); }
+[data-theme="dark"] .customer-theme .tile-icon { background: var(--hv-honey-500); color: #2a2112; box-shadow: none; }
