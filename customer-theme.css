@@ -130,3 +130,17 @@ main.inner-page .profile-login .profile-login-banner h1 { margin: 0; font-size: 
 [data-theme="dark"] .customer-theme .cart-page .cart-summary .pill.yellow,
 [data-theme="dark"] .customer-theme .cart-page .cart-summary .pill.yellow:focus-visible { background: var(--hv-honey-500); color: #2a2112; }
 [data-theme="dark"] .customer-theme .cart-page .cart-summary .pill.yellow:hover { background: var(--hv-honey-400, #ffd35c); color: #2a2112; }
+
+/* Same title size and same distance from the header on every customer page. */
+main.inner-page, main.address-layout { padding-top: 26px; }
+main.inner-page > .section, main.inner-page > article.section { padding-top: 0; border-top: 0; }
+main.inner-page h1,
+main.address-layout .address-book > h1,
+main.inner-page .price-section > h2:first-child {
+  margin: 0 0 18px;
+  font-size: clamp(30px, 3.6vw, 40px);
+  line-height: 1.15;
+  letter-spacing: -.03em;
+}
+main.inner-page .cart-page-heading { margin: 0 0 4px; }
+main.inner-page .cart-page-heading h1 { margin-bottom: 0; }
