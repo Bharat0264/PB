@@ -174,7 +174,7 @@ export class BottomNav {
     const previous = this.bubble.lastElementChild;
     this.bubble.getAnimations({subtree: true}).forEach(animation => animation.cancel());
     const next = icon(index);
-    const rotation = index === uploadIndex ? -8 : 0;
+    const rotation = 0; // the upload arrow stays straight
     next.style.transform = `rotate(${rotation}deg)`;
     this.bubble.replaceChildren(next);
     if (animate && !motion.matches && this.width) {
