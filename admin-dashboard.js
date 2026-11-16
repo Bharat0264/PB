@@ -1,4 +1,7 @@
-import {orders, products, activity, traffic, targets, today} from './admin-data.js';
+// /admin reads the real database; /admin-preview.html keeps the sample data. Same screens either way.
+const live = document.body.dataset.portal === 'admin';
+const source = await import(live ? './admin-live-data.js' : './admin-data.js');
+const {orders, products, activity, traffic, targets, today} = source;
 
 import {addOfflineOrderFields, pickupMapUrl} from './admin-records.js';
 
@@ -22,12 +25,13 @@ const sections = {
   partners: ['Delivery Partners', 'M3 6h12v11H3z M15 9h4l3 4v4h-7 M6 17a2 2 0 1 0 4 0 M17 17a2 2 0 1 0 4 0'],
   warehouses: ['Warehouses', 'M3 21V8l9-5 9 5v13z M7 21V11h10v10 M7 15h10 M7 18h10'],
 };
+if (live) sections.inventory[0] = 'Print services';
 const oldSections = {reports:'orders', products:'inventory', revenue:'analytics'};
 const icon = path => `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${path}"/></svg>`;
 const escape = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[char]);
 const reduced = matchMedia('(prefers-reduced-motion: reduce)');
-const partners = [{name:'Ananya Roy', email:'ananya.rider@example.com'}];
-const warehouses = [{name:'Main campus print room', location:'SRM Main Campus', address:'SRM Institute of Science and Technology, Kattankulathur', email:'warehouse@example.com'}];
+const partners = live ? source.partners : [{name:'Ananya Roy', email:'ananya.rider@example.com'}];
+const warehouses = live ? source.warehouses : [{name:'Main campus print room', location:'SRM Main Campus', address:'SRM Institute of Science and Technology, Kattankulathur', email:'warehouse@example.com'}];
 const orderWindowDays = 30;
 const state = { period:'Daily', query:'', filter:'', sort:'date', direction:-1, page:0};
 const getStored = key => { try { return localStorage.getItem(key); } catch { return null; } };
@@ -49,8 +53,12 @@ function aggregate(items, key, amount = () => 1) {
   return [...totals].sort((a,b) => b[1] - a[1]);
 }
 
+const notSales = new Set(['cancelled','refunded','pending','refund_pending','refund_failed']);
+const isPending = order => live ? order.statusKey === 'pending' : order.status === 'Pending';
+const profitOf = items => items.filter(order => order.statusKey === 'delivered').reduce((sum, order) => sum + order.total - order.tax - order.payout, 0);
+const partnerPayOf = items => items.filter(order => order.statusKey === 'delivered').reduce((sum, order) => sum + order.payout, 0);
 function sales(items) {
-  return items.filter(order => !['Cancelled','Refunded','Pending'].includes(order.status));
+  return items.filter(order => live ? !notSales.has(order.statusKey) : !['Cancelled','Refunded','Pending'].includes(order.status));
 }
 
 function metrics(items, length) {
@@ -58,15 +66,20 @@ function metrics(items, length) {
   const revenue = booked.reduce((sum, order) => sum + order.total, 0);
   const active = aggregate(items,'customer');
   const refunds = items.filter(order => ['Refunded','Cancelled'].includes(order.status)).length;
-  const signups = Math.round(length * 7.1 + items.length / 11);
+  const signups = live ? profitOf(items) : Math.round(length * 7.1 + items.length / 11);
   return [revenue, items.length, active.length, signups, revenue, booked.length, active.filter(([,count]) => count > 1).length / (active.length || 1) * 100,
-    refunds / (items.length || 1) * 100, items.filter(order => order.status === 'Pending').length,
-    items.length ? 98 - refunds / items.length * 26 : 0];
+    refunds / (items.length || 1) * 100, items.filter(isPending).length,
+    live ? partnerPayOf(items) : (items.length ? 98 - refunds / items.length * 26 : 0)];
 }
 
 const metricLabels = ['Total revenue','Total orders','Active customers','New signups',"Today’s revenue","Today’s orders",'Repeat customer rate','Refund / cancellation rate','Pending orders','Customer satisfaction'];
 const metricFormats = [money,number,number,number,money,number,percent,percent,number,percent];
 function percent(n) { return n.toFixed(1) + '%'; }
+if (live) {   // the database has no signup or satisfaction figures, so show real profit and partner pay
+  metricLabels[3] = 'Profit (delivered)';
+  metricLabels[9] = 'Partner pay';
+  metricFormats[3] = metricFormats[9] = money;
+}
 
 function points(values, width, height, high = Math.max(...values, 1), pad = 3) {
   return values.map((v,i) => [pad + (width - 2 * pad) * i / Math.max(1, values.length - 1), height - pad - (height - pad * 2) * v / high]);
@@ -195,7 +208,12 @@ function goals(values) {
 }
 
 function feed() {
-  return `<ul class="activity">${activity.map(([title,detail,time]) => `<li><strong>${escape(title)}</strong><span>${escape(detail)}</span><small>${escape(time)}</small></li>`).join('')}</ul>`;
+  return `<ul class="activity" id="notification-list">${activity.map(([title,detail,time]) => `<li><strong>${escape(title)}</strong><span>${escape(detail)}</span><small>${escape(time)}</small></li>`).join('')}</ul>`;
+}
+
+function refreshFeed() {
+  const list = $('notification-list');
+  if (list) list.outerHTML = feed();
 }
 
 function stock() {
@@ -229,10 +247,10 @@ function updateTable() {
   const pageSize = 7;
   const pages = Math.max(1,Math.ceil(filtered.length/pageSize));
   state.page = Math.min(state.page,pages-1);
-  const statuses = ['Pending','Printing','Delivered','Out for delivery','Packed','Refunded','Cancelled'];
+  const statuses = ['Pending','Printing','Delivered','Out for delivery','Packed','Refunded','Cancelled','Awaiting payment','Paid','Ready for pickup','Undeliverable','Refund pending','Refund needs assistance','Offline'];
   $('order-rows').innerHTML = filtered.slice(state.page*pageSize,(state.page+1)*pageSize).map(o => `<tr role="row">
     <td role="cell" data-label="Order"><strong>${escape(o.id)}</strong></td><td role="cell" data-label="Customer">${escape(o.customer)}</td><td role="cell" data-label="Product">${escape(o.product)}</td><td role="cell" data-label="Date">${o.date.toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</td>
-    <td role="cell" data-label="Status"><span class="chip" style="--chip:${colors[statuses.indexOf(o.status)]}">${escape(o.status)}</span></td><td role="cell" data-label="Total">${money(o.total)}</td><td role="cell"><button type="button" data-view="${escape(o.id)}" aria-label="View ${escape(o.id)}">View order</button></td></tr>`).join('') || '<tr role="row"><td role="cell" colspan="7">No matching orders.</td></tr>';
+    <td role="cell" data-label="Status"><span class="chip" style="--chip:${colors[Math.max(0, statuses.indexOf(o.status)) % colors.length]}">${escape(o.status)}</span></td><td role="cell" data-label="Total">${money(o.total)}</td><td role="cell"><button type="button" data-view="${escape(o.id)}" aria-label="View ${escape(o.id)}">View order</button></td></tr>`).join('') || '<tr role="row"><td role="cell" colspan="7">No matching orders.</td></tr>';
   $('order-sort').value = state.sort + ':' + state.direction;
   $('page-count').textContent = filtered.length ? 'Page ' + (state.page+1) + ' of ' + pages + ' / ' + number(filtered.length) + ' orders' : '0 orders';
   $('prev').disabled = state.page === 0;
@@ -245,12 +263,103 @@ function updateTable() {
 }
 
 function productList() {
-  return card('Print services',`<ul class="activity">${products.map(p => `<li><strong>${escape(p.name)}</strong><small>${escape(p.category)} &middot; ${p.price.toFixed(2)} INR &middot; ${p.stock} in stock</small></li>`).join('')}</ul>`,'wide');
+  return card('Print services',`<ul class="activity">${products.map(p => `<li><strong>${escape(p.name)}</strong><small>${escape(p.category)} &middot; ${p.price.toFixed(2)} INR${live ? '' : ' &middot; ' + p.stock + ' in stock'}</small></li>`).join('')}</ul>`,'wide');
 }
 
 function directory(title, records, details, status = '') {
   return card(title, `<ul class="activity admin-directory">${records.map(record =>
     `<li><strong>${escape(record.name)}</strong>${details(record)}${status}</li>`).join('')}</ul>`, 'full');
+}
+
+async function refresh() {
+  await source.load();
+  render();
+  refreshFeed();
+}
+
+// Auto-refresh when the live feed reports a change: never while an editor is open or you are typing.
+async function softRefresh() {
+  if (document.hidden || $('editor').open || (root.contains(document.activeElement) && document.activeElement !== root)) return;
+  try { await source.load(); } catch { return; }
+  if (!['pricing', 'ledger', 'warehouses'].includes(location.hash.slice(1))) render();
+  refreshFeed();
+}
+
+async function runLive(task, done) {
+  try {
+    await task();
+    $('editor').close();
+    await refresh();
+    $('notice').textContent = done;
+  } catch (error) {
+    $('notice').textContent = error.message;
+  }
+}
+
+function liveActions(order) {
+  const box = document.createElement('div');
+  box.className = 'actions';
+  const add = (label, path, done, question = '') => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = label;
+    button.onclick = () => { if (!question || window.confirm(question)) runLive(() => source.api('/api/admin/orders/' + order.uid + path, {}), done); };
+    box.append(button);
+  };
+  const key = order.statusKey;
+  if (key === 'out_for_delivery') {
+    add('Renew delivery code', '/renew-code', 'The customer can refresh their order to see the new code.');
+    add('Mark undeliverable', '/undeliverable', 'Marked undeliverable.', 'Mark this delivery as undeliverable?');
+  }
+  if (key === 'undeliverable' || (key === 'packed' && order.partner)) add('Reassign delivery', '/reassign', 'The order is back in the pool for delivery partners.');
+  if (key === 'paid' && !order.captured) add('Cancel order', '/cancel', 'Order cancelled.', 'Cancel this unprinted order?');
+  if ((order.captured || source.info.paymentMode === 'test') && ['paid', 'undeliverable', 'refund_pending'].includes(key)) {
+    add(key === 'refund_pending' ? 'Reconcile refund' : 'Refund order', '/refund', 'Refund requested.', key === 'refund_pending' ? '' : 'Request a full refund and stop fulfilment?');
+  }
+  if (!box.children.length) {
+    const none = document.createElement('p');
+    none.className = 'muted';
+    none.textContent = 'No actions are available for this order.';
+    box.append(none);
+  }
+  return box;
+}
+
+function livePartners() {
+  const rows = partners.map(partner => `<li><strong>${escape(partner.email || partner.id)}</strong><span>${partner.deliveries} deliveries &middot; earned ${money(partner.accrued / 100)} &middot; unsettled ${money(partner.outstanding / 100)}</span><small class="directory-verified">Verified</small></li>`).join('');
+  return card('Delivery partners', rows ? `<ul class="activity admin-directory">${rows}</ul>` : '<p class="muted">No delivery partners are set up yet. Add their Google emails in the server settings.</p>', 'full') +
+    card('Partner settlements', source.payouts.length ? '<div id="live-settlements" class="settlements"></div>' : '<p class="muted">No outstanding settlements.</p>', 'full');
+}
+
+function buildSettlements(host) {
+  for (const payout of source.payouts) {
+    const row = document.createElement('div');
+    row.className = 'table-controls';
+    const amount = document.createElement('strong');
+    amount.textContent = money(payout.amount / 100) + ' · ' + payout.partner;
+    const reference = document.createElement('input');
+    reference.maxLength = 100;
+    reference.placeholder = 'Transfer reference';
+    reference.setAttribute('aria-label', 'Transfer reference for ' + payout.partner);
+    const record = document.createElement('button');
+    record.type = 'button';
+    record.textContent = 'Record settlement';
+    record.onclick = async () => {
+      if (!reference.value.trim()) { $('notice').textContent = 'Enter the completed transfer reference.'; return; }
+      try {
+        await source.api('/api/admin/payouts/' + payout.order_id + '/record', {reference: reference.value});
+        await refresh();
+        $('notice').textContent = 'Settlement recorded.';
+      } catch (error) { $('notice').textContent = error.message; }
+    };
+    row.append(amount, reference, record);
+    host.append(row);
+  }
+}
+
+function liveWarehouses() {
+  return directory('Warehouse directory', warehouses, warehouse =>
+    `<span>${escape(warehouse.address)}</span><small>${escape(warehouse.email)}${warehouse.is_default ? ' &middot; Default pickup' : ''}</small><a href="${escape(pickupMapUrl(warehouse.address))}" target="_blank" rel="noopener">Pickup on Google Maps</a>`);
 }
 
 function previewLedger(page, filter) {
@@ -289,16 +398,17 @@ function render(animate = false) {
     case 'pricing': widgets = card('Checkout rates', '<div id="pricing-form"></div>', 'full'); break;
     case 'orders': widgets = orderTable(); break;
     case 'customers': widgets = growth(items) + bars('Top 5 customers',customersRank,money) + bars('Delivery regions',regionRank); break;
-    case 'inventory': widgets = productList() + stock(); break;
+    case 'inventory': widgets = live ? productList() : productList() + stock(); break;
     case 'analytics':
-      widgets = revenueChart(items) + bars('Sales by category',aggregate(paid,'category',o => o.total),money) +
+      widgets = live ? revenueChart(items) + bars('Sales by category',aggregate(paid,'category',o => o.total),money) + heatmap(items) + breakdown('Orders by status',aggregate(items,'status'))
+        : revenueChart(items) + bars('Sales by category',aggregate(paid,'category',o => o.total),money) +
         bars('Top 5 products',productsRank,money) + goals(metrics(orders.filter(o => o.date > day(orderWindowDays)),orderWindowDays)) + heatmap(items) +
         breakdown('Traffic sources',traffic,false) +
         bars('Conversion funnel',[['Visitors',orderWindowDays*333],['Signups',values[3]],['Orders',paid.length],['Repeat customers',Math.min(paid.length,Math.round(values[6]*values[2]/100))]],number,'',true);
       break;
-    case 'partners': widgets = directory('Verified delivery partners', partners, partner =>
+    case 'partners': widgets = live ? livePartners() : directory('Verified delivery partners', partners, partner =>
       `<span>${escape(partner.email)}</span>`, '<small class="directory-verified">Verified</small>'); break;
-    case 'warehouses': widgets = directory('Warehouse directory', warehouses, warehouse =>
+    case 'warehouses': widgets = live ? liveWarehouses() : directory('Warehouse directory', warehouses, warehouse =>
       `<span>${escape(warehouse.location)}</span><small>${escape(warehouse.email)}</small><a href="${escape(pickupMapUrl(warehouse.address))}" target="_blank" rel="noopener">Pickup on Google Maps</a>`); break;
     default:
       widgets = kpis(items) + revenueChart(items) + breakdown('Orders by status',aggregate(items,'status'));
@@ -314,8 +424,18 @@ function render(animate = false) {
   });
   staffDock.setActive(route);
   root.innerHTML = `<div class="grid${animate ? ' arrive' : ''}">${widgets}</div>`;
-  if (route === 'ledger') buildLedger($('preview-ledger'), previewLedger, {demo:true})();
-  if (route === 'pricing') {
+  if (route === 'ledger') {
+    if (live) buildLedger($('preview-ledger'), (page, kind) => source.api('/api/admin/ledger?' + new URLSearchParams({page, kind})))();
+    else buildLedger($('preview-ledger'), previewLedger, {demo:true})();
+  }
+  if (live && route === 'partners' && $('live-settlements')) buildSettlements($('live-settlements'));
+  if (route === 'pricing' && live) {
+    $('pricing-form').append(buildPricingForm(source.info.terms, async changes => {
+      const result = await source.api('/api/admin/pricing', {version: source.info.pricingVersion, changes});
+      source.info.pricingVersion = result.version;
+      return 'Pricing version ' + result.version + ' published.';
+    }));
+  } else if (route === 'pricing') {
     const customerPreview = document.createElement('a');
     customerPreview.href = previewPricingUrl;
     customerPreview.target = '_blank';
@@ -432,6 +552,8 @@ const directoryEditors = {
   },
 };
 
+if (live) directoryEditors.warehouse.fields = '<label>Warehouse name<input name="name" required maxlength="70"></label><label>Google Maps pickup address or coordinates<input name="address" required maxlength="500"></label><label>Staff Google account email<input name="email" type="email" autocomplete="off" required maxlength="254"></label><label class="directory-confirm"><input name="useForPickup" type="checkbox"> Use for new order pickups</label>';
+
 let readOfflineOrders;
 
 function openEditor(kind, id) {
@@ -444,6 +566,7 @@ function openEditor(kind, id) {
   $('editor-fields').innerHTML = existing ? `<p><strong>${escape(existing.customer)}</strong></p><p>${escape(existing.product)} &middot; ${money(existing.total)}</p><p>${escape(existing.status)} &middot; ${escape(existing.region)}</p>` :
     directoryEditor?.fields ?? (isOrder ? '' :
     '<label>Product name<input name="name" required maxlength="70"></label><label>Category<input name="category" required maxlength="70"></label><label>Price (INR)<input name="price" type="number" min=".01" max="999999" step=".01" required></label><label>Stock<input name="stock" type="number" min="0" max="999999" required></label>');
+  if (live && existing) $('editor-fields').append(liveActions(existing));
   if (isOrder && !existing) readOfflineOrders = addOfflineOrderFields($('editor-fields'), products);
   $('editor').showModal();
 }
@@ -480,7 +603,7 @@ $('add-product').onclick = () => openEditor('product');
 $('add-partner').onclick = () => openEditor('partner');
 $('add-warehouse').onclick = () => openEditor('warehouse');
 $('close-editor').onclick = () => $('editor').close();
-$('editor-form').onsubmit = event => {
+$('editor-form').onsubmit = async event => {
   event.preventDefault();
   const form = event.currentTarget;
   const data = new FormData(form);
@@ -495,6 +618,22 @@ $('editor-form').onsubmit = event => {
     return;
   }
   const kind = form.dataset.kind;
+  if (live) {
+    try {
+      if (kind === 'warehouse') {
+        await source.api('/api/admin/warehouses', {name: data.get('name').trim(), address: data.get('address').trim(), email: data.get('email').trim().toLowerCase(), useForPickup: data.has('useForPickup') || !warehouses.length});
+        $('notice').textContent = 'Warehouse saved.';
+      } else if (kind === 'order') {
+        const result = await source.api('/api/admin/offline-orders', {orders: readOfflineOrders()});
+        $('notice').textContent = result.saved ? 'Offline orders saved.' : 'These orders are already saved.';
+      }
+      $('editor').close();
+      await refresh();
+    } catch (error) {
+      $('notice').textContent = error.message;
+    }
+    return;
+  }
   if (kind === 'partner') {
     if (!data.has('verified')) return;
     const email = data.get('email').trim().toLowerCase();
@@ -535,10 +674,29 @@ $('export-csv').onclick = () => {
   const url = URL.createObjectURL(new Blob([rows.map(row => row.map(csvCell).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}));
   const link = document.createElement('a');
   link.href = url;
-  link.download = 'printbee-sample-orders.csv';
+  link.download = live ? 'printbee-orders.csv' : 'printbee-sample-orders.csv';
   link.click();
   setTimeout(() => URL.revokeObjectURL(url),1000);
 };
 $('export-pdf').onclick = () => window.print();
 
-requestAnimationFrame(() => render(true));
+if (live) {
+  const workspace = document.querySelector('.workspace');
+  workspace.hidden = true;
+  $('preview-staff-dock').hidden = true;
+  for (const group of document.querySelectorAll('[data-page-actions="inventory"], [data-page-actions="partners"]')) group.remove();
+  let feedConnection;
+  connectPortal('admin', $('ops-status'), async () => {
+    await source.load();
+    workspace.hidden = false;
+    document.querySelector('.live-gate').hidden = true;
+    $('preview-staff-dock').hidden = false;
+    refreshFeed();
+    render(true);
+    // Orders and statuses update the moment they change; the timer is only a safety net.
+    feedConnection = window.PrintBeeLive?.start({as: 'admin', onSync: softRefresh});
+    setInterval(softRefresh, 45000);
+  }, () => feedConnection?.stop());
+} else {
+  requestAnimationFrame(() => render(true));
+}

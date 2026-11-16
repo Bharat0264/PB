@@ -363,7 +363,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                        "/footer-wave.css", "/footer-wave.js",
                        "/hive-theme.css", "/hive-theme.js", "/customer-theme.css", "/admin-hive.css", "/admin-live-hive.css", "/admin-mobile.css", "/warehouse-hive.css", "/staff-dock.css", "/staff-dock.js",
                        "/partner.html", "/partner.css", "/partner.js", "/partner-sw.js", "/admin.html", "/admin-preview.html", "/admin-dashboard.css", "/admin-tokens.css",
-                       "/customer-pricing.js", "/customer-price-table.js", "/pricing-preview.js", "/admin-dashboard.js", "/admin-records.js", "/admin-ledger.js", "/admin-ledger.css", "/admin-pricing.js", "/admin-pricing.css", "/admin-data.js", "/operations.js", "/partner.webmanifest", "/portal-login.js",
+                       "/customer-pricing.js", "/customer-price-table.js", "/pricing-preview.js", "/admin-dashboard.js", "/admin-records.js", "/admin-ledger.js", "/admin-ledger.css", "/admin-pricing.js", "/admin-pricing.css", "/admin-data.js", "/admin-live-data.js", "/operations.js", "/partner.webmanifest", "/portal-login.js",
                        "/pricing.html", "/terms.html", "/queue.html", "/orders.html", "/profile.html", "/profile.js", "/address.html", "/customer-login.js",
                        "/preloader.js", "/preloader.css", "/gsap-3.13.0.min.js", "/live.js", "/status-model.js", "/status-model.css", "/portal-switch.js", "/demo-login.js", "/backend-check.js",
                        "/navigation.html", "/navigation.css", "/bottom-nav.js", "/nav-tokens.js", "/embedded-tab.js"}
@@ -1176,11 +1176,18 @@ class PrintBee(SimpleHTTPRequestHandler):
             "CAST(COALESCE(json_extract(details,'$.bill.total'), "
             "json_extract(details,'$.subtotal')) AS INTEGER) AS total, payment_id IS NOT NULL AS captured, "
             "(SELECT max(created) FROM audit WHERE order_id=orders.id AND action='paid') AS created, "
-            "deliveries.partner AS partner "
+            "(SELECT min(created) FROM order_events WHERE order_id=orders.id) AS placed, "
+            "deliveries.partner AS partner, order_owners.email AS email, "
+            "json_extract(details,'$.items[0].name') AS first_file, json_array_length(details,'$.items') AS files, "
+            "json_extract(details,'$.items[0].colour') AS colour, json_extract(details,'$.items[0].binding') AS binding, "
+            "json_extract(details,'$.address') AS address, "
+            "CAST(COALESCE(json_extract(details,'$.bill.tax'),0) AS INTEGER) AS tax, "
+            "CAST(COALESCE(json_extract(details,'$.partnerPayout'),0) AS INTEGER) AS payout "
             "FROM orders LEFT JOIN order_owners ON orders.id=order_owners.order_id "
             "LEFT JOIN razorpay_orders ON orders.id=razorpay_orders.order_id "
             "LEFT JOIN deliveries ON orders.id=deliveries.order_id ORDER BY orders.rowid DESC LIMIT 500"
         )]
+        orders = [self.describe_order(row) for row in orders]
         offline = [dict(row) for row in db.execute(
             "SELECT id, 'offline' AS status, 'PB-OFF-' || upper(substr(id,1,8)) AS order_number, "
             "customer, product, total, created FROM offline_sales ORDER BY created DESC, rowid DESC LIMIT 500"
@@ -1194,6 +1201,20 @@ class PrintBee(SimpleHTTPRequestHandler):
         history = [dict(row) for row in db.execute(
             "SELECT actor, action, order_id, created FROM audit ORDER BY id DESC LIMIT 50"
         )]
+        earned = {row["partner"]: dict(row) for row in db.execute(
+            "SELECT partner, count(*) AS deliveries, COALESCE(sum(amount),0) AS accrued, "
+            "COALESCE(sum(CASE WHEN settled IS NULL THEN amount END),0) AS outstanding "
+            "FROM partner_earnings GROUP BY partner")}
+        directory = {}
+        for email, partner in self.server.google_access["partner"].items():
+            directory[partner] = {"id": partner, "email": email}
+        for partner in [*self.server.partners, *self.server.partner_phones.values(), *earned]:
+            if partner != "delivery":
+                directory.setdefault(partner, {"id": partner, "email": None})
+        partners = [{**entry, "deliveries": 0, "accrued": 0, "outstanding": 0, **earned.get(entry["id"], {"partner": 0})}
+                    for entry in directory.values()]
+        for entry in partners:
+            entry.pop("partner", None)
         payouts = [dict(row) for row in db.execute(
             "SELECT order_id, partner, amount, earned FROM partner_earnings WHERE settled IS NULL AND amount>0 "
             "ORDER BY earned LIMIT 100"
@@ -1202,8 +1223,23 @@ class PrintBee(SimpleHTTPRequestHandler):
                                         "terms": self.checkout_terms(db), "audit": history, "payouts": payouts,
                                         "today": admin_records.today_totals(db),
                                         "finance": finance.summary(db), "paymentMode": self.server.payment_mode,
+                                        "partners": partners,
                                         "warehouses": admin_records.warehouse_directory(db),
                                         "pricingVersion": db.execute("SELECT COALESCE(max(id),0) FROM pricing_versions").fetchone()[0]})
+
+    @staticmethod
+    def describe_order(row):
+        """Admin dashboard fields for one order: a readable product line, category and delivery area."""
+        order = dict(row)
+        files = order.pop("files") or 0
+        first = order.pop("first_file") or "Document"
+        order["product"] = first if files <= 1 else f"{first} +{files - 1} more"
+        colour, binding = order.pop("colour"), order.pop("binding") or "none"
+        order["category"] = ("Colour printing" if colour else "Black & white printing") + (
+            "" if binding == "none" else " + binding")
+        area = (order.pop("address") or "").split("\n")[0].split(",")[0].strip()
+        order["region"] = area[:40] or "Delivery"
+        return order
 
     def operations_post(self, path):
         area = path.split("/")[2]
