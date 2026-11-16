@@ -1372,3 +1372,9 @@ body {
   .cart-badge { width: 48px; height: 58px; }
 }
 @media (prefers-reduced-motion: reduce) { .cart-page #queue-list li.cart-item { animation: none; } }
+
+/* Empty cart: use the full width and keep the card compact. */
+.cart-layout:has(.cart-summary[hidden]) { grid-template-columns: minmax(0, 1fr); }
+.cart-empty { padding: clamp(28px, 5vw, 48px) 20px; }
+.cart-empty-orb { width: 76px; height: 76px; }
+.cart-empty-orb svg { width: 34px; height: 34px; }
