@@ -127,3 +127,7 @@ main.inner-page .tracking-top h1 { margin:0; font:800 clamp(18px,2.8vw,25px)/1.2
 @media(prefers-reduced-motion:reduce) {
   .tracking-page *, .tracking-page *::before, .tracking-page *::after { animation:none !important; }
 }
+
+/* Order rows: details on top, the action buttons in one horizontal row underneath */
+.track-list-row { flex-direction:column; align-items:stretch; justify-content:flex-start; gap:12px; }
+.track-list-row .order-actions { justify-content:flex-start; }
