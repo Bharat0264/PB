@@ -78,7 +78,7 @@
   const wave = 'M50 30' + [150, 250, 350, 450].map(x => ` C${x - 70} 2 ${x - 30} 2 ${x} 30`).join('');
   function orderJourney(status) {
     const at = journeySteps.findIndex(([, keys]) => keys.includes(status));
-    if (at < 0) return null;
+    if (at < 0 || status === 'delivered') return null;   // only live (active) orders show the journey
     const done = status === 'delivered';
     const list = node('ol', '', 'journey');
     list.setAttribute('aria-label', 'Order journey: ' + journeySteps[at][0]);
