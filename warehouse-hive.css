@@ -495,3 +495,15 @@ html:has(body.warehouse) { overscroll-behavior-x: none; }
   .wh-rail .wh-nav-button[aria-current] .wh-nav-label::after { display: none; }
   .wh-rail-footer { position: absolute; bottom: 22px; left: 4px; margin: 0; }
 }
+
+/* Floating layout fixes: the brand pill sits at the top, the dock stays centred and clear of the content. */
+@media (min-width: 851px) {
+  .wh-rail { inset: 0 auto auto 22px; height: 100dvh; }
+  .wh-rail > .wh-brand { position: absolute; top: 18px; left: 0; display: flex; align-items: center; gap: 10px; width: auto; min-height: 0; padding: 8px 20px 8px 12px; border-radius: 999px; background: var(--hv-glass); box-shadow: var(--hv-sh-2); }
+  .wh-rail > .wh-brand img { width: 34px; height: auto; }
+  .wh-rail > .wh-brand span { display: block; line-height: 1.1; font-size: 15px; }
+  .wh-rail > .wh-brand small { display: inline; font-size: inherit; color: var(--hv-muted); }
+  .warehouse-shell { padding-top: 96px; }
+  .wh-top { position: fixed; z-index: 15; top: 18px; right: 32px; margin: 0; }
+  .wh-workspace { padding-top: 0; }
+}

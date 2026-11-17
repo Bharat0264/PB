@@ -261,3 +261,14 @@ dialog::backdrop { background: color-mix(in srgb, #8A5E0B 22%, rgba(23,18,10,.45
 .intro .eyebrow { margin-bottom: 4px; }
 #page-description { display: none; }
 .grid { margin-top: 16px; }
+
+/* Floating layout fix: full-height container so the dock is centred and the brand pill sits at the top. */
+@media (min-width: 851px) {
+  .sidebar { inset: 0 auto auto 22px; height: 100dvh; }
+  .workspace, .workspace.compact { padding-top: 16px; }
+  .toolbar { position: fixed; z-index: 15; top: 18px; right: 32px; margin: 0; }
+  .admin-workarea { padding-top: 64px; }
+}
+@media (min-width: 851px) {
+  .sidebar .brand span { position: static; width: auto; height: auto; overflow: visible; clip-path: none; }
+}
