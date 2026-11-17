@@ -465,3 +465,17 @@ html:has(body.warehouse) { overscroll-behavior-x: none; }
   .wh-conveyor .wh-stat-label { font-size: 12px; }
   .wh-conveyor .wh-stat strong { font-size: 24px; }
 }
+
+/* Compact top bar (same as the partner portal): a right-aligned pill of round icon buttons. Wide screens only. */
+@media (min-width: 761px) {
+  .wh-top { width: fit-content; margin-left: auto; min-height: 64px; padding: 8px 12px; gap: 8px; border-radius: 999px; }
+  .wh-top .wh-search { width: 46px; min-height: 46px; height: 46px; padding: 0; gap: 0; justify-content: center; border-radius: 50%; background: var(--hv-surface); box-shadow: var(--hv-sh-1); overflow: hidden; flex: none; transition: width .25s var(--hv-spring, ease); cursor: text; }
+  .wh-top .wh-search input { width: 0; flex: 0 0 0; opacity: 0; padding: 0; }
+  .wh-top .wh-search kbd { display: none; }
+  .wh-top .wh-search:focus-within { width: min(300px, 40vw); justify-content: flex-start; padding: 0 16px; border-radius: 999px; background: var(--hv-surface-2); box-shadow: var(--hv-field); }
+  .wh-top .wh-search:focus-within input { flex: 1; width: auto; opacity: 1; margin-left: 8px; }
+  .wh-top .wh-search:focus-within kbd { display: inline-block; }
+  .wh-indicators { gap: 8px; }
+  .wh-indicators .wh-icon-button { width: 46px; min-height: 46px; border-radius: 50%; background: var(--hv-surface); box-shadow: var(--hv-sh-1); }
+  .wh-top .wh-floor-theme { width: 76px; }
+}

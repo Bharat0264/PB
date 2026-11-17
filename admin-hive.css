@@ -222,3 +222,16 @@ dialog::backdrop { background: color-mix(in srgb, #8A5E0B 22%, rgba(23,18,10,.45
     overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable;
   }
 }
+
+/* Compact top bar (same as the partner portal): a right-aligned pill of round icon buttons. Wide screens only. */
+@media (min-width: 761px) {
+  .toolbar { width: fit-content; margin-left: auto; min-height: 64px; padding: 8px 10px; gap: 8px; border-radius: 999px; }
+  .toolbar .collapse { order: 0; } .toolbar .search-clay { order: 1; } .toolbar #notifications { order: 2; }
+  .toolbar #theme { order: 3; } .toolbar #profile { order: 4; }
+  .toolbar .icon-button, .toolbar .avatar, .toolbar .search-clay { width: 46px; height: 46px; min-height: 46px; padding: 0; border-radius: 50%; background: var(--hv-surface); box-shadow: var(--hv-sh-1); justify-content: center; flex: none; }
+  .toolbar .hv-switch { width: 76px; border-radius: 999px; }
+  .toolbar .search-clay { gap: 0; overflow: hidden; transition: width .25s var(--hv-spring, ease), border-radius .25s; }
+  .toolbar .search-clay input { width: 0; flex: 0 0 0; min-width: 0; opacity: 0; transition: opacity .2s; }
+  .toolbar .search-clay:focus-within { width: min(300px, 40vw); border-radius: 999px; justify-content: flex-start; padding: 0 16px; background: var(--hv-surface-2); box-shadow: var(--hv-field); }
+  .toolbar .search-clay:focus-within input { flex: 1; width: auto; opacity: 1; margin-left: 8px; }
+}
