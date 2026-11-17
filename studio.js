@@ -1278,4 +1278,10 @@ if (queueList) {
   window.addEventListener('pageshow', event => {
     if (event.persisted) showQueue().catch(() => {});
   });
+  window.addEventListener('message', event => {
+    if (window.parent !== window && event.source === window.parent &&
+        event.origin === location.origin && event.data === 'printbee:tab-shown') {
+      showQueue().catch(() => {});
+    }
+  });
 }

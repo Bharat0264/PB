@@ -112,8 +112,8 @@ browser-local carts and saved orders need a migration plan before changing stora
 ## Mobile bottom navigation
 
 The customer tabs are Home (`/home`), Orders (`/orders`), Upload
-(`/upload`), Address (`/address`), and Profile (`/profile`). Orders includes
-tracking. Home and Upload link to
+(`/upload`), Cart (`/cart`), and Address (`/address`). Use the profile icon in
+the header to open your profile. Orders includes tracking. Home and Upload link to
 Pricing. The layout keeps same-origin screens mounted to retain their
 scroll and form state between tab switches. Account and order data
 require the Python API.
@@ -121,7 +121,7 @@ require the Python API.
 - Touch feedback uses icon compression with a dark keyboard focus ring.
 - The raised bubble sits above a visible fixed bar with room around its edges.
 - One SVG path draws the circular notch and tangent fillets at the bubble's x.
-- The path stays solid white across the full bar and safe-area inset.
+- The clay surface follows the path across the full bar and safe-area inset.
 - The existing JavaScript spring uses the shared constants in `nav-tokens.js`.
   It drives the notch and bubble together. Screens slide 24px over 280ms.
   Reduced motion snaps the bubble and crossfades screens over 150ms.

@@ -356,11 +356,11 @@ class PrintBee(SimpleHTTPRequestHandler):
         if path == "/":
             self.path = "/welcome.html"
             return super().do_GET()
-        if path.rstrip("/") in ("/home", "/orders", "/upload", "/address", "/profile"):
+        if path.rstrip("/") in ("/home", "/orders", "/upload", "/address"):
             self.path = "/navigation.html"
             return super().do_GET()
-        if path.rstrip("/") == "/cart":
-            self.path = "/cart.html"
+        if path.rstrip("/") in ("/cart", "/profile"):
+            self.path = path.rstrip("/") + ".html"
             return super().do_GET()
         if path in ("/warehouse", "/partner"):
             self.path = "/staff.html" if path == "/warehouse" else "/partner.html"

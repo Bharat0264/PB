@@ -4,8 +4,8 @@ export const tabs = [
   {key:'home', label:'Home', path:'/home', page:'/index.html', icon:'<path d="m3 10 9-7 9 7v10h-6v-6H9v6H3z"/>'},
   {key:'orders', label:'Orders', path:'/orders', page:'/orders.html', icon:'<path d="m3 7 9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10M7.5 5l9 4"/>'},
   {key:'upload', label:'Upload', path:'/upload', page:'/queue.html', icon:'<path d="M12 16V4m-5 5 5-5 5 5M4 15v5h16v-5"/>'},
+  {key:'cart', label:'Cart', path:'/cart', page:'/cart.html', icon:'<path d="M3 4h3l2.4 11h10.8l2-8H7"/><circle cx="9.5" cy="19.5" r="1.3"/><circle cx="17.5" cy="19.5" r="1.3"/>'},
   {key:'address', label:'Address', path:'/address', page:'/address.html', icon:'<path d="M20 10c0 5-8 10-8 10s-8-5-8-10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/>'},
-  {key:'profile', label:'Profile', path:'/profile', page:'/profile.html', icon:'<circle cx="12" cy="8" r="3.5"/><path d="M5 20v-1a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v1"/>'},
 ];
 const uploadIndex = tabs.findIndex(tab => tab.key === 'upload');
 const svgNS = 'http://www.w3.org/2000/svg';
