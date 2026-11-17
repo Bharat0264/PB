@@ -89,6 +89,12 @@ def active_checkout_terms(db, default):
     return {"surge": 0, "deliveryPerKm": 0, **json.loads(row["terms"]), "campuses": default.get("campuses", [])} if row else default
 
 
+def customer_print_specs(items):
+    fields = ("name", "pages", "copies", "colour", "duplex", "orientation",
+              "binding", "colourPages", "pageRange", "paper")
+    return [{key: item[key] for key in fields if key in item} for item in items]
+
+
 class PrintBee(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(ROOT), **kwargs)
@@ -356,11 +362,14 @@ class PrintBee(SimpleHTTPRequestHandler):
         if path == "/":
             self.path = "/welcome.html"
             return super().do_GET()
-        if path.rstrip("/") in ("/home", "/orders", "/upload", "/address"):
+        if path.rstrip("/") in ("/home", "/upload", "/address"):
             self.path = "/navigation.html"
             return super().do_GET()
-        if path.rstrip("/") in ("/cart", "/profile"):
+        if path.rstrip("/") in ("/orders", "/cart", "/profile"):
             self.path = path.rstrip("/") + ".html"
+            return super().do_GET()
+        if re.fullmatch(r"/orders/[^/]+/?", path):
+            self.path = "/orders.html"
             return super().do_GET()
         if path in ("/warehouse", "/partner"):
             self.path = "/staff.html" if path == "/warehouse" else "/partner.html"
@@ -397,7 +406,8 @@ class PrintBee(SimpleHTTPRequestHandler):
                        "/customer-pricing.js", "/customer-price-table.js", "/pricing-preview.js", "/admin-dashboard.js", "/admin-records.js", "/admin-ledger.js", "/admin-ledger.css", "/admin-pricing.js", "/admin-pricing.css", "/admin-data.js", "/admin-live-data.js", "/partner.webmanifest", "/portal-login.js",
                        "/pricing.html", "/terms.html", "/queue.html", "/cart.html", "/orders.html", "/profile.html", "/profile.js", "/address.html", "/address-book.js", "/address-book.css", "/customer-login.js", "/account-home.js", "/session-sync.js",
                        "/preloader.js", "/preloader.css", "/gsap-3.13.0.min.js", "/live.js", "/status-model.js", "/status-model.css", "/portal-switch.js", "/demo-login.js", "/backend-check.js",
-                       "/navigation.html", "/navigation.css", "/bottom-nav.js", "/nav-tokens.js", "/embedded-tab.js"}
+                       "/navigation.html", "/navigation.css", "/bottom-nav.js", "/nav-tokens.js", "/embedded-tab.js",
+                       "/order-tracking.js", "/order-tracking.css"}
             if path in allowed:
                 return super().do_GET()
             if re.fullmatch(r"/[a-z0-9.-]+\.(png|webp|woff2)", path):
@@ -444,18 +454,23 @@ class PrintBee(SimpleHTTPRequestHandler):
                 if not email:
                     return self.json_response(401, {"error": "Sign in to see your orders."})
                 rows = db.execute(
-                    "SELECT orders.id, status, details, order_number FROM order_owners JOIN orders "
+                    "SELECT orders.id, status, details, order_number, "
+                    "(SELECT min(created) FROM audit WHERE audit.order_id=orders.id AND action='paid') AS paid_at FROM order_owners JOIN orders "
                     "ON orders.id=order_owners.order_id WHERE email=? AND status!='pending' "
                     "ORDER BY orders.rowid DESC", (email,)
                 )
-                return self.json_response(200, {"orders": [
-                    {"id": row["id"], "number": row["order_number"], "status": row["status"],
-                     "items": [{key: item[key] for key in (
-                         "name", "pages", "copies", "colour", "duplex", "orientation",
-                         "binding", "colourPages", "pageRange", "paper"
-                     ) if key in item} for item in json.loads(row["details"])["items"]]}
-                    for row in rows
-                ]})
+                orders = []
+                for row in rows:
+                    details = json.loads(row["details"])
+                    order = {"id": row["id"], "number": row["order_number"], "status": row["status"],
+                             "paidAt": row["paid_at"], "total": details.get("bill", {}).get("total"),
+                             "items": customer_print_specs(details["items"])}
+                    if row["status"] == "out_for_delivery":
+                        delivery = self.customer_delivery(db, row["id"], row["status"]) or {}
+                        if "etaMinutes" in delivery:
+                            order["delivery"] = {"etaMinutes": delivery["etaMinutes"]}
+                    orders.append(order)
+                return self.json_response(200, {"orders": orders})
             if path == "/api/staff/orders":
                 role = self.get_role()
                 if role not in ("warehouse", "admin"):
@@ -494,22 +509,31 @@ class PrintBee(SimpleHTTPRequestHandler):
             match = re.fullmatch(r"/api/orders/([a-f0-9]{32})", path)
             if match:
                 row = db.execute(
-                    "SELECT status, token, email, provider_id, order_number FROM orders LEFT JOIN order_owners "
+                    "SELECT status, token, email, provider_id, order_number, details, "
+                    "(SELECT min(created) FROM audit WHERE audit.order_id=orders.id AND action='paid') AS paid_at FROM orders LEFT JOIN order_owners "
                     "ON orders.id=order_owners.order_id LEFT JOIN razorpay_orders "
                     "ON orders.id=razorpay_orders.order_id WHERE orders.id=?", match.groups()
                 ).fetchone()
                 token = self.headers.get("X-Order-Key", "")
                 share = self.headers.get("X-Tracking-Key", "")
                 owner = row and row["email"] and row["email"] == auth.session_email(db, self.headers)
-                if row and (
+                shared = row and row["status"] != "pending" and hmac.compare_digest(
+                    self.tracking_key(match[1]).encode(), share.encode()
+                )
+                if shared:
+                    return self.json_response(200, {"status": row["status"], "number": row["order_number"],
+                                                    "paymentStarted": bool(row["provider_id"])})
+                if row and not share and (
                     hmac.compare_digest(row["token"].encode(), token.encode())
-                    or (row["status"] != "pending" and (
-                        owner or hmac.compare_digest(self.tracking_key(match[1]).encode(), share.encode())
-                    ))
+                    or (row["status"] != "pending" and owner)
                 ):
                     result = {"status": row["status"], "number": row["order_number"],
                               "paymentStarted": bool(row["provider_id"])}
                     if owner:
+                        details = json.loads(row["details"])
+                        result["summary"] = {key: details[key] for key in ("address", "deliveryType", "bill") if key in details}
+                        result["summary"]["items"] = customer_print_specs(details["items"])
+                        result["summary"]["paidAt"] = row["paid_at"]
                         result["timeline"] = event_feed.timeline(db, match[1])
                         result["delivery"] = self.customer_delivery(db, match[1], row["status"])
                         if row["status"] != "pending":

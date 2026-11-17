@@ -6,17 +6,19 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="description" content="PrintBee campus printing for SRM University. Save your A4 documents in your local print queue.">
 <title>Orders · PrintBee</title>
-<script src="/preloader.js?v=7"></script>
 <script src="/session-sync.js?v=1" defer></script>
-<script src="embedded-tab.js?v=customer-tabs" defer></script>
-<script type="module" src="bottom-nav.js?v=cart-tab"></script>
-<link rel="stylesheet" href="studio.css?v=orders-clay">
-<link rel="stylesheet" href="footer-wave.css?v=horizontal-brand">
-<script src="footer-wave.js?v=letter-spacing" defer></script>
+<script src="/embedded-tab.js?v=customer-tabs" defer></script>
+<script type="module" src="/bottom-nav.js?v=order-tracker"></script>
+<link rel="stylesheet" href="/studio.css?v=orders-clay">
+<link rel="stylesheet" href="/footer-wave.css?v=horizontal-brand">
+<script src="/footer-wave.js?v=letter-spacing" defer></script>
 <link rel="stylesheet" href="/status-model.css?v=2">
 <script src="/status-model.js?v=1" defer></script>
 <script src="/live.js?v=1" defer></script>
-<script src="studio.js?v=orders-clay" defer></script>
+<script src="/delivery-map.js?v=pricing" defer></script>
+<link rel="stylesheet" href="/order-tracking.css?v=1">
+<script src="/order-tracking.js?v=1" defer></script>
+<script src="/studio.js?v=tracking" defer></script>
 <link rel="stylesheet" href="/hive-theme.css?v=page-beige">
 <link rel="stylesheet" href="/customer-theme.css?v=orders-clay">
 <script src="/hive-theme.js?v=sun-moon"></script>
@@ -24,17 +26,17 @@
 <body class="customer-theme">
 <a href="#main" class="skip">Skip to content</a>
 <header class="frame top" id="home">
-  <a class="brand" href="index.html"><img class="brand-logo" src="printbee-header-logo.webp" width="632" height="210" alt="PrintBee"></a>
+  <a class="brand" href="/index.html"><img class="brand-logo" src="/printbee-header-logo.webp" width="632" height="210" alt="PrintBee"></a>
   <nav class="desktop-nav" aria-label="Main">
-    <a href="index.html">Home</a>
-    <a href="orders.html" aria-current="page">Orders</a>
-    <a href="queue.html">Upload</a>
+    <a href="/index.html">Home</a>
+    <a href="/orders.html" aria-current="page">Orders</a>
+    <a href="/queue.html">Upload</a>
     <a href="/cart">Cart</a>
-    <a href="address.html?v=nav-order">Address</a>
+    <a href="/address.html?v=nav-order">Address</a>
   </nav>
   <div class="customer-header-actions">
     <button class="hv-switch" type="button" data-hive-toggle aria-label="Switch to Moon Hive" aria-pressed="false"></button>
-    <a class="header-profile raised" href="profile.html" aria-label="Profile">
+    <a class="header-profile raised" href="/profile.html" aria-label="Profile">
       <svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <circle cx="12" cy="8" r="3.5"/>
         <path d="M4.5 20v-1a5 5 0 0 1 5-5h5a5 5 0 0 1 5 5v1"/>
@@ -46,7 +48,6 @@
   <section class="section orders-layout" id="orders">
     <div><h1>Your orders</h1></div>
     <div class="raised table-card orders-card" id="orders-card" tabindex="-1">
-      <p id="order-confirmation" role="status" hidden></p>
       <p id="order-status" role="status">Loading orders…</p>
       <div id="orders-error" class="orders-error" hidden>
         <svg class="orders-error-art" viewBox="0 0 120 112" fill="none" aria-hidden="true" focusable="false">
@@ -70,20 +71,54 @@
         </button>
       </div>
       <details id="order-updates" hidden><summary>Order updates</summary><ul></ul></details>
+      <div id="order-filters" class="track-filters" role="group" aria-label="Filter orders" hidden>
+        <button type="button" data-filter="all" aria-pressed="true">All</button>
+        <button type="button" data-filter="active" aria-pressed="false">Active</button>
+        <button type="button" data-filter="delivered" aria-pressed="false">Delivered</button>
+        <button type="button" data-filter="cancelled" aria-pressed="false">Cancelled</button>
+      </div>
       <ul id="order-history"></ul>
     </div>
+  </section>
+  <section id="tracking-page" class="tracking-page" aria-label="Order tracking" hidden>
+    <div class="tracking-top"><a href="/orders" class="track-button">← Your orders</a><h1 id="tracking-number">Track order</h1><span id="tracking-type" class="track-chip" hidden></span><button class="track-button" id="tracking-copy" type="button" hidden>Copy number</button><button class="track-button" id="tracking-share" type="button" hidden>Share tracking</button></div>
+    <p id="tracking-feedback" role="status"></p>
+    <p id="tracking-offline" class="track-state" role="status" hidden></p>
+    <div id="tracking-skeleton" class="track-skeleton" role="status" aria-label="Loading order tracking"><span></span><span></span></div>
+    <div id="tracking-body" class="tracking-grid" hidden>
+      <header class="track-hero">
+        <p id="tracking-stage" class="track-kicker"></p>
+        <h2 id="tracking-headline" aria-live="polite" aria-atomic="true"></h2>
+        <p id="tracking-description"></p>
+        <span id="tracking-eta" class="track-chip" hidden></span>
+        <div id="tracking-progress" class="track-progress" aria-hidden="true"></div>
+      </header>
+      <section class="track-paper track-journey" aria-labelledby="journey-title">
+        <h2 id="journey-title">The journey</h2><ol id="tracking-steps"></ol>
+      </section>
+      <aside class="track-aside" aria-label="Delivery and order details">
+        <button id="tracking-open-delivery" class="track-button" type="button" hidden>Delivery details</button>
+        <section id="tracking-live" aria-label="Delivery progress"></section>
+        <details id="tracking-summary" class="track-paper" hidden><summary>Order summary</summary><div id="tracking-receipt"></div></details>
+      </aside>
+      <div class="track-help"><button id="tracking-help" class="track-button" type="button">Need help?</button></div>
+    </div>
+    <dialog id="tracking-delivery-sheet" class="track-paper" aria-labelledby="tracking-delivery-title">
+      <div class="track-sheet-heading"><h2 id="tracking-delivery-title">Delivery details</h2><form method="dialog"><button class="track-button" aria-label="Close delivery details">×</button></form></div>
+    </dialog>
+    <dialog id="tracking-help-sheet" class="track-paper"><form method="dialog"><button class="track-button" aria-label="Close help">×</button></form><h2>Need help?</h2><p id="tracking-help-order"></p><a id="tracking-contact" class="track-button" href="https://wa.me/919347541419" target="_blank" rel="noopener noreferrer">Chat with PrintBee</a></dialog>
   </section>
 </main>
 <footer class="frame brand-footer" id="contact">
   <div class="footer-surface">
     <div class="footer-columns">
-      <div class="footer-intro"><a href="index.html" aria-label="PrintBee home"><img src="printbee-header-logo.webp" alt="PrintBee" width="190" height="63"></a><p>Your notes, assignments and ideas, ready for print.</p></div>
+      <div class="footer-intro"><a href="/index.html" aria-label="PrintBee home"><img src="/printbee-header-logo.webp" alt="PrintBee" width="190" height="63"></a><p>Your notes, assignments and ideas, ready for print.</p></div>
       <div class="footer-directory">
         <nav class="footer-directory-group" aria-label="PrintBee shortcuts">
           <h2>PrintBee shortcuts</h2>
-          <a href="queue.html">Upload files</a>
-          <a href="orders.html">Your orders</a>
-          <a href="index.html#pricing">Print prices</a>
+          <a href="/queue.html">Upload files</a>
+          <a href="/orders.html">Your orders</a>
+          <a href="/index.html#pricing">Print prices</a>
         </nav>
         <section class="footer-directory-group footer-directory-contact">
           <h2>Contact us</h2>
@@ -98,20 +133,20 @@
           </a>
         </section>
       </div>
-      <div class="footer-actions"><a href="queue.html">Start printing <span aria-hidden="true">↗</span></a><p>Bring your documents together.</p><a href="https://wa.me/919347541419">Talk to PrintBee <span aria-hidden="true">↗</span></a><p>Let’s help with your print.</p></div>
+      <div class="footer-actions"><a href="/queue.html">Start printing <span aria-hidden="true">↗</span></a><p>Bring your documents together.</p><a href="https://wa.me/919347541419">Talk to PrintBee <span aria-hidden="true">↗</span></a><p>Let’s help with your print.</p></div>
     </div>
     <div class="footer-wordmark-panel footer-wave" aria-hidden="true">
       <div class="footer-wave-word"><span>P</span><span>r</span><span>i</span><span>n</span><span>t</span><span>B</span><span>e</span><span>e</span></div>
     </div>
   </div>
-  <div class="footer-bottom"><span>© 2026 PrintBee</span><a href="terms.html">Terms and Conditions</a><a href="index.html">Back to top ↑</a></div>
+  <div class="footer-bottom"><span>© 2026 PrintBee</span><a href="/terms.html">Terms and Conditions</a><a href="/index.html">Back to top ↑</a></div>
 </footer>
 <nav class="mobile-dock" aria-label="Quick navigation">
-    <a href="index.html"><span class="dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="m3 10 9-7 9 7v10H3zM9 20v-6h6v6"/></svg></span>Home</a>
-    <a href="orders.html" aria-current="page"><span class="dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><rect x="5" y="4" width="14" height="16" rx="2"/><path d="M9 9h6m-6 4h6m-6 4h4"/></svg></span>Orders</a>
-    <a href="queue.html"><span class="dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M12 16V4m-5 5 5-5 5 5M4 16v4h16v-4"/></svg></span>Upload</a>
+    <a href="/index.html"><span class="dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="m3 10 9-7 9 7v10H3zM9 20v-6h6v6"/></svg></span>Home</a>
+    <a href="/orders.html" aria-current="page"><span class="dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><rect x="5" y="4" width="14" height="16" rx="2"/><path d="M9 9h6m-6 4h6m-6 4h4"/></svg></span>Orders</a>
+    <a href="/queue.html"><span class="dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M12 16V4m-5 5 5-5 5 5M4 16v4h16v-4"/></svg></span>Upload</a>
     <a href="/cart"><span class="dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M3 4h3l2.4 11h10.8l2-8H7"/><circle cx="9.5" cy="19.5" r="1.3"/><circle cx="17.5" cy="19.5" r="1.3"/></svg></span>Cart</a>
-    <a href="address.html?v=nav-order"><span class="dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M20 10c0 5-8 10-8 10S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg></span>Address</a>
+    <a href="/address.html?v=nav-order"><span class="dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M20 10c0 5-8 10-8 10S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg></span>Address</a>
   </nav>
 </body>
 </html>

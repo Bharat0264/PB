@@ -323,8 +323,19 @@ class WorkflowTests(unittest.TestCase):
 
         # Pickup -> OTP exists, only the customer can read it.
         self.assertEqual(self.partner_do("rider-a", order, "pickup")[0], 200)
-        code = self.customer.view(order)["delivery"]["code"]
+        tracking = self.customer.view(order)
+        code = tracking["delivery"]["code"]
         self.assertRegex(code, r"^\d{4}$")
+        self.assertEqual(tracking["summary"]["bill"]["total"], order["total"])
+        self.assertEqual(tracking["summary"]["items"][0]["name"], "notes.pdf")
+        self.assertNotIn("phone", tracking["summary"])
+        path = f"/api/orders/{order['id']}"
+        for viewer in (self.customer, self.stranger):
+            status, public, _ = viewer.get(path, **{"X-Tracking-Key": tracking["trackingKey"]})
+            self.assertEqual(status, 200)
+            self.assertEqual(public["status"], "out_for_delivery")
+            self.assertEqual(set(public), {"status", "number", "paymentStarted"})
+        self.assertEqual(self.customer.get(path, **{"X-Tracking-Key": "0" * 64})[0], 404)
         partner_view = json.dumps(self.api("GET", "/api/partner/orders", headers=self.rider["rider-a"])[1])
         self.assertNotIn('"code"', partner_view)
         self.assertEqual(self.stranger.get(f"/api/orders/{order['id']}")[0], 404)       # not their order

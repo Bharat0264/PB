@@ -43,6 +43,7 @@ function icon(index) {
 
 function routeIndex() {
   const path = location.pathname.replace(/\/$/, '');
+  if (path.startsWith('/orders/')) return tabs.findIndex(tab => tab.key === 'orders');
   const index = tabs.findIndex(tab => path === tab.path || path === tab.page);
   return index < 0 ? 0 : index;
 }
@@ -230,7 +231,8 @@ else if (window.parent === window) {
     const nav = new BottomNav(dock);
     document.body.classList.add('has-direct-nav');
     for (const link of nav.links) link.removeAttribute('aria-controls');
-    if (!tabs.some(tab => tab.page === location.pathname || tab.path === location.pathname || (tab.key === 'home' && location.pathname === '/'))) {
+    const tracking = location.pathname.startsWith('/orders/');
+    if (!tracking && !tabs.some(tab => tab.page === location.pathname || tab.path === location.pathname || (tab.key === 'home' && location.pathname === '/'))) {
       nav.links.forEach((link, i) => {
         link.setAttribute('aria-selected', 'false');
         link.tabIndex = i === 0 ? 0 : -1;
@@ -238,7 +240,7 @@ else if (window.parent === window) {
       dock.classList.add('off-tab');
     }
     nav.onSelect = index => {
-      if (nav.links[index].getAttribute('aria-selected') === 'true') {
+      if (!tracking && nav.links[index].getAttribute('aria-selected') === 'true') {
         window.scrollTo(0, 0);
         nav.pulse();
       } else location.assign(tabs[index].path);

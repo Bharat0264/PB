@@ -781,26 +781,7 @@ async function saveOrder(order) {
 
 async function showOrders() {
   if (!orderHistory) return;
-  const shared = location.hash.match(/^#track=([a-f0-9]{32})\.([a-f0-9]{64})$/);
-  if (shared) {
-    status.textContent = '';
-    const row = document.createElement('li');
-    const line = document.createElement('p');
-    async function refreshShared() {
-      try {
-        const {number, status} = await orderRequest('/api/orders/' + shared[1], null, {
-          headers: {'X-Tracking-Key': shared[2]},
-        });
-        line.textContent = (number || 'PB-' + shared[1].slice(0, 8).toUpperCase()) + ' · ' + orderStates[status];
-      } catch {
-        line.textContent = 'This tracking link is unavailable.';
-      }
-    }
-    row.append(line, queueButton('Refresh tracking', refreshShared));
-    orderHistory.replaceChildren(row);
-    await refreshShared();
-    return;
-  }
+  if (!window.PrintBeeTracking || window.PrintBeeTracking.active) return;
   const errorPanel = document.querySelector('#orders-error');
   let accountOrders = [];
   let accountUnavailable = false;
@@ -826,135 +807,34 @@ async function showOrders() {
   const accountIds = new Set(accountOrders.map(order => order.id));
   if (accountIds.size) startOrderFeed();
   const legacyOrders = await getLegacyOrders(accountIds).catch(() => []);
-  for (const details of orderHistory.querySelectorAll('details[open]')) details.open = false;
+  const tracker = window.PrintBeeTracking;
+  const filters = document.querySelector('#order-filters');
+  const orders = [...accountOrders, ...legacyOrders];
+  orders.sort((left, right) => Number(tracker.isActive(right.status)) - Number(tracker.isActive(left.status)));
   orderHistory.replaceChildren();
-  const confirmedId = new URLSearchParams(location.search).get('placed');
-  const confirmed = accountOrders.find(order => order.id === confirmedId);
-  if (confirmed) {
-    const banner = document.querySelector('#order-confirmation');
-    banner.textContent = 'Order placed · ' + displayOrderNumber(confirmed);
-    banner.hidden = false;
-  }
-  for (const order of [...accountOrders, ...legacyOrders]) {
-    const row = document.createElement('li');
-    const details = document.createElement('details');
-    const summary = document.createElement('summary');
-    summary.textContent = displayOrderNumber(order);
-    details.open = confirmedId === order.id;
-    const state = document.createElement('p');
-    state.className = 'order-state';
-    const steps = document.createElement('ol');
-    steps.className = 'order-timeline';
-    const deliveryInfo = document.createElement('div');
-    const history = document.createElement('ol');
-    history.className = 'order-events';
-    history.setAttribute('aria-label', 'Order history');
-    function showTimeline(events) {
-      if (!events) return;
-      history.replaceChildren(...events.map(event => {
-        const row = document.createElement('li');
-        const name = document.createElement('span');
-        name.textContent = window.PrintBeeStatus?.eventLabel(event.event) || event.event;
-        const time = document.createElement('time');
-        time.dateTime = new Date(event.at * 1000).toISOString();
-        time.textContent = new Date(event.at * 1000).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'});
-        row.append(name, time);
-        return row;
-      }));
+  filters.hidden = !orders.length;
+  let section;
+  for (const order of orders) {
+    const active = tracker.isActive(order.status);
+    if (active !== section) {
+      section = active;
+      const heading = document.createElement('li');
+      heading.className = 'track-list-heading';
+      heading.dataset.group = active ? 'active' : 'past';
+      const title = document.createElement('h2');
+      title.textContent = active ? 'Active orders' : 'Past orders';
+      heading.append(title);
+      orderHistory.append(heading);
     }
-    function showDelivery(delivery) {
-      deliveryInfo.replaceChildren();
-      if (delivery?.partner) {
-        const partner = document.createElement('p');
-        partner.textContent = 'Delivery partner · ' + delivery.partner
-          + (delivery.etaMinutes ? ' · about ' + delivery.etaMinutes + ' min away' : '');
-        deliveryInfo.append(partner);
-      }
-      if (delivery?.code) {
-        const code = document.createElement('p');
-        code.className = 'raised table-card';
-        code.textContent = 'Delivery code · ' + delivery.code;
-        deliveryInfo.append(code);
-      }
-      if (delivery?.location) {
-        const pin = document.createElement('a');
-        pin.textContent = 'View latest delivery location';
-        pin.href = 'https://www.google.com/maps/search/?' + new URLSearchParams({api: 1, query: delivery.location.join(',')});
-        pin.rel = 'noopener noreferrer';
-        pin.target = '_blank';
-        deliveryInfo.append(pin);
-      }
-    }
-    const stages = {paid: 'Order received', printing: 'Printing', packed: 'Packed',
-      out_for_delivery: 'Out for delivery', delivered: 'Delivered'};
-    function renderStage(currentStatus) {
-      state.textContent = orderStates[currentStatus] || 'Delivery status unavailable.';
-      steps.replaceChildren(...Object.entries(stages).map(([key, label]) => {
-        const step = document.createElement('li');
-        step.textContent = label;
-        if (currentStatus === key) step.setAttribute('aria-current', 'step');
-        return step;
-      }));
-    }
-    renderStage(order.status);
-    details.append(summary, state, steps, deliveryInfo, history);
-    let updating = false;
-    async function refreshStatus() {
-      if (updating) return;
-      updating = true;
-      try {
-        const {status: currentStatus, delivery, timeline} = await orderRequest('/api/orders/' + order.id, order.orderKey);
-        if (state.textContent !== orderStates[currentStatus]) renderStage(currentStatus);
-        showDelivery(delivery);
-        showTimeline(timeline);
-      } catch {
-        deliveryInfo.replaceChildren();
-        state.textContent = 'Could not refresh delivery status.';
-      } finally {
-        updating = false;
-      }
-    }
-    let timer;
-    details.addEventListener('toggle', () => {
-      clearInterval(timer);
-      liveRefreshers.delete(order.id);
-      if (!details.open) return;
-      refreshStatus();
-      // Account orders update instantly through the shared live feed (startOrderFeed);
-      // the timer is only a safety net. Orders tracked by key alone poll.
-      if (accountIds.has(order.id)) liveRefreshers.set(order.id, refreshStatus);
-      timer = setInterval(() => { if (!document.hidden) refreshStatus(); }, accountIds.has(order.id) ? 60000 : 15000);
-    });
-    details.append(queueButton('Refresh status', refreshStatus));
-    const files = document.createElement('ul');
-    for (const item of order.items) {
-      const line = document.createElement('li');
-      line.textContent = (item.name || item.file.name) + ' · ' + item.pages + ' pages × ' + item.copies + ' copies · '
-        + (item.pageRange ? 'Print pages ' + item.pageRange.join(', ') + ' · ' : '')
-        + (item.colourPages ? 'Colour pages ' + item.colourPages.join(', ') : item.colour ? 'Colour' : 'Black & white') + ' · ' + (item.duplex ? 'Double-sided' : 'Single-sided') + (item.orientation ? ' · ' + item.orientation : '')
-        + ' · ' + (item.paper || 'A4') + (item.binding && item.binding !== 'none' ? ' · ' + bindingNames[item.binding] : '');
-      files.append(line);
-    }
-    details.append(files);
-    const actions = document.createElement('div');
-    actions.className = 'order-actions';
+    const row = tracker.orderRow(order, displayOrderNumber(order));
+    const actions = row.querySelector('.order-actions');
     if (accountIds.has(order.id)) {
       const invoice = document.createElement('a');
       invoice.href = '/api/orders/' + order.id + '/invoice';
-      invoice.textContent = 'Download order PDF';
+      invoice.textContent = 'Invoice';
       actions.append(invoice);
-      actions.append(queueButton('Copy tracking link', async () => {
-        try {
-          const {trackingKey} = await orderRequest('/api/orders/' + order.id);
-          const url = new URL('orders.html#track=' + order.id + '.' + trackingKey, location.href);
-          await navigator.clipboard.writeText(url.href);
-          status.textContent = 'Tracking link copied.';
-        } catch {
-          status.textContent = 'Could not copy the tracking link.';
-        }
-      }));
     }
-    const reorder = queueButton('Add order to cart', async () => {
+    const reorder = queueButton('Reorder', async () => {
       reorder.disabled = true;
       try {
         const entries = [];
@@ -974,18 +854,13 @@ async function showOrders() {
         reorder.disabled = false;
       }
     });
-    actions.append(reorder);
-    details.append(actions);
-    row.append(details);
+    if (!active) actions.append(reorder);
     orderHistory.append(row);
   }
   errorPanel.hidden = !accountUnavailable;
-  if (!accountUnavailable && !orderHistory.childElementCount && !status.textContent) {
-    const empty = document.createElement('li');
-    empty.className = 'orders-empty';
-    empty.textContent = 'Your placed orders will appear here.';
-    orderHistory.append(empty);
-  }
+  if (!accountUnavailable && !orders.length) orderHistory.append(tracker.emptyOrders());
+  tracker.applyFilter();
+
 }
 
 async function loadOrderUpdates() {
@@ -1053,15 +928,13 @@ const orderStates = {
 window.PrintBeeStatus?.ready.then(model => {
   if (model) for (const [key, value] of Object.entries(model.statuses)) if (Object.hasOwn(orderStates, key)) orderStates[key] = value.label;
 });
-// Live updates: one shared feed; each open order card registers a refresher here.
-const liveRefreshers = new Map();
+// Re-read account orders after events so active cards and filters follow the live list.
 let orderFeed;
 function startOrderFeed() {
   if (orderFeed || !window.PrintBeeLive) return;
   orderFeed = PrintBeeLive.start({
     as: 'customer',
-    onEvent: event => liveRefreshers.get(event.order)?.(),
-    onSync: () => { loadOrderUpdates().catch(() => {}); },
+    onSync: () => { if (!document.hidden) showOrders().catch(() => {}); },
   });
 }
 const checkoutDraftKey = 'printbee-checkout-attempt';
@@ -1250,8 +1123,7 @@ checkoutForm?.addEventListener('submit', async event => {
     }
   }
   checkout.close();
-  if (window.parent !== window) window.parent.location.assign('/orders?placed=' + placedId + '#orders');
-  else location.assign('orders.html?placed=' + placedId + '#orders');
+  window.top.location.assign('/orders/' + placedId + '?placed=1');
 });
 
 const ordersRefresh = document.querySelector('#orders-refresh');
@@ -1270,6 +1142,17 @@ ordersRefresh?.addEventListener('click', async () => {
     label.textContent = 'Refresh Orders';
   }
 });
+
+if (window.PrintBeeTracking?.active) {
+  window.PrintBeeTracking.start(async id => {
+    const db = await database;
+    return new Promise((resolve, reject) => {
+      const request = db.transaction('orders').objectStore('orders').get(id);
+      request.onsuccess = () => resolve(request.result?.orderKey);
+      request.onerror = () => reject(request.error);
+    });
+  });
+}
 
 Promise.all([showQueue(), showOrders()]).catch(() => {
   status.textContent = 'Local file storage is unavailable in this browser.';
