@@ -156,3 +156,7 @@ main.inner-page .tracking-top h1 { margin:0; font:800 clamp(18px,2.8vw,25px)/1.2
 [data-theme="dark"] .journey-tile { background:var(--hv-surface-2); box-shadow:var(--hv-sh-1); }
 @media (max-width:560px) { .journey { --tile:52px; } .journey-tile { border-radius:20px; } }
 @media (prefers-reduced-motion: reduce) { .journey-fill { animation:none; clip-path:inset(-10px calc(100% - var(--progress) * 1%) -10px 0); } .journey-tile { animation:none !important; } }
+
+/* Scrolling fix: the side column no longer sticks over the "Need help?" row; help always sits below both columns. */
+.track-aside { position:static; align-self:start; }
+.track-help { grid-row:3; margin-top:8px; padding-bottom:8px; position:relative; z-index:1; }
