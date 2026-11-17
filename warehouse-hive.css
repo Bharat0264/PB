@@ -524,3 +524,10 @@ html:has(body.warehouse) { overscroll-behavior-x: none; }
   .wh-rail > .wh-brand span { white-space: nowrap; font-size: 17px; font-weight: 800; letter-spacing: -.02em; }
   .wh-rail > .wh-brand small { font-size: 17px; font-weight: 800; }
 }
+
+/* Safety net for the floating dock: labels never show inside it and the content always clears it. */
+@media (min-width: 851px) {
+  .wh-rail .wh-nav-button > .wh-nav-label { display: none !important; }
+  .warehouse-shell { padding-left: 112px !important; }
+  .wh-rail .wh-nav-button { width: 52px !important; height: 52px !important; border-radius: 50% !important; }
+}
