@@ -880,6 +880,7 @@ function showDialog(title, populate) {
   const body = $('rider-dialog-body');
   body.replaceChildren();
   $('portal-logout').classList.toggle('is-visible', title === 'Partner account');
+  dialog.classList.toggle('account-sheet', title === 'Partner account');
   populate(body);
   if (!dialog.open) dialog.showModal();
 }
@@ -957,8 +958,9 @@ async function init() {
   $('rider-notifications').onclick = openNotifications;
   $('rider-avatar').textContent = (demo ? profile.name : 'Partner').split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
   $('rider-avatar').onclick = () => showDialog('Partner account', body => { body.append(
-    h('p', {class: 'muted'}, demo ? profile.name + ' · PB-R104' : 'Signed in as a delivery partner'),
-    h('button', {class: 'hive-btn', type: 'button', onclick: () => selectTab('Profile', document.querySelector('[data-section=Profile]'))}, 'Open profile'));
+    h('div', {class: 'acct-head'}, h('span', {class: 'acct-avatar', 'aria-hidden': 'true'}, $('rider-avatar').textContent),
+      h('div', {}, h('strong', {}, demo ? profile.name : 'Delivery partner'), h('small', {}, demo ? 'PB-R104' : 'Signed in'))),
+    h('button', {class: 'acct-row', type: 'button', onclick: () => { $('rider-dialog').close(); selectTab('Profile', document.querySelector('[data-section=Profile]')); }}, h('span', {}, 'Open profile')));
     body.append(h('div', {class: 'pb-switch', 'data-portal-switch': 'partner', hidden: true}));
     window.PrintBeePortals?.render();
   });

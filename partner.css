@@ -458,3 +458,18 @@ body[data-page="Cockpit"] .hive-main { padding-bottom: 40px; }
 
 /* Sign-out only shows inside the account dialog */
 #portal-logout:not(.is-visible) { display: none; }
+
+/* Partner account sheet */
+.account-sheet #rider-dialog-body { display: grid; gap: 6px; }
+.acct-head { display: flex; align-items: center; gap: 14px; padding: 14px; margin-bottom: 6px; border-radius: 20px; background: var(--hv-surface-2); }
+.acct-avatar { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; font-weight: 800; color: #2A2112; background: var(--hv-honey-grad); box-shadow: var(--hv-sh-1); flex: none; }
+.acct-head strong { display: block; font-size: 17px; line-height: 1.2; }
+.acct-head small { color: var(--hv-muted); font-weight: 700; }
+.acct-row { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 52px; padding: 0 16px; border: 0; border-radius: 16px; background: var(--hv-surface); box-shadow: var(--hv-sh-1); color: var(--hv-ink); font: 700 16px/1 inherit; cursor: pointer; }
+.acct-row::after { content: ""; width: 9px; height: 9px; border-right: 2.5px solid currentColor; border-top: 2.5px solid currentColor; transform: rotate(45deg); opacity: .45; }
+.account-sheet .pb-switch { margin: 10px 0 0; gap: 8px; }
+.account-sheet .pb-switch-title { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--hv-muted); }
+.account-sheet .pb-switch-list { display: grid; gap: 6px; }
+.account-sheet .pb-switch-link { display: flex; justify-content: space-between; align-items: center; min-height: 48px; padding: 0 16px; border-radius: 16px; text-decoration: none; background: var(--hv-surface-2); color: var(--hv-ink); font-weight: 700; }
+.account-sheet .pb-switch-link::after { content: ""; width: 8px; height: 8px; border-right: 2px solid currentColor; border-top: 2px solid currentColor; transform: rotate(45deg); opacity: .45; }
+.account-sheet #portal-logout.is-visible { display: block; width: 100%; min-height: 52px; margin-top: 14px; border: 0; border-radius: 16px; box-shadow: none; background: var(--hv-danger-bg, #fce3e0); color: var(--hv-danger-ink, #9a2626); font-weight: 800; }
