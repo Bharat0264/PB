@@ -393,8 +393,10 @@ function list(items) {
 }
 function renderHistory(filterOpen) {
   const visible=selectedOrders(['Delivered','Out for delivery']);
-  board.append(heading('Order history',button('Export CSV',()=>exportHistory(visible),'clay-button wh-primary')));
-  const dates=node('div',null,'wh-tool-actions wh-date-presets');
+  const bar=node('div',null,'wh-history-bar');
+  const dates=node('div',null,'wh-date-presets');
+  dates.setAttribute('role','group');
+  dates.setAttribute('aria-label','Date range');
   for (const label of ['All dates','Today','7 days','Custom']) {
     const control=button(label,()=>{
       historyPreset=label;
@@ -411,11 +413,20 @@ function renderHistory(filterOpen) {
     control.setAttribute('aria-pressed',String((historyPreset || 'All dates')===label));
     dates.append(control);
   }
-  const range=queueFilters(filterOpen || historyPreset==='Custom',true);
-  board.append(dates,range);
+  bar.append(dates,button('Export CSV',()=>exportHistory(visible),'clay-button wh-primary'));
+  board.append(bar);
+  if (historyPreset==='Custom') {
+    const range=queueFilters(true,true);
+    range.classList.add('wh-history-range');
+    board.append(range);
+  }
   const delivered=visible.filter(order=>order.status==='delivered').length;
   const files=visible.reduce((total,order)=>total+order.items.length,0);
-  board.append(node('p',delivered+' delivered · '+files+' total files','wh-history-summary'));
+  const summary=node('div',null,'wh-history-stats');
+  summary.append(node('p',null,'wh-history-stat'),node('p',null,'wh-history-stat'));
+  summary.children[0].append(node('strong',String(delivered)),' delivered');
+  summary.children[1].append(node('strong',String(files)),files===1?' file':' files');
+  board.append(summary);
   if (!visible.length) {
     const mascot=node('img');mascot.src='/printbee-header-bee.webp';mascot.alt='';mascot.width=80;mascot.height=64;
     const empty=node('div',null,'clay-card wh-empty wh-alert');
@@ -656,7 +667,7 @@ function renderStationContext(body,dock) {
   if (view==='History') {
     title.textContent='Recent handovers';
     const rows=selectedOrders(['Delivered','Out for delivery']);
-    body.append(node('p',rows.length+' orders in this date range.','wh-muted'));
+    body.append(node('p',rows.length+(rows.length===1?' order':' orders')+' in this date range.','wh-muted'));
     if (rows.length) {
       const recent=rows.slice().sort((first,second)=>(second.paidAt||0)-(first.paidAt||0))[0];
       body.append(button(labelOrder(recent),()=>openOrder(recent.id,true)));

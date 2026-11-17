@@ -581,3 +581,17 @@ html:has(body.warehouse) { overscroll-behavior-x: none; }
 .wh-set-card .wh-display-preview { display: flex; justify-content: center; align-items: center; gap: 14px; flex-wrap: wrap; padding: 14px 18px; border-radius: 20px; text-align: center; }
 [data-theme="dark"] .wh-set-card .wh-setting, [data-theme="dark"] .wh-set-card .wh-set-link { background: var(--hv-surface-2); box-shadow: var(--hv-sh-1); }
 [data-theme="dark"] .wh-set-orb, [data-theme="dark"] .wh-set-icon { background: var(--hv-surface-3); color: var(--hv-honey-500); box-shadow: none; }
+
+/* History: one toolbar (date presets + export), compact stats, then the table */
+.wh-history-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+.wh-date-presets { display: inline-flex; gap: 4px; padding: 4px; border-radius: 999px; background: var(--hv-surface-2); box-shadow: var(--hv-field); }
+.wh-date-presets button { min-height: 40px; padding: 0 18px; border: 0; border-radius: 999px; background: transparent; box-shadow: none; font-weight: 700; color: var(--hv-muted); }
+.wh-date-presets button:hover:not(:disabled) { transform: none; box-shadow: none; color: var(--hv-ink); }
+.wh-date-presets button[aria-pressed="true"] { background: var(--hv-honey-grad); color: #2A2112; box-shadow: var(--hv-sh-1); }
+.wh-history-bar .wh-primary { min-height: 44px; padding: 0 22px; }
+.wh-history-range { margin-bottom: 16px; padding: 14px 16px; border-radius: 20px; background: var(--hv-surface-2); }
+.wh-history-range summary { display: none; }
+.wh-history-range > div { display: flex; flex-wrap: wrap; gap: 16px; }
+.wh-history-stats { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+.wh-history-stat { margin: 0; padding: 6px 16px; border-radius: 999px; background: var(--hv-surface); box-shadow: var(--hv-sh-1); font-size: 14px; color: var(--hv-muted); }
+.wh-history-stat strong { margin-right: 4px; color: var(--hv-ink); font-size: 16px; }
