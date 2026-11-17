@@ -262,17 +262,8 @@ function goals(values) {
   }).join('')}</div>`);
 }
 
-function alerts() {
-  const list = [];
-  const waiting = orders.filter(isPending).length;
-  if (waiting) list.push([waiting + (waiting === 1 ? ' order is' : ' orders are') + ' awaiting payment', 'Open Orders', '#orders']);
-  const unpaid = (source.payouts || []).length;
-  if (unpaid) list.push([unpaid + (unpaid === 1 ? ' helper payout is' : ' helper payouts are') + ' unsettled', 'Open Campus Helpers', '#partners']);
-  return list.map(([t, d, h]) => `<li class="alert-row"><strong><a href="${h}">${t}</a></strong><small>${d}</small></li>`).join('');
-}
-
 function feed() {
-  return `<ul class="activity" id="notification-list">${alerts()}${activity.map(([title,detail,time]) => `<li><strong>${escape(title)}</strong><span>${escape(detail)}</span><small>${escape(time)}</small></li>`).join('')}</ul>`;
+  return `<ul class="activity" id="notification-list">${activity.map(([title,detail,time]) => `<li><strong>${escape(title)}</strong><span>${escape(detail)}</span><small>${escape(time)}</small></li>`).join('')}</ul>`;
 }
 
 function refreshFeed() {
@@ -292,8 +283,7 @@ function orderTable() {
     [key + ':1', label + (key === 'date' ? ' ↑ Oldest' : ' ↑')],
     [key + ':-1', label + (key === 'date' ? ' ↓ Newest' : ' ↓')],
   ]);
-  const statusChips = `<div class="status-chips" role="group" aria-label="Quick status filter"><button type="button" class="type-chip" data-chip="" aria-pressed="${!state.filter}">All</button>${options.map(v => `<button type="button" class="type-chip" data-chip="${escape(v)}" aria-pressed="${state.filter === v}">${escape(v)}</button>`).join('')}<button type="button" class="type-chip density" data-density aria-pressed="false">Compact rows</button></div>`;
-  return card('Recent orders',`${statusChips}<div class="table-controls"><input id="order-search" type="search" aria-label="Search recent orders" placeholder="Order, customer or product"><select id="order-filter" aria-label="Filter by order status"><option value="">All statuses</option>${options.map(value => `<option value="${escape(value)}">${escape(value)}</option>`).join('')}</select><select class="mobile-sort" id="order-sort" aria-label="Sort orders">${sorts.map(([value,label]) => `<option value="${value}">${label}</option>`).join('')}</select></div>
+  return card('Recent orders',`<div class="table-controls"><input id="order-search" type="search" aria-label="Search recent orders" placeholder="Order, customer or product"><select id="order-filter" aria-label="Filter by order status"><option value="">All statuses</option>${options.map(value => `<option value="${escape(value)}">${escape(value)}</option>`).join('')}</select><select class="mobile-sort" id="order-sort" aria-label="Sort orders">${sorts.map(([value,label]) => `<option value="${value}">${label}</option>`).join('')}</select></div>
     <div class="table-scroll" tabindex="0" role="region" aria-label="Recent orders table"><table class="admin-record-table" role="table"><thead><tr>${columns.map(([key,label]) => `<th scope="col"><button type="button" data-sort="${key}">${label}</button></th>`).join('')}<th scope="col">Action</th></tr></thead><tbody id="order-rows" role="rowgroup"></tbody></table></div>
     <div class="pagination"><button type="button" id="prev">Previous</button><span id="page-count" aria-live="polite"></span><button type="button" id="next">Next</button></div>`,'full');
 }
@@ -436,14 +426,9 @@ async function changeServices(change) {
 const paise = value => Math.round(Number(value) * 100);
 
 function livePartners() {
-  const initial = partner => String(partner.name || partner.email || '?').trim()[0].toUpperCase();
-  const person = partner => partner.name || String(partner.email || partner.id).split('@')[0];
-  const cards = partners.map(partner => `<li class="person-card"><span class="avatar-initial" aria-hidden="true">${escape(initial(partner))}</span>
-    <div class="person-main"><strong>${escape(person(partner))}</strong><small>${escape(partner.email || '')}</small><span class="status-chip ok">Verified</span></div>
-    <dl class="stats"><div><dt>Deliveries</dt><dd>${number(partner.deliveries)}</dd></div><div><dt>Earned</dt><dd>${money(partner.accrued / 100)}</dd></div><div><dt>Unsettled</dt><dd>${money(partner.outstanding / 100)}</dd></div></dl>
-    <div class="person-actions">${partner.outstanding ? '<a class="pill-link" href="#settlements">Settle</a>' : ''}${partner.removable ? `<button type="button" data-remove-partner="${escape(partner.email)}">Remove access</button>` : ''}</div></li>`).join('');
-  return card('Campus Helpers', cards ? `<ul class="person-grid">${cards}</ul>` : '<div class="empty-state"><p><strong>No campus helpers yet</strong></p><p class="muted">Use “Add verified helper” to give someone access with their Google email.</p></div>', 'full') +
-    `<span id="settlements"></span>` + card('Partner settlements', source.payouts.length ? '<div id="live-settlements" class="settlements"></div>' : '<div class="empty-state"><p><strong>All helpers are paid up</strong></p><p class="muted">Nothing is waiting to be settled.</p></div>', 'full');
+  const rows = partners.map(partner => `<li><strong>${escape(partner.email || partner.id)}</strong><span>${partner.deliveries} deliveries &middot; earned ${money(partner.accrued / 100)} &middot; unsettled ${money(partner.outstanding / 100)}</span><small class="directory-verified">Verified</small>${partner.removable ? `<button type="button" data-remove-partner="${escape(partner.email)}">Remove access</button>` : ''}</li>`).join('');
+  return card('Campus Helpers', rows ? `<ul class="activity admin-directory">${rows}</ul>` : '<p class="muted">No delivery partners yet. Use “Add verified partner” to give someone access with their Google email.</p>', 'full') +
+    card('Partner settlements', source.payouts.length ? '<div id="live-settlements" class="settlements"></div>' : '<p class="muted">No outstanding settlements.</p>', 'full');
 }
 
 function buildSettlements(host) {
@@ -473,8 +458,8 @@ function buildSettlements(host) {
 }
 
 function liveWarehouses() {
-  if (!warehouses.length) return card('Warehouse directory', '<div class="empty-state"><p><strong>No warehouses yet</strong></p><p class="muted">Add the place where orders are printed and picked up.</p><button type="button" class="primary" data-add-warehouse>+ Add warehouse</button></div>', 'full');
-  return card('Warehouse directory', `<ul class="person-grid">${warehouses.map(w => `<li class="person-card"><div class="person-main"><strong>${escape(w.name)}</strong><small>${escape(w.address)}</small><small>${escape(w.email)}</small>${w.is_default ? '<span class="status-chip ok">Default pickup</span>' : ''}</div><div class="person-actions"><a class="pill-link" href="${escape(pickupMapUrl(w.address))}" target="_blank" rel="noopener">Open in Maps</a></div></li>`).join('')}</ul>`, 'full');
+  return directory('Warehouse directory', warehouses, warehouse =>
+    `<span>${escape(warehouse.address)}</span><small>${escape(warehouse.email)}${warehouse.is_default ? ' &middot; Default pickup' : ''}</small><a href="${escape(pickupMapUrl(warehouse.address))}" target="_blank" rel="noopener">Pickup on Google Maps</a>`);
 }
 
 function previewLedger(page, filter) {
@@ -713,8 +698,6 @@ document.addEventListener('keydown', event => {
 });
 $('global-search').addEventListener('focus', event => { event.target.blur(); openPalette(); });
 root.addEventListener('click', event => {
-  const flow = event.target.closest('[data-flow]');
-  if (flow) state.filter = orders.find(o => (live ? o.statusKey : o.status.toLowerCase().replace(/ /g, '_')) === flow.dataset.flow)?.status || '';
   if (event.target.closest('[data-hide-setup]')) { store('pb-setup-hidden', '1'); render(); }
 });
 
@@ -768,9 +751,6 @@ root.addEventListener('click',event => {
   }
   if (button.id === 'prev' || button.id === 'next') { state.page += button.id === 'prev' ? -1 : 1; updateTable(); }
   if (button.dataset.view) openEditor('order',button.dataset.view);
-  if (button.dataset.addWarehouse !== undefined) openEditor('warehouse');
-  if (button.dataset.chip !== undefined) { state.filter = button.dataset.chip; state.page = 0; $('order-filter').value = state.filter; updateTable(); root.querySelectorAll('[data-chip]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.chip === state.filter))); }
-  if (button.dataset.density !== undefined) { const on = root.classList.toggle('is-compact'); button.setAttribute('aria-pressed', String(on)); }
 });
 
 function tooltip(event,show) {
