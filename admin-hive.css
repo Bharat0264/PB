@@ -280,3 +280,15 @@ dialog::backdrop { background: color-mix(in srgb, #8A5E0B 22%, rgba(23,18,10,.45
   .sidebar .brand strong { display: inline; }
   .sidebar .brand small { display: inline; font-size: 17px; font-weight: 800; color: var(--hv-muted); }
 }
+
+/* Match the partner portal exactly: dock at 16px, pills 56px tall at 24px from the top, content starts at 112px. */
+@media (min-width: 851px) {
+  .sidebar { left: 16px; }
+  .sidebar .brand { top: 24px; left: 96px; height: 56px; padding: 0 20px 0 10px; box-sizing: border-box; }
+  .sidebar nav { padding: 12px 0; width: 72px; justify-items: center; gap: 8px; }
+  .toolbar { top: 24px; right: 32px; height: 56px; min-height: 56px; padding: 0 8px 0 12px; box-sizing: border-box; }
+  .toolbar .icon-button, .toolbar .avatar, .toolbar .search-clay { width: 44px; height: 44px; min-height: 44px; }
+  .toolbar .hv-switch { width: 72px; }
+  .workspace, .workspace.compact { padding-top: 96px; padding-left: 112px; }
+  .admin-workarea { padding-top: 0; }
+}

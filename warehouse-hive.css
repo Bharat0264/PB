@@ -507,3 +507,20 @@ html:has(body.warehouse) { overscroll-behavior-x: none; }
   .wh-top { position: fixed; z-index: 15; top: 18px; right: 32px; margin: 0; }
   .wh-workspace { padding-top: 0; }
 }
+
+/* Match the partner portal exactly: dock at 16px, pills 56px tall at 24px from the top, content starts at 112px. */
+@media (min-width: 851px) {
+  .wh-rail { left: 16px; }
+  .wh-rail > .wh-brand { top: 24px; left: 96px; height: 56px; padding: 0 20px 0 10px; box-sizing: border-box; }
+  .wh-rail #warehouse-nav { padding: 12px 0; width: 72px; justify-items: center; gap: 8px; }
+  .wh-top { top: 24px; right: 32px; height: 56px; min-height: 56px; padding: 0 8px 0 12px; box-sizing: border-box; }
+  .wh-top .wh-search, .wh-indicators .wh-icon-button { width: 44px; height: 44px; min-height: 44px; }
+  .wh-top .wh-search:focus-within { width: min(300px, 40vw); }
+  .wh-top .wh-floor-theme { width: 72px; min-height: 40px; }
+  .warehouse-shell { padding-top: 96px; padding-left: 112px; }
+  .wh-rail-footer { left: 8px; }
+}
+@media (min-width: 851px) {
+  .wh-rail > .wh-brand span { white-space: nowrap; font-size: 17px; font-weight: 800; letter-spacing: -.02em; }
+  .wh-rail > .wh-brand small { font-size: 17px; font-weight: 800; }
+}
