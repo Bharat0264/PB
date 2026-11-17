@@ -74,7 +74,8 @@
       if (index === animated) card.classList.add('address-card-enter');
       const meta = element('div',null,'address-card-meta');
       const label = entry.label || (entry.type === 'campus' ? 'Campus address' : 'Delivery address');
-      meta.append(element('span',entry.type === 'campus' ? 'Campus' : 'Outside','address-badge'),element('strong',label));
+      meta.append(element('strong',label),element('span',entry.type === 'campus' ? 'Campus' : 'Outside','address-badge'));
+      if (index === defaultIndex) meta.append(element('span','Default','address-badge address-badge-default'));
       const star = action(index === defaultIndex ? '★' : '☆', () => {
         updateSelection(entries,index,selected,'Default address updated.',() => byId(card.id)?.querySelector('.address-star'));
       },'Set as default, '+label);
@@ -84,13 +85,14 @@
       meta.append(star);
       const details = element('p',entry.address.split('\n')[0]);
       const controls = element('div',null,'address-card-actions');
-      const deliver = action(index === selected ? '✓ Deliver here' : 'Deliver here',() => {
+      const deliver = action(index === selected ? '✓ Delivering here' : 'Deliver here',() => {
         updateSelection(entries,defaultIndex,index,'Delivery address selected for checkout.',() => byId(card.id)?.querySelector('.address-deliver'));
       });
       deliver.classList.add('address-deliver');
       deliver.setAttribute('aria-pressed',String(index === selected));
-      controls.append(deliver,action('✎',event => edit(index,event.currentTarget),'Edit address, '+label),
-        action('×',() => {
+      const pencil = action('',event => edit(index,event.currentTarget),'Edit address, '+label);
+      pencil.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg>';
+      const trash = action('',() => {
           const remaining = entries.filter((_,i) => i !== index);
           const map = i => i === index ? 0 : i > index ? i-1 : i;
           const preferred = map(defaultIndex);
@@ -98,7 +100,11 @@
           updateSelection(remaining,preferred,current,'Address deleted.');
           if (composer.open && editing === index) setOpen(false);
           else if (editing > index) editing--;
-        },'Delete address, '+label));
+        },'Delete address, '+label);
+      trash.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/></svg>';
+      trash.classList.add('address-trash');
+      pencil.classList.add('address-edit');
+      controls.append(deliver,pencil,trash);
       card.append(meta,details,controls);
       list.append(card);
     });
