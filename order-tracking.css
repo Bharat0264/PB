@@ -131,3 +131,19 @@ main.inner-page .tracking-top h1 { margin:0; font:800 clamp(18px,2.8vw,25px)/1.2
 /* Order rows: details on top, the action buttons in one horizontal row underneath */
 .track-list-row { flex-direction:column; align-items:stretch; justify-content:flex-start; gap:12px; }
 .track-list-row .order-actions { justify-content:flex-start; }
+
+/* Horizontal order journey: steps fill in one after another */
+.journey { display:grid; grid-template-columns:repeat(5,1fr); margin:4px 0 2px; padding:0; list-style:none; }
+.journey-step { position:relative; display:grid; justify-items:center; gap:8px; text-align:center; }
+.journey-step::before { content:""; position:absolute; top:11px; right:50%; width:100%; height:4px; border-radius:4px; background:var(--hv-border); }
+.journey-step:first-child::before { display:none; }
+.journey-step[data-state=done]::before, .journey-step[data-state=current]::before { background:linear-gradient(90deg,var(--hv-honey-500) 0 100%) left/0 100% no-repeat, var(--hv-border); animation:journey-fill .5s ease-out forwards; animation-delay:calc(var(--i) * .22s); }
+@keyframes journey-fill { to { background-size:100% 100%; } }
+.journey-hex { position:relative; z-index:1; width:26px; height:22px; clip-path:polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%); background:var(--hv-border); }
+.journey-step[data-state=done] .journey-hex, .journey-step[data-state=current] .journey-hex { background:var(--hv-honey-500); animation:journey-pop .45s cubic-bezier(.34,1.45,.64,1) both; animation-delay:calc(var(--i) * .22s + .15s); }
+.journey-step[data-state=current] .journey-hex { box-shadow:0 0 0 0 color-mix(in srgb,var(--hv-honey-500) 60%,transparent); filter:drop-shadow(0 0 6px color-mix(in srgb,var(--hv-honey-500) 70%,transparent)); }
+.journey-step[data-state=current] .journey-label { color:var(--hv-ink); font-weight:800; }
+@keyframes journey-pop { from { transform:scale(.4); opacity:0; } }
+.journey-label { font-size:13px; font-weight:700; color:var(--hv-muted); }
+@media (max-width:520px) { .journey-label { font-size:11.5px; } }
+@media (prefers-reduced-motion: reduce) { .journey-step::before, .journey-hex { animation:none !important; background-size:100% 100% !important; } }

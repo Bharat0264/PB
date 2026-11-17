@@ -66,6 +66,22 @@
       return cell;
     }));
   }
+  const journeySteps = [['Placed', ['paid']], ['Printing', ['printing']], ['Ready', ['packed', 'assigned']], ['On the way', ['out_for_delivery']], ['Delivered', ['delivered']]];
+  function orderJourney(status) {
+    const at = journeySteps.findIndex(([, keys]) => keys.includes(status));
+    if (at < 0) return null;
+    const list = node('ol', '', 'journey');
+    list.setAttribute('aria-label', 'Order journey: ' + journeySteps[at][0]);
+    list.style.setProperty('--at', at);
+    journeySteps.forEach(([text], i) => {
+      const step = node('li', '', 'journey-step');
+      step.style.setProperty('--i', i);
+      step.dataset.state = i < at ? 'done' : i === at ? (status === 'delivered' ? 'done' : 'current') : 'todo';
+      step.append(node('span', '', 'journey-hex'), node('span', text, 'journey-label'));
+      list.append(step);
+    });
+    return list;
+  }
   function orderRow(order, number) {
     const row = node('li', '', 'track-list-row');
     row.dataset.status = order.status;
@@ -78,15 +94,12 @@
     content.append(heading);
     if (meta.length) content.append(node('p', meta.join(' · ')));
     if (order.delivery?.etaMinutes > 0) content.append(node('p', 'About ' + order.delivery.etaMinutes + ' min'));
-    if (isActive(order.status)) {
-      const bar = node('div', '', 'track-progress');
-      bar.setAttribute('aria-hidden', 'true');
-      progress(bar, stages, stages.indexOf(order.status));
-      content.append(bar);
-    }
     const actions = node('div', '', 'order-actions');
     actions.append(link('Track', '/orders/' + encodeURIComponent(order.id)));
-    row.append(content, actions);
+    row.append(content);
+    const journey = orderJourney(order.status);
+    if (journey) row.append(journey);
+    row.append(actions);
     return row;
   }
   function emptyOrders() {
