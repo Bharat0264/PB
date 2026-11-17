@@ -15,7 +15,6 @@
 <link rel="stylesheet" href="admin-ledger.css">
 <link rel="stylesheet" href="admin-mobile.css">
 <link rel="stylesheet" href="/staff-dock.css?v=page-beige">
-<link rel="stylesheet" href="admin-hq.css?v=1">
 <link rel="stylesheet" href="/status-model.css?v=2">
 <style>
 .live-gate{max-width:560px;margin:8vh auto;padding:0 16px;display:grid;gap:14px;justify-items:start}
@@ -57,7 +56,7 @@ if (new URLSearchParams(location.search).get('preview') === '1') location.replac
 @keyframes pb-login-reveal{to{visibility:visible}}
 </style>
 <script src="portal-login.js" defer></script>
-<script type="module" src="admin-dashboard.js?v=hq1"></script>
+<script type="module" src="admin-dashboard.js?v=live"></script>
 </head>
 <body data-portal="admin">
 <a class="skip" href="#main">Skip to dashboard</a>
@@ -74,7 +73,7 @@ if (new URLSearchParams(location.search).get('preview') === '1') location.replac
   <main id="main" tabindex="-1">
     <header class="toolbar">
       <button class="icon-button collapse" id="collapse" type="button" aria-label="Collapse sidebar" aria-expanded="true"></button>
-      <label class="search-clay"><span id="search-icon" aria-hidden="true"></span><input id="global-search" type="search" aria-label="Open command palette" placeholder="Search orders, customers, helpers… (Ctrl K)" readonly></label>
+      <label class="search-clay"><span id="search-icon" aria-hidden="true"></span><input id="global-search" type="search" aria-label="Search orders" placeholder="Search orders"></label>
       <button class="icon-button hv-switch" id="theme" data-hive-toggle type="button" aria-label="Dark mode" aria-pressed="false"></button>
       <button class="icon-button" id="notifications" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-panel"></button>
       <button class="avatar" id="profile" type="button" aria-label="Admin profile" aria-expanded="false" aria-controls="profile-panel">PB</button>
@@ -100,7 +99,7 @@ if (new URLSearchParams(location.search).get('preview') === '1') location.replac
           <button id="add-product" class="primary" type="button">+ Add product</button>
         </div>
         <div class="actions" data-page-actions="partners" hidden>
-          <button id="add-partner" class="primary" type="button">+ Add verified helper</button>
+          <button id="add-partner" class="primary" type="button">+ Add verified partner</button>
         </div>
         <div class="actions" data-page-actions="warehouses" hidden>
           <button id="add-warehouse" class="primary" type="button">+ Add warehouse</button>

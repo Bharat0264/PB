@@ -22,11 +22,10 @@ const sections = {
   pricing: ['Pricing', 'M12 2v20 M17 6H9a3 3 0 0 0 0 6h6a3 3 0 0 1 0 6H7'],
   ledger: ['Ledger', 'M5 3h14v18H5z M8 7h8 M8 11h8 M8 15h5'],
   inventory: ['Inventory', 'M3 9h18v12H3z M5 9V4h14v5 M9 14h6'],
-  partners: ['Campus Helpers', 'M3 6h12v11H3z M15 9h4l3 4v4h-7 M6 17a2 2 0 1 0 4 0 M17 17a2 2 0 1 0 4 0'],
+  partners: ['Delivery Partners', 'M3 6h12v11H3z M15 9h4l3 4v4h-7 M6 17a2 2 0 1 0 4 0 M17 17a2 2 0 1 0 4 0'],
   warehouses: ['Warehouses', 'M3 21V8l9-5 9 5v13z M7 21V11h10v10 M7 15h10 M7 18h10'],
 };
 if (live) sections.inventory[0] = 'Print services';
-const navGroups = [['Operations',['dashboard','orders','customers']],['Insights',['analytics','ledger']],['Setup',['pricing','inventory','partners','warehouses']]];
 const oldSections = {reports:'orders', products:'inventory', revenue:'analytics'};
 const icon = path => `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${path}"/></svg>`;
 const escape = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[char]);
@@ -118,53 +117,37 @@ function kpis(items) {
     start.setHours(0, 0, 0, 0);
     return metrics(orders.filter(order => order.date >= start && order.date <= end), 1);
   });
-  // Grouped by meaning: money, orders, customers, quality.
-  const groups = [['Money',[4,0,3,9]],['Orders',[5,1,8]],['Customers',[2,6]],['Quality',[7]]];
-  let anyBaseline = false;
-  const tile = i => {
+  // Lead with today's activity, then period totals, the order queue, and customer metrics.
+  const displayOrder = [4, 5, 0, 1, 8, 2, 3, 6, 7, 9];
+  return `<div class="metrics">${displayOrder.map(i => {
     const isDaily = i === 4 || i === 5;
     const value = isDaily ? daily.at(-1)[i] : values[i];
     const baseline = isDaily ? daily.at(-2)[i] : prior[i];
     const change = baseline ? (value / baseline - 1) * 100 : null;
-    if (change !== null) anyBaseline = true;
     const negative = change !== null && ([7,8].includes(i) ? change > 0 : change < 0);
     const dots = points((isDaily ? daily : timeline).map(group => group[i]),110,26);
-    const chip = change === null ? '' : `<span class="change ${negative ? 'negative' : ''}">${(change === 0 ? '&ndash; ' : change < 0 ? '&#8595; ' : '&#8593; ') + Math.abs(change).toFixed(1) + (isDaily ? '% vs yesterday' : '% vs prior period')}</span>`;
-    return `<section class="card metric" title="${escape(metricLabels[i])}"><h2>${metricLabels[i]}</h2><strong data-metric="${i}" data-value="${value}">${metricFormats[i](value)}</strong>${chip}
+    return `<section class="card metric"><h2>${metricLabels[i]}</h2><strong data-metric="${i}" data-value="${value}">${metricFormats[i](value)}</strong>
+      <span class="change ${negative ? 'negative' : ''}">${change === null ? 'No prior baseline' : (change === 0 ? '&ndash; ' : change < 0 ? '&#8595; ' : '&#8593; ') + Math.abs(change).toFixed(1) + (isDaily ? '% vs yesterday' : '% vs prior period')}</span>
       <svg class="spark" viewBox="0 0 110 26" preserveAspectRatio="none" aria-hidden="true"><polyline points="${dots.join(' ')}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></section>`;
-  };
-  const body = groups.map(([name, list]) => `<div class="metric-group"><h3>${name}</h3><div class="metrics">${list.map(tile).join('')}</div></div>`).join('');
-  return `${anyBaseline ? '' : '<p class="info-chip">Comparisons start once there is a previous period</p>'}<div class="kpi-strip">${body}</div>`;
+  }).join('')}</div>`;
 }
 
-function niceTicks(high) {
-  const raw = high / 4, mag = 10 ** Math.floor(Math.log10(raw || 1));
-  const step = [1,2,2.5,5,10].map(m => m * mag).find(v => v >= raw) || mag;
-  return Array.from({length:5}, (_, i) => i * step);
-}
-const shortMoney = v => v >= 1e5 ? '₹' + +(v / 1e5).toFixed(1) + 'L' : v >= 1e3 ? '₹' + +(v / 1e3).toFixed(1) + 'k' : '₹' + v;
 function lineChart(id, labels, series, format) {
-  const w = 540, h = 190, left = 44, bottom = 22, top = 8;
+  const w = 540, h = 162;
   const high = Math.max(1, ...series.flatMap(entry => entry.values));
-  const ticks = niceTicks(high), ceiling = ticks.at(-1) || 1;
-  const px = i => left + (w - left - 10) * i / Math.max(1, labels.length - 1);
-  const py = v => top + (h - top - bottom) * (1 - v / ceiling);
-  const sparse = labels.length < 2;
-  const every = Math.ceil(labels.length / 6);
   return `<div class="chart"><div class="tooltip" hidden></div><svg viewBox="0 0 ${w} ${h}" role="group" aria-label="${id} chart">
-    <defs><linearGradient id="${id}-fill" x1="0%" y1="0%" x2="0%" y2="100%"><stop stop-color="${colors[0]}" stop-opacity=".35"/><stop offset="100%" stop-color="${colors[0]}" stop-opacity="0"/></linearGradient></defs>
-    ${ticks.map(t => `<path d="M${left} ${py(t)}H${w - 10}" stroke="var(--track)" ${t ? 'stroke-dasharray="3 5"' : ''}/><text class="axis" x="${left - 6}" y="${py(t) + 4}" text-anchor="end">${id === 'revenue' ? shortMoney(t) : t}</text>`).join('')}
-    ${labels.map((l, i) => i % every === 0 ? `<text class="axis" x="${px(i)}" y="${h - 4}" text-anchor="${i === 0 ? 'start' : 'middle'}">${escape(l.replace('Week of ', ''))}</text>` : '').join('')}
+    <defs><linearGradient id="${id}-fill" x1="0%" y1="0%" x2="0%" y2="100%"><stop stop-color="${colors[0]}" stop-opacity=".75"/><stop offset="100%" stop-color="${colors[0]}" stop-opacity="0"/></linearGradient></defs>
+    ${[30,70,110,150].map(y => `<path d="M0 ${y}H${w}" stroke="var(--track)" stroke-dasharray="3 5"/>`).join('')}
     ${series.map((entry,i) => {
-      const coords = entry.values.map((v, j) => [px(j), py(v)]);
+      const coords = points(entry.values,w,h,high,8);
       if (!coords.length) return '';
-      return `${i === 0 && !sparse ? `<polygon points="${coords[0][0]},${py(0)} ${coords.join(' ')} ${coords.at(-1)[0]},${py(0)}" fill="url(#${id}-fill)"/>` : ''}
-        ${sparse ? '' : `<polyline class="draw" points="${coords.join(' ')}" fill="none" stroke="${entry.color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`}
+      return `${i === 0 ? `<polygon points="${coords[0][0]},${h} ${coords.join(' ')} ${coords.at(-1)[0]},${h}" fill="url(#${id}-fill)"/>` : ''}
+        <polyline points="${coords.join(' ')}" fill="none" stroke="${entry.color}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
         ${coords.map(([x,y],j) => {
           const info = escape(labels[j] + ' / ' + entry.name + ': ' + format(entry.values[j]));
-          return `<circle class="chart-point" tabindex="0" aria-label="${info}" data-tip="${info}" cx="${x}" cy="${y}" r="4.5" fill="${entry.color}" stroke="var(--surface)" stroke-width="2"/>`;
+          return `<circle class="chart-point" tabindex="0" aria-label="${info}" data-tip="${info}" cx="${x}" cy="${y}" r="5" fill="${entry.color}" stroke="var(--surface)" stroke-width="2"/>`;
         }).join('')}`;
-    }).join('')}</svg>${sparse ? '<p class="chart-note">Not enough data yet</p>' : ''}
+    }).join('')}</svg><div class="chart-meta"><span>${escape(labels[0] || '')}</span><span>${format(high)}</span><span>${escape(labels.at(-1) || '')}</span></div>
     <ul class="legend">${series.map(entry => `<li><span class="swatch" style="background:${entry.color}"></span>${entry.name}</li>`).join('')}</ul></div>`;
 }
 
@@ -187,43 +170,6 @@ function donut(items, label, hole = true) {
 
 function breakdown(title,items,hole = true) {
   return card(title,`<div class="donut-wrap">${donut(items,number(items.reduce((sum,[,v]) => sum+v,0)),hole)}<ul class="legend">${items.map(([name,value],i) => `<li><span class="swatch" style="background:${colors[i % colors.length]}"></span>${escape(name)} <strong>${number(value)}</strong></li>`).join('')}</ul></div>`);
-}
-
-const flowStages = [['pending','Awaiting payment'],['paid','Paid'],['printing','Printing'],['packed','Ready'],['out_for_delivery','Out for delivery'],['delivered','Delivered']];
-const flowSide = [['cancelled','Cancelled'],['refunded','Refunded']];
-function orderFlow(items) {
-  const count = key => items.filter(o => (live ? o.statusKey : o.status.toLowerCase().replace(/ /g, '_')) === key).length;
-  const stages = flowStages.map(([key,label]) => [key,label,count(key)]);
-  const side = flowSide.map(([key,label]) => [key,label,count(key)]);
-  const total = stages.concat(side).reduce((n, [,,c]) => n + c, 0);
-  const active = stages.slice(1, 5).some(([,,c]) => c);
-  const pct = c => total ? Math.round(c / total * 100) : 0;
-  const bar = stages.map(([,l,c],i) => c ? `<span class="flow-seg flow-${i}" style="flex:${c}" title="${l}: ${c}"></span>` : '').join('');
-  const list = rows => rows.map(([k,l,c]) => `<li><a href="#orders" data-flow="${k}"><span>${l}</span><strong>${number(c)}</strong><small>${pct(c)}%</small></a></li>`).join('');
-  return card('Order flow', total ? `<div class="flow-bar ${active ? 'is-live' : ''}" role="img" aria-label="Orders by status">${bar}</div><ol class="flow-list">${list(stages)}</ol><ul class="flow-list flow-side">${list(side)}</ul>`
-    : '<div class="empty-state"><p><strong>No orders yet</strong></p><p class="muted">The flow appears with the first order.</p></div>');
-}
-
-function checklist() {
-  if (!live || getStored('pb-setup-hidden')) return '';
-  const steps = [['Add a warehouse', warehouses.length > 0, '#warehouses'], ['Add a campus helper', partners.length > 0, '#partners'],
-    ['Set prices', Boolean(source.info.pricingVersion), '#pricing'], ['Add print services', products.length > 0, '#inventory'], ['Take the first order', orders.length > 0, '#orders']];
-  const done = steps.filter(step => step[1]).length;
-  if (done === steps.length) return '';
-  const r = 18, c = 2 * Math.PI * r;
-  return `<section class="card setup-card"><svg class="ring" viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="${r}" fill="none" stroke="var(--track)" stroke-width="4"/><circle cx="22" cy="22" r="${r}" fill="none" stroke="var(--hv-honey-500)" stroke-width="4" stroke-linecap="round" stroke-dasharray="${c * done / steps.length} ${c}" transform="rotate(-90 22 22)"/></svg>
-    <div><h2>Get the hive running</h2><p class="muted">${done} of ${steps.length} done</p></div>
-    <ul class="setup-steps">${steps.map(([label, ok, href]) => `<li class="${ok ? 'is-done' : ''}"><a href="${href}">${ok ? '✓ ' : ''}${label}</a></li>`).join('')}</ul>
-    <button type="button" data-hide-setup>Dismiss</button></section>`;
-}
-
-function receipt(items) {
-  const delivered = items.filter(o => o.statusKey === 'delivered' || o.status === 'Delivered');
-  if (!delivered.length) return card('Where every ₹ goes', '<div class="empty-state"><p><strong>No delivered orders yet</strong></p><p class="muted">The breakdown appears after the first delivery.</p></div>');
-  const revenue = delivered.reduce((n, o) => n + o.total, 0), tax = delivered.reduce((n, o) => n + (o.tax || 0), 0), pay = delivered.reduce((n, o) => n + (o.payout || 0), 0);
-  const profit = revenue - tax - pay;
-  const rows = [['Revenue', revenue, 'plus'], tax ? ['Tax / fees', -tax, 'minus'] : null, ['Helper pay', -pay, 'minus'], ['Profit (delivered)', profit, 'total']].filter(Boolean);
-  return card('Where every ₹ goes', `<ul class="receipt">${rows.map(([l, v, k]) => `<li class="${k}"><span>${l}</span><strong>${money(v)}</strong></li>`).join('')}</ul><p class="muted">Across ${number(delivered.length)} delivered orders.</p>`);
 }
 
 function bars(title,items,format = number,size = '',funnel = false) {
@@ -251,8 +197,7 @@ function heatmap(items) {
   const hours = [8,10,12,14,16,18,20];
   const cells = hours.map(hour => weekdays.map((_,index) => items.filter(o => (o.date.getDay()+6)%7 === index && Math.floor(o.date.getHours()/2)*2 === hour).length));
   const high = Math.max(1,...cells.flat());
-  const empty = !cells.flat().some(Boolean);
-  return card('Peak order hours',`<div class="chart"><div class="tooltip" hidden></div><div class="hex-map${empty ? ' is-empty' : ''}"><span></span>${weekdays.map(d => '<span class="hex-h">'+d+'</span>').join('')}${cells.map((row,i) => `<span class="hex-h">${hours[i]}:00</span>${row.map((v,j) => `<button type="button" class="hex" style="--heat:${Math.round(v/high*100)}%" data-tip="${weekdays[j]} ${hours[i]}:00: ${v} orders" aria-label="${weekdays[j]} ${hours[i]}:00: ${v} orders"></button>`).join('')}`).join('')}</div>${empty ? '<p class="chart-note">No orders yet</p>' : `<div class="hex-legend"><span>Fewer</span><i></i><span>${high} orders</span></div>`}</div>`);
+  return card('Peak order hours',`<div class="chart"><div class="tooltip" hidden></div><div class="heatmap"><span></span>${weekdays.map(d => '<span>'+d+'</span>').join('')}${cells.map((row,i) => `<span>${hours[i]}:00</span>${row.map((v,j) => `<button type="button" class="heat-cell" style="--heat:${Math.round(v/high*100)}%" data-tip="${weekdays[j]} ${hours[i]}:00: ${v} orders" aria-label="${weekdays[j]} ${hours[i]}:00: ${v} orders"></button>`).join('')}`).join('')}</div></div>`);
 }
 
 function goals(values) {
@@ -427,7 +372,7 @@ const paise = value => Math.round(Number(value) * 100);
 
 function livePartners() {
   const rows = partners.map(partner => `<li><strong>${escape(partner.email || partner.id)}</strong><span>${partner.deliveries} deliveries &middot; earned ${money(partner.accrued / 100)} &middot; unsettled ${money(partner.outstanding / 100)}</span><small class="directory-verified">Verified</small>${partner.removable ? `<button type="button" data-remove-partner="${escape(partner.email)}">Remove access</button>` : ''}</li>`).join('');
-  return card('Campus Helpers', rows ? `<ul class="activity admin-directory">${rows}</ul>` : '<p class="muted">No delivery partners yet. Use “Add verified partner” to give someone access with their Google email.</p>', 'full') +
+  return card('Delivery partners', rows ? `<ul class="activity admin-directory">${rows}</ul>` : '<p class="muted">No delivery partners yet. Use “Add verified partner” to give someone access with their Google email.</p>', 'full') +
     card('Partner settlements', source.payouts.length ? '<div id="live-settlements" class="settlements"></div>' : '<p class="muted">No outstanding settlements.</p>', 'full');
 }
 
@@ -500,18 +445,18 @@ function render(animate = false) {
     case 'customers': widgets = growth(items) + bars('Top 5 customers',customersRank,money) + bars('Delivery regions',regionRank); break;
     case 'inventory': widgets = live ? productList() : productList() + stock(); break;
     case 'analytics':
-      widgets = live ? revenueChart(items) + bars('Sales by category',aggregate(paid,'category',o => o.total),money) + heatmap(items) + orderFlow(items)
+      widgets = live ? revenueChart(items) + bars('Sales by category',aggregate(paid,'category',o => o.total),money) + heatmap(items) + breakdown('Orders by status',aggregate(items,'status'))
         : revenueChart(items) + bars('Sales by category',aggregate(paid,'category',o => o.total),money) +
         bars('Top 5 products',productsRank,money) + goals(metrics(orders.filter(o => o.date > day(orderWindowDays)),orderWindowDays)) + heatmap(items) +
         breakdown('Traffic sources',traffic,false) +
         bars('Conversion funnel',[['Visitors',orderWindowDays*333],['Signups',values[3]],['Orders',paid.length],['Repeat customers',Math.min(paid.length,Math.round(values[6]*values[2]/100))]],number,'',true);
       break;
-    case 'partners': widgets = live ? livePartners() : directory('Verified campus helpers', partners, partner =>
+    case 'partners': widgets = live ? livePartners() : directory('Verified delivery partners', partners, partner =>
       `<span>${escape(partner.email)}</span>`, '<small class="directory-verified">Verified</small>'); break;
     case 'warehouses': widgets = live ? liveWarehouses() : directory('Warehouse directory', warehouses, warehouse =>
       `<span>${escape(warehouse.location)}</span><small>${escape(warehouse.email)}</small><a href="${escape(pickupMapUrl(warehouse.address))}" target="_blank" rel="noopener">Pickup on Google Maps</a>`); break;
     default:
-      widgets = checklist() + kpis(items) + revenueChart(items) + orderFlow(items) + receipt(items);
+      widgets = kpis(items) + revenueChart(items) + breakdown('Orders by status',aggregate(items,'status'));
   }
   $('page-title').textContent = sections[route][0];
   $('page-description').hidden = route !== 'dashboard';
@@ -589,7 +534,7 @@ function navLink(route) {
 }
 
 const routes = Object.keys(sections);
-$('sidebar-nav').innerHTML = navGroups.map(([name, list]) => `<p class="nav-group">${name}</p>` + list.filter(r => sections[r]).map(navLink).join('')).join('');
+$('sidebar-nav').innerHTML = routes.map(navLink).join('');
 const goTo = route => () => { location.hash = route; };
 const staffDock = window.createStaffDock($('preview-staff-dock'), [
   {id:'dashboard',label:'Home',icon:'home',select:goTo('dashboard')},
@@ -641,7 +586,7 @@ addEventListener('hashchange',() => {
   $('admin-workarea').scrollTop = 0;
   scrollTo(0,0);
 });
-$('global-search').oninput = event => {   // kept for pasted text; focus opens the palette
+$('global-search').oninput = event => {
   state.query = event.target.value;
   state.page = 0;
   if (location.hash !== '#orders') location.hash = 'orders';
@@ -657,48 +602,6 @@ root.addEventListener('input',event => {
     state.page = 0;
     updateTable();
   }
-});
-
-
-// ---- Command palette (Ctrl/Cmd+K): pages, orders, customers, helpers, warehouses and actions ----
-const palette = document.createElement('dialog');
-palette.className = 'palette';
-palette.setAttribute('aria-label', 'Command palette');
-palette.innerHTML = '<input id="palette-input" type="search" placeholder="Search orders, customers, helpers…" aria-label="Search"><ul id="palette-list" role="listbox"></ul>';
-document.body.append(palette);
-function paletteItems(q) {
-  q = q.trim().toLowerCase();
-  const pages = Object.entries(sections).map(([id, [label]]) => ({label: 'Go to ' + label, run: () => { location.hash = id; }}));
-  const actions = [{label: 'Add warehouse', run: () => openEditor('warehouse')}, {label: 'Add verified campus helper', run: () => openEditor('partner')}, {label: 'Add offline orders', run: () => openEditor('order')}];
-  const data = [
-    ...orders.slice(0, 400).map(o => ({label: o.id + ' · ' + o.customer, run: () => openEditor('order', o.id)})),
-    ...[...new Set(orders.map(o => o.customer))].map(c => ({label: 'Customer · ' + c, run: () => { state.query = c; location.hash = 'orders'; $('global-search').value = c; }})),
-    ...partners.map(p => ({label: 'Helper · ' + (p.email || p.name), run: () => { location.hash = 'partners'; }})),
-    ...warehouses.map(w => ({label: 'Warehouse · ' + w.name, run: () => { location.hash = 'warehouses'; }})),
-  ];
-  return [...pages, ...actions, ...data].filter(i => !q || i.label.toLowerCase().includes(q)).slice(0, 8);
-}
-function drawPalette() {
-  const items = paletteItems($('palette-input').value);
-  $('palette-list').innerHTML = items.map((item, i) => `<li role="option" tabindex="-1" data-i="${i}">${escape(item.label)}</li>`).join('') || '<li class="muted">No matches</li>';
-  $('palette-list').items = items;
-}
-function openPalette() { palette.showModal(); $('palette-input').value = ''; drawPalette(); $('palette-input').focus(); }
-palette.addEventListener('input', drawPalette);
-palette.addEventListener('click', event => {
-  const li = event.target.closest('li[data-i]');
-  if (li) { palette.close(); $('palette-list').items[li.dataset.i].run(); }
-  else if (event.target === palette) palette.close();
-});
-palette.addEventListener('keydown', event => {
-  if (event.key === 'Enter') { const first = $('palette-list').items?.[0]; if (first) { palette.close(); first.run(); } }
-});
-document.addEventListener('keydown', event => {
-  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); palette.open ? palette.close() : openPalette(); }
-});
-$('global-search').addEventListener('focus', event => { event.target.blur(); openPalette(); });
-root.addEventListener('click', event => {
-  if (event.target.closest('[data-hide-setup]')) { store('pb-setup-hidden', '1'); render(); }
 });
 
 const directoryEditors = {
