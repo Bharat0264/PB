@@ -77,7 +77,7 @@
       meta.append(element('strong',label),element('span',entry.type === 'campus' ? 'Campus' : 'Outside','address-badge'));
       if (index === defaultIndex) meta.append(element('span','Default','address-badge address-badge-default'));
       const star = action(index === defaultIndex ? '★' : '☆', () => {
-        updateSelection(entries,index,selected,'Default address updated.',() => byId(card.id)?.querySelector('.address-star'));
+        updateSelection(entries,index,selected,'',() => byId(card.id)?.querySelector('.address-star'));
       },'Set as default, '+label);
       star.classList.add('address-star');
       star.setAttribute('aria-pressed',String(index === defaultIndex));
