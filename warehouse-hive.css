@@ -541,3 +541,17 @@ html:has(body.warehouse) { overscroll-behavior-x: none; }
 @media (min-width: 1101px) {
   .wh-columns > .wh-station { margin-top: var(--station-offset, 0px); }
 }
+
+/* One rhythm for every warehouse page: same title size, same gaps, same tile/tab/card spacing. */
+.warehouse h1 { font-size: clamp(28px, 2.6vw, 34px); line-height: 1.15; letter-spacing: -.02em; }
+.wh-context { margin-bottom: 4px; font-size: 13px; font-weight: 800; }
+.wh-queue h1 { margin-bottom: 16px; }
+.wh-stats, .wh-tabs, .wh-conveyor { margin-top: 0; gap: 16px; }
+.wh-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.wh-tab { min-height: 56px; border-radius: 22px; }
+.wh-board-head { margin: 24px 0 12px; }
+.wh-board-head h2 { font-size: 20px; }
+.wh-tabs + *, .wh-conveyor + * { margin-top: 16px; }
+.wh-queue > #warehouse-content > * + * { margin-top: 0; }
+.wh-station h2 { font-size: 24px; }
+.wh-queue .wh-tabs, .wh-queue .wh-conveyor { margin-bottom: 16px; }

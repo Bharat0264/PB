@@ -320,7 +320,7 @@ function renderQueue(filterOpen) {
     lanes.append(control);
   }
   board.append(lanes);
-  board.append(heading(tab),list(selectedOrders([tab])));
+  board.append(list(selectedOrders([tab])));   // the tab above already names this lane
 }
 function updateCardAge(meta,order) {
   const label=meta.querySelector('.wh-card-age');
