@@ -428,3 +428,14 @@ html:has(body.warehouse) { overscroll-behavior-x: none; }
   .wh-station { top: 4px; max-height: calc(100cqh - 8px); }
   .wh-station-scroll { overscroll-behavior-y: auto; }
 }
+
+/* Staff account menu */
+.wh-account-menu { width: min(280px, calc(100vw - 32px)); padding: 8px; gap: 4px; overflow: hidden; }
+.wh-account-head { display: flex; align-items: center; gap: 12px; padding: 12px; margin-bottom: 4px; border-radius: 16px; background: var(--hv-surface-2); }
+.wh-account-avatar { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; font-weight: 800; color: #2A2112; background: var(--hv-honey-grad); box-shadow: var(--hv-sh-1); flex: none; }
+.wh-account-head strong { display: block; line-height: 1.2; }
+.wh-account-head small { color: var(--hv-muted); font-weight: 700; }
+.wh-account-menu .wh-account-row { min-height: 44px; padding: 0 12px; border-radius: 12px; justify-content: space-between; text-decoration: none; font-weight: 700; color: var(--hv-ink); }
+.wh-account-menu .wh-account-row::after { content: ""; width: 8px; height: 8px; border-right: 2px solid currentColor; border-top: 2px solid currentColor; transform: rotate(45deg); opacity: .45; }
+.wh-account-menu .wh-account-row:hover { background: var(--hv-surface-2); }
+.wh-account-menu #portal-logout { width: 100%; min-height: 44px; margin-top: 4px; border: 0; border-radius: 12px; box-shadow: none; font-weight: 800; background: var(--hv-danger-bg, #fce3e0); color: var(--hv-danger-ink, #9a2626); }

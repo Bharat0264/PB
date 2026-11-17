@@ -1098,7 +1098,7 @@ function handleKeys(event) {
 async function start() {
   byId('warehouse-app').hidden=false;
   byId('warehouse-context').textContent=preview?'PrintBee Warehouse · Sample mode':'PrintBee Warehouse';
-  if (preview) byId('floor-shift').textContent='Sample shift';
+  
   byId('search-icon').append(icon('search'));
   byId('station-close').append(icon('close'));
   byId('station-close').addEventListener('click',()=>closeSheet());
