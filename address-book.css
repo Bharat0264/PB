@@ -1,5 +1,5 @@
 .address-page { --page-clay: var(--hv-bg); background: var(--hv-bg); color: var(--hv-ink); }
-.address-layout { width:min(100%,860px); margin:0 auto; padding:32px clamp(16px,4vw,32px); display:grid; grid-template-columns:minmax(0,1fr); gap:22px; }
+.address-layout { display:grid; grid-template-columns:minmax(0,1fr); align-content:start; gap:22px; padding-bottom:28px; }
 .address-layout [hidden] { display:none !important; }
 .address-book,.address-composer-title,.address-location-actions,.address-save { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; }
 .address-book { gap:12px 20px; }
