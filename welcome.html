@@ -7,24 +7,16 @@
 <title>Welcome · PrintBee</title>
 <link rel="icon" href="/printbee-tab-bee.png" type="image/png">
 <link rel="stylesheet" href="/studio.css?v=clay-review">
-<link rel="stylesheet" href="/welcome.css?v=clay-auth">
+<link rel="stylesheet" href="/welcome.css?v=session-7d">
 <script src="/session-sync.js?v=1" defer></script>
 <script src="/customer-login.js?v=session-7d" defer></script>
-<script src="/welcome-form.js?v=2" defer></script>
-<script src="/welcome-mascot.js?v=1" defer></script>
 <script src="/demo-login.js?v=1" defer></script>
 <script src="/backend-check.js?v=1" defer></script>
 </head>
 <body class="welcome-page">
 <main class="welcome-card" aria-labelledby="welcome-title">
   <section class="welcome-sign-in" aria-labelledby="signin-title">
-    <div class="clay-toggle" role="radiogroup" aria-label="Sign in or sign up" data-mode="in">
-      <input type="radio" name="mode" id="mode-in" value="in" checked><label for="mode-in">Sign in</label>
-      <input type="radio" name="mode" id="mode-up" value="up"><label for="mode-up">Sign up</label>
-      <span class="clay-thumb" aria-hidden="true"></span>
-    </div>
-    <h2 id="signin-title">Welcome back</h2>
-    <p class="welcome-lede" id="mode-lede">Pick up where you left off. No password to remember.</p>
+    <h2 id="signin-title">Sign in</h2>
     <p id="account-email"></p>
     <p id="session-expired" class="welcome-expired" role="status" hidden>Your session expired after 7 days away. Please sign in again.</p>
     <a id="google-sign-in" class="welcome-button welcome-google" href="/api/auth/google?portal=welcome">
@@ -39,9 +31,8 @@
     <form id="email-sign-in" class="welcome-email">
       <p class="welcome-divider">or</p>
       <label for="welcome-email">Email address</label>
-      <input id="welcome-email" name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="you@example.com" required maxlength="254" aria-describedby="email-hint">
-      <p id="email-hint" class="welcome-hint" role="status"></p>
-      <button class="welcome-button welcome-google" type="submit" id="email-submit">Email me a sign-in link</button>
+      <input id="welcome-email" name="email" type="email" autocomplete="email" placeholder="you@example.com" required maxlength="254">
+      <button class="welcome-button welcome-google" type="submit">Email me a sign-in link</button>
     </form>
     <form id="email-sign-in-confirm" hidden>
       <button class="welcome-button welcome-google" type="submit">Confirm sign-in</button>
@@ -53,32 +44,7 @@
     <p id="backend-notice" role="alert" hidden style="margin:12px 0 0;padding:10px 14px;border-radius:14px;background:#fff0c4;color:#6e4a05;font-weight:700"></p>
   </section>
   <section class="welcome-intro">
-    <div class="mascot" aria-hidden="true">
-      <svg viewBox="0 0 220 210" width="220" height="210" focusable="false">
-        <defs>
-          <radialGradient id="clay-body" cx="34%" cy="28%" r="80%"><stop offset="0" stop-color="#fff0b8"/><stop offset=".45" stop-color="#f5cb5c"/><stop offset="1" stop-color="#dba52b"/></radialGradient>
-          <radialGradient id="clay-wing" cx="35%" cy="30%" r="80%"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e3dccb"/></radialGradient>
-          <radialGradient id="clay-hand" cx="35%" cy="30%" r="80%"><stop offset="0" stop-color="#fff6d2"/><stop offset="1" stop-color="#eac15a"/></radialGradient>
-        </defs>
-        <g class="m-float">
-          <ellipse class="m-shadow" cx="110" cy="196" rx="58" ry="8"/>
-          <ellipse class="m-wing" cx="52" cy="62" rx="26" ry="38" transform="rotate(-24 52 62)" fill="url(#clay-wing)"/>
-          <ellipse class="m-wing" cx="168" cy="62" rx="26" ry="38" transform="rotate(24 168 62)" fill="url(#clay-wing)"/>
-          <path d="M84 52 C80 30 70 22 62 20" class="m-antenna"/><circle cx="62" cy="20" r="7" class="m-ball"/>
-          <path d="M136 52 C140 30 150 22 158 20" class="m-antenna"/><circle cx="158" cy="20" r="7" class="m-ball"/>
-          <circle cx="110" cy="112" r="78" fill="url(#clay-body)"/>
-          <path d="M44 128 Q110 150 176 128" class="m-stripe"/>
-          <path d="M52 154 Q110 176 168 154" class="m-stripe"/>
-          <circle cx="62" cy="126" r="11" class="m-cheek"/><circle cx="158" cy="126" r="11" class="m-cheek"/>
-          <g class="m-eye"><circle cx="82" cy="100" r="21" class="m-white"/><circle class="pupil" cx="82" cy="102" r="10"/><circle class="m-glint" cx="78" cy="97" r="3.4"/></g>
-          <g class="m-eye"><circle cx="138" cy="100" r="21" class="m-white"/><circle class="pupil" cx="138" cy="102" r="10"/><circle class="m-glint" cx="134" cy="97" r="3.4"/></g>
-          <path class="m-mouth" d="M94 134 Q110 148 126 134"/>
-          <path class="m-mouth-open" d="M92 132 Q110 160 128 132 Z"/>
-          <ellipse class="m-hand m-hand-l" cx="82" cy="104" rx="25" ry="22" fill="url(#clay-hand)"/>
-          <ellipse class="m-hand m-hand-r" cx="138" cy="104" rx="25" ry="22" fill="url(#clay-hand)"/>
-        </g>
-      </svg>
-    </div>
+    <img src="/printbee-header-bee.webp" width="288" height="228" alt="">
     <h1 id="welcome-title">Welcome to PrintBee</h1>
     <p>Your local print studio.</p>
     <a class="welcome-button welcome-guest" href="/index.html">Continue as guest <span aria-hidden="true">→</span></a>

@@ -66,7 +66,6 @@ signIn.addEventListener('submit', event => {
   event.preventDefault();
   submitLogin(signIn, () => authRequest('request', {email: signIn.elements.email.value}), () => {
     loginStatus.textContent = 'Check your inbox for a sign-in link. It expires in 15 minutes.';
-    dispatchEvent(new CustomEvent('printbee:link-sent'));
   });
 });
 

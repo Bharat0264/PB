@@ -1,4 +1,4 @@
-# Customer sessions and the sign-in page
+# Customer sessions
 
 ## How the session works
 
@@ -12,7 +12,7 @@
   Only its SHA-256 digest is stored on the server. Nothing is kept in localStorage.
 - Signing out in one tab signs out every open tab (BroadcastChannel). **Log out of all devices** is on the Profile page.
 - Someone who is already signed in is sent straight to the home page when they open the sign-in page.
-  The page stays hidden behind a clay skeleton until the session check finishes, so it never flashes.
+  The sign-in card stays hidden until the session check finishes, so it never flashes.
 - All sign-in requests are same-origin JSON only (Origin and Content-Type are checked), and the email link
   endpoint is rate limited. Errors never say whether an email has an account.
 
@@ -32,7 +32,7 @@ PrintBee signs people in with Google or an emailed link, so there is no password
 - `server.py`: slides the window on every `/api/` request, `POST /api/auth/logout-all`.
 - `session-sync.js`: tab sync, activity pings, expiry redirect (loaded on every customer page).
 - `customer-login.js`: sign-in logic, route guard, expired message.
-- `welcome.html`, `welcome.css`, `welcome-form.js`, `welcome-mascot.js`: the clay sign-in page.
+- `welcome.html`, `welcome.css`: the sign-in page keeps its card hidden until the session check finishes and shows the expired note.
 - `test_session_sliding.py`: unit tests for the 7-day rule.
 
 ## Test checklist
@@ -42,8 +42,5 @@ PrintBee signs people in with Google or an emailed link, so there is no password
 3. Set `last_active` and `expires` to 8 days ago, then reload: you are signed out and see the "session expired" message.
 4. Open two tabs, sign out in one: the other goes to the sign-in page.
 5. Profile, "Log out of all devices": every browser is signed out.
-6. Sign-in page at 360, 390, 768, 1024 and 1440 px: no horizontal scroll, controls at least 48 px tall.
-7. Try a wrong email: friendly hint and a gentle shake. Tab through the page: focus rings are visible.
-8. Turn on "reduce motion" in your system: the mascot and card stop animating.
 
 Run `python -m unittest discover` for the automated tests.
