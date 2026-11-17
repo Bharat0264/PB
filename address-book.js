@@ -355,7 +355,7 @@
     try { persist(entries,defaultIndex,selected); } catch { /* Read-only storage still shows saved addresses. */ }
   }
   renderAddresses();
-  if (!entries.length) edit(-1);
+  if (!entries.length && !narrow.matches) edit(-1);
   window.printbeePricing.refresh().then(config => {
     campuses = config?.terms?.campuses || [];
     const select = fields.campusId;
