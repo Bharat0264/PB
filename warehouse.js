@@ -313,9 +313,7 @@ function renderQueue(filterOpen) {
     lanes.append(control);
   }
   board.append(lanes);
-  const actions=node('div',null,'wh-tool-actions');
-  actions.append(queueFilters(filterOpen));
-  board.append(heading(tab,actions),list(selectedOrders([tab])));
+  board.append(heading(tab),list(selectedOrders([tab])));
 }
 function updateCardAge(meta,order) {
   const label=meta.querySelector('.wh-card-age');
