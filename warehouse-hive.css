@@ -536,3 +536,8 @@ html:has(body.warehouse) { overscroll-behavior-x: none; }
 .wh-agent { min-height: 32px; padding: 0 12px; gap: 7px; font-size: 13px; }
 .wh-agent::before { width: 9px; height: 9px; }
 .wh-agent.wh-bad { box-shadow: 0 0 0 1.5px var(--hv-danger), var(--hv-sh-1); }
+
+/* Station card starts level with the first queue card, not the page heading */
+@media (min-width: 1101px) {
+  .wh-columns > .wh-station { margin-top: var(--station-offset, 0px); }
+}

@@ -195,7 +195,15 @@ function selectedOrders(wanted) {
 function counts() {
   return Object.fromEntries(buckets.map(label=>[label,orders.filter(order=>stage(order)===label).length]));
 }
+// Line the order-station card up with the first card of the queue column (below the page heading).
+function alignStation() {
+  const cols=byId('warehouse-columns'), content=byId('warehouse-content');
+  if (!cols || !content) return;
+  cols.style.setProperty('--station-offset',Math.max(0,content.offsetTop-cols.offsetTop)+'px');
+}
+addEventListener('resize',alignStation);
 function render(refreshStation=true,focusDate=false) {
+  requestAnimationFrame(alignStation);
   renderedOrderSnapshot=JSON.stringify(orders);
   const previous=board.contains(document.activeElement)?document.activeElement.dataset.focus:null;
   const filterOpen=board.querySelector('.wh-filters')?.open;
