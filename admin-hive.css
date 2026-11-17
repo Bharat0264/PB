@@ -254,3 +254,10 @@ dialog::backdrop { background: color-mix(in srgb, #8A5E0B 22%, rgba(23,18,10,.45
   .sidebar .nav-link[aria-current]::after { display: none; }
   .sidebar .live-link { display: none; }
 }
+
+/* Dashboard header and tiles: calmer. No clipped honey corners, smaller title, no subtitle line. */
+.metric::before { display: none !important; }
+.intro h1 { font-size: clamp(28px, 2.6vw, 34px); line-height: 1.15; }
+.intro .eyebrow { margin-bottom: 4px; }
+#page-description { display: none; }
+.grid { margin-top: 16px; }
