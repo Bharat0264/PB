@@ -793,12 +793,7 @@ async function showOrders() {
       if (!Array.isArray(data.orders)) throw new Error('Invalid order list');
       accountOrders = data.orders;
       loadOrderUpdates().catch(() => {});
-    } else if (response.status === 401) {
-      const signIn = document.createElement('a');
-      signIn.href = 'profile.html';
-      signIn.textContent = 'Sign in to see your account orders';
-      status.replaceChildren(signIn);
-    } else {
+    } else if (response.status !== 401) {
       throw new Error('Order history unavailable');
     }
   } catch {
