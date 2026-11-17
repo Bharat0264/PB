@@ -458,3 +458,11 @@ html:has(body.warehouse) { overscroll-behavior-x: none; }
 [data-theme="dark"] .wh-conveyor .wh-stat { background: var(--hv-surface-2); box-shadow: var(--hv-sh-1); }
 [data-theme="dark"] .wh-conveyor .wh-stat[aria-pressed="true"] { box-shadow: var(--hv-press); }
 [data-theme="dark"] .wh-stat-icon { box-shadow: none; }
+
+/* Printers card: everything centred on one axis */
+.wh-tool { display: grid; justify-items: center; gap: 18px; padding: 40px 32px; text-align: center; }
+.wh-tool .wh-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px; margin: 0; }
+.wh-tool .wh-meta h2 { margin: 0; }
+.wh-tool .wh-device { margin: 0 auto; }
+.wh-tool .wh-chips, .wh-tool .wh-tool-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.wh-tool > p { margin: 0; max-width: 46ch; }
