@@ -1,4 +1,4 @@
-import {navTokens as theme} from './nav-tokens.js';
+import {navTokens as theme} from './nav-tokens.js?v=hive-clay';
 
 export const tabs = [
   {key:'home', label:'Home', path:'/home', page:'/index.html', icon:'<path d="m3 10 9-7 9 7v10h-6v-6H9v6H3z"/>'},
@@ -17,7 +17,7 @@ export function notchPath(width, height, cx, radius, fillet) {
   const edge = Math.min(cx, width - cx);
   const y = theme.diameter / 2 - theme.lift;
   const r = Math.min(radius, edge);
-  if (r <= y) return `M0 0 H${width} V${height} H0 Z`;
+  if (r <= y) return `M0 14 Q0 0 14 0 H${width-14} Q${width} 0 ${width} 14 V${height} H0 Z`;
   // The outer arcs are tangent to the top edge and the circular cut-out.
   const f = clamp((edge * edge + y * y - r * r) / (2 * (r + y)), 0, fillet);
   const offset = Math.sqrt((r + f) ** 2 - (y - f) ** 2);
@@ -25,7 +25,9 @@ export function notchPath(width, height, cx, radius, fillet) {
   const join = y + (f - y) * r / (r + f);
   const left = f ? `A${f} ${f} 0 0 1 ${cx-x} ${join}` : '';
   const right = f ? `A${f} ${f} 0 0 1 ${cx+offset} 0` : '';
-  return `M0 0 H${cx-offset} ${left} A${r} ${r} 0 ${join < y ? 1 : 0} 0 ${cx+x} ${join} ${right} H${width} V${height} H0 Z`;
+  const start = clamp(cx - offset, 0, 14);
+  const end = clamp(width - cx - offset, 0, 14);
+  return `M0 ${start} Q0 0 ${start} 0 H${cx-offset} ${left} A${r} ${r} 0 ${join < y ? 1 : 0} 0 ${cx+x} ${join} ${right} H${width-end} Q${width} 0 ${width} ${end} V${height} H0 Z`;
 }
 
 function icon(index) {
@@ -70,6 +72,7 @@ export class BottomNav {
     this.shape = document.createElementNS(svgNS, 'svg');
     this.shape.setAttribute('class', 'nav-shape');
     this.shape.setAttribute('aria-hidden', 'true');
+    this.shape.innerHTML = '<defs><linearGradient id="customer-nav-clay" x2="0" y2="1"><stop class="nav-glaze" offset="0%"/><stop class="nav-surface" offset="26%"/><stop class="nav-depth" offset="100%"/></linearGradient></defs>';
     this.path = document.createElementNS(svgNS, 'path');
     this.shape.append(this.path);
     this.bubble = document.createElement('div');
@@ -80,8 +83,7 @@ export class BottomNav {
     this.ghost.setAttribute('aria-hidden', 'true');
     bar.replaceChildren(this.shape, ...this.links, this.ghost, this.bubble);
     const style = document.documentElement.style;
-    const variables = {ink: theme.ink, surface: theme.bar, bubble: theme.bubble, shadow: theme.shadow,
-      size: theme.diameter + 'px', lift: theme.lift + 'px',
+    const variables = {size: theme.diameter + 'px', lift: theme.lift + 'px',
       height: `calc(${theme.height}px + env(safe-area-inset-bottom, 0px))`};
     Object.entries(variables).forEach(([key, value]) => style.setProperty('--nav-' + key, value));
     this.index = routeIndex();
@@ -123,11 +125,9 @@ export class BottomNav {
     const x = clamp(this.x, margin, this.width - margin);
     const edge = Math.min(x, this.width - x);
     const stretch = motion.matches ? 0 : Math.min(.2, Math.abs(this.velocity) / 3600, Math.max(0, (edge - 3) / 28 - 1));
-    if (this.bar.classList.contains('off-tab')) {
-      this.path.setAttribute('d', `M0 0 H${this.width} V${this.height} H0 Z`);
-      return;
-    }
-    this.path.setAttribute('d', notchPath(this.width, this.height, x, theme.radius * (1 + stretch), theme.fillet));
+    const radius = this.bar.classList.contains('off-tab') ? 0 : theme.radius * (1 + stretch);
+    this.path.setAttribute('d', notchPath(this.width, this.height, x, radius, theme.fillet));
+    if (!radius) return;
     this.bubble.style.transform = `translate3d(${x}px,0,0) scale(${1+stretch},${1-.6*stretch})`;
     if (time) {
       this.trail.push({x, time});
@@ -225,7 +225,7 @@ else if (window.parent === window) {
     dock.className = 'bottom-nav direct-nav';
     const css = document.createElement('link');
     css.rel = 'stylesheet';
-    css.href = '/navigation.css?v=customer-tabs';
+    css.href = '/navigation.css?v=hive-clay';
     document.head.append(css);
     const nav = new BottomNav(dock);
     document.body.classList.add('has-direct-nav');

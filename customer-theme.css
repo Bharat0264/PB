@@ -10,6 +10,21 @@
   .customer-theme .top { gap: 8px; }
   .customer-theme .top .brand-logo { max-width: min(210px,43vw); }
 }
+@media (min-width: 701px) {
+  .customer-theme .desktop-nav {
+    display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:0;
+    background:linear-gradient(180deg,#e1ebb7,#eff4d6);
+    border-color:#fbfdef;
+    box-shadow:6px 9px 19px #66723c26, inset 0 2px 3px #ffffef, inset 0 -4px 9px #a3b86730;
+  }
+  .customer-theme .desktop-nav a { color:#4b5737; }
+  .customer-theme .desktop-nav a:is(:hover,[aria-current="page"]) { color:#8d3616; }
+  .customer-theme .desktop-nav a[aria-current="page"]::before {
+    height:3px; border-radius:0 0 4px 4px; background:#e66933;
+    box-shadow:0 4px 12px 3px #e6693340;
+  }
+  .customer-theme .desktop-nav a:focus-visible { outline-offset:-5px; border-radius:12px; }
+}
 
 [data-theme="dark"] {
   --page-clay: var(--hv-bg);
@@ -53,14 +68,6 @@
 [data-theme="dark"] .customer-theme .customer-header-actions .header-profile {
   color: var(--hv-honey-ink); background: var(--hv-surface-3);
 }
-[data-theme="dark"] .customer-theme .bottom-nav {
-  --nav-ink: var(--hv-ink) !important;
-  --nav-surface: var(--hv-surface) !important;
-  --nav-bubble: var(--hv-honey-500) !important;
-  --nav-shadow: 0 2px 10px #0009 !important;
-}
-[data-theme="dark"] .customer-theme .bottom-nav [role="tab"]:focus-visible { outline-color: var(--hv-honey-500); }
-
 /* Dark mode uses a logo with light lettering, so there is no glow or outline around it. */
 [data-theme="dark"] .customer-theme :is(.top .brand-logo,.footer-intro img) {
   content: url("printbee-header-logo-dark.webp?v=2");
