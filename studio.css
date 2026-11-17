@@ -1395,3 +1395,10 @@ body {
 .orders-empty { list-style: none; display: flex; align-items: center; min-height: 84px; padding: 22px 28px; border-radius: 28px; font-weight: 700; color: #4a3b1c;
   background: linear-gradient(150deg, #fffaf0, #f4ead3);
   box-shadow: 8px 10px 20px #6e502824, -6px -6px 14px #fffdf685, inset -4px -5px 10px #a774200f, inset 4px 5px 10px #fffdf6b3; }
+
+/* Empty cart: compact */
+.cart-empty { gap: 6px; padding: clamp(20px, 3vw, 28px) 20px; border-radius: 28px; }
+.cart-empty-orb { width: 60px; height: 60px; }
+.cart-empty-orb svg { width: 28px; height: 28px; }
+.cart-empty h2 { margin: 4px 0 0; font-size: clamp(19px, 2.4vw, 22px); }
+.cart-empty p { max-width: 52ch; margin: 0; font-size: 14.5px; line-height: 1.45; }
