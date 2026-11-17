@@ -66,3 +66,31 @@
 @keyframes welcome-reveal { to { visibility: visible; } }
 .welcome-expired { margin: 0 0 14px; padding: 10px 14px; border-radius: 14px; background: #fff0c4; color: #6e4a05; font-weight: 700; font-size: 14px; }
 .welcome-expired[hidden] { display: none; }
+
+/* ---- Clay finish: same calm layout, soft raised shapes ---- */
+.welcome-page { --c-out: 12px 16px 30px rgba(110, 80, 28, .18), -8px -8px 18px rgba(255, 252, 244, .7); --c-in: inset -6px -8px 14px rgba(120, 88, 30, .09), inset 6px 8px 14px rgba(255, 252, 244, .8); }
+.welcome-intro img { width: 104px; height: 104px; padding: 14px; border-radius: 50%; margin-bottom: 14px;
+  background: linear-gradient(150deg, #fffaf0, #f1e2b4);
+  box-shadow: 8px 10px 18px rgba(110, 80, 28, .2), -5px -5px 12px rgba(255, 252, 244, .7), inset -5px -6px 10px rgba(120, 88, 30, .1), inset 5px 6px 10px rgba(255, 252, 244, .8); }
+.welcome-sign-in { border: 0; border-radius: 40px; padding: 32px 28px;
+  background: linear-gradient(150deg, #fffaf0, #f4ead3); -webkit-backdrop-filter: none; backdrop-filter: none;
+  box-shadow: var(--c-out), var(--c-in); }
+.welcome-button { border-radius: 999px; min-height: 54px; transition: transform .3s cubic-bezier(.34, 1.45, .64, 1), box-shadow .2s; }
+.welcome-button:hover { transform: translateY(-2px); }
+.welcome-button:active { transform: translateY(1px) scale(.98); }
+.welcome-google { background: linear-gradient(150deg, #fffaf0, #f1e6cc);
+  box-shadow: 6px 8px 16px rgba(110, 80, 28, .2), -4px -4px 11px rgba(255, 252, 244, .75), inset -3px -4px 8px rgba(120, 88, 30, .08), inset 3px 4px 8px rgba(255, 252, 244, .85); }
+.welcome-google:hover { background: linear-gradient(150deg, #fffaf0, #f1e6cc); }
+.welcome-google:active { box-shadow: inset 5px 6px 12px rgba(110, 80, 28, .2), inset -3px -3px 8px rgba(255, 252, 244, .7); }
+.welcome-primary { background: linear-gradient(150deg, #f9dc84, #ecc058);
+  box-shadow: 6px 8px 16px rgba(130, 92, 20, .28), -4px -4px 11px rgba(255, 244, 205, .7), inset -3px -4px 8px rgba(130, 92, 20, .16), inset 3px 4px 8px rgba(255, 250, 225, .7); }
+.welcome-primary:hover { background: linear-gradient(150deg, #f9dc84, #ecc058); }
+.welcome-primary:active { box-shadow: inset 5px 6px 12px rgba(130, 92, 20, .3), inset -3px -3px 8px rgba(255, 244, 205, .6); }
+.welcome-email input { border-radius: 999px; padding: 0 22px; background: #efe5cd; box-shadow: inset 5px 6px 11px rgba(110, 80, 28, .16), inset -4px -4px 9px rgba(255, 252, 244, .8); }
+.welcome-email input:focus-visible { outline: 3px solid color-mix(in srgb, var(--w-honey) 70%, transparent); }
+.welcome-divider::before, .welcome-divider::after { height: 3px; border-radius: 3px; background: #e6dcc0; box-shadow: inset 1px 1px 2px rgba(110, 80, 28, .18); }
+.welcome-guest { min-height: 48px; display: inline-flex; align-items: center; padding: 0 24px; border-radius: 999px;
+  background: linear-gradient(150deg, #fffaf0, #f1e6cc);
+  box-shadow: 5px 7px 14px rgba(110, 80, 28, .18), -4px -4px 10px rgba(255, 252, 244, .75), inset -3px -3px 7px rgba(120, 88, 30, .07), inset 3px 3px 7px rgba(255, 252, 244, .8); }
+.welcome-guest:hover { background: linear-gradient(150deg, #fffaf0, #f1e6cc); transform: translateY(-2px); }
+.welcome-expired, #backend-notice { box-shadow: inset 3px 3px 8px rgba(255, 255, 255, .8), inset -3px -3px 8px rgba(163, 112, 18, .15); }
