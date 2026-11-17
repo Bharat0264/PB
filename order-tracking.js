@@ -66,18 +66,31 @@
       return cell;
     }));
   }
-  const journeySteps = [['Placed', ['paid']], ['Printing', ['printing']], ['Ready', ['packed', 'assigned']], ['On the way', ['out_for_delivery']], ['Delivered', ['delivered']]];
+  const D = '#4a3b2a', H = '#f5b731', HL = '#ffd96a';
+  const journeyIcons = [
+    `<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M5 10h6l5 18h18l4-12H14" fill="none" stroke="${D}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><rect x="17" y="15" width="17" height="11" rx="3" fill="${HL}"/><circle cx="19" cy="37" r="3.2" fill="${D}"/><circle cx="32" cy="37" r="3.2" fill="${D}"/><circle cx="36" cy="14" r="8" fill="${H}"/><path d="m32 14 3 3 5-6" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+    `<svg viewBox="0 0 48 48" aria-hidden="true"><rect x="15" y="6" width="18" height="8" rx="3" fill="none" stroke="${D}" stroke-width="3"/><rect x="5" y="14" width="38" height="20" rx="6" fill="${D}"/><rect x="13" y="26" width="22" height="15" rx="2" fill="${HL}"/><path d="M18 31h12M18 35h8" stroke="${H}" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="20" r="2" fill="${H}"/></svg>`,
+    `<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 6 41 14v20L24 43 7 34V14z" fill="${HL}"/><path d="M24 6 41 14 24 22 7 14z" fill="${H}"/><path d="M24 22v21L7 34V14z" fill="#f2c24a"/><path d="M17 10l17 8" stroke="#e59d12" stroke-width="5" stroke-linecap="round"/><ellipse cx="32" cy="30" rx="4" ry="5" fill="${D}"/><path d="M30 28h4M30 31h4" stroke="${H}" stroke-width="1.6"/></svg>`,
+    `<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M3 18h7M1 24h9M5 30h6" stroke="${H}" stroke-width="2.6" stroke-linecap="round"/><rect x="12" y="12" width="14" height="11" rx="3" fill="${H}"/><circle cx="19" cy="17" r="2.6" fill="${D}"/><path d="M14 27h18l4-9h4M30 18l3-6h4" fill="none" stroke="${D}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 27h20l1 7H16z" fill="${HL}"/><circle cx="16" cy="37" r="5" fill="${D}"/><circle cx="37" cy="37" r="5" fill="${D}"/><circle cx="16" cy="37" r="2" fill="#fff"/><circle cx="37" cy="37" r="2" fill="#fff"/></svg>`,
+    `<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 6 5 22h6v18h26V22h6z" fill="#fff4dc"/><path d="M24 4 3 22l3 3 18-15 18 15 3-3z" fill="${H}"/><rect x="20" y="26" width="9" height="14" rx="4" fill="${H}"/><circle cx="37" cy="36" r="8" fill="#2fb457"/><path d="m33 36 3 3 5-6" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  ];
+  const journeySteps = [['Order placed', ['paid']], ['Printing', ['printing']], ['Ready', ['packed', 'assigned']], ['On the way', ['out_for_delivery']], ['Delivered', ['delivered']]];
+  const wave = 'M50 30' + [150, 250, 350, 450].map(x => ` C${x - 70} 2 ${x - 30} 2 ${x} 30`).join('');
   function orderJourney(status) {
     const at = journeySteps.findIndex(([, keys]) => keys.includes(status));
     if (at < 0) return null;
+    const done = status === 'delivered';
     const list = node('ol', '', 'journey');
     list.setAttribute('aria-label', 'Order journey: ' + journeySteps[at][0]);
-    list.style.setProperty('--at', at);
+    list.style.setProperty('--progress', String(at / 4 * 100));
+    list.insertAdjacentHTML('afterbegin', `<svg class="journey-wave" viewBox="0 0 500 40" preserveAspectRatio="none" aria-hidden="true"><path pathLength="100" d="${wave}" class="journey-track"/><path pathLength="100" d="${wave}" class="journey-fill"/></svg>`);
     journeySteps.forEach(([text], i) => {
       const step = node('li', '', 'journey-step');
       step.style.setProperty('--i', i);
-      step.dataset.state = i < at ? 'done' : i === at ? (status === 'delivered' ? 'done' : 'current') : 'todo';
-      step.append(node('span', '', 'journey-hex'), node('span', text, 'journey-label'));
+      step.dataset.state = i < at ? 'done' : i === at ? (done ? 'final' : 'current') : 'todo';
+      const tile = node('span', '', 'journey-tile');
+      tile.innerHTML = journeyIcons[i];
+      step.append(tile, node('span', '', 'journey-dot'), node('span', text, 'journey-label'));
       list.append(step);
     });
     return list;
