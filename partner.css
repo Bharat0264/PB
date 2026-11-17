@@ -20,7 +20,7 @@
   --sh-press: inset 0 3px 8px var(--drop-2), inset 0 -1px 0 var(--hi);
   --glass: rgba(255,251,241,.86);
   --r-lg: 28px; --r-md: 20px; --r-pill: 999px;
-  --focus: 0 0 0 3px var(--bg), 0 0 0 6px #C9840F;
+  --focus: 0 0 0 3px color-mix(in srgb, #F5C542 55%, transparent);
   /* Map palette */
   /* Layout rails (desktop) */
   --dock-w: 72px; --dock-x: 16px; --gutter: 24px; --outer: 32px; --top: 96px;
@@ -41,7 +41,7 @@
   --sh-2: inset 0 1px 0 var(--hi), inset 0 -6px 12px var(--shade), 0 4px 10px var(--drop), 0 18px 36px var(--drop), 0 0 0 1px rgba(255,190,80,.05);
   --sh-3: inset 0 1px 0 var(--hi), inset 0 -8px 16px var(--shade), 0 10px 20px var(--drop-2), 0 30px 60px var(--drop-2), 0 0 40px rgba(255,170,40,.06);
   --glass: rgba(42,29,15,.84);
-  --focus: 0 0 0 3px var(--bg), 0 0 0 6px #FFC94D;
+  --focus: 0 0 0 3px color-mix(in srgb, #F5C542 55%, transparent);
   --shimmer: rgba(255,200,90,.1);
   color-scheme: dark;
 }

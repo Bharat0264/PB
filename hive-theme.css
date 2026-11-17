@@ -24,7 +24,7 @@
   --hv-field: inset 0 2px 5px var(--hv-drop-2), inset 0 -1px 0 var(--hv-hi), 0 0 0 1px var(--hv-border);
   --hv-glass: rgba(255,251,241,.84);
   --hv-honey-grad: linear-gradient(180deg, #FFE495, #F5C542 70%, #EDB52F);
-  --hv-focus: 0 0 0 3px var(--hv-honey-500), 0 0 0 5px var(--hv-ink);
+  --hv-focus: 0 0 0 3px color-mix(in srgb, var(--hv-honey-500) 55%, transparent);
   --hv-r-card: 28px; --hv-r-tile: 20px; --hv-r-input: 14px; --hv-r-pill: 999px;
   --hv-ease: cubic-bezier(.22,1,.36,1); --hv-spring: cubic-bezier(.34,1.4,.64,1);
   color-scheme: light;
@@ -43,7 +43,7 @@
   --hv-sh-3: inset 0 1px 0 var(--hv-hi), inset 0 -8px 16px var(--hv-shade), 0 0 0 1px var(--hv-border), 0 10px 22px var(--hv-drop-2), 0 30px 60px var(--hv-drop-2), 0 0 48px rgba(255,170,40,.07);
   --hv-glass: rgba(35,27,15,.86);
   --hv-honey-grad: linear-gradient(180deg, #FFD978, #F5C542 65%, #E3A321);
-  --hv-focus: 0 0 0 3px var(--hv-honey-500), 0 0 0 5px #000;
+  --hv-focus: 0 0 0 3px color-mix(in srgb, var(--hv-honey-500) 55%, transparent);
   color-scheme: dark;
 }
 
@@ -117,3 +117,11 @@
 @media (prefers-reduced-motion: reduce) {
   .hv-page, .hv-switch::before, .hv-switch::after, .hv-glide { transition: none !important; }
 }
+
+/* One calm focus style everywhere: no brown outline when you click. Keyboard focus shows a soft honey glow. */
+:is(a, button, input, select, textarea, summary, label, [tabindex]):focus:not(:focus-visible) { outline: none !important; }
+:is(a, button, input, select, textarea, summary, [tabindex]):focus-visible,
+.segments input:focus-visible + span {
+  outline: 3px solid color-mix(in srgb, #F5C542 55%, transparent) !important; outline-offset: 2px;
+}
+:is(input, textarea, select):focus-visible { outline-offset: 0; }
