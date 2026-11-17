@@ -530,7 +530,7 @@ function render(animate = false) {
 
 function navLink(route) {
   const [label, glyph] = sections[route];
-  return `<a class="nav-link" data-nav="${route}" href="#${route}" aria-label="${label}">${icon(glyph)}<span>${label}</span></a>`;
+  return `<a class="nav-link" data-nav="${route}" href="#${route}" aria-label="${label}" title="${label}">${icon(glyph)}<span>${label}</span></a>`;
 }
 
 const routes = Object.keys(sections);

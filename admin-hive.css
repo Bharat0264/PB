@@ -235,3 +235,22 @@ dialog::backdrop { background: color-mix(in srgb, #8A5E0B 22%, rgba(23,18,10,.45
   .toolbar .search-clay:focus-within { width: min(300px, 40vw); border-radius: 999px; justify-content: flex-start; padding: 0 16px; background: var(--hv-surface-2); box-shadow: var(--hv-field); }
   .toolbar .search-clay:focus-within input { flex: 1; width: auto; opacity: 1; margin-left: 8px; }
 }
+
+/* Floating layout (same as the partner portal): brand pill top-left, icon dock on the left, content centred. */
+@media (min-width: 851px) {
+  .workspace, .workspace.compact { grid-template-columns: minmax(0, 1440px); gap: 0; padding: 16px 32px 32px 112px; }
+  .toolbar .collapse { display: none; }
+  .sidebar { position: fixed; inset: 0 auto 0 22px; z-index: 20; width: auto; height: auto; min-height: 0; padding: 0; gap: 0; overflow: visible; background: none; box-shadow: none; border-radius: 0; display: flex; justify-content: center; align-items: center; pointer-events: none; }
+  .sidebar > * { pointer-events: auto; }
+  .sidebar .brand { position: absolute; top: 18px; left: 0; gap: 10px; padding: 8px 20px 8px 12px; border-radius: 999px; background: var(--hv-glass); box-shadow: var(--hv-sh-2); }
+  .sidebar .brand img { width: 36px; }
+  .sidebar .brand strong { font-size: 17px; }
+  .sidebar .brand small { display: none; }
+  .sidebar nav { display: grid; gap: 10px; padding: 14px 10px; border-radius: 999px; background: var(--hv-glass); box-shadow: var(--hv-sh-2); }
+  .sidebar .nav-link { width: 52px; height: 52px; min-height: 0; padding: 0; justify-content: center; border-radius: 50%; }
+  .sidebar .nav-link span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .sidebar .nav-link .icon { width: 22px; height: 22px; }
+  .sidebar .nav-link[aria-current] { background: var(--hv-honey-grad); box-shadow: var(--hv-sh-1); }
+  .sidebar .nav-link[aria-current]::after { display: none; }
+  .sidebar .live-link { display: none; }
+}

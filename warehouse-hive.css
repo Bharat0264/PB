@@ -479,3 +479,19 @@ html:has(body.warehouse) { overscroll-behavior-x: none; }
   .wh-indicators .wh-icon-button { width: 46px; min-height: 46px; border-radius: 50%; background: var(--hv-surface); box-shadow: var(--hv-sh-1); }
   .wh-top .wh-floor-theme { width: 76px; }
 }
+
+/* Floating layout (same as the partner portal): brand pill top-left, icon dock on the left, content centred. */
+@media (min-width: 851px) {
+  .warehouse-shell { grid-template-columns: minmax(0, 1440px); gap: 0; padding: 16px 32px 32px 112px; }
+  .wh-rail { position: fixed; inset: 0 auto 0 22px; z-index: 20; width: auto; height: auto; padding: 0; gap: 0; background: none; box-shadow: none; border-radius: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; pointer-events: none; }
+  .wh-rail > *, .wh-rail-footer { pointer-events: auto; }
+  .wh-brand-row { position: absolute; top: 18px; left: 0; padding: 8px 20px 8px 12px; border-radius: 999px; background: var(--hv-glass); box-shadow: var(--hv-sh-2); }
+  .wh-brand-row #floor-collapse { display: none; }
+  .wh-brand-row .wh-brand { width: auto; min-height: 0; }
+  .wh-brand img { width: 36px; height: auto; }
+  .wh-rail #warehouse-nav { width: auto; display: grid; gap: 10px; padding: 14px 10px; border-radius: 999px; background: var(--hv-glass); box-shadow: var(--hv-sh-2); }
+  .wh-rail .wh-nav-button { width: 52px; min-height: 52px; height: 52px; padding: 0; justify-content: center; border-radius: 50%; }
+  .wh-rail .wh-nav-button > .wh-nav-label { display: none; }
+  .wh-rail .wh-nav-button[aria-current] .wh-nav-label::after { display: none; }
+  .wh-rail-footer { position: absolute; bottom: 22px; left: 4px; margin: 0; }
+}
