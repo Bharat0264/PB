@@ -1,4 +1,5 @@
 import argparse
+import hashlib
 import hmac
 import json
 import os
@@ -1617,6 +1618,19 @@ if __name__ == "__main__":
         if "object_key" not in {column["name"] for column in db.execute("PRAGMA table_info(files)")}:
             db.execute("ALTER TABLE files ADD COLUMN object_key TEXT")
         order_status.install_guards(db)
+        sample_email = os.environ.get("PRINTBEE_SAMPLE_ORDER_EMAIL", "").strip().lower()
+        if sample_email and "@" in sample_email:   # opt-in: one finished sample order for a tester's Orders page
+            order_id = hashlib.sha256(("sample-order:" + sample_email).encode()).hexdigest()[:32]
+            if not db.execute("SELECT 1 FROM orders WHERE id=?", (order_id,)).fetchone():
+                item = {"name": "Sample notes.pdf", "pages": 24, "copies": 1, "colour": False, "duplex": True,
+                        "orientation": "Portrait", "binding": "spiral", "paper": "A4", "size": 0, "subtotal": 4800}
+                details = {"customer": "Sample order", "phone": "", "address": "SRM University, Kattankulathur",
+                           "items": [item], "subtotal": 4800, "bill": {"subtotal": 4800, "total": 9800}}
+                db.execute("INSERT INTO orders VALUES (?, ?, 'pending', ?)", (order_id, "0" * 64, json.dumps(details)))
+                for status in ("paid", "printing", "packed", "out_for_delivery", "delivered"):
+                    db.execute("UPDATE orders SET status=? WHERE id=?", (status, order_id))
+                db.execute("INSERT INTO order_owners (order_id, email, order_number) VALUES (?, ?, ?)",
+                           (order_id, sample_email, "PB-SAMPLE-" + order_id[:6].upper()))
         eligible = ()
         if active_checkout_terms(db, checkout_terms).get("autoDispatch"):
             eligible = {"delivery", *partners, *phones.values(), *google_access["partner"].values()}
