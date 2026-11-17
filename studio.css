@@ -1390,3 +1390,8 @@ body {
 .row-text strong { font-size: 15.5px; }
 .row-text small { color: #625336; font-size: 13px; overflow-wrap: anywhere; }
 .row-chevron { width: 9px; height: 9px; margin-right: 6px; border-right: 2.5px solid #8a7a55; border-top: 2.5px solid #8a7a55; transform: rotate(45deg); opacity: .7; }
+
+/* Orders: clay empty state */
+.orders-empty { list-style: none; display: flex; align-items: center; min-height: 84px; padding: 22px 28px; border-radius: 28px; font-weight: 700; color: #4a3b1c;
+  background: linear-gradient(150deg, #fffaf0, #f4ead3);
+  box-shadow: 8px 10px 20px #6e502824, -6px -6px 14px #fffdf685, inset -4px -5px 10px #a774200f, inset 4px 5px 10px #fffdf6b3; }

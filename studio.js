@@ -982,6 +982,7 @@ async function showOrders() {
   errorPanel.hidden = !accountUnavailable;
   if (!accountUnavailable && !orderHistory.childElementCount && !status.textContent) {
     const empty = document.createElement('li');
+    empty.className = 'orders-empty';
     empty.textContent = 'Your placed orders will appear here.';
     orderHistory.append(empty);
   }

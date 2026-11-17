@@ -152,3 +152,4 @@ main.inner-page .price-section > h2:first-child {
 }
 main.inner-page .cart-page-heading { margin: 0 0 4px; }
 main.inner-page .cart-page-heading h1 { margin-bottom: 0; }
+[data-theme="dark"] .customer-theme .orders-empty { background: var(--hv-surface-2); box-shadow: var(--raised); color: var(--ink); }
