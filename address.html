@@ -15,8 +15,8 @@
 <script src="footer-wave.js?v=letter-spacing" defer></script>
 <script src="profile.js?v=delivery-types" defer></script>
 <script src="customer-pricing.js?v=published-rates" defer></script>
-<script src="address-book.js?v=pro" defer></script>
-<link rel="stylesheet" href="address-book.css?v=pro">
+<script src="address-book.js?v=aligned" defer></script>
+<link rel="stylesheet" href="address-book.css?v=aligned">
 <link rel="stylesheet" href="/hive-theme.css?v=crescent2">
 <link rel="stylesheet" href="/customer-theme.css?v=titles2">
 <script src="/hive-theme.js?v=sun-moon"></script>
@@ -43,16 +43,10 @@
   </div>
 </header>
 <main id="main" class="address-layout">
-  <section class="address-book" aria-labelledby="address-title">
+  <div class="address-book">
     <h1 id="address-title">Delivery address</h1>
-    <div class="address-list-heading">
-      <h2>Saved addresses</h2>
-      <button class="address-action address-add" id="add-address" type="button" aria-controls="address-composer" aria-expanded="false">+ Add address</button>
-    </div>
-    <div id="saved-addresses"></div>
-    <button class="address-action" id="show-addresses" type="button" aria-expanded="false" hidden>Show all</button>
-    <p id="profile-status" role="status"></p>
-  </section>
+    <button class="address-action address-add" id="add-address" type="button" aria-controls="address-composer" aria-expanded="false">+ Add address</button>
+  </div>
   <dialog class="address-composer" id="address-composer" aria-labelledby="delivery-title">
     <form id="address-form" novalidate>
       <div class="address-composer-title"><h2 id="delivery-title">Delivery details</h2><button class="address-action address-close" id="close-address" type="button" aria-label="Close address form">×</button></div>
@@ -118,12 +112,12 @@
       <p class="address-error" id="address-errors" role="status"></p>
     </form>
   </dialog>
-  <div class="address-idle" id="address-idle" hidden>
-    <span class="address-idle-orb" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 10c0 5-8 10-8 10S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg></span>
-    <p class="address-idle-label">Delivering to</p>
-    <p id="current-delivery" class="address-idle-text"></p>
-    <p class="address-idle-note">Pick another address from your list, or add a new one.</p>
-  </div>
+  <section aria-labelledby="saved-addresses-title">
+    <h2 id="saved-addresses-title">Saved addresses</h2>
+    <div id="saved-addresses"></div>
+    <button class="address-action" id="show-addresses" type="button" aria-controls="saved-addresses" aria-expanded="false" hidden>Show all</button>
+    <p id="profile-status" role="status"></p>
+  </section>
 </main>
 <footer class="frame brand-footer" id="contact">
   <div class="footer-surface">

@@ -82,8 +82,9 @@
       star.classList.add('address-star');
       star.setAttribute('aria-pressed',String(index === defaultIndex));
       star.title = index === defaultIndex ? 'Default address' : 'Set as default';
-      meta.append(star);
       const details = element('p',entry.address.split('\n')[0]);
+      const content = element('div',null,'address-card-content');
+      content.append(meta,details);
       const controls = element('div',null,'address-card-actions');
       const deliver = action(index === selected ? '✓ Delivering here' : 'Deliver here',() => {
         updateSelection(entries,defaultIndex,index,'Delivery address selected for checkout.',() => byId(card.id)?.querySelector('.address-deliver'));
@@ -104,20 +105,19 @@
       trash.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/></svg>';
       trash.classList.add('address-trash');
       pencil.classList.add('address-edit');
-      controls.append(deliver,pencil,trash);
-      card.append(meta,details,controls);
+      const utilities = element('div',null,'address-card-tools');
+      utilities.append(star,pencil,trash);
+      controls.append(deliver,utilities);
+      card.append(content,controls);
       list.append(card);
     });
     const more = byId('show-addresses');
     more.hidden = entries.length <= 5;
     more.textContent = showAll ? 'Show less' : 'Show all';
     more.setAttribute('aria-expanded',String(showAll));
-    byId('current-delivery').textContent = entries[selected]?.address.split('\n')[0] || '';
-    syncComposer();
   }
   function syncComposer() {
     byId('add-address').setAttribute('aria-expanded',String(composer.open));
-    byId('address-idle').hidden = composer.open || !entries.length;
   }
   function setOpen(open, focus) {
     if (open && !composer.open) {
