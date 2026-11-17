@@ -275,3 +275,8 @@ dialog::backdrop { background: color-mix(in srgb, #8A5E0B 22%, rgba(23,18,10,.45
 
 /* Keep the account initials readable on the floating toolbar in both themes. */
 .toolbar .avatar { background: var(--hv-honey-grad); color: #2A2112; }
+@media (min-width: 851px) {
+  .sidebar .brand span { display: flex; align-items: baseline; gap: 6px; }
+  .sidebar .brand strong { display: inline; }
+  .sidebar .brand small { display: inline; font-size: 17px; font-weight: 800; color: var(--hv-muted); }
+}
