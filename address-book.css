@@ -79,31 +79,42 @@ main.address-layout .address-book > h1:last-of-type { margin-bottom:0; }
 .address-add { padding:6px 18px; font-size:14px; background:var(--hv-honey-grad); color:#2a2112; }
 
 .address-card {
+  --card-depth:color-mix(in srgb,var(--hv-surface-2) 48%,var(--hv-surface));
+  --card-edge:var(--hv-border);
   display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:16px 24px;
-  padding:clamp(14px,3vw,22px); border:1px solid var(--hv-border); border-radius:24px;
-  background: var(--hv-surface);
-  box-shadow: var(--hv-sh-1);
+  padding:clamp(14px,3vw,22px); border:1px solid var(--card-edge); border-radius:28px;
+  background:linear-gradient(145deg,var(--hv-surface) 32%,var(--card-depth));
+  box-shadow:0 8px 20px var(--hv-drop), 0 2px 5px var(--hv-drop),
+    inset 0 3px 4px var(--hv-hi), inset 0 -5px 12px var(--hv-shade);
 }
 .address-card[data-selected=true] {
-  border-color:var(--hv-honey-700);
-  box-shadow:inset 3px 0 var(--hv-honey-500),var(--hv-sh-1);
+  --card-depth:color-mix(in srgb,var(--hv-warning-bg) 58%,var(--hv-surface));
+  --card-edge:color-mix(in srgb,var(--hv-honey-500) 32%,var(--hv-border));
 }
 .address-card-content { display:grid; gap:8px; }
 .address-card-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .address-card-meta strong { font-size:17px; line-height:1.25; }
+.address-card .address-badge { box-shadow:inset 0 1px 1px var(--hv-hi), inset 0 -2px 4px var(--hv-shade); }
 .address-badge-default { background:var(--hv-success-bg); color:var(--hv-success-ink); }
 .address-card p { margin:0; overflow-wrap:anywhere; font-size:14.5px; line-height:1.5; }
 .address-card-actions { display:grid; justify-items:end; gap:8px; }
-.address-card-tools { display:flex; flex-wrap:wrap; gap:4px; }
+.address-card-tools { display:flex; flex-wrap:wrap; gap:6px; }
 .address-deliver { padding:6px 14px; font-size:14px; }
 .address-deliver[aria-pressed=true] {
-  border-color:transparent; background:var(--hv-warning-bg); color:var(--hv-warning-ink); box-shadow:none;
+  border-color:transparent;
+  background:linear-gradient(155deg,var(--hv-warning-bg),color-mix(in srgb,var(--hv-honey-500) 18%,var(--hv-warning-bg)));
+  color:var(--hv-warning-ink); box-shadow:var(--hv-sh-1);
 }
 .address-card-tools .address-action {
   display:grid; place-items:center; width:44px; padding:0;
-  border-color: transparent; background: var(--hv-surface-2); box-shadow: none;
+  border-color:transparent; background:linear-gradient(155deg,var(--hv-surface),var(--hv-surface-2));
+  box-shadow:var(--hv-sh-1);
 }
-.address-card-tools .address-action:hover { background:var(--hv-surface-3); }
+.address-card-tools .address-star[aria-pressed=true] { background:var(--hv-warning-bg); }
+@media (hover:hover) {
+  .address-card-tools .address-action:hover { background:var(--hv-surface-3); }
+}
+.address-card .address-action:active { box-shadow:var(--hv-press); }
 .address-card-tools svg { width:19px; height:19px; fill:none; stroke:currentColor; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; }
 .address-star { color:var(--hv-honey-ink); font-size:19px; }
 .address-trash { color:var(--hv-danger-ink); }
