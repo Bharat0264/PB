@@ -555,3 +555,29 @@ html:has(body.warehouse) { overscroll-behavior-x: none; }
 .wh-queue > #warehouse-content > * + * { margin-top: 0; }
 .wh-station h2 { font-size: 24px; }
 .wh-queue .wh-tabs, .wh-queue .wh-conveyor { margin-bottom: 16px; }
+
+/* Settings: section cards with an icon header, icon tiles on every row, switches on the right */
+.wh-set-card { justify-items: stretch !important; text-align: start !important; gap: 12px !important; padding: 24px !important; align-content: start; }
+.wh-set-head { display: flex; align-items: center; gap: 16px; margin-bottom: 6px; }
+.wh-set-head h2 { margin: 0; font-size: 22px; }
+.wh-set-head p { margin: 2px 0 0; color: var(--hv-muted); font-size: 14px; }
+.wh-set-orb, .wh-set-icon { display: grid; place-items: center; flex: none; color: #8a5a00;
+  background: linear-gradient(150deg, #fff3cf, #fbe3a0);
+  box-shadow: 4px 5px 10px #6e50281f, -3px -3px 8px #fffdf6a0, inset -2px -3px 6px #a774201a, inset 2px 3px 6px #ffffff99; }
+.wh-set-orb { width: 56px; height: 56px; border-radius: 20px; }
+.wh-set-orb svg { width: 28px; height: 28px; }
+.wh-set-icon { width: 44px; height: 44px; border-radius: 16px; }
+.wh-set-icon svg { width: 22px; height: 22px; }
+.wh-set-card .wh-setting, .wh-set-card .wh-set-link {
+  display: flex; align-items: center; gap: 14px; width: 100%; min-height: 72px; padding: 12px 16px; border: 0; border-radius: 22px; text-align: start;
+  background: linear-gradient(150deg, #fffdf6, #f7eed8); color: var(--hv-ink); cursor: pointer;
+  box-shadow: 5px 6px 14px #6e50281c, -4px -4px 10px #fffdf68a, inset -2px -3px 6px #a774200a, inset 2px 3px 6px #fffdf6b3;
+}
+.wh-set-card .wh-setting > span:nth-child(2) { flex: 1; min-width: 0; }
+.wh-set-card .wh-setting strong, .wh-set-link strong { display: block; font-size: 16px; }
+.wh-set-card .wh-setting small { margin-top: 2px; font-size: 13.5px; color: var(--hv-muted); }
+.wh-set-link strong { flex: 1; }
+.wh-set-chevron svg { width: 20px; height: 20px; }
+.wh-set-card .wh-display-preview { display: flex; justify-content: center; align-items: center; gap: 14px; flex-wrap: wrap; padding: 14px 18px; border-radius: 20px; text-align: center; }
+[data-theme="dark"] .wh-set-card .wh-setting, [data-theme="dark"] .wh-set-card .wh-set-link { background: var(--hv-surface-2); box-shadow: var(--hv-sh-1); }
+[data-theme="dark"] .wh-set-orb, [data-theme="dark"] .wh-set-icon { background: var(--hv-surface-3); color: var(--hv-honey-500); box-shadow: none; }

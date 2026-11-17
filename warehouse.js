@@ -35,6 +35,13 @@ const glyphs = {
   moon:'<path d="M20.5 15A9 9 0 0 1 9 3.5 9 9 0 1 0 20.5 15Z"/>',
   package:'<path d="m3 7 9-5 9 5v10l-9 5-9-5V7zm0 0 9 5 9-5m-9 5v10M7.5 4.5l9 5"/>',
   check:'<path d="m5 12 4 4L19 6"/>',
+  bell:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8M10 20a2 2 0 0 0 4 0"/>',
+  expand:'<path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4"/>',
+  forward:'<path d="m4 5 8 7-8 7zM13 5l8 7-8 7z"/>',
+  textsize:'<path d="M3 19 8 6l5 13M5 14h6M15 19l3-8 3 8M16 17h4"/>',
+  contrast:'<circle cx="12" cy="12" r="9"/><path d="M12 3v18a9 9 0 0 0 0-18z" fill="currentColor"/>',
+  puzzle:'<path d="M10 4a2 2 0 1 1 4 0v2h4a1 1 0 0 1 1 1v4h-2a2 2 0 1 0 0 4h2v4a1 1 0 0 1-1 1h-4v-2a2 2 0 1 0-4 0v2H6a1 1 0 0 1-1-1v-4h2a2 2 0 1 0 0-4H5V7a1 1 0 0 1 1-1h4z"/>',
+  chevron:'<path d="m9 6 6 6-6 6"/>',
 };
 function icon(name) {
   const span = node('span');
@@ -448,7 +455,7 @@ function printerIllustration() {
   drawing.append(node('span',null,'wh-device-paper'),node('span',null,'wh-device-case'),node('span',null,'wh-device-output'));
   return drawing;
 }
-function settingRow(key,label,description) {
+function settingRow(key,label,description,glyph) {
   const row=node('label',null,'wh-setting'), input=node('input');
   input.type='checkbox';
   input.role='switch';
@@ -460,7 +467,9 @@ function settingRow(key,label,description) {
   input.addEventListener('change',()=>setSetting(key,input.checked));
   const copy=node('span');
   copy.append(node('strong',label),detail);
-  row.append(copy,input);
+  const tile=node('span',null,'wh-set-icon');
+  if (glyph) tile.append(icon(glyph));
+  row.append(tile,copy,input);
   return row;
 }
 function renderTools() {
@@ -487,26 +496,44 @@ function renderTools() {
     board.append(panel);
   } else {
     const groups=node('div',null,'wh-setting-groups');
-    const alerts=node('section',null,'clay-card wh-tool');
-    alerts.append(node('h2','Alerts'),
-      settingRow('sound','New order chime','Play a sound when a paid order arrives or finishes printing.'),
-      settingRow('takeover','Full-screen alert for new orders','Show incoming paid orders over the work area.'));
-    const printing=node('section',null,'clay-card wh-tool');
-    printing.append(node('h2','Printing'),settingRow('skipConfirm','Skip print confirmation','Send files to the printer in one press.'));
-    const display=node('section',null,'clay-card wh-tool');
+    const head=(glyph,title,sub)=>{
+      const bar=node('div',null,'wh-set-head'), orb=node('span',null,'wh-set-orb'), text=node('div');
+      orb.append(icon(glyph));
+      text.append(node('h2',title),node('p',sub));
+      bar.append(orb,text);
+      return bar;
+    };
+    const linkRow=(glyph,label,run)=>{
+      const row=button('',run,'wh-set-link');
+      const tile=node('span',null,'wh-set-icon');
+      tile.append(icon(glyph));
+      const chevron=icon('chevron');
+      chevron.className='wh-set-chevron';
+      row.append(tile,node('strong',label),chevron);
+      return row;
+    };
+    const alerts=node('section',null,'clay-card wh-tool wh-set-card');
+    alerts.append(head('bell','Alerts','Get notified about new orders and print updates.'),
+      settingRow('sound','New order chime','Play a sound when a paid order arrives or finishes printing.','sound'),
+      settingRow('takeover','Full-screen alert for new orders','Show incoming paid orders over the work area.','expand'));
+    const printing=node('section',null,'clay-card wh-tool wh-set-card');
+    printing.append(head('printer','Printing','Control how orders are sent to your printer.'),
+      settingRow('skipConfirm','Skip print confirmation','Send files to the printer in one press.','forward'));
+    const display=node('section',null,'clay-card wh-tool wh-set-card');
     const example=node('div',null,'wh-station-contact wh-display-preview');
     const displayStatus=node('span');
     displayStatus.id='floor-display-preview';
     displayStatus.setAttribute('role','status');
     example.append(node('strong','Display preview'),displayStatus);
-    display.append(node('h2','Display'),settingRow('large','Large text','Increase type size across the Print Floor.'),
-      settingRow('contrast','High contrast','Use stronger colours for labels, controls and focus.'),example);
-    const integration=node('section',null,'clay-card wh-tool');
-    integration.append(node('h2','Integrations'));
-    if ('Notification' in window) integration.append(button('Enable browser notifications',async()=>{
+    display.append(head('monitor','Display','Adjust text size and visibility for a better workspace.'),
+      settingRow('large','Large text','Increase type size across the Print Floor.','textsize'),
+      settingRow('contrast','High contrast','Use stronger colours for labels, controls and focus.','contrast'),example);
+    const integration=node('section',null,'clay-card wh-tool wh-set-card');
+    integration.append(head('puzzle','Integrations','Connect PrintBee with useful tools and browser features.'));
+    if ('Notification' in window) integration.append(linkRow('bell','Enable browser notifications',async()=>{
       announce((await Notification.requestPermission())==='granted'?'Notifications enabled.':'Notifications are off. Check browser permissions.');
     }));
-    integration.append(button('View inventory',()=>go('Inventory')));
+    integration.append(linkRow('package','View inventory',()=>go('Inventory')));
     groups.append(alerts,printing,display,integration);
     board.append(groups);
     syncPreferences();
