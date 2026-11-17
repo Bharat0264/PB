@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>PrintBee</title>
+<script>
+// Phone-style tab shell is for narrow screens only; wide screens get the full desktop page.
+if (window.parent === window && matchMedia('(min-width: 701px)').matches) {
+  const page = {'/home':'/index.html','/upload':'/queue.html','/address':'/address.html'}[location.pathname.replace(/\/$/, '')];
+  if (page) location.replace(page + location.search + location.hash);
+}
+</script>
 <script src="/preloader.js?v=7"></script>
 <link rel="icon" href="/printbee-tab-bee.png" type="image/png" sizes="64x64">
 <link rel="stylesheet" href="/studio.css?v=page-beige">

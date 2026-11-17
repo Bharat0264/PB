@@ -91,7 +91,7 @@
   }
   function emptyOrders() {
     const empty = node('li', '', 'orders-empty track-empty');
-    empty.append(bee('track-empty-bee'), node('h2','Place your first print order'), link('Upload files', '/upload'));
+    empty.append(bee('track-empty-bee'), node('h2','Place your first print order'));
     return empty;
   }
   const filters = byId('order-filters');
