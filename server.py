@@ -296,7 +296,34 @@ class PrintBee(SimpleHTTPRequestHandler):
             return self.auth_redirect(destination + "#google-failed", clear)
         return self.auth_redirect(destination, clear, *cleared_sessions, session)
 
+    session_state = "none"
+    renewed_cookies = ()
+    cookie_sent = False
+
+    def parse_request(self):
+        """Every API call counts as activity: it slides the customer's 7-day session window forward."""
+        self.session_state, self.renewed_cookies, self.cookie_sent = "none", (), False
+        if not super().parse_request():
+            return False
+        path = urlsplit(self.path).path
+        if path.startswith("/api/") and not path.startswith("/api/dev/") and path != "/api/auth/logout":
+            try:
+                with closing(connect()) as db:
+                    self.session_state, self.renewed_cookies = auth.slide_session(db, self.headers)
+            except sqlite3.Error:
+                pass
+        return True
+
+    def send_header(self, keyword, value):
+        if keyword.lower() == "set-cookie" and str(value).startswith(auth.COOKIE + "="):
+            self.cookie_sent = True
+        super().send_header(keyword, value)
+
     def end_headers(self):
+        if self.renewed_cookies and not self.cookie_sent:
+            self.cookie_sent = True
+            for value in self.renewed_cookies:
+                super().send_header("Set-Cookie", value)
         # Revalidate page markup so all pages use the current navigation.
         path = urlsplit(self.path).path
         if path == "/" or path.endswith(".html"):
@@ -345,7 +372,8 @@ class PrintBee(SimpleHTTPRequestHandler):
             return self.google_sign_in(path)
         if path == "/api/auth/session":
             with closing(connect()) as db:
-                return self.json_response(200, {"email": auth.session_email(db, self.headers)})
+                return self.json_response(200, {"email": auth.session_email(db, self.headers),
+                                               "expired": self.session_state == "expired"})
         if path == "/api/auth/portal":
             portal = parse_qs(urlsplit(self.path).query).get("portal", [""])[0]
             if portal not in auth.GOOGLE_PORTALS:
@@ -367,7 +395,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                        "/hive-theme.css", "/hive-theme.js", "/customer-theme.css", "/admin-hive.css", "/admin-mobile.css", "/warehouse-hive.css", "/staff-dock.css", "/staff-dock.js",
                        "/partner.html", "/partner.css", "/partner.js", "/partner-sw.js", "/admin.html", "/admin-preview.html", "/admin-dashboard.css", "/admin-tokens.css",
                        "/customer-pricing.js", "/customer-price-table.js", "/pricing-preview.js", "/admin-dashboard.js", "/admin-records.js", "/admin-ledger.js", "/admin-ledger.css", "/admin-pricing.js", "/admin-pricing.css", "/admin-data.js", "/admin-live-data.js", "/partner.webmanifest", "/portal-login.js",
-                       "/pricing.html", "/terms.html", "/queue.html", "/cart.html", "/orders.html", "/profile.html", "/profile.js", "/address.html", "/address-book.js", "/address-book.css", "/customer-login.js", "/account-home.js",
+                       "/pricing.html", "/terms.html", "/queue.html", "/cart.html", "/orders.html", "/profile.html", "/profile.js", "/address.html", "/address-book.js", "/address-book.css", "/customer-login.js", "/account-home.js", "/session-sync.js", "/welcome-form.js", "/welcome-mascot.js",
                        "/preloader.js", "/preloader.css", "/gsap-3.13.0.min.js", "/live.js", "/status-model.js", "/status-model.css", "/portal-switch.js", "/demo-login.js", "/backend-check.js",
                        "/navigation.html", "/navigation.css", "/bottom-nav.js", "/nav-tokens.js", "/embedded-tab.js"}
             if path in allowed:
@@ -795,6 +823,13 @@ class PrintBee(SimpleHTTPRequestHandler):
                     return self.json_response(200, {"email": email}, cookie)
                 return self.json_response(400, {"error": "This link has expired or was already used. Request a new one."})
             if path == "/api/auth/logout":
+                with db:
+                    cookies = self.clear_all_sessions(db)
+                return self.json_response(200, {"email": None}, cookies)
+            if path == "/api/auth/logout-all":
+                email = auth.session_email(db, self.headers)
+                if email:
+                    auth.end_all_sessions(db, email)
                 with db:
                     cookies = self.clear_all_sessions(db)
                 return self.json_response(200, {"email": None}, cookies)
@@ -1535,6 +1570,8 @@ if __name__ == "__main__":
         raise SystemExit()
     with closing(connect()) as db, db:
         db.executescript(auth.SCHEMA)
+        if "last_active" not in {column["name"] for column in db.execute("PRAGMA table_info(customer_sessions)")}:
+            db.execute("ALTER TABLE customer_sessions ADD COLUMN last_active INTEGER")
         if "portal" not in {column["name"] for column in db.execute("PRAGMA table_info(google_portal_sessions)")}:
             db.execute("ALTER TABLE google_portal_sessions ADD COLUMN portal TEXT")
         db.executescript(razorpay_checkout.SCHEMA)

@@ -1382,3 +1382,7 @@ body {
 /* Cart: item cards and the summary start at exactly the same height. */
 .cart-page .cart-summary:not([hidden]) { margin-top: 0 !important; }
 .cart-page #queue-list { align-content: start; align-items: start; }
+
+/* Profile: secondary "log out of all devices" button */
+.signout-all { margin-top: 10px; }
+.profile-page .signout-all .profile-email-submit { background: transparent; box-shadow: none; text-decoration: underline; min-height: 44px; color: #7a5b2b; }

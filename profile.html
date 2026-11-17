@@ -7,14 +7,15 @@
 <meta name="description" content="PrintBee campus printing for SRM University. Save your A4 documents in your local print queue.">
 <title>Profile · PrintBee</title>
 <script src="/preloader.js?v=7"></script>
+<script src="/session-sync.js?v=1" defer></script>
 <script src="embedded-tab.js?v=customer-tabs" defer></script>
 <script type="module" src="bottom-nav.js?v=straight-upload"></script>
-<link rel="stylesheet" href="studio.css?v=account-home2">
+<link rel="stylesheet" href="studio.css?v=session-7d">
 <link rel="stylesheet" href="footer-wave.css?v=horizontal-brand">
 <script src="footer-wave.js?v=letter-spacing" defer></script>
 <link rel="stylesheet" href="/status-model.css?v=2">
 <script src="/portal-switch.js?v=1" defer></script>
-<script src="customer-login.js?v=welcome-entry" defer></script>
+<script src="customer-login.js?v=session-7d" defer></script>
 <script src="account-home.js?v=1" defer></script>
 <link rel="stylesheet" href="/hive-theme.css?v=crescent2">
 <link rel="stylesheet" href="/customer-theme.css?v=titles2">
@@ -92,6 +93,9 @@
       <div class="pb-switch" data-portal-switch="customer" hidden></div>
       <form id="email-sign-out" hidden>
         <button class="pill profile-email-submit" type="submit">Sign out</button>
+      </form>
+      <form id="email-sign-out-all" class="signout-all" hidden>
+        <button class="pill profile-email-submit" type="submit">Log out of all devices</button>
       </form>
       <p id="email-login-status" role="status"></p>
     </div>

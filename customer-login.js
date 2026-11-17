@@ -17,11 +17,32 @@ async function authRequest(action, data) {
   return result;
 }
 
+const onWelcome = document.body.classList.contains('welcome-page');
+const signOutAll = document.querySelector('#email-sign-out-all');
+
 function showAccount(email) {
   accountEmail.textContent = email ? 'Signed in as ' + email : '';
   signOut.hidden = !email;
+  if (signOutAll) signOutAll.hidden = !email;
   signIn.hidden = Boolean(email);
   googleSignIn.hidden = Boolean(email);
+}
+
+// Route guard: someone who is already signed in never sees the sign-in card again.
+// (The local demo keeps the page so you can switch roles.)
+async function leaveWelcomeIfSignedIn(email) {
+  if (!onWelcome || !email) return false;
+  try {
+    if ((await fetch('/api/dev/roles', {cache: 'no-store'})).ok) return false;
+  } catch { /* not the demo */ }
+  location.replace('/index.html');
+  return true;
+}
+
+function readExpiredFlag() {
+  if (!/(?:^|; )printbee_expired=1/.test(document.cookie)) return false;
+  document.cookie = 'printbee_expired=; Path=/; Max-Age=0';
+  return true;
 }
 
 async function submitLogin(form, action, update) {
@@ -45,12 +66,25 @@ signIn.addEventListener('submit', event => {
   event.preventDefault();
   submitLogin(signIn, () => authRequest('request', {email: signIn.elements.email.value}), () => {
     loginStatus.textContent = 'Check your inbox for a sign-in link. It expires in 15 minutes.';
+    dispatchEvent(new CustomEvent('printbee:link-sent'));
   });
 });
 
 signOut.addEventListener('submit', event => {
   event.preventDefault();
-  submitLogin(signOut, () => authRequest('logout', {}), () => showAccount(null));
+  submitLogin(signOut, () => authRequest('logout', {}), () => {
+    showAccount(null);
+    window.PrintBeeSession?.announce('logout');
+  });
+});
+
+signOutAll?.addEventListener('submit', event => {
+  event.preventDefault();
+  submitLogin(signOutAll, () => authRequest('logout-all', {}), () => {
+    showAccount(null);
+    loginStatus.textContent = 'You are signed out of every device.';
+    window.PrintBeeSession?.announce('logout');
+  });
 });
 
 const googleMessages = {
@@ -70,12 +104,21 @@ if (match) {
   confirmSignIn.addEventListener('submit', event => {
     event.preventDefault();
     submitLogin(confirmSignIn, () => authRequest('verify', {token: match[1]}), () => {
+      window.PrintBeeSession?.announce('login');
       if (window.parent !== window) window.parent.location.replace('/index.html');
       else location.replace('/index.html');
     });
   });
 } else {
-  authRequest('session').then(({email}) => showAccount(email)).catch(() => {
+  authRequest('session').then(async ({email}) => {
+    if (await leaveWelcomeIfSignedIn(email)) return;
+    showAccount(email);
+    if (!email && readExpiredFlag()) {
+      const note = document.querySelector('#session-expired');
+      if (note) note.hidden = false;
+      else loginStatus.textContent = 'Your session expired after 7 days away. Please sign in again.';
+    }
+  }).catch(() => {
     if (!loginStatus.textContent) loginStatus.textContent = 'Could not check your sign-in status.';
-  });
+  }).finally(() => document.body.classList.add('auth-ready'));
 }

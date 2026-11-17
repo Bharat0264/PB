@@ -14,7 +14,11 @@ from urllib.parse import urlencode, urlsplit
 from urllib.request import Request, urlopen
 
 COOKIE = "printbee_session"
-SESSION_AGE = 7 * 86400
+EXPIRED_FLAG = "printbee_expired"
+# A customer stays signed in for SESSION_AGE after their LAST activity (a sliding window).
+# Activity is renewed at most once per RENEW_AFTER seconds, so busy pages do not write on every request.
+SESSION_AGE = int(os.environ.get("PRINTBEE_SESSION_DAYS", "7")) * 86400
+RENEW_AFTER = 300
 LINK_AGE = 15 * 60
 
 SCHEMA = """
@@ -24,7 +28,7 @@ CREATE TABLE IF NOT EXISTS login_links (
 );
 CREATE INDEX IF NOT EXISTS login_links_email_time ON login_links(email, created);
 CREATE TABLE IF NOT EXISTS customer_sessions (
-    digest TEXT PRIMARY KEY, email TEXT NOT NULL, expires INTEGER NOT NULL
+    digest TEXT PRIMARY KEY, email TEXT NOT NULL, expires INTEGER NOT NULL, last_active INTEGER
 );
 CREATE TABLE IF NOT EXISTS google_portal_sessions (
     digest TEXT PRIMARY KEY, email TEXT NOT NULL, expires INTEGER NOT NULL, portal TEXT
@@ -50,6 +54,44 @@ def session_email(db, headers):
     row = db.execute("SELECT email FROM customer_sessions WHERE digest=? AND expires>?",
                      (digest(session_token(headers)), int(time.time()))).fetchone()
     return row["email"] if row else None
+
+
+def slide_session(db, headers, now=None):
+    """Slide the customer session window forward on activity.
+
+    Returns (state, cookies). state is "none" (no session cookie), "active" or "expired". cookies is a list of
+    Set-Cookie values: a fresh session cookie when the window was renewed, or, when the session has expired,
+    one that clears it plus a short-lived "printbee_expired" flag so the sign-in page can say why.
+    """
+    token = session_token(headers)
+    if not token:
+        return "none", None
+    now = int(now if now is not None else time.time())
+    row = db.execute("SELECT email, expires, last_active FROM customer_sessions WHERE digest=?",
+                     (digest(token),)).fetchone()
+    last = row["last_active"] or (row["expires"] - SESSION_AGE) if row else 0
+    if not row or row["expires"] <= now or now - last > SESSION_AGE:
+        with db:
+            db.execute("DELETE FROM customer_sessions WHERE digest=?", (digest(token),))
+        return "expired", [session_cookie("", 0), expired_flag_cookie()]
+    if now - last < RENEW_AFTER:
+        return "active", []
+    with db:
+        db.execute("UPDATE customer_sessions SET expires=?, last_active=? WHERE digest=?",
+                   (now + SESSION_AGE, now, digest(token)))
+    return "active", [session_cookie(token, SESSION_AGE)]
+
+
+def expired_flag_cookie():
+    """Readable by the sign-in page (not HttpOnly) so it can show "Session expired". Holds no secret."""
+    secure = "; Secure" if urlsplit(public_origin()).scheme == "https" else ""
+    return f"{EXPIRED_FLAG}=1; Path=/; Max-Age=120; SameSite=Lax{secure}"
+
+
+def end_all_sessions(db, email):
+    """Log out of all devices: remove every customer session for this email."""
+    with db:
+        db.execute("DELETE FROM customer_sessions WHERE email=?", (email,))
 
 
 def public_origin():
@@ -119,8 +161,9 @@ def redeem(db, token, old_token):
 def create_session(db, email, old_token):
     db.execute("DELETE FROM customer_sessions WHERE digest=?", (digest(old_token),))
     session = secrets.token_urlsafe(32)
-    db.execute("INSERT INTO customer_sessions VALUES (?,?,?)",
-               (digest(session), email, int(time.time()) + SESSION_AGE))
+    now = int(time.time())
+    db.execute("INSERT INTO customer_sessions (digest, email, expires, last_active) VALUES (?,?,?,?)",
+               (digest(session), email, now + SESSION_AGE, now))
     return session_cookie(session, SESSION_AGE)
 
 
