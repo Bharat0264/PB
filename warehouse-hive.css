@@ -531,3 +531,8 @@ html:has(body.warehouse) { overscroll-behavior-x: none; }
   .warehouse-shell { padding-left: 112px !important; }
   .wh-rail .wh-nav-button { width: 52px !important; height: 52px !important; border-radius: 50% !important; }
 }
+
+/* Printer status chip: small */
+.wh-agent { min-height: 32px; padding: 0 12px; gap: 7px; font-size: 13px; }
+.wh-agent::before { width: 9px; height: 9px; }
+.wh-agent.wh-bad { box-shadow: 0 0 0 1.5px var(--hv-danger), var(--hv-sh-1); }
