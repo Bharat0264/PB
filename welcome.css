@@ -1,177 +1,68 @@
-/* Sign-in / welcome page: claymorphism.
-   Soft, puffy shapes: large radii, a light highlight on the top-left inside edge, a darker
-   tint on the bottom-right inside edge, and a warm drop shadow underneath. */
+/* Sign-in / welcome page: quiet, centred, Apple-style.
+   One column, generous space, large confident type, a single frosted card, filled primary action. */
 .welcome-page {
-  --clay-cream: #f4ecda;
-  --clay-honey: #ecc468;
-  --clay-honey-light: #f3d68f;
-  --clay-ink: #2e2718;
-  --clay-muted: #5f5033;
-  --clay-hi: rgba(255, 252, 244, .55);
-  --clay-lo: rgba(120, 88, 30, .16);
-  --clay-drop: rgba(110, 80, 28, .20);
-  --clay-out: 16px 20px 38px var(--clay-drop), -8px -8px 20px rgba(255, 252, 244, .45);
-  --clay-in: inset -9px -11px 18px var(--clay-lo), inset 9px 11px 18px var(--clay-hi);
-  --clay-pop: cubic-bezier(.34, 1.45, .64, 1);
-
-  position: relative;
-  isolation: isolate;
-  overflow: clip;
-  min-height: 100vh;
-  min-height: 100svh;
-  display: grid;
-  place-items: center;
-  padding: clamp(16px, 4vw, 56px);
-  background: var(--hv-page-bg);
-  color: var(--clay-ink);
+  --w-ink: #1d1a12; --w-muted: #6f6650; --w-line: rgba(60, 45, 15, .14);
+  --w-honey: #f5c542; --w-honey-press: #e6b52f; --w-card: rgba(255, 255, 255, .72);
+  position: relative; min-height: 100vh; min-height: 100svh; display: grid; place-items: center;
+  padding: clamp(20px, 5vw, 56px); background: var(--hv-page-bg); color: var(--w-ink);
+  -webkit-font-smoothing: antialiased;
 }
+.welcome-card { display: grid; justify-items: center; gap: 28px; width: min(100%, 400px); }
 
-/* Soft clay blobs floating behind the card */
-.welcome-page::before,
-.welcome-page::after {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  border-radius: 50%;
-  background: linear-gradient(145deg, #ecdcae, #dcb860);
-  box-shadow: var(--clay-out), var(--clay-in);
-  pointer-events: none;
-}
-.welcome-page::before { width: clamp(120px, 20vw, 260px); aspect-ratio: 1; left: 6%; bottom: 8%; opacity: .55; animation: clay-float 9s ease-in-out infinite; }
-.welcome-page::after { width: clamp(80px, 12vw, 160px); aspect-ratio: 1; right: 9%; top: 9%; opacity: .5; animation: clay-float 11s ease-in-out -4s infinite; }
-@keyframes clay-float { 50% { transform: translateY(-14px) scale(1.03); } }
-
-.welcome-card {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: clamp(16px, 2.4vw, 28px);
-  width: min(100%, 940px);
-}
-
-.welcome-card section {
-  display: grid;
-  align-content: center;
-  justify-items: center;
-  min-height: 420px;
-  padding: clamp(28px, 5vw, 60px);
-  border-radius: clamp(32px, 5vw, 56px);
-  text-align: center;
-  animation: clay-in .6s var(--clay-pop) both;
-}
-.welcome-intro { animation-delay: .08s !important; }
-@keyframes clay-in { from { opacity: 0; transform: translateY(18px) scale(.97); } }
+.welcome-intro { display: grid; justify-items: center; gap: 6px; text-align: center; animation: w-rise .6s cubic-bezier(.2, .8, .2, 1) both; }
+.welcome-intro img { width: 84px; height: 84px; object-fit: contain; margin-bottom: 10px; }
+.welcome-intro h1 { margin: 0; font-size: clamp(30px, 8vw, 38px); line-height: 1.1; letter-spacing: -.035em; font-weight: 800; }
+.welcome-intro p { margin: 0; color: var(--w-muted); font-size: 17px; }
 
 .welcome-sign-in {
-  background: linear-gradient(150deg, #f8f2e4, var(--clay-cream));
-  box-shadow: var(--clay-out), var(--clay-in);
+  width: 100%; padding: 28px; border-radius: 28px; border: 1px solid rgba(255, 255, 255, .8);
+  background: var(--w-card); -webkit-backdrop-filter: blur(24px) saturate(1.4); backdrop-filter: blur(24px) saturate(1.4);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .9) inset, 0 24px 60px -20px rgba(80, 58, 18, .28), 0 2px 6px rgba(80, 58, 18, .06);
+  animation: w-rise .6s .08s cubic-bezier(.2, .8, .2, 1) both;
 }
-
-.welcome-intro {
-  background: linear-gradient(150deg, var(--clay-honey-light), var(--clay-honey) 70%, #e2b44d);
-  box-shadow: var(--clay-out), var(--clay-in);
-}
-
-.welcome-sign-in h2,
-.welcome-intro h1 {
-  margin: 0;
-  color: inherit;
-  font-size: clamp(30px, 5vw, 46px);
-  line-height: 1.08;
-  letter-spacing: -.05em;
-}
-
-/* The bee sits in its own little clay bubble */
-.welcome-intro img {
-  width: 112px;
-  height: 112px;
-  object-fit: contain;
-  margin-bottom: 18px;
-  padding: 14px;
-  border-radius: 50%;
-  background: linear-gradient(150deg, #f9f3e3, #f1e2b4);
-  box-shadow: 8px 10px 18px rgba(110, 80, 28, .2), -5px -5px 12px rgba(255, 252, 244, .4), inset -5px -6px 10px rgba(120, 88, 30, .12), inset 5px 6px 10px rgba(255, 252, 244, .5);
-}
-.welcome-intro p { margin: 8px 0 0; color: #5b4514; font-weight: 600; }
+@keyframes w-rise { from { opacity: 0; transform: translateY(14px); } }
+.welcome-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 .welcome-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  width: min(100%, 290px);
-  min-height: 56px;
-  margin-top: 26px;
-  padding: 10px 18px;
-  border: 0;
-  border-radius: 999px;
-  color: var(--clay-ink);
-  font: inherit;
-  font-weight: 800;
-  text-decoration: none;
-  cursor: pointer;
-  transition: transform .3s var(--clay-pop), box-shadow .2s;
+  display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 50px; margin: 0; padding: 0 18px;
+  border: 0; border-radius: 14px; font: inherit; font-size: 16px; font-weight: 700; text-decoration: none; cursor: pointer;
+  transition: transform .15s, background-color .15s, box-shadow .15s;
 }
-.welcome-button:hover { transform: translateY(-3px); }
-.welcome-button:active { transform: translateY(1px) scale(.97); }
-.welcome-button:focus-visible,
-.welcome-email input:focus-visible { outline: 3px solid #654816; outline-offset: 3px; }
-
-.welcome-google {
-  background: linear-gradient(150deg, #faf5e8, #efe4c8);
-  box-shadow: 7px 9px 18px rgba(110, 80, 28, .2), -5px -5px 12px rgba(255, 252, 244, .5), inset -4px -5px 9px rgba(120, 88, 30, .1), inset 4px 5px 9px rgba(255, 252, 244, .5);
-}
-.welcome-google:active { box-shadow: inset 5px 6px 12px rgba(110, 80, 28, .22), inset -3px -3px 8px rgba(255, 252, 244, .5); }
+.welcome-button:active { transform: scale(.985); }
+.welcome-button:focus-visible, .welcome-email input:focus-visible { outline: 3px solid color-mix(in srgb, var(--w-honey) 60%, transparent); outline-offset: 2px; }
+.welcome-google { background: #fff; color: var(--w-ink); box-shadow: 0 0 0 1px var(--w-line), 0 1px 2px rgba(60, 45, 15, .06); }
+.welcome-google:hover { background: #fffdf8; }
 .welcome-google svg { flex: none; }
+.welcome-primary { background: var(--w-honey); color: #2a2112; box-shadow: 0 1px 2px rgba(120, 88, 20, .25); }
+.welcome-primary:hover { background: var(--w-honey-press); }
 
-.welcome-guest {
-  background: linear-gradient(150deg, #f8e6b0, #ebc765);
-  box-shadow: 7px 9px 18px rgba(110, 80, 28, .26), -5px -5px 12px rgba(250, 235, 190, .5), inset -4px -5px 9px rgba(120, 88, 30, .16), inset 4px 5px 9px rgba(255, 250, 230, .55);
-}
-.welcome-guest:active { box-shadow: inset 5px 6px 12px rgba(110, 80, 28, .28), inset -3px -3px 8px rgba(250, 235, 190, .5); }
-
-.welcome-divider { margin: 18px 0 4px; color: var(--clay-muted); font-weight: 700; }
+.welcome-divider { display: flex; align-items: center; gap: 12px; margin: 20px 0 16px; color: var(--w-muted); font-size: 13px; font-weight: 600; }
+.welcome-divider::before, .welcome-divider::after { content: ""; flex: 1; height: 1px; background: var(--w-line); }
 .welcome-sign-in [hidden] { display: none; }
-.welcome-email {
-  display: grid;
-  justify-items: stretch;
-  gap: 8px;
-  width: min(100%, 290px);
-}
-.welcome-email label { text-align: left; font-size: .875rem; font-weight: 800; padding-left: 6px; }
+.welcome-email { display: grid; gap: 8px; }
+.welcome-email .welcome-divider { grid-column: 1; }
+.welcome-email label { font-size: 13px; font-weight: 700; color: var(--w-muted); padding-left: 2px; }
 .welcome-email input {
-  width: 100%;
-  min-height: 52px;
-  padding: 8px 20px;
-  border: 0;
-  border-radius: 999px;
-  background: #ebe1c9;
-  color: var(--clay-ink);
-  font: inherit;
-  box-shadow: inset 5px 6px 11px rgba(110, 80, 28, .18), inset -4px -4px 9px rgba(255, 252, 244, .6);
+  width: 100%; min-height: 50px; padding: 0 16px; border: 0; border-radius: 14px; font: inherit; font-size: 16px;
+  background: rgba(255, 255, 255, .9); color: var(--w-ink); box-shadow: 0 0 0 1px var(--w-line);
 }
-.welcome-email input::placeholder { color: #7a6a48; }
-.welcome-email button { margin-top: 8px; }
-.welcome-sign-in #account-email { overflow-wrap: anywhere; min-width: 0; max-width: 100%; }
-.welcome-sign-in #email-login-status:not(:empty) { margin-top: 14px; color: #70401e; font-weight: 600; }
-#backend-notice { border-radius: 20px !important; box-shadow: inset 3px 3px 8px rgba(255, 255, 255, .8), inset -3px -3px 8px rgba(163, 112, 18, .15); }
+.welcome-email input::placeholder { color: #9a9078; }
+.welcome-email button { margin-top: 6px; }
+#email-sign-in-confirm, #email-sign-out { margin-top: 12px; }
+.welcome-sign-in #account-email { overflow-wrap: anywhere; min-width: 0; max-width: 100%; margin: 0 0 12px; text-align: center; color: var(--w-muted); }
+.welcome-sign-in #email-login-status:not(:empty) { margin: 14px 0 0; text-align: center; color: #70401e; font-weight: 600; font-size: 14px; }
+#backend-notice { border-radius: 14px !important; font-size: 14px; }
 
-@media (max-width: 660px) {
-  .welcome-card { grid-template-columns: minmax(0, 1fr); max-width: 440px; }
-  .welcome-card section { min-height: 0; border-radius: 40px; }
-  .welcome-intro { order: -1; }
-  .welcome-intro img { width: 84px; height: 84px; margin-bottom: 10px; padding: 10px; }
-  .welcome-page::before { left: -40px; bottom: -30px; }
-  .welcome-page::after { right: -30px; top: -20px; }
-}
+.welcome-foot { display: grid; justify-items: center; gap: 12px; animation: w-rise .6s .16s cubic-bezier(.2, .8, .2, 1) both; }
+.welcome-guest { color: var(--w-ink); font-weight: 700; text-decoration: none; padding: 8px 14px; border-radius: 999px; }
+.welcome-guest:hover { background: rgba(60, 45, 15, .07); }
+.welcome-guest:focus-visible { outline: 3px solid color-mix(in srgb, var(--w-honey) 60%, transparent); }
 
-@media (prefers-reduced-motion: reduce) {
-  .welcome-page::before, .welcome-page::after, .welcome-card section { animation: none; }
-  .welcome-button { transition: none; }
-}
+@media (prefers-reduced-motion: reduce) { .welcome-intro, .welcome-sign-in, .welcome-foot { animation: none; } .welcome-button { transition: none; } }
 
 /* Session check: keep the sign-in card hidden until we know the customer is signed out, so a signed-in
    customer never sees it flash. If the script never runs, the card appears after 2.5 s. */
 .welcome-page:not(.auth-ready) .welcome-sign-in > * { visibility: hidden; animation: welcome-reveal 0s 2.5s forwards; }
 @keyframes welcome-reveal { to { visibility: visible; } }
-.welcome-expired { margin: 14px 0 0; padding: 10px 16px; border-radius: 18px; background: #fff0c4; color: #6e4a05; font-weight: 700; font-size: 14px; max-width: 34ch; }
+.welcome-expired { margin: 0 0 14px; padding: 10px 14px; border-radius: 14px; background: #fff0c4; color: #6e4a05; font-weight: 700; font-size: 14px; }
 .welcome-expired[hidden] { display: none; }

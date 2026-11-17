@@ -8,7 +8,7 @@
 <link rel="icon" href="/printbee-tab-bee.png" type="image/png">
 <link rel="stylesheet" href="/studio.css?v=page-beige">
 <link rel="stylesheet" href="/hive-theme.css?v=page-beige">
-<link rel="stylesheet" href="/welcome.css?v=page-beige">
+<link rel="stylesheet" href="/welcome.css?v=apple">
 <script src="/session-sync.js?v=1" defer></script>
 <script src="/customer-login.js?v=session-7d" defer></script>
 <script src="/demo-login.js?v=1" defer></script>
@@ -16,8 +16,13 @@
 </head>
 <body class="welcome-page">
 <main class="welcome-card" aria-labelledby="welcome-title">
+  <header class="welcome-intro">
+    <img src="/printbee-header-bee.webp" width="288" height="228" alt="">
+    <h1 id="welcome-title">Welcome to PrintBee</h1>
+    <p>Your local print studio.</p>
+  </header>
   <section class="welcome-sign-in" aria-labelledby="signin-title">
-    <h2 id="signin-title">Sign in</h2>
+    <h2 id="signin-title" class="welcome-sr">Sign in</h2>
     <p id="account-email"></p>
     <p id="session-expired" class="welcome-expired" role="status" hidden>Your session expired after 7 days away. Please sign in again.</p>
     <a id="google-sign-in" class="welcome-button welcome-google" href="/api/auth/google?portal=welcome">
@@ -33,10 +38,10 @@
       <p class="welcome-divider">or</p>
       <label for="welcome-email">Email address</label>
       <input id="welcome-email" name="email" type="email" autocomplete="email" placeholder="you@example.com" required maxlength="254">
-      <button class="welcome-button welcome-google" type="submit">Email me a sign-in link</button>
+      <button class="welcome-button welcome-primary" type="submit">Email me a sign-in link</button>
     </form>
     <form id="email-sign-in-confirm" hidden>
-      <button class="welcome-button welcome-google" type="submit">Confirm sign-in</button>
+      <button class="welcome-button welcome-primary" type="submit">Confirm sign-in</button>
     </form>
     <form id="email-sign-out" hidden>
       <button class="welcome-button welcome-google" type="submit">Sign out</button>
@@ -44,13 +49,10 @@
     <p id="email-login-status" role="status"></p>
     <p id="backend-notice" role="alert" hidden style="margin:12px 0 0;padding:10px 14px;border-radius:14px;background:#fff0c4;color:#6e4a05;font-weight:700"></p>
   </section>
-  <section class="welcome-intro">
-    <img src="/printbee-header-bee.webp" width="288" height="228" alt="">
-    <h1 id="welcome-title">Welcome to PrintBee</h1>
-    <p>Your local print studio.</p>
-    <a class="welcome-button welcome-guest" href="/index.html">Continue as guest <span aria-hidden="true">→</span></a>
+  <footer class="welcome-foot">
+    <a class="welcome-guest" href="/index.html">Continue as guest <span aria-hidden="true">&rarr;</span></a>
     <div id="demo-login" hidden></div>
-  </section>
+  </footer>
 </main>
 </body>
 </html>
