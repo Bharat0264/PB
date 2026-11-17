@@ -759,7 +759,7 @@ body{background:var(--base)}
 }
 
 :root {
-  --page-clay: #efe5d1;
+  --page-clay: var(--hv-page-bg);
 }
 
 body {

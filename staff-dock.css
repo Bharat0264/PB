@@ -6,7 +6,6 @@
 }
 .staff-dock { display: none; }
 @media screen and (max-width: 850px) {
-  body.has-staff-dock { --page-bg: var(--hv-bg, var(--bg, #F6EFD2)); background: var(--page-bg); }
   .has-staff-dock #rider-nav, .has-staff-dock #warehouse-nav, .has-staff-dock #admin-sections {
     display: none;
   }

@@ -8,7 +8,7 @@
 
 /* ---------- Tokens: Sun Hive ---------- */
 :root {
-  --bg: #FFF8E8; --bg-2: #FFF1D2;
+  --bg: var(--hv-page-bg); --bg-2: #FFF1D2;
   --surface: #FFFFFF; --surface-2: #FFFBF1; --surface-3: #FFF4DA;
   --honey-100: #FFF6D6; --honey-300: #FBE08A; --honey-500: #F5C542; --honey-600: #E9A928; --honey-700: #B9831A; --honey-ink: #8A5E0B;
   --ink: #2A2112; --muted: #7A6A4A; --line: #EFE2C2;

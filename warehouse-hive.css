@@ -233,7 +233,7 @@ body.warehouse {
 .wh-order[data-priority="Urgent"] { --ticket-edge:var(--hv-danger); }
 .wh-order[data-priority="Express"] { --ticket-edge:var(--hv-honey-600); }
 .wh-order[data-priority]::before { background:var(--ticket-edge); }
-.wh-order::after { content: ""; position: absolute; z-index: 2; left: -6px; right: -6px; top: 55%; height: 12px; pointer-events: none; background: radial-gradient(circle at 6px 50%, var(--hv-bg) 0 6px, transparent 6.5px), radial-gradient(circle at calc(100% - 6px) 50%, var(--hv-bg) 0 6px, transparent 6.5px); }
+.wh-order::after { content: ""; position: absolute; z-index: 2; left: -6px; right: -6px; top: 55%; height: 12px; pointer-events: none; background: radial-gradient(circle at 6px 50%, var(--hv-page-bg) 0 6px, transparent 6.5px), radial-gradient(circle at calc(100% - 6px) 50%, var(--hv-page-bg) 0 6px, transparent 6.5px); }
 .wh-order .wh-chips { padding-top: 8px; border-top: 1px dashed var(--hv-border); }
 .wh-order .wh-spec-swatch::before { content: ""; width: 11px; height: 11px; border-radius: 50%; background: linear-gradient(120deg,var(--hv-ink) 49%,var(--hv-surface) 51%); border: 1px solid var(--hv-muted); }
 .wh-spec-colour.wh-spec-swatch::before { background: conic-gradient(#e97972,#f7c850,#75b8a3,#648ac7,#e97972); }

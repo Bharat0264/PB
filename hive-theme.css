@@ -9,6 +9,7 @@
 
 /* ---------- Sun Hive ---------- */
 :root {
+  --hv-page-bg: #EDE5D3;
   --hv-bg: #FFF8E8; --hv-surface: #FFFFFF; --hv-surface-2: #FFF6DD; --hv-surface-3: #FFEFC7;
   --hv-honey-300: #FBE08A; --hv-honey-500: #F5C542; --hv-honey-600: #E0A91E; --hv-honey-700: #B9831A; --hv-honey-ink: #7A5208;
   --hv-ink: #2A2112; --hv-muted: #6E5E3E; --hv-border: #F0E3BE;
@@ -30,6 +31,7 @@
 }
 /* ---------- Moon Hive: warm brown + amber glow (designed, not inverted) ---------- */
 :root[data-theme="dark"] {
+  --hv-page-bg: var(--hv-bg);
   --hv-bg: #17120A; --hv-surface: #231B0F; --hv-surface-2: #2C2213; --hv-surface-3: #382A15;
   --hv-honey-300: #6B4C17; --hv-honey-500: #F5C542; --hv-honey-600: #FFB938; --hv-honey-700: #FFCB5C; --hv-honey-ink: #FFD978;
   --hv-ink: #FFF3D6; --hv-muted: #D3BE93; --hv-border: #3A2C17;
@@ -47,7 +49,7 @@
 
 /* Solid clay page surface in both themes. */
 .hv-page {
-  background: var(--hv-bg);
+  background: var(--hv-page-bg);
   color: var(--hv-ink);
   font-family: Manrope, system-ui, sans-serif;
   transition: background-color .35s ease, color .35s ease;
