@@ -10,7 +10,7 @@ function element(tag, text) {
 
 export function buildLedger(section, load, {demo = false} = {}) {
   const summary = element('dl');
-  summary.className = 'ledger-summary';
+  summary.className = 'ledger-summary ledger-equation';
   const amounts = {};
   for (const [key,label] of Object.entries({...labels,net:'Net recorded movement'})) {
     const value = element('dd', '—');
@@ -35,7 +35,19 @@ export function buildLedger(section, load, {demo = false} = {}) {
   const refresh = button('Refresh ledger');
   const controls = element('div');
   controls.className = 'ledger-controls';
-  controls.append(filterLabel, refresh);
+  const chips = element('div');
+  chips.className = 'type-chips';
+  chips.setAttribute('role', 'group');
+  chips.setAttribute('aria-label', 'Filter by type');
+  for (const [key, text] of [['', 'All'], ['payment', 'Online'], ['offline', 'Offline'], ['refund', 'Refunds'], ['payout', 'Payouts']]) {
+    const chip = button(text);
+    chip.className = 'type-chip';
+    chip.dataset.kind = key;
+    chip.setAttribute('aria-pressed', String(key === ''));
+    chip.onclick = () => { filter.value = key; filter.onchange(); };
+    chips.append(chip);
+  }
+  controls.append(chips, filterLabel, refresh);
 
   const status = element('p');
   status.setAttribute('role', 'status');
@@ -95,9 +107,17 @@ export function buildLedger(section, load, {demo = false} = {}) {
           cell.setAttribute('role','cell');
           cell.dataset.label = columns[index];
           cell.textContent = value;
+          if (index === 1) cell.className = 'type-' + entry.kind;
+          if (index === 5) cell.className = entry.amount < 0 ? 'amount neg' : 'amount';
         });
       }
-      status.textContent = data.entries.length ? '' : 'No transactions match this selection.';
+      if (!data.entries.length) {
+        const empty = body.insertRow().insertCell();
+        empty.colSpan = columns.length;
+        empty.className = 'empty-cell';
+        empty.textContent = 'No transactions match this selection.';
+      }
+      status.textContent = '';
       previous.disabled = page <= 1;
       next.disabled = page >= data.pages;
     } catch (error) {
@@ -105,7 +125,11 @@ export function buildLedger(section, load, {demo = false} = {}) {
     }
   }
 
-  filter.onchange = () => { page = 1; update(); };
+  filter.onchange = () => {
+    page = 1;
+    chips.querySelectorAll('.type-chip').forEach(chip => chip.setAttribute('aria-pressed', String(chip.dataset.kind === filter.value)));
+    update();
+  };
   refresh.onclick = () => update();
   previous.onclick = () => update(page - 1);
   next.onclick = () => update(page + 1);
