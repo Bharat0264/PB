@@ -559,7 +559,9 @@ function renderStation(order=findOrder()) {
   body.replaceChildren();
   dock.replaceChildren();
   dock.hidden=true;
-  station.hidden=view==='Settings';
+  const idle=!order && !['Printers','History','Inventory'].includes(view);
+  station.hidden=view==='Settings' || idle;
+  byId('warehouse-columns').classList.toggle('wh-settings-layout',view==='Settings' || idle);
   if (station.hidden) return;
   station.classList.toggle('wh-context-station',['Printers','History','Inventory'].includes(view) && !order);
   byId('floor-detail-context').textContent='Order station';
@@ -904,7 +906,7 @@ function updateTop() {
   todayBadge.replaceChildren(ring,node('span',paidToday.length+' today'));
   todayBadge.title=handedOver+' handed over today';
   const banner=byId('floor-connection');
-  banner.hidden=connected && online && !paused;
+  banner.hidden=connected;
   byId('floor-connection-copy').textContent=!connected?'Connection lost. The queue reconnects automatically.':
     paused?'Printer paused. Resume it in Printers.':'Printer offline. Check the warehouse workstation before printing.';
   byId('floor-retry').hidden=connected;
