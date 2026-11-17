@@ -202,8 +202,15 @@ function alignStation() {
   cols.style.setProperty('--station-offset',Math.max(0,content.offsetTop-cols.offsetTop)+'px');
 }
 addEventListener('resize',alignStation);
+if (window.ResizeObserver) {
+  const watcher=new ResizeObserver(alignStation);
+  for (const id of ['warehouse-title','warehouse-content']) if (byId(id)) watcher.observe(byId(id));
+}
 function render(refreshStation=true,focusDate=false) {
+  alignStation();
   requestAnimationFrame(alignStation);
+  setTimeout(alignStation,60);
+  setTimeout(alignStation,300);
   renderedOrderSnapshot=JSON.stringify(orders);
   const previous=board.contains(document.activeElement)?document.activeElement.dataset.focus:null;
   const filterOpen=board.querySelector('.wh-filters')?.open;
