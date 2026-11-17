@@ -1031,13 +1031,6 @@ async function refreshLive() {
   } finally {busyRefresh=false;}
 }
 function initFloorControls() {
-  const collapse=byId('floor-collapse');
-  collapse.addEventListener('click',()=>{
-    const narrow=byId('warehouse-app').classList.toggle('wh-collapsed');
-    collapse.setAttribute('aria-expanded',String(!narrow));
-    collapse.setAttribute('aria-label',narrow?'Expand sidebar':'Collapse sidebar');
-    collapse.textContent=narrow?'›':'‹';
-  });
   byId('floor-retry').addEventListener('click',()=>refresh(true).catch(()=>announce('Still offline. Try again in a moment.')));
   const phoneLayout=matchMedia('(max-width:700px), (max-width:850px) and (orientation:portrait)');
   const account=document.querySelector('.wh-account');

@@ -152,15 +152,12 @@ body.warehouse {
   gap: 24px;
   padding: 24px 32px 32px;
 }
-.warehouse-shell.wh-collapsed { grid-template-columns: 72px minmax(0, 1600px); }
 .wh-workspace { display: flex; flex-direction: column; min-height: calc(100dvh - 56px); }
 .wh-top { top: 16px; margin-bottom: 24px; min-height: 72px; }
 .wh-search { width: min(440px, 100%); }
 .wh-rail { align-items: stretch; min-height: 0; padding: 16px 12px; }
-.wh-brand-row { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
 .wh-brand { display: flex; gap: 8px; width: auto; min-width: 0; font-weight: 800; line-height: 1.2; }
 .wh-brand small { display: block; color: var(--hv-muted); font-size: .76em; }
-#floor-collapse { width: 44px; min-height: 44px; flex: none; font-size: 1.6em; }
 .wh-rail #warehouse-nav { width: 100%; }
 .wh-rail .wh-nav-button { display: flex; flex-wrap: wrap; align-content: center; align-items: center; gap: 4px 9px; width: 100%; padding: 6px 12px; text-align: start; }
 .wh-rail .wh-nav-button > span { flex-shrink: 0; }
@@ -173,10 +170,6 @@ body.warehouse {
 }
 .wh-rail .wh-account { align-self: flex-start; }
 .wh-account-menu { z-index: 6; }
-.wh-collapsed .wh-rail { padding: 10px 8px; align-items: center; }
-.wh-collapsed .wh-brand-row { flex-direction: column; }
-.wh-collapsed .wh-brand span, .wh-collapsed .wh-rail .wh-nav-button > .wh-nav-label { display: none; }
-.wh-collapsed .wh-rail .wh-nav-button { justify-content: center; }
 .wh-top .wh-floor-theme { width: 70px; min-height: 44px; padding: 0; border-radius: 999px; }
 .wh-today { display: inline-flex; align-items: center; gap: 6px; }
 .wh-today-ring { width: 24px; height: 24px; display: grid; place-items: center; background: conic-gradient(var(--hv-honey-600) var(--today-progress),var(--hv-border) 0); clip-path: polygon(25% 5%,75% 5%,100% 50%,75% 95%,25% 95%,0 50%); }
@@ -318,7 +311,7 @@ body.wh-contrast {
   .warehouse-shell { grid-template-columns: 72px minmax(0,1fr); padding-inline: 24px; }
   .wh-rail { align-items: center; padding: 10px 8px; }
   .wh-rail .wh-nav-button { justify-content: center; }
-  .wh-brand span, #floor-collapse, .wh-rail .wh-nav-button > .wh-nav-label { display: none; }
+  .wh-brand span, .wh-rail .wh-nav-button > .wh-nav-label { display: none; }
 }
 @media (max-width: 1100px) {
   .wh-queue, .wh-columns.wh-context-layout .wh-queue { grid-column: 1 / -1; }
@@ -334,7 +327,7 @@ body.wh-contrast {
   .wh-has-sheet .wh-feedback { z-index: 13; }
 }
 @media (max-width: 850px) {
-  .warehouse-shell, .warehouse-shell.wh-collapsed { grid-template-columns: minmax(0,1fr); padding: 12px 16px 112px; gap: 12px; }
+  .warehouse-shell { grid-template-columns: minmax(0,1fr); padding: 12px 16px 112px; gap: 12px; }
   .wh-rail { display: none; }
   .wh-workspace { min-height: 0; }
   .wh-top { top: 8px; margin-bottom: 20px; }
@@ -359,7 +352,6 @@ body.wh-contrast {
 
 .wh-rail-footer { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; margin-top: auto; }
 .wh-shift { padding: 3px 10px; justify-content: center; }
-.wh-collapsed .wh-shift { display: none; }
 .wh-order[data-priority]:is([data-selected], [data-urgent])::before { background: var(--ticket-edge); }
 #detail-body > .wh-chip { justify-self: start; }
 .wh-pickup-label { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; padding: 12px 14px; margin: 12px 0; border: 1px dashed var(--hv-border); border-radius: 12px; background: var(--hv-surface-2); }
@@ -372,11 +364,11 @@ body.wh-contrast {
   .has-staff-dock.warehouse .wh-workspace { padding-bottom: 0; }
 }
 @media (min-width: 701px) and (max-width: 850px) and (orientation: landscape) {
-  .warehouse-shell, .warehouse-shell.wh-collapsed { grid-template-columns: 72px minmax(0,1fr); padding: 16px 24px 28px; gap: 16px; }
+  .warehouse-shell { grid-template-columns: 72px minmax(0,1fr); padding: 16px 24px 28px; gap: 16px; }
   .wh-rail { display: flex; align-items: center; padding: 10px 8px; }
   .warehouse.has-staff-dock #warehouse-nav { display: grid; }
   .wh-rail .wh-nav-button { justify-content: center; }
-  .wh-brand span, #floor-collapse, .wh-rail .wh-nav-button > .wh-nav-label, .warehouse #warehouse-staff-dock { display: none; }
+  .wh-brand span, .wh-rail .wh-nav-button > .wh-nav-label, .warehouse #warehouse-staff-dock { display: none; }
   .wh-feedback { bottom: 65px; }
 }
 
