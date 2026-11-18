@@ -822,7 +822,6 @@ function updateActiveBar() {
 }
 function renderDock() {
   staffDock?.setActive(tab);
-  staffDock?.setLabel('shift',state.available ? 'Go offline' : 'Go online');
   const nav = $('rider-nav');
   if (!nav.childElementCount) {
     nav.append(h('span', {class: 'hive-dock-indicator', 'aria-hidden': 'true'}));
@@ -947,7 +946,6 @@ async function init() {
   staffDock = window.createStaffDock(dock, [
     {id:'Cockpit',label:'Home',icon:'home',select:open('Cockpit')},
     {id:'Earnings',label:'Earnings',icon:'earnings',select:open('Earnings')},
-    {id:'shift',label:'Go online',icon:'power',center:true,select:() => run(toggleOnline)},
     {id:'inbox',label:'Inbox',icon:'inbox',select:openNotifications},
     {id:'Profile',label:'Profile',icon:'profile',select:open('Profile')},
   ]);
