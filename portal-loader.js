@@ -6,6 +6,18 @@
 (() => {
   'use strict';
   if (window.PBLoader) return;
+  const portal = /^\/(admin|warehouse|partner)/.test(location.pathname) || location.pathname === '/staff.html';
+  if (!portal) {
+    // Customer pages: direct visits and reloads only. Never inside the tab shell iframes, and not on page-to-page clicks.
+    if (window.parent !== window) return;
+    const nav = performance.getEntriesByType('navigation')[0];
+    if (document.referrer && nav?.type === 'navigate') {
+      const previous = new URL(document.referrer);
+      if (previous.origin === location.origin && previous.pathname !== location.pathname) return;
+    }
+    const shell = ['/', '/index.html', '/orders.html', '/queue.html', '/address.html', '/profile.html'];
+    if (shell.includes(location.pathname) && matchMedia('(max-width: 700px)').matches) return;
+  }
   const css = `
   #pb-loader{position:fixed;inset:0;z-index:2147483000;display:grid;place-items:center;align-content:center;gap:26px;
     background:var(--hv-page-bg,#ece4d3);color:var(--hv-ink,#2a2112);font:700 16px/1.4 Manrope,system-ui,sans-serif;
@@ -44,8 +56,8 @@
     #pb-loader .pbl-bubble,#pb-loader .pbl-ring,#pb-loader .pbl-pulse,#pb-loader .pbl-bar::after,#pb-loader .pbl-text span::after{animation:none}
     #pb-loader .pbl-bar::after{left:0;width:60%}
   }`;
-  const label = ({admin: 'admin workspace', warehouse: 'print floor', partner: 'delivery hive'})[
-    document.documentElement.dataset.portal || (location.pathname.match(/warehouse|partner|admin/) || ['admin'])[0]] || 'workspace';
+  const label = portal ? 'Opening your ' + (({admin: 'admin workspace', warehouse: 'print floor', partner: 'delivery hive'})[
+    (location.pathname.match(/warehouse|partner|admin/) || ['warehouse'])[0]] || 'workspace') : 'Getting your print studio ready';
   const style = document.createElement('style');
   style.textContent = css;
   const box = document.createElement('div');
@@ -55,7 +67,7 @@
   box.innerHTML = `<div class="pbl-stage" aria-hidden="true"><span class="pbl-pulse"></span><span class="pbl-pulse"></span>
       <div class="pbl-ring"><i></i><i></i><i></i></div>
       <div class="pbl-bubble"><img src="/printbee-header-bee.webp" alt="" width="72" height="57"></div></div>
-    <div class="pbl-text"><strong>PrintBee</strong><span>Opening your ${label}</span></div>
+    <div class="pbl-text"><strong>PrintBee</strong><span>${label}</span></div>
     <div class="pbl-bar" aria-hidden="true"></div>`;
   document.head.append(style);
   document.documentElement.append(box);
@@ -64,6 +76,12 @@
     setTimeout(() => box.remove(), 500);
   };
   // If something goes wrong and nobody calls done(), never trap the user behind the loader.
-  const safety = setTimeout(finish, 20000);
+  const safety = setTimeout(finish, portal ? 20000 : 4000);
   window.PBLoader = {done() { clearTimeout(safety); finish(); }};
+  if (!portal) {
+    // Customer pages have no session gate: show the loader for a short, smooth moment and until the page has loaded.
+    const started = performance.now();
+    const leave = () => setTimeout(window.PBLoader.done, Math.max(0, 750 - (performance.now() - started)));
+    if (document.readyState === 'complete') leave(); else addEventListener('load', leave, {once: true});
+  }
 })();
