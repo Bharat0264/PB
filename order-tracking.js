@@ -228,7 +228,6 @@
       art.innerHTML = journeyIcons[{paid:0, printing:1, packed:2, assigned:3, out_for_delivery:3, delivered:4}[key] ?? 0];
       pill.append(art, detail);
       step.append(hex, pill);
-      if (current) pill.append(mascot);
       return step;
     }));
     progress(byId('tracking-progress'), plan.keys, plan.position);
