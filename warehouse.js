@@ -659,47 +659,29 @@ function renderTools() {
     panel.append(node('h2','Inventory'),node('p',preview?'A4 · 490 sheets     A3 · 38 sheets     Spiral coils · 12 remaining':'Stock counts are managed at the print room.'));
     board.append(panel);
   } else {
-    const groups=node('div',null,'wh-setting-groups');
-    const head=(glyph,title,sub)=>{
-      const bar=node('div',null,'wh-set-head'), orb=node('span',null,'wh-set-orb'), text=node('div');
-      orb.append(icon(glyph));
-      text.append(node('h2',title),node('p',sub));
-      bar.append(orb,text);
-      return bar;
-    };
-    const linkRow=(glyph,label,run)=>{
+    const card=node('section',null,'clay-card wh-tool wh-set-card wh-set-list');
+    const label=text=>node('h2',text,'wh-set-label');
+    const linkRow=(glyph,text,run)=>{
       const row=button('',run,'wh-set-link');
       const tile=node('span',null,'wh-set-icon');
       tile.append(icon(glyph));
       const chevron=icon('chevron');
       chevron.className='wh-set-chevron';
-      row.append(tile,node('strong',label),chevron);
+      row.append(tile,node('strong',text),chevron);
       return row;
     };
-    const alerts=node('section',null,'clay-card wh-tool wh-set-card');
-    alerts.append(head('bell','Alerts','Get notified about new orders and print updates.'),
-      settingRow('sound','New order chime','Play a sound when a paid order arrives or finishes printing.','sound'),
-      settingRow('takeover','Full-screen alert for new orders','Show incoming paid orders over the work area.','expand'));
-    const printing=node('section',null,'clay-card wh-tool wh-set-card');
-    printing.append(head('printer','Printing','Control how orders are sent to your printer.'),
-      settingRow('skipConfirm','Skip print confirmation','Send files to the printer in one press.','forward'));
-    const display=node('section',null,'clay-card wh-tool wh-set-card');
-    const example=node('div',null,'wh-station-contact wh-display-preview');
-    const displayStatus=node('span');
-    displayStatus.id='floor-display-preview';
-    displayStatus.setAttribute('role','status');
-    example.append(node('strong','Display preview'),displayStatus);
-    display.append(head('monitor','Display','Adjust text size and visibility for a better workspace.'),
-      settingRow('large','Large text','Increase type size across the Print Floor.','textsize'),
-      settingRow('contrast','High contrast','Use stronger colours for labels, controls and focus.','contrast'),example);
-    const integration=node('section',null,'clay-card wh-tool wh-set-card');
-    integration.append(head('puzzle','Integrations','Connect PrintBee with useful tools and browser features.'));
-    if ('Notification' in window) integration.append(linkRow('bell','Enable browser notifications',async()=>{
+    card.append(label('Alerts'),
+      settingRow('sound','New order chime','Sound when a paid order arrives.','sound'),
+      settingRow('takeover','Full-screen alert','Show new orders over the work area.','expand'));
+    if ('Notification' in window) card.append(linkRow('bell','Browser notifications',async()=>{
       announce((await Notification.requestPermission())==='granted'?'Notifications enabled.':'Notifications are off. Check browser permissions.');
     }));
-    integration.append(linkRow('package','View inventory',()=>go('Inventory')));
-    groups.append(alerts,printing,display,integration);
-    board.append(groups);
+    card.append(label('Printing'),
+      settingRow('skipConfirm','Skip print confirmation','Send files to the printer in one press.','forward'),
+      label('Display'),
+      settingRow('large','Large text','Bigger type across the print floor.','textsize'),
+      settingRow('contrast','High contrast','Stronger colours for labels and controls.','contrast'));
+    board.append(card);
     syncPreferences();
   }
 }
