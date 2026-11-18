@@ -1096,6 +1096,24 @@ function initFloorControls() {
   };
   phoneLayout.addEventListener('change',placeAccount);
   placeAccount();
+  // Phones: the PrintBee pill opens the side navigation (no bottom bar).
+  const setNav=open=>{
+    document.body.classList.toggle('nav-open',open);
+    brand.setAttribute('aria-expanded',String(open));
+  };
+  const brand=document.querySelector('.wh-mbrand');
+  const phone=matchMedia('(max-width:850px)');
+  brand.setAttribute('aria-expanded','false');
+  brand.addEventListener('click',event=>{
+    if (!phone.matches) return;
+    event.preventDefault();
+    setNav(!document.body.classList.contains('nav-open'));
+  });
+  byId('wh-nav-close').addEventListener('click',()=>setNav(false));
+  byId('wh-nav-scrim').addEventListener('click',()=>setNav(false));
+  byId('warehouse-nav').addEventListener('click',event=>{if (event.target.closest('button')) setNav(false);});
+  addEventListener('keydown',event=>{if (event.key==='Escape' && document.body.classList.contains('nav-open')) setNav(false);});
+  phone.addEventListener('change',()=>setNav(false));
   const slide=byId('floor-print-slide');
   let start, travel;
   slide.addEventListener('pointerdown',event=>{
@@ -1165,16 +1183,6 @@ async function start() {
     control.append(icon(glyph),node('span',label,'wh-nav-label'));
     byId('warehouse-nav').append(control);
   }
-  const nav=byId('warehouse-staff-dock');
-  const open=section=>()=>{go(section);scrollTo(0,0);};
-  staffDock=window.createStaffDock(nav,[
-    {id:'Home',label:'Home',icon:'home',select:open('Home')},
-    {id:'Print Queue',label:'Print',icon:'plus',center:true,select:open('Print Queue')},
-    {id:'History',label:'History',icon:'history',select:open('History')},
-    {id:'more',label:'More',icon:'more',children:['Printers','Inventory','Settings'].map(id=>({id,label:id,select:open(id)}))},
-  ]);
-  nav.hidden=false;
-  staffDock.setActive(view);
   syncPreferences();
   renderStation();
   try {await refresh(true);}

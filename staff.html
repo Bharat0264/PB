@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="/clay.css?v=1">
 <link rel="stylesheet" href="/warehouse.css?v=print-to-ready">
 <link rel="stylesheet" href="/hive-theme.css?v=soft-focus">
-<link rel="stylesheet" href="/warehouse-hive.css?v=pill-bar6">
+<link rel="stylesheet" href="/warehouse-hive.css?v=side-menu2">
 <script src="/hive-theme.js?v=sun-moon"></script>
 <style>
 /* There is one sign-in page (the welcome page). Portals never show their own sign-in card. */
@@ -22,7 +22,7 @@
 <script src="/status-model.js?v=1" defer></script>
 <script src="/live.js?v=1" defer></script>
 <script src="/portal-switch.js?v=1" defer></script>
-<script src="/warehouse.js?v=history-premium" defer></script>
+<script src="/warehouse.js?v=side-menu" defer></script>
 </head>
 <body class="warehouse">
 <a class="wh-skip" href="#warehouse-main">Skip to warehouse</a>
@@ -36,6 +36,7 @@
   <div class="warehouse-shell" id="warehouse-app" hidden>
     <aside class="wh-rail">
       <a class="wh-brand" href="/warehouse" aria-label="PrintBee warehouse"><img src="/printbee-header-bee.webp" width="42" height="38" alt=""><span>PrintBee <small>Warehouse</small></span></a>
+      <button class="wh-nav-close" id="wh-nav-close" type="button" aria-label="Close menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
       <nav id="warehouse-nav" aria-label="Warehouse sections"></nav>
       <div class="wh-rail-footer">      <details class="wh-account">
         <summary aria-label="PB staff account" title="Staff account"><span aria-hidden="true">PB</span></summary>
@@ -48,6 +49,7 @@
       </details>
       </div>
     </aside>
+    <div class="wh-nav-scrim" id="wh-nav-scrim" aria-hidden="true"></div>
     <div class="wh-workspace">
       <header class="wh-top">
         <a class="wh-mbrand" href="/warehouse" aria-label="PrintBee warehouse"><img src="/printbee-header-bee.webp" width="32" height="29" alt=""><span>PrintBee</span></a>
@@ -81,7 +83,6 @@
       </div>
     </div>
   </div>
-  <nav id="warehouse-staff-dock" class="staff-dock" aria-label="Mobile warehouse sections" hidden></nav>
   <div id="warehouse-feedback" class="wh-feedback">
     <p id="staff-status" role="status"></p>
     <p id="detail-status" role="status"></p>
