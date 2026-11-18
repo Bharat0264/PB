@@ -715,3 +715,6 @@ html:has(body.warehouse) { overscroll-behavior-x: none; }
 @media (max-width: 850px) {
   .wh-rail #warehouse-nav { flex: none !important; align-content: start !important; height: auto !important; grid-auto-rows: 52px; }
 }
+
+/* The sun/moon switch is a pill, never an oval */
+.wh-top .wh-indicators button.wh-floor-theme, .wh-indicators .wh-floor-theme { border-radius: 999px !important; }
