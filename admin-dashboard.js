@@ -263,7 +263,18 @@ function updateTable() {
 }
 
 function productList() {
-  return card('Print services',`<ul class="activity">${products.map(p => `<li><strong>${escape(p.name)}</strong><small>${escape(p.category)} &middot; ${p.price.toFixed(2)} INR${live ? '' : ' &middot; ' + p.stock + ' in stock'}</small>${p.removeKey ? `<button type="button" data-remove-service="${escape(p.removeKey)}" data-label="${escape(p.removeLabel)}">Remove ${escape(p.removeLabel)}</button>` : ''}</li>`).join('')}</ul>`,'wide');
+  const row = p => {
+    const unit = p.category === 'Binding' ? 'per copy' : live ? 'per page' : 'INR';
+    const note = live ? unit : unit + (p.stock != null ? ' · ' + p.stock + ' in stock' : '');
+    return `<li class="svc"><span class="svc-name"><strong>${escape(p.name)}</strong><small>${escape(p.category)}</small></span>
+      <span class="svc-price"><b>&#8377;${p.price.toFixed(2)}</b><small>${escape(note)}</small></span>
+      ${p.removeKey ? `<button type="button" class="svc-remove" data-remove-service="${escape(p.removeKey)}" data-label="${escape(p.removeLabel)}" aria-label="Remove ${escape(p.removeLabel)}">Remove</button>` : ''}</li>`;
+  };
+  const groups = [...new Set(products.map(p => p.category))];
+  return groups.map(name => {
+    const list = products.filter(p => p.category === name);
+    return card(name, `<ul class="svc-grid">${list.map(row).join('')}</ul>`, 'full', `<span class="svc-count">${list.length} ${list.length === 1 ? 'rate' : 'rates'}</span>`);
+  }).join('');
 }
 
 function directory(title, records, details, status = '') {

@@ -292,3 +292,16 @@ dialog::backdrop { background: color-mix(in srgb, #8A5E0B 22%, rgba(23,18,10,.45
   .workspace, .workspace.compact { padding-top: 96px; padding-left: 112px; }
   .admin-workarea { padding-top: 0; }
 }
+
+/* Print services: grouped rate tiles, price on the right */
+.svc-count { margin-left: auto; padding: 3px 12px; border-radius: 999px; background: var(--hv-surface-2); color: var(--hv-muted); font-size: 12.5px; font-weight: 700; }
+.card-head:has(.svc-count) { display: flex; align-items: center; }
+.svc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; margin: 14px 0 0; padding: 0; list-style: none; }
+.svc { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 16px; padding: 16px 18px; border-radius: 20px; background: var(--hv-surface-2); box-shadow: inset 0 0 0 1px var(--hv-border); }
+.svc-name { display: grid; gap: 2px; min-width: 0; }
+.svc-name strong { font-size: 15.5px; line-height: 1.25; }
+.svc-name small { color: var(--hv-muted); font-size: 12.5px; }
+.svc-price { display: grid; justify-items: end; gap: 2px; font-variant-numeric: tabular-nums; }
+.svc-price b { font-size: 20px; letter-spacing: -.01em; }
+.svc-price small { color: var(--hv-muted); font-size: 12px; }
+.svc-remove { grid-column: 1 / -1; justify-self: start; min-height: 34px; padding: 0 14px; margin-top: 6px; font-size: 13px; color: var(--hv-danger-ink, #9a2626); background: var(--hv-danger-bg, #fce3e0); box-shadow: none; }
