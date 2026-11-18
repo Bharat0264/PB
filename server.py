@@ -404,7 +404,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                        "/footer-wave.css", "/footer-wave.js",
                        "/hive-theme.css", "/hive-theme.js", "/customer-theme.css", "/admin-hive.css", "/admin-mobile.css", "/warehouse-hive.css", "/staff-dock.css", "/staff-dock.js",
                        "/partner.html", "/partner.css", "/partner.js", "/partner-sw.js", "/admin.html", "/admin-preview.html", "/admin-dashboard.css", "/admin-tokens.css",
-                       "/customer-pricing.js", "/customer-price-table.js", "/pricing-preview.js", "/admin-dashboard.js", "/admin-records.js", "/admin-ledger.js", "/admin-ledger.css", "/admin-pricing.js", "/admin-pricing.css", "/admin-data.js", "/admin-live-data.js", "/partner.webmanifest", "/portal-login.js",
+                       "/customer-pricing.js", "/customer-price-table.js", "/pricing-preview.js", "/admin-dashboard.js", "/admin-records.js", "/admin-ledger.js", "/admin-ledger.css", "/admin-pricing.js", "/admin-pricing.css", "/admin-data.js", "/admin-live-data.js", "/partner.webmanifest", "/portal-login.js", "/portal-loader.js",
                        "/pricing.html", "/terms.html", "/queue.html", "/cart.html", "/orders.html", "/profile.html", "/profile.js", "/address.html", "/address-book.js", "/address-book.css", "/customer-login.js", "/account-home.js", "/session-sync.js",
                        "/preloader.js", "/preloader.css", "/gsap-3.13.0.min.js", "/live.js", "/status-model.js", "/status-model.css", "/portal-switch.js", "/demo-login.js", "/backend-check.js",
                        "/navigation.html", "/navigation.css", "/bottom-nav.js", "/nav-tokens.js", "/embedded-tab.js",

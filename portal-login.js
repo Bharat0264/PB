@@ -30,7 +30,7 @@ async function connectPortal(portal, status, onReady, onSignOut = () => {}) {
     if (signedIn) {
       login.hidden = true;
       logout.hidden = false;
-      await onReady();
+      try { await onReady(); } finally { window.PBLoader?.done(); }
     } else {
       // One sign-in page for everyone: the welcome page sends staff on to their portal after Google sign-in.
       location.replace('/' + (messages[hash] ? hash : ''));
@@ -38,5 +38,6 @@ async function connectPortal(portal, status, onReady, onSignOut = () => {}) {
   } catch (error) {
     status.textContent = error.message;
     login.style.visibility = 'visible';
+    window.PBLoader?.done();
   }
 }

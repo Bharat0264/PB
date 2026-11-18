@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
+<script src="/portal-loader.js?v=1"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f5f0e4">
@@ -55,7 +56,7 @@ if (new URLSearchParams(location.search).get('preview') === '1') location.replac
 #portal-login{visibility:hidden;animation:pb-login-reveal 0s 2.5s forwards}
 @keyframes pb-login-reveal{to{visibility:visible}}
 </style>
-<script src="portal-login.js?v=one-login" defer></script>
+<script src="portal-login.js?v=loader" defer></script>
 <script type="module" src="admin-dashboard.js?v=partners"></script>
 </head>
 <body data-portal="admin">
