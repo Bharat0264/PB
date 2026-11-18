@@ -1402,3 +1402,13 @@ body {
 .cart-empty-orb svg { width: 28px; height: 28px; }
 .cart-empty h2 { margin: 4px 0 0; font-size: clamp(19px, 2.4vw, 22px); }
 .cart-empty p { max-width: 52ch; margin: 0; font-size: 14.5px; line-height: 1.45; }
+
+/* Profile on phones: keep every card inside the panel, wrap long names */
+.profile-login, .profile-login-body, .account-home { min-width: 0; max-width: 100%; }
+.account-home { grid-template-columns: minmax(0, 1fr); }
+.account-hero, .account-home > * { min-width: 0; max-width: 100%; box-sizing: border-box; }
+.account-hi { overflow-wrap: anywhere; word-break: break-word; }
+@media (max-width: 520px) {
+  .profile-page.is-signed-in .profile-login { padding: 18px 14px; }
+  .account-hi { font-size: 20px; }
+}
