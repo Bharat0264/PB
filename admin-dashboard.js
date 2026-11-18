@@ -565,7 +565,7 @@ $('search-icon').innerHTML = icon('M16 16l5 5 M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16
 $('notifications').innerHTML = icon('M18 8a6 6 0 0 0-12 0v5l-2 3h16l-2-3z M10 20h4');
 
 const phone = matchMedia('(max-width: 850px)');
-const menuGlyph = icon('M4 7h16 M4 12h16 M4 17h16'), panelGlyph = icon('M4 5h16v14H4z M9 5v14');
+const menuGlyph = '<img src="printbee-header-bee.webp" width="32" height="29" alt=""><span>PrintBee</span>', panelGlyph = icon('M4 5h16v14H4z M9 5v14');
 const setNav = open => {
   document.body.classList.toggle('nav-open', open);
   $('collapse').setAttribute('aria-expanded', String(phone.matches ? open : !document.querySelector('.workspace').classList.contains('compact')));

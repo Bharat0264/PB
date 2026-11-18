@@ -630,3 +630,32 @@ html:has(body.warehouse) { overscroll-behavior-x: none; }
   transform: rotate(45deg); transition: transform .2s ease; opacity: .7;
 }
 .wh-file-actions details[open] > summary::after, .wh-more[open] > summary::after { transform: rotate(-135deg); margin-top: 3px; }
+
+/* Phones: same top bar as the delivery portal. Brand pill on the left, one pill of round buttons on the right. */
+.wh-mbrand { display: none; }
+@media (max-width: 850px) {
+  .wh-top { position: sticky !important; top: max(8px, env(safe-area-inset-top)) !important; z-index: 30; display: flex !important; flex-wrap: nowrap !important; align-items: center; justify-content: space-between !important; gap: 8px !important;
+    width: auto !important; min-height: 0 !important; height: auto !important; margin: 0 0 16px !important; padding: 0 !important; border-radius: 0 !important; background: none !important; box-shadow: none !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+  .wh-mbrand { display: flex; align-items: center; gap: 6px; height: 48px; padding: 0 14px 0 9px; border-radius: 999px; background: var(--hv-glass); box-shadow: var(--hv-sh-2); color: var(--hv-ink); text-decoration: none; font: 800 15px/1 Manrope, sans-serif; letter-spacing: -.02em; }
+  .wh-mbrand img { width: 32px; height: auto; }
+  .wh-top .wh-indicators { display: flex !important; flex-wrap: nowrap !important; align-items: center; gap: 4px !important; width: auto !important; height: 48px; padding: 0 5px; border-radius: 999px; background: var(--hv-glass); box-shadow: var(--hv-sh-2); }
+  .wh-indicators .wh-agent, .wh-indicators .wh-today { display: none !important; }
+  .wh-top .wh-indicators :is(.wh-icon-button, .wh-search, .wh-account summary) { width: 38px !important; height: 38px !important; min-height: 38px !important; padding: 0 !important; border-radius: 50% !important; background: var(--hv-surface); box-shadow: var(--hv-sh-1); }
+  .wh-top .wh-indicators .wh-account summary { background: var(--hv-honey-grad); }
+  .wh-top .wh-indicators .wh-floor-theme { width: 58px !important; border-radius: 999px !important; --switch-width: 58px; }
+  .wh-top .wh-indicators .wh-search { display: grid; place-items: center; overflow: hidden; cursor: text; flex: none; gap: 0; }
+  .wh-top .wh-indicators .wh-search input { width: 0; flex: 0 0 0; opacity: 0; padding: 0; }
+  .wh-top .wh-indicators .wh-search kbd { display: none; }
+  .wh-top .wh-indicators .wh-search:focus-within { position: fixed; z-index: 70; top: max(8px, env(safe-area-inset-top)); left: 12px; right: 12px; width: auto !important; height: 48px !important; border-radius: 999px !important; display: flex; align-items: center; justify-content: flex-start; padding: 0 16px !important; background: var(--hv-surface); box-shadow: var(--hv-sh-3, 0 10px 30px rgba(60,45,15,.25)); }
+  .wh-top .wh-indicators .wh-search:focus-within input { flex: 1; width: auto; opacity: 1; margin-left: 8px; font-size: 16px; }
+}
+@media (max-width: 850px) {
+  .wh-top .wh-indicators .wh-search #search-icon { display: grid; place-items: center; width: 100%; height: 100%; }
+  .wh-top .wh-indicators .wh-search:focus-within #search-icon { width: auto; height: auto; }
+  .wh-top .wh-indicators .wh-search svg { display: block; }
+}
+@media (max-width: 850px) {
+  .wh-top .wh-indicators .wh-search { display: flex !important; align-items: center; justify-content: center; }
+  .wh-top .wh-indicators .wh-search:focus-within { justify-content: flex-start; }
+  .wh-top .wh-indicators .wh-search #search-icon { width: auto; height: auto; }
+}

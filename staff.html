@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="/clay.css?v=1">
 <link rel="stylesheet" href="/warehouse.css?v=print-to-ready">
 <link rel="stylesheet" href="/hive-theme.css?v=soft-focus">
-<link rel="stylesheet" href="/warehouse-hive.css?v=no-scroll">
+<link rel="stylesheet" href="/warehouse-hive.css?v=pill-bar3">
 <script src="/hive-theme.js?v=sun-moon"></script>
 <style>
 /* There is one sign-in page (the welcome page). Portals never show their own sign-in card. */
@@ -50,8 +50,9 @@
     </aside>
     <div class="wh-workspace">
       <header class="wh-top">
-        <label class="wh-search"><span id="search-icon" aria-hidden="true"></span><span class="wh-sr">Search orders</span><input id="warehouse-search" type="search" placeholder="Search orders"><kbd aria-hidden="true">/</kbd></label>
+        <a class="wh-mbrand" href="/warehouse" aria-label="PrintBee warehouse"><img src="/printbee-header-bee.webp" width="32" height="29" alt=""><span>PrintBee</span></a>
         <div class="wh-indicators">
+          <label class="wh-search"><span id="search-icon" aria-hidden="true"></span><span class="wh-sr">Search orders</span><input id="warehouse-search" type="search" placeholder="Search orders"><kbd aria-hidden="true">/</kbd></label>
           <span class="wh-chip wh-agent" id="agent-status"></span>
           <span class="wh-today" id="today-count"></span>
           <button id="theme" type="button" class="wh-icon-button wh-floor-theme hv-switch" data-hive-toggle aria-label="Moon Hive" aria-pressed="false"></button>

@@ -380,3 +380,31 @@ dialog::backdrop { background: color-mix(in srgb, #8A5E0B 22%, rgba(23,18,10,.45
 @media (prefers-reduced-motion: reduce) { .sidebar .nav-link { transition: none !important; opacity: 1 !important; transform: none !important; } }
 .wh-row-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
 .wh-row-actions .partner-remove { min-height: 38px; padding: 0 16px; font-size: 13.5px; border-radius: 999px; border: 0; color: var(--hv-danger-ink, #9a2626); background: var(--hv-danger-bg, #fce3e0); box-shadow: none; cursor: pointer; font-weight: 800; }
+
+/* Phones: same top bar as the delivery portal. Brand pill (opens the menu) on the left, one pill of round buttons on the right. */
+.tb-pill { display: contents; }
+@media (max-width: 850px) {
+  .toolbar { position: sticky; top: max(8px, env(safe-area-inset-top)); z-index: 30; display: flex; flex-wrap: nowrap; align-items: center; justify-content: space-between; gap: 8px;
+    width: auto; min-height: 0; margin: 0 0 16px; padding: 0; border-radius: 0; background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .toolbar .collapse { display: inline-flex !important; align-items: center; gap: 6px; order: 0; width: auto; height: 48px; min-height: 48px; padding: 0 14px 0 9px; border: 0; border-radius: 999px;
+    background: var(--hv-glass); box-shadow: var(--hv-sh-2); color: var(--hv-ink); font: 800 15px/1 Manrope, sans-serif; letter-spacing: -.02em; cursor: pointer; }
+  .toolbar .collapse img { width: 32px; height: auto; }
+  .tb-pill { display: flex; align-items: center; gap: 4px; height: 48px; padding: 0 5px; border-radius: 999px; background: var(--hv-glass); box-shadow: var(--hv-sh-2); order: 1; }
+  .tb-pill :is(.icon-button, .avatar, .search-clay) { width: 38px; height: 38px; min-height: 38px; padding: 0; border-radius: 50%; background: var(--hv-surface); box-shadow: var(--hv-sh-1); display: grid; place-items: center; flex: none; margin: 0; }
+  .tb-pill .hv-switch { width: 58px; border-radius: 999px; --switch-width: 58px; }
+  .tb-pill .search-clay { overflow: hidden; cursor: text; }
+  .tb-pill .search-clay input { width: 0; flex: 0 0 0; opacity: 0; padding: 0; border: 0; }
+  .tb-pill .search-clay:focus-within { position: fixed; z-index: 70; top: max(8px, env(safe-area-inset-top)); left: 12px; right: 12px; width: auto; height: 48px; border-radius: 999px; display: flex; align-items: center; padding: 0 16px; background: var(--hv-surface); box-shadow: var(--hv-sh-3, 0 10px 30px rgba(60,45,15,.25)); }
+  .tb-pill .search-clay:focus-within input { flex: 1; width: auto; opacity: 1; margin-left: 8px; font-size: 16px; }
+  .toolbar > .popover { top: calc(100% + 8px); right: 0; }
+}
+@media (max-width: 850px) {
+  .tb-pill .search-clay #search-icon { display: grid; place-items: center; width: 100%; height: 100%; }
+  .tb-pill .search-clay:focus-within #search-icon { width: auto; height: auto; }
+  .tb-pill .search-clay svg { display: block; }
+}
+@media (max-width: 850px) {
+  .tb-pill .search-clay { display: flex !important; align-items: center; justify-content: center; }
+  .tb-pill .search-clay:focus-within { justify-content: flex-start; }
+  .tb-pill .search-clay #search-icon { width: auto; height: auto; }
+}

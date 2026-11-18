@@ -9,14 +9,14 @@
 <link rel="stylesheet" href="admin-tokens.css">
 <link rel="stylesheet" href="admin-dashboard.css?v=staff-dock">
 <link rel="stylesheet" href="hive-theme.css?v=soft-focus">
-<link rel="stylesheet" href="admin-hive.css?v=wh-remove">
+<link rel="stylesheet" href="admin-hive.css?v=pill-bar3">
 <script src="hive-theme.js?v=sun-moon" data-follow-system="false"></script>
 <link rel="stylesheet" href="admin-pricing.css">
 <link rel="stylesheet" href="admin-ledger.css">
 <link rel="stylesheet" href="admin-mobile.css">
 <link rel="stylesheet" href="/staff-dock.css?v=page-beige">
 <script src="/staff-dock.js?v=power" defer></script>
-<script type="module" src="admin-dashboard.js?v=wh-remove"></script>
+<script type="module" src="admin-dashboard.js?v=pill-bar"></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to dashboard</a>
@@ -29,10 +29,12 @@
   <main id="main" tabindex="-1">
     <header class="toolbar">
       <button class="icon-button collapse" id="collapse" type="button" aria-label="Collapse sidebar" aria-expanded="true"></button>
+      <div class="tb-pill">
       <label class="search-clay"><span id="search-icon" aria-hidden="true"></span><input id="global-search" type="search" aria-label="Search orders" placeholder="Search orders"></label>
       <button class="icon-button hv-switch" id="theme" data-hive-toggle type="button" aria-label="Dark mode" aria-pressed="false"></button>
       <button class="icon-button" id="notifications" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-panel"></button>
       <button class="avatar" id="profile" type="button" aria-label="Admin profile" aria-expanded="false" aria-controls="profile-panel">PB</button>
+      </div>
       <div class="popover card" id="notification-panel" hidden><h2>Notifications</h2><ul id="notification-list" class="activity"></ul></div>
       <div class="popover card" id="profile-panel" hidden><strong>PrintBee Admin</strong><p>Demo workspace</p><a href="/admin#orders">Live customer orders ↗</a><br><a href="mailto:printbee.co.in@gmail.com">Contact support</a></div>
     </header>
