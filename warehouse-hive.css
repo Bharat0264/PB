@@ -618,3 +618,15 @@ html:has(body.warehouse) { overscroll-behavior-x: none; }
 .wh-table .wh-order-link:hover { color: var(--hv-honey-ink, #8a5a00) !important; }
 .wh-table tbody tr:hover td { background: color-mix(in srgb, var(--hv-honey-300) 16%, transparent) !important; }
 @media (max-width: 560px) { .wh-history-stats { gap: 8px !important; } .wh-stat { padding: 12px 14px; } .wh-stat strong { font-size: 24px; } .wh-history-bar { align-items: stretch; } .wh-export { justify-content: center; } }
+
+/* Order station: no scrollbar track (it still scrolls), and a proper chevron instead of the black triangle on "More" */
+.wh-station-scroll { scrollbar-width: none !important; scrollbar-gutter: auto !important; -ms-overflow-style: none; }
+.wh-station-scroll::-webkit-scrollbar { display: none; width: 0; height: 0; }
+.wh-file-actions summary, .wh-more summary { list-style: none; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.wh-file-actions summary::-webkit-details-marker, .wh-more summary::-webkit-details-marker { display: none; }
+.wh-file-actions summary::marker, .wh-more summary::marker { content: ''; }
+.wh-file-actions details > summary::after, .wh-more > summary::after {
+  content: ''; width: 8px; height: 8px; margin-top: -3px; border: solid currentColor; border-width: 0 2px 2px 0; border-radius: 1px;
+  transform: rotate(45deg); transition: transform .2s ease; opacity: .7;
+}
+.wh-file-actions details[open] > summary::after, .wh-more[open] > summary::after { transform: rotate(-135deg); margin-top: 3px; }
