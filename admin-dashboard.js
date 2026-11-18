@@ -483,7 +483,6 @@ function render(animate = false) {
     if (link.dataset.nav === route) link.setAttribute('aria-current','page');
     else link.removeAttribute('aria-current');
   });
-  staffDock.setActive(route);
   root.innerHTML = `<div class="grid${animate ? ' arrive' : ''}">${widgets}</div>`;
   if (route === 'ledger') {
     if (live) buildLedger($('preview-ledger'), (page, kind) => source.api('/api/admin/ledger?' + new URLSearchParams({page, kind})))();
@@ -551,25 +550,29 @@ function navLink(route) {
 
 const routes = Object.keys(sections);
 $('sidebar-nav').innerHTML = routes.map(navLink).join('');
-const goTo = route => () => { location.hash = route; };
-const staffDock = window.createStaffDock($('preview-staff-dock'), [
-  {id:'dashboard',label:'Home',icon:'home',select:goTo('dashboard')},
-  {id:'orders',label:'Orders',icon:'orders',select:goTo('orders')},
-  {id:'add',label:'Add',icon:'plus',center:true,select:() => openEditor('order')},
-  {id:'ledger',label:'Ledger',icon:'ledger',select:goTo('ledger')},
-  {id:'more',label:'More',icon:'more',children:routes.filter(route => !['dashboard','orders','ledger'].includes(route))
-    .map(id => ({id,label:sections[id][0],select:goTo(id)}))},
-]);
 $('notification-list').outerHTML = feed();
 $('search-icon').innerHTML = icon('M16 16l5 5 M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z');
-$('collapse').innerHTML = icon('M4 5h16v14H4z M9 5v14');
 $('notifications').innerHTML = icon('M18 8a6 6 0 0 0-12 0v5l-2 3h16l-2-3z M10 20h4');
 
+const phone = matchMedia('(max-width: 850px)');
+const menuGlyph = icon('M4 7h16 M4 12h16 M4 17h16'), panelGlyph = icon('M4 5h16v14H4z M9 5v14');
+const setNav = open => {
+  document.body.classList.toggle('nav-open', open);
+  $('collapse').setAttribute('aria-expanded', String(phone.matches ? open : !document.querySelector('.workspace').classList.contains('compact')));
+  $('collapse').setAttribute('aria-label', phone.matches ? (open ? 'Close menu' : 'Open menu') : 'Collapse sidebar');
+};
+const syncNavButton = () => { $('collapse').innerHTML = phone.matches ? menuGlyph : panelGlyph; setNav(false); };
+phone.addEventListener('change', syncNavButton);
+syncNavButton();
 $('collapse').onclick = () => {
+  if (phone.matches) return setNav(!document.body.classList.contains('nav-open'));
   const compact = document.querySelector('.workspace').classList.toggle('compact');
   $('collapse').setAttribute('aria-expanded',String(!compact));
   $('collapse').setAttribute('aria-label',compact ? 'Expand sidebar' : 'Collapse sidebar');
 };
+$('sidebar-nav').addEventListener('click', event => { if (event.target.closest('a')) setNav(false); });
+document.getElementById('nav-scrim')?.addEventListener('click', () => setNav(false));
+document.addEventListener('keydown', event => { if (event.key === 'Escape' && document.body.classList.contains('nav-open')) setNav(false); });
 
 const popovers = [['notifications','notification-panel'],['profile','profile-panel']];
 function closePopovers() {
@@ -775,14 +778,12 @@ $('export-pdf').onclick = () => window.print();
 if (live) {
   const workspace = document.querySelector('.workspace');
   workspace.hidden = true;
-  $('preview-staff-dock').hidden = true;
   $('add-product').textContent = '+ Add service';
   let feedConnection;
   connectPortal('admin', $('ops-status'), async () => {
     await source.load();
     workspace.hidden = false;
     document.querySelector('.live-gate').hidden = true;
-    $('preview-staff-dock').hidden = false;
     refreshFeed();
     render(true);
     // Orders and statuses update the moment they change; the timer is only a safety net.
