@@ -35,9 +35,8 @@ async function connectPortal(portal, status, onReady, onSignOut = () => {}) {
       // One sign-in page for everyone: the welcome page sends staff on to their portal after Google sign-in.
       location.replace('/' + (messages[hash] ? hash : ''));
     }
-  } catch (error) {
-    status.textContent = error.message;
-    login.style.visibility = 'visible';
-    window.PBLoader?.done();
+  } catch {
+    // Could not check the session: the one sign-in page is the safe place to land.
+    location.replace('/');
   }
 }

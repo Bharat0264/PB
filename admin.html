@@ -51,12 +51,10 @@ if (new URLSearchParams(location.search).get('preview') === '1') location.replac
 <script src="/live.js?v=1" defer></script>
 <script src="/portal-switch.js?v=1" defer></script>
 <style>
-/* Keep the sign-in card hidden until the session check finishes, so a signed-in refresh never flashes it.
-   If the script never runs, the card appears after 2.5 s so nobody is locked out. */
-#portal-login{visibility:hidden;animation:pb-login-reveal 0s 2.5s forwards}
-@keyframes pb-login-reveal{to{visibility:visible}}
+/* There is one sign-in page (the welcome page). Portals never show their own sign-in card. */
+#portal-login,.live-gate{display:none!important}
 </style>
-<script src="portal-login.js?v=loader" defer></script>
+<script src="portal-login.js?v=one-door" defer></script>
 <script type="module" src="admin-dashboard.js?v=hive-menu"></script>
 </head>
 <body data-portal="admin">
