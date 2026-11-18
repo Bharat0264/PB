@@ -413,7 +413,9 @@ function renderHistory(filterOpen) {
     control.setAttribute('aria-pressed',String((historyPreset || 'All dates')===label));
     dates.append(control);
   }
-  bar.append(dates,button('Export CSV',()=>exportHistory(visible),'clay-button wh-primary'));
+  const exportButton=button('',()=>exportHistory(visible),'wh-export');
+  exportButton.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10M8 10l4 4 4-4M5 19h14"/></svg><span>Export CSV</span>';
+  bar.append(dates,exportButton);
   board.append(bar);
   if (historyPreset==='Custom') {
     const range=queueFilters(true,true);
@@ -423,9 +425,11 @@ function renderHistory(filterOpen) {
   const delivered=visible.filter(order=>order.status==='delivered').length;
   const files=visible.reduce((total,order)=>total+order.items.length,0);
   const summary=node('div',null,'wh-history-stats');
-  summary.append(node('p',null,'wh-history-stat'),node('p',null,'wh-history-stat'));
-  summary.children[0].append(node('strong',String(delivered)),' delivered');
-  summary.children[1].append(node('strong',String(files)),files===1?' file':' files');
+  for (const [label,value] of [['Orders',visible.length],['Delivered',delivered],['Files',files]]) {
+    const card=node('div',null,'wh-stat');
+    card.append(node('span',label),node('strong',String(value)));
+    summary.append(card);
+  }
   board.append(summary);
   if (!visible.length) {
     const mascot=node('img');mascot.src='/printbee-header-bee.webp';mascot.alt='';mascot.width=80;mascot.height=64;
