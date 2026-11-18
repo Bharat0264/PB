@@ -67,7 +67,7 @@ body.warehouse {
 .wh-order:has(.wh-ring[style*="warning"])::before, .wh-order[data-urgent=true]::before { background: var(--hv-warning); }
 .wh-order:has(.wh-ring[style*="danger"])::before, .wh-order:has(.wh-chip.wh-bad)::before { background: var(--hv-danger); }
 .wh-order:hover { transform: translateY(-2px); box-shadow: var(--hv-sh-3); }
-.wh-order[data-selected=true] { background: linear-gradient(100deg, color-mix(in srgb, var(--hv-honey-300) 55%, var(--hv-surface)), var(--hv-surface) 70%); box-shadow: 0 0 0 3px var(--hv-honey-500), var(--hv-sh-2); }
+.wh-order[data-selected=true] { background: linear-gradient(100deg, color-mix(in srgb, var(--hv-honey-300) 55%, var(--hv-surface)), var(--hv-surface) 70%); box-shadow: var(--hv-sh-2); }
 .wh-order[data-urgent=true] { box-shadow: 0 0 0 2px color-mix(in srgb, var(--hv-warning) 55%, transparent), var(--hv-sh-2); }
 .wh-order h3 { font-size: 26px; font-weight: 800; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
 .wh-order .wh-open { min-height: 56px; min-width: 104px; font-size: 16px; }
