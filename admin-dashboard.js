@@ -562,7 +562,7 @@ const setNav = open => {
   $('collapse').setAttribute('aria-expanded', String(phone.matches ? open : !document.querySelector('.workspace').classList.contains('compact')));
   $('collapse').setAttribute('aria-label', phone.matches ? (open ? 'Close menu' : 'Open menu') : 'Collapse sidebar');
 };
-const syncNavButton = () => { $('collapse').innerHTML = phone.matches ? menuGlyph : panelGlyph; setNav(false); };
+const syncNavButton = () => { $('sidebar-nav').querySelectorAll('.nav-link').forEach(link => phone.matches ? link.removeAttribute('title') : link.setAttribute('title', link.getAttribute('aria-label'))); $('collapse').innerHTML = phone.matches ? menuGlyph : panelGlyph; setNav(false); };
 phone.addEventListener('change', syncNavButton);
 syncNavButton();
 $('collapse').onclick = () => {
