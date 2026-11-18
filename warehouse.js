@@ -254,33 +254,59 @@ function updateStageCount(control,label) {
   count.textContent=total;
   control.setAttribute('aria-label',label+', '+total+(total===1?' order':' orders'));
 }
+const orderAmount = order => Number.isInteger(order.bill?.total)?order.bill.total:Number.isInteger(order.subtotal)?order.subtotal:0;
 function renderHome() {
+  // Revenue from the orders this warehouse has handled.
+  const now=Date.now()/1000, week=now-7*86400;
+  const sum=list=>list.reduce((total,order)=>total+orderAmount(order),0)/100;
+  const periods=[
+    ['Today',orders.filter(order=>today(order.paidAt))],
+    ['Last 7 days',orders.filter(order=>order.paidAt && order.paidAt>=week)],
+    ['All orders',orders],
+  ];
+  const revenue=node('div',null,'wh-revenue');
+  revenue.setAttribute('role','group');
+  revenue.setAttribute('aria-label','Revenue');
+  for (const [label,list] of periods) {
+    const card=node('div',null,'wh-rev-card');
+    card.append(node('span',label,'wh-rev-label'),node('strong',money(sum(list)),'wh-rev-amount'),
+      node('small',list.length+(list.length===1?' order':' orders'),'wh-rev-note'));
+    revenue.append(card);
+  }
+  board.append(heading('Revenue'),revenue);
   const metrics=node('div',null,'wh-conveyor');
   metrics.setAttribute('role','group');
   metrics.setAttribute('aria-label','Production stages');
   for (const [label,stageKey,glyph] of floorStages) {
-    const stat=button('',()=>{
-      floorFilter=floorFilter===label?null:label;
-      render();
-    },'wh-stat');
+    const stat=button('',()=>label==='Handed over'?go('History'):go('Print Queue',label),'wh-stat');
     stat.dataset.focus='stat-'+label;
     stat.dataset.stage=stageKey;
-    stat.setAttribute('aria-pressed',String(floorFilter===label));
     const symbol=icon(glyph);
     symbol.className='wh-stat-icon';
     stat.append(symbol,node('strong'),node('span',label,'wh-stat-label'));
     updateStageCount(stat,label);
     metrics.append(stat);
   }
-  board.append(metrics);
+  board.append(heading('Orders'),metrics);
   const late=orders.filter(order=>buckets.includes(stage(order)) && elapsed(order)>=45).length;
   if (late) {
     const alert=chip(late+(late===1?' late order':' late orders'),'wh-attention');
     alert.classList.add('wh-alert');
     board.append(alert);
   }
-  const visible=selectedOrders(floorFilter==='Handed over'?['Delivered','Out for delivery']:floorFilter?[floorFilter]:buckets);
-  board.append(heading(floorFilter || 'Up next'),list(floorFilter || byId('warehouse-search').value.trim()?visible:visible.slice(0,3)));
+  const recent=selectedOrders(['New','Printing','Ready','Delivered','Out for delivery']).slice().sort((x,y)=>(y.paidAt||0)-(x.paidAt||0)).slice(0,5);
+  if (!recent.length) return;
+  board.append(heading('Latest orders'));
+  const rows=node('div',null,'wh-recent');
+  for (const order of recent) {
+    const row=button('',()=>openOrder(order.id,true),'wh-recent-row');
+    row.dataset.focus='order-'+order.id;
+    const who=node('span',null,'wh-recent-main');
+    who.append(node('strong',labelOrder(order)),node('small',order.customer || 'Customer unavailable'));
+    row.append(who,chip(stage(order),statusStyle(stage(order))),node('span',money(orderAmount(order)/100),'wh-recent-amount'));
+    rows.append(row);
+  }
+  board.append(rows);
 }
 function queueFilters(open,history=false) {
   const details=node('details',null,'wh-filters');

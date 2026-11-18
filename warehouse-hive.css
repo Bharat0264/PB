@@ -720,3 +720,21 @@ html:has(body.warehouse) { overscroll-behavior-x: none; }
 .wh-top .wh-indicators button.wh-floor-theme, .wh-indicators .wh-floor-theme { border-radius: 999px !important; }
 button.wh-mbrand { border: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 @media (min-width: 851px) { button.wh-mbrand { display: none !important; } }
+
+/* Home dashboard: revenue, orders by stage, latest orders */
+.wh-revenue { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 8px; }
+.wh-rev-card { display: grid; gap: 4px; padding: 18px 22px; border-radius: 24px; background: var(--hv-surface); box-shadow: 0 0 0 1px var(--hv-border), 0 8px 24px rgba(60,45,15,.05); }
+.wh-rev-card:first-child { background: linear-gradient(150deg, #fbe39a, #efc153); box-shadow: 0 10px 26px rgba(214,160,30,.28); }
+.wh-rev-label { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--hv-muted); }
+.wh-rev-card:first-child .wh-rev-label, .wh-rev-card:first-child .wh-rev-note { color: #6b4a07; }
+.wh-rev-amount { font-size: clamp(24px, 3.2vw, 34px); line-height: 1.1; letter-spacing: -.03em; color: var(--hv-ink); font-variant-numeric: tabular-nums; }
+.wh-rev-card:first-child .wh-rev-amount { color: #2a2112; }
+.wh-rev-note { font-size: 13px; color: var(--hv-muted); }
+.wh-recent { display: grid; gap: 8px; }
+.wh-recent-row { display: flex !important; align-items: center; gap: 14px; width: 100%; min-height: 64px; padding: 10px 20px !important; border: 0; border-radius: 20px !important; background: var(--hv-surface) !important; box-shadow: 0 0 0 1px var(--hv-border) !important; text-align: start; cursor: pointer; color: var(--hv-ink); }
+.wh-recent-row:hover { background: var(--hv-surface-2) !important; }
+.wh-recent-main { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.wh-recent-main strong { font-size: 16px; letter-spacing: -.01em; }
+.wh-recent-main small { color: var(--hv-muted); font-size: 13.5px; }
+.wh-recent-amount { font-weight: 800; font-variant-numeric: tabular-nums; }
+@media (max-width: 560px) { .wh-revenue { grid-template-columns: 1fr; gap: 10px; } .wh-rev-card { padding: 14px 18px; } .wh-recent-row { padding-inline: 14px !important; gap: 10px; } }
