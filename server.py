@@ -1631,6 +1631,19 @@ if __name__ == "__main__":
                     db.execute("UPDATE orders SET status=? WHERE id=?", (status, order_id))
                 db.execute("INSERT INTO order_owners (order_id, email, order_number) VALUES (?, ?, ?)",
                            (order_id, sample_email, "PB-SAMPLE-" + order_id[:6].upper()))
+        active_email = os.environ.get("PRINTBEE_SAMPLE_ACTIVE_ORDER_EMAIL", "").strip().lower()
+        if active_email and "@" in active_email:   # opt-in: one in-progress (printing) order for a tester's Orders page
+            order_id = hashlib.sha256(("sample-active-order:" + active_email).encode()).hexdigest()[:32]
+            if not db.execute("SELECT 1 FROM orders WHERE id=?", (order_id,)).fetchone():
+                item = {"name": "Sample assignment.pdf", "pages": 12, "copies": 1, "colour": True, "duplex": False,
+                        "orientation": "Portrait", "binding": "none", "paper": "A4", "size": 0, "subtotal": 9600}
+                details = {"customer": "Sample order", "phone": "", "address": "SRM University, Kattankulathur",
+                           "items": [item], "subtotal": 9600, "bill": {"subtotal": 9600, "total": 12600}}
+                db.execute("INSERT INTO orders VALUES (?, ?, 'pending', ?)", (order_id, "0" * 64, json.dumps(details)))
+                for status in ("paid", "printing"):
+                    db.execute("UPDATE orders SET status=? WHERE id=?", (status, order_id))
+                db.execute("INSERT INTO order_owners (order_id, email, order_number) VALUES (?, ?, ?)",
+                           (order_id, active_email, "PB-ACTIVE-" + order_id[:6].upper()))
         eligible = ()
         if active_checkout_terms(db, checkout_terms).get("autoDispatch"):
             eligible = {"delivery", *partners, *phones.values(), *google_access["partner"].values()}
