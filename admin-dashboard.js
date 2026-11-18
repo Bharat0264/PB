@@ -382,8 +382,13 @@ async function changeServices(change) {
 const paise = value => Math.round(Number(value) * 100);
 
 function livePartners() {
-  const rows = partners.map(partner => `<li><strong>${escape(partner.email || partner.id)}</strong><span>${partner.deliveries} deliveries &middot; earned ${money(partner.accrued / 100)} &middot; unsettled ${money(partner.outstanding / 100)}</span><small class="directory-verified">Verified</small>${partner.removable ? `<button type="button" data-remove-partner="${escape(partner.email)}">Remove access</button>` : ''}</li>`).join('');
-  return card('Delivery partners', rows ? `<ul class="activity admin-directory">${rows}</ul>` : '<p class="muted">No delivery partners yet. Use “Add verified partner” to give someone access with their Google email.</p>', 'full') +
+  const rows = partners.map(partner => {
+    const who = String(partner.email || partner.id || '?');
+    return `<li class="partner-row"><span class="partner-avatar" aria-hidden="true">${escape(who[0].toUpperCase())}</span>
+      <span class="partner-main"><strong>${escape(who)}</strong><small>${number(partner.deliveries)} deliveries &middot; earned ${money(partner.accrued / 100)} &middot; unsettled ${money(partner.outstanding / 100)}</small></span>
+      <span class="partner-side"><span class="directory-verified">Verified</span>${partner.removable ? `<button type="button" class="partner-remove" data-remove-partner="${escape(partner.email)}">Remove access</button>` : ''}</span></li>`;
+  }).join('');
+  return card('Delivery partners', rows ? `<ul class="partner-list">${rows}</ul>` : '<p class="muted">No delivery partners yet. Use “Add verified partner” to give someone access with their Google email.</p>', 'full') +
     card('Partner settlements', source.payouts.length ? '<div id="live-settlements" class="settlements"></div>' : '<p class="muted">No outstanding settlements.</p>', 'full');
 }
 
@@ -706,7 +711,7 @@ $('editor-form').onsubmit = async event => {
         $('notice').textContent = 'Service added. Customers can choose it at checkout now.';
       } else if (kind === 'partner') {
         await source.api('/api/admin/partners', {email: data.get('email').trim().toLowerCase()});
-        $('notice').textContent = 'Partner verified. They can now sign in on the delivery partner page with that Google account.';
+        $('notice').textContent = '';   // the new partner appears in the list below
       } else if (kind === 'warehouse') {
         await source.api('/api/admin/warehouses', {name: data.get('name').trim(), address: data.get('address').trim(), email: data.get('email').trim().toLowerCase(), useForPickup: data.has('useForPickup') || !warehouses.length});
         $('notice').textContent = 'Warehouse saved.';
