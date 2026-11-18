@@ -77,7 +77,7 @@
       meta.append(element('strong',label),element('span',entry.type === 'campus' ? 'Campus' : 'Outside','address-badge'));
       if (index === defaultIndex) meta.append(element('span','Default','address-badge address-badge-default'));
       const star = action(index === defaultIndex ? '★' : '☆', () => {
-        updateSelection(entries,index,selected,'',() => byId(card.id)?.querySelector('.address-star'));
+        updateSelection(entries,index,index,'Default address set. It will be used for delivery.',() => byId(card.id)?.querySelector('.address-star'));
       },'Set as default, '+label);
       star.classList.add('address-star');
       star.setAttribute('aria-pressed',String(index === defaultIndex));
@@ -86,11 +86,6 @@
       const content = element('div',null,'address-card-content');
       content.append(meta,details);
       const controls = element('div',null,'address-card-actions');
-      const deliver = action(index === selected ? '✓ Delivering here' : 'Deliver here',() => {
-        updateSelection(entries,defaultIndex,index,'Delivery address selected for checkout.',() => byId(card.id)?.querySelector('.address-deliver'));
-      });
-      deliver.classList.add('address-deliver');
-      deliver.setAttribute('aria-pressed',String(index === selected));
       const pencil = action('',event => edit(index,event.currentTarget),'Edit address, '+label);
       pencil.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg>';
       const trash = action('',() => {
@@ -107,7 +102,7 @@
       pencil.classList.add('address-edit');
       const utilities = element('div',null,'address-card-tools');
       utilities.append(star,pencil,trash);
-      controls.append(deliver,utilities);
+      controls.append(utilities);
       const ticketIcon = element('span',null,'address-ticket-icon');
       ticketIcon.setAttribute('aria-hidden','true');
       ticketIcon.innerHTML = entry.type === 'campus'
