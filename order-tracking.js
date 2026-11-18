@@ -212,7 +212,7 @@
       const current = key === plan.current;
       if (current) step.setAttribute('aria-current', 'step');
       step.dataset.phase = current ? 'current' : i <= plan.position ? 'complete' : 'upcoming';
-      const hex = node('span', step.dataset.phase === 'complete' ? '✓' : '', 'track-step-hex');
+      const hex = node('span', step.dataset.phase === 'upcoming' ? '' : '✓', 'track-step-hex');
       hex.setAttribute('aria-hidden','true');
       const title = key === 'assigned' && data.summary?.deliveryType === 'campus' ? 'Campus helper assigned' : label(key);
       const detail = node('div');
@@ -222,8 +222,13 @@
         time.dateTime = new Date(plan.markers[key].at * 1000).toISOString();
         detail.append(time);
       }
-      step.append(hex, detail);
-      if (current) step.append(mascot);
+      const pill = node('div', '', 'track-step-pill');
+      const art = node('span', '', 'track-step-icon');
+      art.setAttribute('aria-hidden', 'true');
+      art.innerHTML = journeyIcons[{paid:0, printing:1, packed:2, assigned:3, out_for_delivery:3, delivered:4}[key] ?? 0];
+      pill.append(art, detail);
+      step.append(hex, pill);
+      if (current) pill.append(mascot);
       return step;
     }));
     progress(byId('tracking-progress'), plan.keys, plan.position);
