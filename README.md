@@ -137,10 +137,11 @@ upgrading, existing Google staff sessions require sign-in again.
 
 Use Python with SQLite 3.35 or later. Open `/warehouse`, `/partner` or
 `/admin` and choose **Continue with Google**. Use the same OAuth client and
-callback as the customer login in `EMAIL-SIGN-IN.md`. Set the comma-separated
-staff email lists in `PRINTBEE_GOOGLE_WAREHOUSE_EMAILS` and
-`PRINTBEE_GOOGLE_ADMIN_EMAILS`. Set `PRINTBEE_GOOGLE_PARTNERS` to a JSON object
-mapping Google email addresses to partner IDs. To preserve partner order
+callback as the customer login in `EMAIL-SIGN-IN.md`. Set only the admin email
+list in `PRINTBEE_GOOGLE_ADMIN_EMAILS`. Admins then add delivery partners and
+warehouse staff inside `/admin` (their access is stored in the database).
+`PRINTBEE_GOOGLE_WAREHOUSE_EMAILS` and `PRINTBEE_GOOGLE_PARTNERS` (a JSON object
+mapping Google email addresses to partner IDs) are still read if set. To preserve partner order
 history, use the existing partner ID, including `delivery` for the default
 operator. Customer sign-in sessions do not grant portal access.
 

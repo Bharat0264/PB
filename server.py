@@ -1342,6 +1342,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                 else:
                     result = admin_records.save_warehouse(db, data, actor)
                     require_pickup_coordinates(self.checkout_terms(db), admin_records.default_pickup(db))
+                    self.server.google_access["warehouse"][data["email"].strip().lower()] = "warehouse"   # the admin's entry grants access
             elif path in ("/api/admin/partners", "/api/admin/partners/remove"):
                 if not isinstance(data, dict):
                     raise admin_records.InputError("Invalid partner request.")
@@ -1603,6 +1604,7 @@ if __name__ == "__main__":
         db.executescript(ops.SCHEMA)
         db.executescript(admin_records.SCHEMA)
         google_access["partner"].update(admin_records.partner_accounts(db))
+        google_access["warehouse"].update({email: "warehouse" for email in admin_records.warehouse_staff(db)})
         db.executescript(partner_auth.SCHEMA)
         db.executescript("""
             CREATE TABLE IF NOT EXISTS orders (id TEXT PRIMARY KEY, token TEXT, status TEXT, details TEXT);

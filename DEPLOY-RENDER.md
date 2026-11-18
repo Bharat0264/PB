@@ -11,9 +11,11 @@ hours, switch the plan from Starter to Standard (about $25) in the Render dashbo
    Render reads `render.yaml`, creates the service and a 1 GB disk, and asks for these values:
    * `PRINTBEE_ORIGIN` = your site address, for example `https://printbee.co.in`
    * `PRINTBEE_GOOGLE_CLIENT_ID` and `PRINTBEE_GOOGLE_CLIENT_SECRET` (step 3)
-   * `PRINTBEE_GOOGLE_ADMIN_EMAILS` = your admin Gmail (opens `/admin`)
-   * `PRINTBEE_GOOGLE_WAREHOUSE_EMAILS` = warehouse staff Gmails (open `/warehouse`)
-   * `PRINTBEE_GOOGLE_PARTNERS` = `{"rider@gmail.com":"rider-1"}` (opens `/partner`)
+   * `PRINTBEE_GOOGLE_ADMIN_EMAILS` = your admin Gmail (opens `/admin`). **This is the only access list you keep in the environment.**
+   * Delivery partners and warehouses are added by the admin inside the app: open `/admin`, go to *Delivery Partners* →
+     *Add verified partner*, or *Warehouses* → *Add warehouse* (the staff email you enter there can sign in to `/warehouse`).
+     Access is saved in the database, so no environment change or redeploy is needed.
+   * `PRINTBEE_GOOGLE_WAREHOUSE_EMAILS` and `PRINTBEE_GOOGLE_PARTNERS` are optional now. Anything already set keeps working.
 2. **Your domain**: Render → the service → *Settings* → *Custom Domains* → add `printbee.co.in` (and `www`).
    Render shows the DNS records to create at your domain registrar (a CNAME for `www`, and an A record or
    ALIAS for the bare domain). HTTPS is added automatically after DNS updates (can take a few minutes to hours).

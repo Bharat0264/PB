@@ -74,6 +74,11 @@ def save_warehouse(db, data, actor):
     return {"saved": True}
 
 
+def warehouse_staff(db):
+    """Emails the admin saved as warehouse staff. They may sign in to the warehouse portal."""
+    return {row["email"].strip().lower() for row in db.execute("SELECT email FROM warehouse_pickups")}
+
+
 def partner_accounts(db):
     return {row["email"]: row["partner"] for row in db.execute("SELECT email, partner FROM partner_accounts")}
 
