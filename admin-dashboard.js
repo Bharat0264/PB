@@ -550,6 +550,7 @@ function navLink(route) {
 
 const routes = Object.keys(sections);
 $('sidebar-nav').innerHTML = routes.map(navLink).join('');
+$('sidebar-nav').querySelectorAll('.nav-link').forEach((link, i) => link.style.setProperty('--n', i));
 $('notification-list').outerHTML = feed();
 $('search-icon').innerHTML = icon('M16 16l5 5 M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z');
 $('notifications').innerHTML = icon('M18 8a6 6 0 0 0-12 0v5l-2 3h16l-2-3z M10 20h4');
@@ -571,6 +572,7 @@ $('collapse').onclick = () => {
   $('collapse').setAttribute('aria-label',compact ? 'Expand sidebar' : 'Collapse sidebar');
 };
 $('sidebar-nav').addEventListener('click', event => { if (event.target.closest('a')) setNav(false); });
+document.getElementById('nav-close')?.addEventListener('click', () => setNav(false));
 document.getElementById('nav-scrim')?.addEventListener('click', () => setNav(false));
 document.addEventListener('keydown', event => { if (event.key === 'Escape' && document.body.classList.contains('nav-open')) setNav(false); });
 
