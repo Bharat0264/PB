@@ -160,3 +160,6 @@ main.inner-page .tracking-top h1 { margin:0; font:800 clamp(18px,2.8vw,25px)/1.2
 /* Scrolling fix: the side column no longer sticks over the "Need help?" row; help always sits below both columns. */
 .track-aside { position:static; align-self:start; }
 .track-help { grid-row:3; margin-top:8px; padding-bottom:8px; position:relative; z-index:1; }
+@media (max-width: 900px) {
+  .tracking-grid > .track-help { grid-row: auto; order: 99; margin-top: 0; }
+}
