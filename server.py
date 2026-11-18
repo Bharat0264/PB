@@ -188,10 +188,15 @@ class PrintBee(SimpleHTTPRequestHandler):
             return role
         return None
 
+    def staff_role(self, email):
+        """An email holds exactly one role: admin first, then warehouse, then delivery partner."""
+        return next((role for role in ("admin", "warehouse", "partner")
+                     if email in self.server.google_access.get(role, {})), None)
+
     def google_portal_access(self, portal):
         with closing(connect()) as db:
             email = auth.portal_google_email(db, self.headers, portal)
-        return self.server.google_access[portal].get(email)
+        return self.server.google_access[portal].get(email) if self.staff_role(email) == portal else None
 
     def google_destination(self, mode):
         if mode == "welcome":
@@ -281,10 +286,12 @@ class PrintBee(SimpleHTTPRequestHandler):
             cleared_sessions = []
             with closing(connect()) as db, db:
                 if portal:
-                    if email not in self.server.google_access[portal]:
+                    if self.staff_role(email) != portal:
                         return self.auth_redirect(destination + "#google-denied", clear)
                     session = auth.portal_session(db, self.headers, email, portal)
                     destination = auth.GOOGLE_PORTALS[portal]
+                elif self.staff_role(email):
+                    return self.auth_redirect(destination + "#google-denied", clear)
                 else:
                     session = auth.create_session(db, email, auth.session_token(self.headers))
                     destination = "/index.html"
@@ -603,7 +610,7 @@ class PrintBee(SimpleHTTPRequestHandler):
             email = None
             with closing(connect()) as db:
                 email = auth.portal_google_email(db, self.headers, wanted)
-            return (wanted, email) if email and self.server.google_access[wanted].get(email) else None
+            return (wanted, email) if email and self.server.google_access[wanted].get(email) and self.staff_role(email) == wanted else None
         if wanted == "partner":
             partner = self.get_partner()
             return ("partner", partner) if partner else None
@@ -840,6 +847,8 @@ class PrintBee(SimpleHTTPRequestHandler):
         data = json.loads(self.rfile.read(length))
         with closing(connect()) as db:
             if path == "/api/auth/request":
+                if isinstance(data, dict) and self.staff_role(str(data.get("email", "")).strip().lower()):
+                    return self.json_response(403, {"error": "This email is a staff account. Use its portal to sign in."})
                 return self.json_response(*auth.request_link(db, data["email"]))
             if path == "/api/auth/verify":
                 result = auth.redeem(db, data["token"], auth.session_token(self.headers))
@@ -1340,6 +1349,9 @@ class PrintBee(SimpleHTTPRequestHandler):
                 if path == "/api/admin/offline-orders":
                     result = admin_records.record_offline_sales(db, data.get("orders"), actor)
                 else:
+                    taken = self.staff_role(str(data.get("email", "")).strip().lower())
+                    if taken and taken != "warehouse":
+                        raise admin_records.InputError("That email already has " + taken + " access. Use a different email.")
                     result = admin_records.save_warehouse(db, data, actor)
                     require_pickup_coordinates(self.checkout_terms(db), admin_records.default_pickup(db))
                     self.server.google_access["warehouse"][data["email"].strip().lower()] = "warehouse"   # the admin's entry grants access
@@ -1351,6 +1363,9 @@ class PrintBee(SimpleHTTPRequestHandler):
                     email = admin_records.remove_partner(db, data, actor)
                     self.server.google_access["partner"].pop(email, None)
                 else:
+                    taken = self.staff_role(str(data.get("email", "")).strip().lower())
+                    if taken and taken != "partner":
+                        raise admin_records.InputError("That email already has " + taken + " access. Use a different email.")
                     email, partner = admin_records.add_partner(db, data, actor)
                     self.server.google_access["partner"][email] = partner
                 result = {"saved": True}
