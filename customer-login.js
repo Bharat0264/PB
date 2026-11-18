@@ -89,6 +89,7 @@ signOutAll?.addEventListener('submit', event => {
 const googleMessages = {
   '#google-unavailable': 'Google sign-in is unavailable. You can sign in by email.',
   '#google-failed': 'Google sign-in could not be completed. Please try again.',
+  '#google-denied': 'This Google account does not have access to that portal. Ask the admin to add it.',
 };
 if (Object.hasOwn(googleMessages, location.hash)) {
   loginStatus.textContent = googleMessages[location.hash];

@@ -32,7 +32,8 @@ async function connectPortal(portal, status, onReady, onSignOut = () => {}) {
       logout.hidden = false;
       await onReady();
     } else {
-      login.style.visibility = 'visible';
+      // One sign-in page for everyone: the welcome page sends staff on to their portal after Google sign-in.
+      location.replace('/' + (messages[hash] ? hash : ''));
     }
   } catch (error) {
     status.textContent = error.message;
