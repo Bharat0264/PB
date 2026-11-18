@@ -191,3 +191,39 @@ main.inner-page .tracking-top h1 { margin:0; font:800 clamp(18px,2.8vw,25px)/1.2
 [data-theme="dark"] .track-step[data-phase=complete] .track-step-pill, [data-theme="dark"] .track-step[data-phase=current] .track-step-pill { background: color-mix(in srgb, var(--hv-honey-500) 22%, var(--hv-surface-2)); }
 @media (max-width: 520px) { .track-step-pill { min-height: 60px; gap: 10px; padding-right: 12px; } .track-step-icon { width: 42px; height: 42px; } .track-step-icon svg { width: 36px; height: 36px; } .track-step-pill strong { font-size: 15.5px; } }
 .track-step:not(:last-child)::after { left: 2px; width: 18px; }
+
+/* Journey, refined: a clean rail, quiet cards, one clear current step. */
+.track-journey ol { margin-top: 22px; }
+.track-step { grid-template-columns: 40px minmax(0, 1fr); gap: 14px; padding-bottom: 14px; }
+.track-step:not(:last-child)::after {
+  left: 18.5px; top: calc((100% - 14px) / 2); width: 3px; height: 100%; inset-inline-end: auto; border: 0; border-radius: 3px; filter: none;
+  background: var(--hv-border);
+}
+.track-step[data-phase=complete]:not(:last-child)::after { background: var(--hv-honey-500); filter: none; border: 0; }
+.track-step-hex {
+  width: 28px; height: 28px; font-size: 14px; line-height: 1; border: 0; box-shadow: none; background: #fff; color: transparent;
+  outline: 2px solid var(--hv-border); outline-offset: -2px;
+}
+.track-step[data-phase=complete] .track-step-hex { background: var(--hv-honey-500); color: #2a2112; outline: 0; box-shadow: none; }
+.track-step[data-phase=current] .track-step-hex { background: var(--hv-honey-500); color: #2a2112; outline: 0; box-shadow: 0 0 0 5px color-mix(in srgb, var(--hv-honey-500) 30%, transparent); }
+.track-step-pill {
+  min-height: 64px; padding: 8px 16px 8px 10px; gap: 14px; border-radius: 22px; background: #fff;
+  box-shadow: 0 0 0 1px var(--hv-border), 0 8px 20px -12px #6e502840;
+}
+.track-step[data-phase=complete] .track-step-pill { background: color-mix(in srgb, var(--hv-honey-500) 10%, #fff); box-shadow: 0 0 0 1px color-mix(in srgb, var(--hv-honey-500) 40%, transparent), 0 8px 20px -12px #6e502840; }
+.track-step[data-phase=current] .track-step-pill { background: color-mix(in srgb, var(--hv-honey-500) 20%, #fff); box-shadow: 0 0 0 2px var(--hv-honey-500), 0 14px 28px -14px #b9831a99; }
+.track-step[data-phase=upcoming] .track-step-pill { background: #fff; box-shadow: 0 0 0 1px var(--hv-border); }
+.track-step-icon { width: 44px; height: 44px; border-radius: 14px; background: color-mix(in srgb, var(--hv-honey-500) 16%, #fff); }
+.track-step-icon svg { width: 30px; height: 30px; }
+.track-step[data-phase=upcoming] .track-step-icon { background: #f4efe2; filter: none; opacity: 1; }
+.track-step[data-phase=upcoming] .track-step-icon svg { filter: grayscale(1); opacity: .45; }
+.track-step-pill strong { font-size: 16.5px; font-weight: 700; letter-spacing: -.01em; }
+.track-step[data-phase=upcoming] .track-step-pill strong { color: var(--hv-muted); font-weight: 600; }
+.track-step-pill time { font-size: 12.5px; }
+.track-step-pill .track-bee { width: 34px; height: 34px; }
+[data-theme="dark"] .track-step-pill, [data-theme="dark"] .track-step[data-phase=upcoming] .track-step-pill { background: var(--hv-surface-2); box-shadow: 0 0 0 1px var(--hv-border); }
+[data-theme="dark"] .track-step[data-phase=complete] .track-step-pill { background: color-mix(in srgb, var(--hv-honey-500) 14%, var(--hv-surface-2)); }
+[data-theme="dark"] .track-step[data-phase=current] .track-step-pill { background: color-mix(in srgb, var(--hv-honey-500) 24%, var(--hv-surface-2)); box-shadow: 0 0 0 2px var(--hv-honey-500); }
+[data-theme="dark"] .track-step-icon, [data-theme="dark"] .track-step[data-phase=upcoming] .track-step-icon { background: var(--hv-surface-3); }
+[data-theme="dark"] .track-step-hex { background: var(--hv-surface-2); }
+@media (max-width: 520px) { .track-step-pill { min-height: 58px; } .track-step-icon { width: 40px; height: 40px; } .track-step-pill strong { font-size: 15.5px; } }
