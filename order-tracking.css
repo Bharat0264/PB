@@ -227,3 +227,40 @@ main.inner-page .tracking-top h1 { margin:0; font:800 clamp(18px,2.8vw,25px)/1.2
 [data-theme="dark"] .track-step-icon, [data-theme="dark"] .track-step[data-phase=upcoming] .track-step-icon { background: var(--hv-surface-3); }
 [data-theme="dark"] .track-step-hex { background: var(--hv-surface-2); }
 @media (max-width: 520px) { .track-step-pill { min-height: 58px; } .track-step-icon { width: 40px; height: 40px; } .track-step-pill strong { font-size: 15.5px; } }
+
+/* Journey in the reference style: big round clay pills, colourful icons, a curved glowing rail with ringed dots */
+.track-journey ol { position: relative; isolation: isolate; margin-top: 24px; }
+.track-rail { position: absolute; left: 0; top: 0; z-index: -1; overflow: visible; pointer-events: none; }
+.track-rail path { fill: none; stroke-width: 7; stroke-linecap: round; }
+.rail-todo { stroke: #e9e3d3; }
+.rail-done { stroke: var(--hv-honey-500); filter: drop-shadow(0 0 7px color-mix(in srgb, var(--hv-honey-500) 70%, transparent)); }
+.track-step { grid-template-columns: 56px minmax(0, 1fr); gap: 10px; padding-bottom: 20px; }
+.track-step:not(:last-child)::after { display: none; }
+.track-step-hex { width: 30px; height: 30px; font-size: 15px; font-weight: 800; outline: 0; background: #fff; color: transparent; border: 4px solid #d9d2bf; box-shadow: 0 2px 6px #6e502826; }
+.track-step[data-phase=complete] .track-step-hex, .track-step[data-phase=current] .track-step-hex {
+  background: var(--hv-honey-500); color: #fff; border: 4px solid #fff; box-shadow: 0 0 0 3px var(--hv-honey-500), 0 4px 12px #e0a21c88; }
+.track-step[data-phase=current] .track-step-hex { animation: track-pulse 2.8s ease-in-out infinite; }
+.track-step-pill { min-height: 84px; padding: 10px 28px 10px 14px; gap: 18px; border-radius: 999px; background: linear-gradient(150deg, #fffdf8, #f5eddb);
+  box-shadow: 7px 9px 20px #6e502822, -5px -5px 14px #fffdf6c0, inset -3px -4px 9px #a774200d, inset 3px 4px 9px #fffdf6b3; }
+.track-step[data-phase=complete] .track-step-pill { background: linear-gradient(150deg, #fff8d6, #f9e39a);
+  box-shadow: 8px 10px 22px #c9951f40, -5px -5px 14px #fffdf6c0, inset -3px -4px 9px #d9a62a22, inset 3px 4px 9px #fffbe6b3; }
+.track-step[data-phase=current] .track-step-pill { background: linear-gradient(150deg, #fff3bd, #f6d46a);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--hv-honey-500) 55%, transparent), 10px 12px 26px #c9951f55, inset 3px 4px 9px #fffbe6b3; }
+.track-step[data-phase=upcoming] .track-step-pill { background: linear-gradient(150deg, #fffdfa, #f4efe4); }
+.track-step-icon { width: 58px; height: 58px; border-radius: 0; background: none; }
+.track-step-icon svg { width: 54px; height: 54px; filter: drop-shadow(0 4px 5px #6e502833); }
+.track-step[data-phase=upcoming] .track-step-icon { background: none; }
+.track-step[data-phase=upcoming] .track-step-icon svg { filter: grayscale(.6) drop-shadow(0 3px 4px #6e50281a); opacity: .6; }
+.track-step-pill strong { font-size: 19px; font-weight: 800; letter-spacing: -.015em; }
+.track-step[data-phase=upcoming] .track-step-pill strong { color: var(--hv-ink); font-weight: 700; }
+[data-theme="dark"] .track-step-pill, [data-theme="dark"] .track-step[data-phase=upcoming] .track-step-pill { background: var(--hv-surface-2); box-shadow: var(--hv-sh-1); }
+[data-theme="dark"] .track-step[data-phase=complete] .track-step-pill { background: color-mix(in srgb, var(--hv-honey-500) 22%, var(--hv-surface-2)); }
+[data-theme="dark"] .track-step[data-phase=current] .track-step-pill { background: color-mix(in srgb, var(--hv-honey-500) 32%, var(--hv-surface-2)); box-shadow: 0 0 0 3px var(--hv-honey-500); }
+[data-theme="dark"] .rail-todo { stroke: var(--hv-border); }
+@media (max-width: 520px) {
+  .track-step { grid-template-columns: 46px minmax(0, 1fr); gap: 8px; }
+  .track-step-pill { min-height: 70px; padding: 8px 18px 8px 10px; gap: 12px; }
+  .track-step-icon { width: 46px; height: 46px; } .track-step-icon svg { width: 42px; height: 42px; }
+  .track-step-pill strong { font-size: 16.5px; }
+  .track-step-hex { width: 26px; height: 26px; font-size: 13px; border-width: 3px; }
+}

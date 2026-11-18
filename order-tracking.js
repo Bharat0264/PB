@@ -203,6 +203,32 @@
     if (position < 0) position = keys.findLastIndex(key => Boolean(markers[key]));
     return {markers,current,keys,position};
   }
+  // Curved honey rail behind the journey dots; it is measured from the real step positions so it always lines up.
+  function drawRail(list) {
+    list.querySelector('.track-rail')?.remove();
+    const steps = [...list.querySelectorAll('.track-step')];
+    if (steps.length < 2) return;
+    const box = list.getBoundingClientRect();
+    const centres = steps.map(step => {
+      const dot = step.querySelector('.track-step-hex').getBoundingClientRect();
+      return {x: dot.left + dot.width / 2 - box.left, y: dot.top + dot.height / 2 - box.top};
+    });
+    const NS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('class', 'track-rail');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('width', String(box.width));
+    svg.setAttribute('height', String(box.height));
+    for (let i = 0; i < centres.length - 1; i++) {
+      const a = centres[i], b = centres[i + 1], gap = (b.y - a.y) * 0.28, bulge = 24;
+      const path = document.createElementNS(NS, 'path');
+      path.setAttribute('d', `M${a.x} ${a.y} C${a.x - bulge} ${a.y + gap} ${a.x - bulge} ${b.y - gap} ${b.x} ${b.y}`);
+      path.setAttribute('class', steps[i + 1].dataset.phase === 'upcoming' ? 'rail-todo' : 'rail-done');
+      svg.append(path);
+    }
+    list.prepend(svg);
+  }
+  addEventListener('resize', () => { const list = byId('tracking-steps'); if (list?.children.length) drawRail(list); });
   function renderJourney(data, plan) {
     const list = byId('tracking-steps');
     const old = mascot.isConnected ? mascot.getBoundingClientRect() : null;
@@ -231,6 +257,7 @@
       return step;
     }));
     progress(byId('tracking-progress'), plan.keys, plan.position);
+    drawRail(list);
     if (!moving || reduced.matches) return;
     if (old && mascot.isConnected) {
       const next = mascot.getBoundingClientRect();
