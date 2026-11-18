@@ -652,7 +652,7 @@ function renderStation(order=findOrder()) {
     return;
   }
   const bucket=stage(order), summary=node('div',null,'wh-meta');
-  summary.append(chip(bucket,statusStyle(bucket)),window.PrintBeeStatus?.model && order.status?PrintBeeStatus.badge(order.status):chip('Paid','wh-good'));
+  summary.append(window.PrintBeeStatus?.model && order.status?PrintBeeStatus.badge(order.status):chip(bucket,statusStyle(bucket)));
   const minutes=elapsed(order);
   if (minutes!==null && buckets.includes(bucket)) summary.append(chip(minutes>=45?'SLA overdue':45-minutes+' min left','wh-sla '+(minutes>=45?'wh-bad':minutes>=30?'wh-attention':'')));
   body.append(summary,orderTracker(bucket));
