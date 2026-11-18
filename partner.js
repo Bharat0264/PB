@@ -822,6 +822,9 @@ function updateActiveBar() {
 }
 function renderDock() {
   staffDock?.setActive(tab);
+  const shiftButton = $('partner-staff-dock')?.querySelector('.staff-dock-center');
+  if (shiftButton) { shiftButton.toggleAttribute('data-online', Boolean(state.available)); shiftButton.setAttribute('aria-pressed', String(Boolean(state.available))); }
+  staffDock?.setLabel('shift',state.available ? 'Online' : 'Go online');
   const nav = $('rider-nav');
   if (!nav.childElementCount) {
     nav.append(h('span', {class: 'hive-dock-indicator', 'aria-hidden': 'true'}));
@@ -946,6 +949,7 @@ async function init() {
   staffDock = window.createStaffDock(dock, [
     {id:'Cockpit',label:'Home',icon:'home',select:open('Cockpit')},
     {id:'Earnings',label:'Earnings',icon:'earnings',select:open('Earnings')},
+    {id:'shift',label:'Go online',icon:'power',center:true,select:() => run(toggleOnline)},
     {id:'inbox',label:'Inbox',icon:'inbox',select:openNotifications},
     {id:'Profile',label:'Profile',icon:'profile',select:open('Profile')},
   ]);
