@@ -74,6 +74,21 @@ def save_warehouse(db, data, actor):
     return {"saved": True}
 
 
+def remove_warehouse(db, data, actor):
+    """Delete a saved warehouse. If it was the default pickup, another one takes over. Returns its email."""
+    ident = data.get("id")
+    if type(ident) is not int:
+        raise InputError("Choose a warehouse to remove.")
+    row = db.execute("SELECT email, is_default FROM warehouse_pickups WHERE id=?", (ident,)).fetchone()
+    if not row:
+        raise InputError("That warehouse no longer exists.")
+    db.execute("DELETE FROM warehouse_pickups WHERE id=?", (ident,))
+    if row["is_default"]:
+        db.execute("UPDATE warehouse_pickups SET is_default=1 WHERE id=(SELECT id FROM warehouse_pickups ORDER BY name LIMIT 1)")
+    ops.audit(db, actor, "warehouse_removed", str(ident))
+    return row["email"].strip().lower()
+
+
 def warehouse_staff(db):
     """Emails the admin saved as warehouse staff. They may sign in to the warehouse portal."""
     return {row["email"].strip().lower() for row in db.execute("SELECT email FROM warehouse_pickups")}

@@ -420,7 +420,7 @@ function buildSettlements(host) {
 
 function liveWarehouses() {
   return directory('Warehouse directory', warehouses, warehouse =>
-    `<span>${escape(warehouse.address)}</span><small>${escape(warehouse.email)}${warehouse.is_default ? ' &middot; Default pickup' : ''}</small><a href="${escape(pickupMapUrl(warehouse.address))}" target="_blank" rel="noopener">Pickup on Google Maps</a>`);
+    `<span>${escape(warehouse.address)}</span><small>${escape(warehouse.email)}${warehouse.is_default ? ' &middot; Default pickup' : ''}</small><span class="wh-row-actions"><a href="${escape(pickupMapUrl(warehouse.address))}" target="_blank" rel="noopener">Pickup on Google Maps</a><button type="button" class="partner-remove" data-remove-warehouse="${warehouse.id}" data-label="${escape(warehouse.name)}">Remove warehouse</button></span>`);
 }
 
 function previewLedger(page, filter) {
@@ -494,6 +494,15 @@ function render(animate = false) {
         const [type, key] = button.dataset.removeService.split(':');
         if (!window.confirm('Stop offering ' + button.dataset.label + ' at checkout? Existing orders are not affected.')) return;
         runLive(() => changeServices(changes => { delete changes[type === 'paper' ? 'paperRates' : 'bindingRates'][key]; }), button.dataset.label + ' removed.');
+      };
+    }
+  }
+  if (live && route === 'warehouses') {
+    for (const button of document.querySelectorAll('[data-remove-warehouse]')) {
+      button.onclick = () => {
+        if (window.confirm('Remove warehouse ' + button.dataset.label + '? Its staff email loses warehouse access.')) {
+          runLive(() => source.api('/api/admin/warehouses/remove', {id: Number(button.dataset.removeWarehouse)}), 'Warehouse removed.');
+        }
       };
     }
   }

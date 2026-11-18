@@ -1364,6 +1364,14 @@ class PrintBee(SimpleHTTPRequestHandler):
                     result = admin_records.save_warehouse(db, data, actor)
                     require_pickup_coordinates(self.checkout_terms(db), admin_records.default_pickup(db))
                     self.server.google_access["warehouse"][data["email"].strip().lower()] = "warehouse"   # the admin's entry grants access
+            elif path == "/api/admin/warehouses/remove":
+                if not isinstance(data, dict):
+                    raise admin_records.InputError("Invalid warehouse request.")
+                actor = auth.portal_google_email(db, self.headers, "admin") or role
+                email = admin_records.remove_warehouse(db, data, actor)
+                if email not in admin_records.warehouse_staff(db):
+                    self.server.google_access["warehouse"].pop(email, None)   # no saved warehouse left for this email
+                result = {"saved": True}
             elif path in ("/api/admin/partners", "/api/admin/partners/remove"):
                 if not isinstance(data, dict):
                     raise admin_records.InputError("Invalid partner request.")

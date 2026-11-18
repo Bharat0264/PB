@@ -378,3 +378,5 @@ dialog::backdrop { background: color-mix(in srgb, #8A5E0B 22%, rgba(23,18,10,.45
   .nav-foot { display: none !important; }
 }
 @media (prefers-reduced-motion: reduce) { .sidebar .nav-link { transition: none !important; opacity: 1 !important; transform: none !important; } }
+.wh-row-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
+.wh-row-actions .partner-remove { min-height: 38px; padding: 0 16px; font-size: 13.5px; border-radius: 999px; border: 0; color: var(--hv-danger-ink, #9a2626); background: var(--hv-danger-bg, #fce3e0); box-shadow: none; cursor: pointer; font-weight: 800; }
