@@ -159,3 +159,17 @@ main.address-layout .address-book > h1:last-of-type { margin-bottom:0; }
   .address-card::after { left: auto; right: -15px; top: calc(100% - 91px); bottom: auto; box-shadow: inset 4px 0 6px #6e502826; }
 }
 .address-card + .address-card { margin-top: 16px; }
+
+/* Simpler: no cut-out notches, a clean dashed divider, compact action row */
+.address-card::before, .address-card::after { display: none !important; }
+@media (max-width: 600px) {
+  .address-card { grid-template-columns: minmax(0, 1fr); padding: 16px 16px 0; border-radius: 24px; }
+  .address-ticket-icon { display: none; }
+  .address-card-meta strong { font-size: 18px; }
+  .address-card p { font-size: 14.5px; line-height: 1.5; }
+  .address-card-actions { margin: 14px -16px 0; padding: 12px 16px; gap: 8px; border-top: 1.5px dashed color-mix(in srgb, #a77420 28%, transparent); }
+  .address-card-actions .address-deliver { min-height: 42px; font-size: 14px; }
+  .address-card-tools { gap: 6px; }
+  .address-card-tools .address-action { width: 42px; height: 42px; min-height: 0; }
+  .address-card + .address-card { margin-top: 14px; }
+}
