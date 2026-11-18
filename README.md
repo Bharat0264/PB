@@ -156,7 +156,10 @@ credential and run `python print_agent.py --printer "Printer name"`. On
 Windows also pass `--sumatra "C:\path\to\SumatraPDF.exe"`. Linux and macOS
 use the CUPS `lp` command. DOCX conversion needs LibreOffice on the agent,
 and images use Pillow. Use `--origin` for a deployed HTTPS endpoint and
-`--once` for one queued job. Successful submission reports completion
+`--once` for one queued job. Several printers can be connected to the same
+print-room computer: add each one on the warehouse Printers page (a friendly name
+plus the exact Windows printer name), then pick the printer when pressing Print.
+The agent prints each job on the chosen printer; `--printer` is only the fallback. Successful submission reports completion
 at the spooler. If a job is interrupted, inspect the real spooler before using
 `POST /api/admin/print-jobs/<id>/recover` with the admin key and retrying.
 

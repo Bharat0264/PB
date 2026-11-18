@@ -72,7 +72,10 @@ def run(origin, key, printer, sumatra, once, mock=False):
             with tempfile.TemporaryDirectory(prefix="printbee-job-") as directory:
                 file = Path(directory) / "document.pdf"
                 file.write_bytes(body)
-                command = print_command(job["item"], file, printer, sumatra)
+                target = job.get("printer") or printer
+                if not target:
+                    raise ValueError("No printer is set. Add a printer in the warehouse Printers page or start the agent with --printer.")
+                command = print_command(job["item"], file, target, sumatra)
                 if not mock:        # mock printer: everything but the spooler call runs, so jobs complete end to end
                     subprocess.run(command, check=True, timeout=120, capture_output=True)
             result = {"state": "done"}
@@ -113,8 +116,6 @@ if __name__ == "__main__":
             parser.error(str(error))
         print(f"Mock printer validated {pages} page(s). No job was sent.")
         raise SystemExit(0)
-    if not args.printer and not args.mock_printer:
-        parser.error("Provide --printer for live printing, or --mock-printer for a demo.")
     origin = urlsplit(args.origin)
     if origin.scheme != "https" and not (origin.scheme == "http" and origin.hostname in ("localhost", "127.0.0.1")):
         parser.error("Use HTTPS or a local server.")
@@ -123,4 +124,4 @@ if __name__ == "__main__":
     key = os.environ.get("PRINTBEE_PRINT_AGENT_KEY")
     if not key:
         parser.error("Set PRINTBEE_PRINT_AGENT_KEY.")
-    run(args.origin.rstrip("/"), key, args.printer or "Mock printer", args.sumatra, args.once, args.mock_printer)
+    run(args.origin.rstrip("/"), key, args.printer or ("Mock printer" if args.mock_printer else None), args.sumatra, args.once, args.mock_printer)

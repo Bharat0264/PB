@@ -11,6 +11,14 @@ CREATE TABLE IF NOT EXISTS print_jobs (
     state TEXT NOT NULL DEFAULT 'queued', worker TEXT, error TEXT,
     UNIQUE(order_id, position)
 );
+CREATE TABLE IF NOT EXISTS printers (
+    id INTEGER PRIMARY KEY, name TEXT NOT NULL, system_name TEXT NOT NULL,
+    is_default INTEGER NOT NULL DEFAULT 0, created INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS print_job_printer (
+    order_id TEXT NOT NULL, position INTEGER NOT NULL, printer_id INTEGER NOT NULL,
+    PRIMARY KEY(order_id, position)
+);
 CREATE TABLE IF NOT EXISTS deliveries (
     order_id TEXT PRIMARY KEY, partner TEXT NOT NULL, nonce TEXT,
     expires INTEGER, attempts INTEGER NOT NULL DEFAULT 0,
@@ -70,7 +78,72 @@ def audit(db, actor, action, order_id=None):
                     row["status"], now))
 
 
-def queue_job(db, order_id, position, actor="warehouse"):
+class PrinterError(ValueError):
+    """A printer request the warehouse can fix; the message is safe to show."""
+
+
+MAX_PRINTERS = 12
+
+
+def list_printers(db):
+    return [{"id": row["id"], "name": row["name"], "systemName": row["system_name"], "isDefault": bool(row["is_default"])}
+            for row in db.execute("SELECT * FROM printers ORDER BY is_default DESC, name COLLATE NOCASE, id")]
+
+
+def _clean(value, label, limit):
+    if not isinstance(value, str) or not value.strip():
+        raise PrinterError(f"Enter the {label}.")
+    value = " ".join(value.split())
+    if len(value) > limit or any(ord(ch) < 32 for ch in value):
+        raise PrinterError(f"The {label} is too long.")
+    return value
+
+
+def save_printer(db, data, actor="warehouse"):
+    """Add a printer, or rename / re-point / make default an existing one."""
+    ident = data.get("id")
+    if ident is not None and (type(ident) is not int or not db.execute("SELECT 1 FROM printers WHERE id=?", (ident,)).fetchone()):
+        raise PrinterError("That printer no longer exists.")
+    name = _clean(data.get("name"), "printer name", 40)
+    system_name = _clean(data.get("systemName"), "system printer name", 120)
+    if ident is None:
+        if db.execute("SELECT count(*) FROM printers").fetchone()[0] >= MAX_PRINTERS:
+            raise PrinterError(f"You can add up to {MAX_PRINTERS} printers.")
+        make_default = bool(data.get("isDefault")) or not db.execute("SELECT 1 FROM printers").fetchone()
+        ident = db.execute("INSERT INTO printers(name, system_name, is_default, created) VALUES (?,?,0,?)",
+                           (name, system_name, int(time.time()))).lastrowid
+        audit(db, actor, "printer_added", str(ident))
+    else:
+        make_default = bool(data.get("isDefault"))
+        db.execute("UPDATE printers SET name=?, system_name=? WHERE id=?", (name, system_name, ident))
+        audit(db, actor, "printer_updated", str(ident))
+    if make_default:
+        db.execute("UPDATE printers SET is_default=(id=?)", (ident,))
+    return ident
+
+
+def remove_printer(db, ident, actor="warehouse"):
+    row = db.execute("SELECT is_default FROM printers WHERE id=?", (ident,)).fetchone()
+    if not row:
+        raise PrinterError("That printer no longer exists.")
+    db.execute("DELETE FROM printers WHERE id=?", (ident,))
+    db.execute("DELETE FROM print_job_printer WHERE printer_id=?", (ident,))
+    if row["is_default"]:
+        db.execute("UPDATE printers SET is_default=1 WHERE id=(SELECT id FROM printers ORDER BY name COLLATE NOCASE, id LIMIT 1)")
+    audit(db, actor, "printer_removed", str(ident))
+
+
+def job_printer(db, job):
+    """The system printer name a job should go to: the one picked in the warehouse, else the default, else None
+    (the agent then uses its own --printer)."""
+    row = db.execute("SELECT printers.system_name FROM print_job_printer JOIN printers ON printers.id=print_job_printer.printer_id "
+                     "WHERE order_id=? AND position=?", (job["order_id"], job["position"])).fetchone()
+    if not row:
+        row = db.execute("SELECT system_name FROM printers WHERE is_default=1").fetchone()
+    return row["system_name"] if row else None
+
+
+def queue_job(db, order_id, position, actor="warehouse", printer_id=None):
     changed = db.execute(
         "INSERT INTO print_jobs(order_id, position) "
         "SELECT files.order_id, files.position FROM files JOIN orders ON orders.id=files.order_id "
@@ -81,6 +154,11 @@ def queue_job(db, order_id, position, actor="warehouse"):
     if not changed:
         return False
     db.execute("UPDATE orders SET status='printing' WHERE id=? AND status='paid'", (order_id,))
+    if printer_id is None:
+        db.execute("DELETE FROM print_job_printer WHERE order_id=? AND position=?", (order_id, position))
+    else:
+        db.execute("INSERT INTO print_job_printer(order_id, position, printer_id) VALUES (?,?,?) "
+                   "ON CONFLICT(order_id, position) DO UPDATE SET printer_id=excluded.printer_id", (order_id, position, printer_id))
     audit(db, actor, "print_queued", order_id)
     return True
 

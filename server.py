@@ -488,6 +488,8 @@ class PrintBee(SimpleHTTPRequestHandler):
                             order["delivery"] = {"etaMinutes": delivery["etaMinutes"]}
                     orders.append(order)
                 return self.json_response(200, {"orders": orders})
+            if path == "/api/staff/printers":
+                return self.printers_api(path)
             if path == "/api/staff/orders":
                 role = self.get_role()
                 if role not in ("warehouse", "admin"):
@@ -797,6 +799,8 @@ class PrintBee(SimpleHTTPRequestHandler):
                 return self.verify_partner_phone(path.rsplit("/", 1)[1])
             if path.startswith(("/api/print-agent/", "/api/partner/", "/api/admin/")):
                 return self.operations_post(path)
+            if path in ("/api/staff/printers", "/api/staff/printers/remove"):
+                return self.printers_api(path)
             match = re.fullmatch(r"/api/staff/orders/([a-f0-9]{32})/print/(all|\d+)", path)
             if match:
                 return self.queue_print(*match.groups())
@@ -1116,11 +1120,45 @@ class PrintBee(SimpleHTTPRequestHandler):
             return self.json_response(403, {"error": "Warehouse access is required."})
         with closing(connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
+            printer_id = None
+            length = int(self.headers.get("Content-Length", "0") or 0)
+            if 0 < length <= 1024:
+                body = json.loads(self.rfile.read(length) or b"{}")
+                if isinstance(body, dict) and body.get("printerId") is not None:
+                    printer_id = body["printerId"]
+                    if type(printer_id) is not int or not db.execute("SELECT 1 FROM printers WHERE id=?", (printer_id,)).fetchone():
+                        return self.json_response(400, {"error": "Choose one of the saved printers."})
             positions = ([row["position"] for row in db.execute(
                 "SELECT position FROM files WHERE order_id=?", (order_id,)
             )] if selection == "all" else [int(selection)])
-            queued = sum(ops.queue_job(db, order_id, position, role) for position in positions)
+            queued = sum(ops.queue_job(db, order_id, position, role, printer_id) for position in positions)
         return self.json_response(200, {"queued": queued})
+
+    def printers_api(self, path):
+        role = self.get_role()
+        if role not in ("warehouse", "admin"):
+            return self.json_response(403, {"error": "Warehouse access is required."})
+        if self.command == "GET":
+            with closing(connect()) as db:
+                return self.json_response(200, {"printers": ops.list_printers(db)})
+        length = int(self.headers.get("Content-Length", "0") or 0)
+        if not 0 < length <= 2048:
+            return self.json_response(400, {"error": "Invalid printer request."})
+        data = json.loads(self.rfile.read(length))
+        if not isinstance(data, dict):
+            return self.json_response(400, {"error": "Invalid printer request."})
+        try:
+            with closing(connect()) as db, db:
+                db.execute("BEGIN IMMEDIATE")
+                if path.endswith("/remove"):
+                    if type(data.get("id")) is not int:
+                        raise ops.PrinterError("Choose a printer to remove.")
+                    ops.remove_printer(db, data["id"], role)
+                else:
+                    ops.save_printer(db, data, role)
+                return self.json_response(200, {"printers": ops.list_printers(db)})
+        except ops.PrinterError as error:
+            return self.json_response(400, {"error": str(error)})
 
     def confirm_manual_print(self, order_id, position):
         role = self.get_role()
@@ -1442,7 +1480,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                 result = {"job": None}
                 if row:
                     details = db.execute("SELECT details FROM orders WHERE id=?", (row["order_id"],)).fetchone()
-                    result["job"] = {"id": row["id"], "claim": claim,
+                    result["job"] = {"id": row["id"], "claim": claim, "printer": ops.job_printer(db, row),
                                      "item": json.loads(details["details"])["items"][row["position"]]}
             elif re.fullmatch(r"/api/print-agent/jobs/\d+/result", path):
                 state = data["state"]

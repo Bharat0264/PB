@@ -42,6 +42,10 @@ const glyphs = {
   contrast:'<circle cx="12" cy="12" r="9"/><path d="M12 3v18a9 9 0 0 0 0-18z" fill="currentColor"/>',
   puzzle:'<path d="M10 4a2 2 0 1 1 4 0v2h4a1 1 0 0 1 1 1v4h-2a2 2 0 1 0 0 4h2v4a1 1 0 0 1-1 1h-4v-2a2 2 0 1 0-4 0v2H6a1 1 0 0 1-1-1v-4h2a2 2 0 1 0 0-4H5V7a1 1 0 0 1 1-1h4z"/>',
   chevron:'<path d="m9 6 6 6-6 6"/>',
+  pencil:'<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
+  trash:'<path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/>',
+  star:'<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
 };
 function icon(name) {
   const span = node('span');
@@ -56,6 +60,8 @@ let orders = [], known, newBadges = new Set(), online = preview, connected = tru
 let view = 'Home', tab = 'New', active, sheet = false, restoreFocus;
 let printAction, printPending = false, previewUrl, previewRequest = 0, arrivalOrder;
 let staffDock, floorFilter, arrivalTimer, historyPreset='';
+let printers = [], editingPrinter = null, pickedPrinter = null;
+const demoPrinters = [{id:1,name:'Front desk printer',systemName:'HP LaserJet Pro M404',isDefault:true},{id:2,name:'Colour printer',systemName:'Canon imageRUNNER C3226',isDefault:false}];
 let lastStages=new Map(), newlyReady=new Set(), renderedOrderSnapshot;
 let polling, liveFeed, busyRefresh = false, refreshVersion = 0, toastTimer, audio;
 const filters = {colour:'', paper:'', date:'', priority:'', partner:'', from:'', to:''};
@@ -513,26 +519,143 @@ function settingRow(key,label,description,glyph) {
   row.append(tile,copy,input);
   return row;
 }
+async function printerCall(path,body) {
+  if (preview) return demoPrinterCall(path,body);
+  let response;
+  try {
+    response=await fetch(path,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});
+  } catch { throw new Error('Connection unavailable. Check your network and try again.'); }
+  const data=await response.json().catch(()=>({}));
+  if (!response.ok) throw new Error(data.error || 'That could not be saved. Try again.');
+  return data;
+}
+function demoPrinterCall(path,body) {
+  if (!body) return {printers:demoPrinters.map(p=>({...p}))};
+  if (path.endsWith('/remove')) {
+    const at=demoPrinters.findIndex(p=>p.id===body.id);
+    if (at>=0) { const [gone]=demoPrinters.splice(at,1); if (gone.isDefault && demoPrinters[0]) demoPrinters[0].isDefault=true; }
+  } else {
+    const name=String(body.name||'').trim(), systemName=String(body.systemName||'').trim();
+    if (!name) throw new Error('Enter the printer name.');
+    if (!systemName) throw new Error('Enter the system printer name.');
+    let entry=demoPrinters.find(p=>p.id===body.id);
+    if (!entry) { entry={id:Date.now(),isDefault:!demoPrinters.length}; demoPrinters.push(entry); }
+    entry.name=name; entry.systemName=systemName;
+    if (body.isDefault) demoPrinters.forEach(p=>{p.isDefault=p===entry;});
+  }
+  return {printers:demoPrinters.map(p=>({...p}))};
+}
+async function loadPrinters() {
+  try { printers=(await printerCall('/api/staff/printers')).printers; } catch { /* the Printers page shows the error when opened */ }
+  const saved=Number(localStorage.getItem('wh-printer'));
+  pickedPrinter=printers.find(p=>p.id===saved)?.id ?? printers.find(p=>p.isDefault)?.id ?? printers[0]?.id ?? null;
+}
+async function changePrinters(path,body,message) {
+  printers=(await printerCall(path,body)).printers;
+  if (!printers.some(p=>p.id===pickedPrinter)) pickedPrinter=printers.find(p=>p.isDefault)?.id ?? printers[0]?.id ?? null;
+  editingPrinter=null;
+  announce(message,true);
+  render();
+}
+function printerForm(entry) {
+  const form=node('form',null,'wh-pr-form');
+  const field=(label,value,placeholder,help)=>{
+    const wrap=node('label',null,'wh-pr-field'), input=node('input',null,'clay-input');
+    input.value=value||''; input.placeholder=placeholder; input.maxLength=label==='Name'?40:120; input.autocomplete='off';
+    wrap.append(node('span',label),input);
+    if (help) wrap.append(node('small',help,'wh-muted'));
+    return [wrap,input];
+  };
+  const [nameWrap,nameInput]=field('Name',entry?.name,'e.g. Front desk printer');
+  const [sysWrap,sysInput]=field('Printer name on the computer',entry?.systemName,'Exactly as Windows shows it','Windows: Settings → Printers. Or run Get-Printer in PowerShell.');
+  const actions=node('div',null,'wh-pr-actions');
+  const save=node('button',entry?'Save changes':'Add printer','clay-button wh-primary');
+  save.type='submit';
+  const cancel=button('Cancel',()=>{editingPrinter=null;render();});
+  actions.append(save,cancel);
+  form.append(nameWrap,sysWrap,actions);
+  form.addEventListener('submit',async event=>{
+    event.preventDefault();
+    save.disabled=true;
+    try { await changePrinters('/api/staff/printers',{id:entry?.id,name:nameInput.value,systemName:sysInput.value,isDefault:entry?.isDefault||false},entry?'Printer saved.':'Printer added.'); }
+    catch (error) { announce(error.message,true); save.disabled=false; }
+  });
+  setTimeout(()=>nameInput.focus({preventScroll:true}),0);
+  return form;
+}
+function renderPrinters() {
+  const wrap=node('div',null,'wh-printers');
+  const state=!connected || !online?'Offline':paused?'Paused':'Online';
+  const agent=node('section',null,'clay-card wh-pr-agent');
+  const text=node('div');
+  const line=node('div',null,'wh-meta');
+  line.append(node('h2','Print agent'),chip(state,'wh-agent '+(state==='Online'?'wh-good':state==='Paused'?'wh-attention':'wh-bad')));
+  text.append(line,node('p',preview?'This is a mock agent. No paper is used.':'The small program on the print-room computer. It sends each job to the printer you pick.','wh-muted'));
+  if (preview) {
+    const controls=node('div',null,'wh-tool-actions');
+    controls.append(button('Test print',()=>announce(paused?'Resume the mock queue before testing.':'Mock print passed. No paper used.')),
+      button(paused?'Resume':'Pause',()=>{paused=!paused;updateTop();render();}));
+    text.append(controls);
+  }
+  agent.append(icon('monitor'),text);
+  wrap.append(agent);
+
+  const head=node('div',null,'wh-pr-head');
+  const title=node('div');
+  title.append(node('h2','Your printers'),node('p',printers.length?printers.length+(printers.length===1?' printer':' printers')+' · pick one each time you print':'Add the printers connected to the print-room computer.','wh-muted'));
+  head.append(title);
+  if (editingPrinter!=='new') {
+    const add=button('',()=>{editingPrinter='new';render();},'clay-button wh-primary wh-pr-add');
+    add.append(icon('plus'),node('span','Add printer'));
+    head.append(add);
+  }
+  wrap.append(head);
+  if (editingPrinter==='new') { const card=node('section',null,'clay-card wh-pr-card wh-pr-editing'); card.append(printerForm(null)); wrap.append(card); }
+  if (!printers.length && editingPrinter!=='new') {
+    const empty=node('div',null,'clay-card wh-empty');
+    empty.append(icon('printer'),node('h3','No printers yet'),node('p','Add your first printer. You can name it anything.'));
+    wrap.append(empty);
+  }
+  for (const entry of printers) {
+    const card=node('section',null,'clay-card wh-pr-card');
+    if (editingPrinter===entry.id) { card.classList.add('wh-pr-editing'); card.append(printerForm(entry)); wrap.append(card); continue; }
+    const tile=node('span',null,'wh-pr-tile');
+    tile.append(icon('printer'));
+    const body=node('div',null,'wh-pr-body');
+    const nameRow=node('div',null,'wh-pr-name');
+    nameRow.append(node('strong',entry.name));
+    if (entry.isDefault) nameRow.append(chip('Default','wh-good'));
+    body.append(nameRow,node('small',entry.systemName,'wh-pr-sys'));
+    const actions=node('div',null,'wh-pr-tools');
+    const tool=(glyph,label,run,cls='')=>{
+      const b=button('',run,'wh-pr-tool '+cls);
+      b.setAttribute('aria-label',label+', '+entry.name);
+      b.title=label;
+      b.append(icon(glyph));
+      return b;
+    };
+    if (!entry.isDefault) actions.append(tool('star','Make default',()=>changePrinters('/api/staff/printers',{id:entry.id,name:entry.name,systemName:entry.systemName,isDefault:true},entry.name+' is now the default.')));
+    actions.append(tool('pencil','Rename or edit',()=>{editingPrinter=entry.id;render();}),
+      tool('trash','Remove',()=>{
+        if (!window.confirm('Remove '+entry.name+'? Jobs already sent to it are not affected.')) return;
+        return changePrinters('/api/staff/printers/remove',{id:entry.id},entry.name+' removed.');
+      },'wh-pr-danger'));
+    card.append(tile,body,actions);
+    wrap.append(card);
+  }
+  const help=node('details',null,'wh-pr-help');
+  help.append(node('summary','How printers connect'),
+    node('p','The print agent runs on the computer that is plugged into your printers. Add each printer here with its exact Windows name. When you press Print in the queue, you choose a printer and the agent prints on it.'));
+  wrap.append(help);
+  board.append(wrap);
+}
 function renderTools() {
   const panel=node('section',null,'clay-card wh-tool');
   if (view==='Printers') {
-    const header=node('div',null,'wh-meta');
-    const state=!connected || !online?'Offline':paused?'Paused':'Online';
-    header.append(node('h2',preview?'Mock printer':'Warehouse print agent'),
-      chip(state,'wh-agent '+(state==='Online'?'wh-good':state==='Paused'?'wh-attention':'wh-bad')));
-    panel.append(printerIllustration(),header);
-    if (preview) {
-      const controls=node('div',null,'wh-tool-actions');
-      controls.append(button('Test print',()=>announce(paused?'Resume the mock queue before testing.':'Mock print passed. No paper used.'),'clay-button wh-primary'),
-        button(paused?'Resume':'Pause',()=>{paused=!paused;updateTop();render();}));
-      const capabilities=node('div',null,'wh-chips');
-      ['Colour / B&W','A4 / A3','Duplex'].forEach(value=>capabilities.append(chip(value)));
-      panel.append(capabilities,controls);
-    } else {
-      panel.append(node('p','Run test prints and pause the printer at the warehouse workstation.','wh-muted'));
-    }
-    board.append(panel);
-  } else if (view==='Inventory') {
+    renderPrinters();
+    return;
+  }
+  if (view==='Inventory') {
     panel.append(node('h2','Inventory'),node('p',preview?'A4 · 490 sheets     A3 · 38 sheets     Spiral coils · 12 remaining':'Stock counts are managed at the print room.'));
     board.append(panel);
   } else {
@@ -687,9 +810,9 @@ function orderTracker(bucket) {
 function renderStationContext(body,dock) {
   const title=byId('detail-title');
   if (view==='Printers') {
-    title.textContent='Pair a printer';
+    title.textContent='Set up printing';
     const steps=node('ol',null,'wh-pair-steps');
-    ['Connect the printer and print a test page from the workstation.','Start the PrintBee agent with the printer name and its print-agent key.','Return here and wait for the agent to show Online.'].forEach(text=>steps.append(node('li',text)));
+    ['Connect each printer to the print-room computer and print a test page.','Start the PrintBee agent there with its print-agent key.','Add each printer here with its exact Windows name.','Press Print in the queue and pick which printer to use.'].forEach(text=>steps.append(node('li',text)));
     body.append(steps);
     return;
   }
@@ -918,13 +1041,13 @@ function confirmPrint(order,index) {
   const selected=(index==='all'?current.items.map((_,i)=>i):[index]).filter(i=>[undefined,'failed'].includes(jobState(current,i)));
   if (!selected.length) throw new Error('These files are already queued or printed.');
   if (!connected || !online || paused) throw new Error('Print is available when the printer is online.');
-  printAction=()=>sendPrint(current,index,selected);
+  printAction=()=>sendPrint(current,index,selected,pickedPrinter);
   if (preferences.skipConfirm) return runPrint();
   const total=selected.reduce((sum,i)=>sum+sheets(current.items[i]),0);
   const modes=[...new Set(selected.map(i=>colour(current.items[i])))].join(' / ');
   byId('confirm-body').replaceChildren(
     node('h3',labelOrder(current)),
-    node('p',preview?'Printer: Mock printer':'Printer: Warehouse workstation'),
+    printerPicker(),
     node('p',selected.length+(selected.length===1?' file':' files')+' · '+total+(total===1?' sheet':' sheets')+' · '+modes)
   );
   confirmation.returnValue='cancel';
@@ -940,7 +1063,24 @@ async function runPrint() {
   catch (error) {announce(error.message,true);}
   finally {printPending=false;renderStation();}
 }
-async function sendPrint(order,index,selected) {
+function printerPicker() {
+  if (!printers.length) return node('p',preview?'Printer: Mock printer':'Printer: the agent\u2019s default');
+  if (printers.length===1) { pickedPrinter=printers[0].id; return node('p','Printer: '+printers[0].name); }
+  const group=node('fieldset',null,'wh-pick');
+  group.append(node('legend','Choose a printer'));
+  for (const entry of printers) {
+    const row=node('label',null,'wh-pick-row'), input=node('input');
+    input.type='radio'; input.name='printer'; input.value=entry.id; input.checked=entry.id===pickedPrinter;
+    input.addEventListener('change',()=>{pickedPrinter=entry.id;try{localStorage.setItem('wh-printer',String(entry.id));}catch{}});
+    const tile=node('span',null,'wh-pick-tile'); tile.append(icon('printer'));
+    const copy=node('span',null,'wh-pick-copy'); copy.append(node('strong',entry.name),node('small',entry.systemName));
+    row.append(input,tile,copy);
+    if (entry.isDefault) row.append(chip('Default','wh-good'));
+    group.append(row);
+  }
+  return group;
+}
+async function sendPrint(order,index,selected,printerId=null) {
   if (preview) {
     order.status='printing';
     addEvent(order,'print_queued');
@@ -949,7 +1089,7 @@ async function sendPrint(order,index,selected) {
     setTimeout(()=>updateMockJobs(order,selected,'printing'),350);
     setTimeout(()=>updateMockJobs(order,selected,'done'),1350);
   } else {
-    const response=await request('/api/staff/orders/'+order.id+'/print/'+index,{method:'POST'});
+    const response=await request('/api/staff/orders/'+order.id+'/print/'+index,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(printerId==null?{}:{printerId})});
     if (!(await response.json()).queued) throw new Error('No files were queued. Check for existing jobs, then try again.');
   }
   await refreshAfterAction('Sent to the printer.');
@@ -1207,6 +1347,8 @@ async function start() {
   }
   syncPreferences();
   renderStation();
+  await loadPrinters();
+  if (preview) window.PBLoader?.done();
   try {await refresh(true);}
   catch {
     connected=false;
