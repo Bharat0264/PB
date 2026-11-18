@@ -167,9 +167,9 @@ class PrintBee(SimpleHTTPRequestHandler):
                 current = row["portal"]
         holders = {}
         for email in emails:
-            for role in ("admin", "warehouse", "partner"):
-                if email in self.server.google_access[role]:
-                    holders.setdefault(role, email)
+            role = self.staff_role(email)
+            if role:
+                holders.setdefault(role, email)
         partner_token = auth.session_token(self.headers, "printbee_partner")
         if partner_token and db.execute("SELECT 1 FROM partner_sessions WHERE digest=? AND expires>?",
                                         (auth.digest(partner_token), int(time.time()))).fetchone():
@@ -320,6 +320,15 @@ class PrintBee(SimpleHTTPRequestHandler):
         if not super().parse_request():
             return False
         path = urlsplit(self.path).path
+        if not path.startswith("/api/dev/") and auth.session_token(self.headers):
+            # Staff emails never keep a customer session: an older one ends here.
+            try:
+                with closing(connect()) as db, db:
+                    email = auth.session_email(db, self.headers)
+                    if email and self.staff_role(email):
+                        db.execute("DELETE FROM customer_sessions WHERE digest=?", (auth.digest(auth.session_token(self.headers)),))
+            except sqlite3.Error:
+                pass
         if path.startswith("/api/") and not path.startswith("/api/dev/") and path != "/api/auth/logout":
             try:
                 with closing(connect()) as db:

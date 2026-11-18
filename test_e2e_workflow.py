@@ -567,29 +567,25 @@ class AccountTests(unittest.TestCase):
                 parts.append(auth.portal_session(db, {}, BOSS, portal).split(";")[0])
         return {"Cookie": "; ".join(parts)}
 
-    def test_roles_switch_and_one_logout(self):
-        headers = self.sign_in()
+    def test_staff_email_has_one_role_and_no_customer_session(self):
+        # BOSS is on every access list: admin wins, and the older customer session is ended.
+        headers = self.sign_in(portal="admin")
         status, me, _ = self.server.request("GET", "/api/auth/me", headers=headers)
         self.assertEqual(status, 200)
-        self.assertEqual(me["roles"], ["admin", "partner", "warehouse"])
-        self.assertEqual([p["role"] for p in me["portals"]], ["customer", "admin", "warehouse", "partner"])
-        self.assertEqual(me["current"], "warehouse")
+        self.assertEqual([p["role"] for p in me["portals"]], ["admin"])
+        self.assertEqual(me["current"], "admin")
         # Not signed in -> no roles, no menu.
         self.assertEqual(self.server.request("GET", "/api/auth/me")[1]["portals"], [])
-        # Switch to admin without signing in again; the new cookie works for the admin API.
-        status, result, out = self.server.request("POST", "/api/auth/switch", {"portal": "admin"}, headers)
-        self.assertEqual((status, result["path"]), (200, "/admin"))
-        admin_cookie = self.cookies(out)["printbee_google_portal"]
-        self.assertEqual(self.server.request("GET", "/api/auth/portal?portal=admin", headers={"Cookie": admin_cookie})[1], {"signedIn": True})
-        self.assertEqual(self.server.request("GET", "/api/auth/portal?portal=warehouse", headers={"Cookie": admin_cookie})[1], {"signedIn": False})
+        # The admin session works for the admin portal only.
+        self.assertEqual(self.server.request("GET", "/api/auth/portal?portal=admin", headers=headers)[1], {"signedIn": True})
+        self.assertEqual(self.server.request("GET", "/api/auth/portal?portal=warehouse", headers=headers)[1], {"signedIn": False})
         # A customer who is not staff cannot switch into staff portals.
         plain = Customer(self.server, "plain@example.test")
         self.assertEqual(plain.post("/api/auth/switch", {"portal": "admin"})[0], 403)
         self.assertEqual(self.server.request("GET", "/api/auth/me", headers=plain.headers)[1]["portals"][0]["role"], "customer")
-        # One logout clears the customer, portal and partner cookies and ends every session.
+        # One logout clears the portal cookies and ends the session.
         status, _, out = self.server.request("POST", "/api/auth/portal/logout", {}, headers)
         self.assertEqual(status, 200)
-        self.assertEqual(set(self.cookies(out)), {"printbee_session", "printbee_google_portal", "printbee_partner"})
         self.assertEqual(self.server.request("GET", "/api/auth/me", headers=headers)[1]["portals"], [])
 
     def test_customer_logout_ends_staff_sessions_too(self):
