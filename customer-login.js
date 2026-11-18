@@ -113,11 +113,7 @@ if (match) {
   authRequest('session').then(async ({email}) => {
     if (await leaveWelcomeIfSignedIn(email)) return;
     showAccount(email);
-    if (!email && readExpiredFlag()) {
-      const note = document.querySelector('#session-expired');
-      if (note) note.hidden = false;
-      else loginStatus.textContent = 'Your session expired after 7 days away. Please sign in again.';
-    }
+    if (!email) readExpiredFlag();
   }).catch(() => {
     if (!loginStatus.textContent) loginStatus.textContent = 'Could not check your sign-in status.';
   }).finally(() => document.body.classList.add('auth-ready'));

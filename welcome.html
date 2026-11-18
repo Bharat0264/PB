@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="/hive-theme.css?v=soft-focus">
 <link rel="stylesheet" href="/welcome.css?v=apple-clay">
 <script src="/session-sync.js?v=1" defer></script>
-<script src="/customer-login.js?v=one-login" defer></script>
+<script src="/customer-login.js?v=no-expired" defer></script>
 <script src="/demo-login.js?v=1" defer></script>
 <script src="/backend-check.js?v=1" defer></script>
 </head>
@@ -24,7 +24,6 @@
   <section class="welcome-sign-in" aria-labelledby="signin-title">
     <h2 id="signin-title" class="welcome-sr">Sign in</h2>
     <p id="account-email"></p>
-    <p id="session-expired" class="welcome-expired" role="status" hidden>Your session expired after 7 days away. Please sign in again.</p>
     <a id="google-sign-in" class="welcome-button welcome-google" href="/api/auth/google?portal=welcome">
       <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
         <path fill="#4285F4" d="M43.6 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h11a9.4 9.4 0 0 1-4.1 6.2v5h6.6c3.9-3.5 6.1-8.7 6.1-14.9z"/>
