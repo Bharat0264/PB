@@ -947,7 +947,7 @@ async function init() {
   staffDock = window.createStaffDock(dock, [
     {id:'Cockpit',label:'Home',icon:'home',select:open('Cockpit')},
     {id:'Earnings',label:'Earnings',icon:'earnings',select:open('Earnings')},
-    {id:'shift',label:'Go online',icon:'plus',center:true,select:() => run(toggleOnline)},
+    {id:'shift',label:'Go online',icon:'power',center:true,select:() => run(toggleOnline)},
     {id:'inbox',label:'Inbox',icon:'inbox',select:openNotifications},
     {id:'Profile',label:'Profile',icon:'profile',select:open('Profile')},
   ]);

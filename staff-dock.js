@@ -8,6 +8,7 @@ window.createStaffDock = function createStaffDock(nav, tabs) {
     ledger:'<path class="fill" d="M5 3h14v18H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/><path class="detail" d="M7 7h8M7 11h8m-8 4h6"/>',
     more:'<circle class="fill" cx="5" cy="12" r="1"/><circle class="fill" cx="12" cy="12" r="1"/><circle class="fill" cx="19" cy="12" r="1"/>',
     plus:'<path d="M12 5v14M5 12h14"/>',
+    power:'<path class="fill" d="M12 2.5 20 7v10l-8 4.5L4 17V7z"/><path class="detail" d="M12 7.2v4.6"/><path class="detail" d="M8.6 9.6a4.6 4.6 0 1 0 6.8 0"/>',
     ready:'<circle class="fill" cx="12" cy="12" r="9"/><path class="detail" d="m8 12 3 3 5-6"/>',
     history:'<circle class="fill" cx="12" cy="12" r="9"/><path class="detail" d="M12 7v5l3 2"/>',
     earnings:'<rect class="fill" x="3" y="5" width="18" height="14" rx="3"/><path class="detail" d="M3 10h18m-13 5h4"/>',
