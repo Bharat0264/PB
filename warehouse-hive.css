@@ -718,3 +718,5 @@ html:has(body.warehouse) { overscroll-behavior-x: none; }
 
 /* The sun/moon switch is a pill, never an oval */
 .wh-top .wh-indicators button.wh-floor-theme, .wh-indicators .wh-floor-theme { border-radius: 999px !important; }
+button.wh-mbrand { border: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+@media (min-width: 851px) { button.wh-mbrand { display: none !important; } }

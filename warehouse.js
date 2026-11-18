@@ -1104,11 +1104,7 @@ function initFloorControls() {
   const brand=document.querySelector('.wh-mbrand');
   const phone=matchMedia('(max-width:850px)');
   brand.setAttribute('aria-expanded','false');
-  brand.addEventListener('click',event=>{
-    if (!phone.matches) return;
-    event.preventDefault();
-    setNav(!document.body.classList.contains('nav-open'));
-  });
+  brand.addEventListener('click',()=>setNav(!document.body.classList.contains('nav-open')));
   byId('wh-nav-close').addEventListener('click',()=>setNav(false));
   byId('wh-nav-scrim').addEventListener('click',()=>setNav(false));
   byId('warehouse-nav').addEventListener('click',event=>{if (event.target.closest('button')) setNav(false);});
