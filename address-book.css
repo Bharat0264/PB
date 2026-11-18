@@ -122,3 +122,40 @@ main.address-layout .address-book > h1:last-of-type { margin-bottom:0; }
   .address-card { grid-template-columns:minmax(0,1fr); }
   .address-card-actions { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; border-top:1px solid var(--hv-border); padding-top:12px; }
 }
+
+/* Address cards as tickets: details on the left, a perforated stub with the actions on the right */
+.address-card {
+  --stub: 236px; position: relative; grid-template-columns: auto minmax(0, 1fr) var(--stub); gap: 0 18px; align-items: stretch;
+  padding: 18px 0 18px 20px; border: 0; border-radius: 26px;
+  background: linear-gradient(150deg, #fffdf8, #f6eedc);
+  box-shadow: 8px 10px 22px #6e502824, -6px -6px 16px #fffdf68c, inset -3px -4px 9px #a774200d, inset 3px 4px 9px #fffdf6b3;
+}
+.address-card[data-selected=true] { background: linear-gradient(150deg, #fff9df, #f8e7a6); box-shadow: 0 0 0 2px color-mix(in srgb, var(--hv-honey-500) 70%, transparent), 8px 10px 22px #b9831a33, inset 3px 4px 9px #fffbe6b3; }
+.address-ticket-icon { align-self: center; display: grid; place-items: center; width: 52px; height: 52px; border-radius: 18px; color: #8a5a00;
+  background: linear-gradient(150deg, #fff3cf, #fbe3a0);
+  box-shadow: 4px 5px 10px #6e50281f, -3px -3px 8px #fffdf6a0, inset -2px -3px 6px #a774201a, inset 2px 3px 6px #ffffff99; }
+.address-ticket-icon svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.address-card-content { align-self: center; padding-right: 12px; }
+.address-card-actions { position: relative; align-self: stretch; align-content: center; justify-items: stretch; gap: 10px; padding: 4px 22px 4px 24px; border-left: 2px dashed color-mix(in srgb, #a77420 32%, transparent); }
+.address-card-actions .address-deliver { width: 100%; min-height: 46px; justify-content: center; }
+.address-card-tools { justify-content: center; gap: 8px; }
+.address-card::before, .address-card::after {
+  content: ""; position: absolute; left: calc(100% - var(--stub) - 15px); width: 30px; height: 30px; border-radius: 50%; background: var(--hv-page-bg, #ece4d3);
+}
+.address-card::before { top: -15px; box-shadow: inset 0 -4px 6px #6e502826; }
+.address-card::after { bottom: -15px; box-shadow: inset 0 4px 6px #6e502826; }
+[data-theme="dark"] .address-card { background: var(--hv-surface-2); box-shadow: var(--hv-sh-1); }
+[data-theme="dark"] .address-card[data-selected=true] { background: color-mix(in srgb, var(--hv-honey-500) 18%, var(--hv-surface-2)); }
+[data-theme="dark"] .address-ticket-icon { background: var(--hv-surface-3); color: var(--hv-honey-500); box-shadow: none; }
+[data-theme="dark"] .address-card::before, [data-theme="dark"] .address-card::after { box-shadow: none; }
+@media (max-width: 600px) {
+  .address-card { grid-template-columns: auto minmax(0, 1fr); padding: 16px 16px 0; gap: 0 14px; }
+  .address-ticket-icon { width: 44px; height: 44px; border-radius: 15px; }
+  .address-card-content { padding-right: 0; }
+  .address-card-actions { grid-column: 1 / -1; margin: 14px -16px 0; padding: 14px 16px 16px; border-left: 0; border-top: 2px dashed color-mix(in srgb, #a77420 32%, transparent); display: flex; justify-content: space-between; align-items: center; }
+  .address-card-actions .address-deliver { width: auto; flex: 1; }
+  .address-card::before, .address-card::after { top: auto; bottom: auto; }
+  .address-card::before { left: -15px; top: calc(100% - 91px); box-shadow: inset -4px 0 6px #6e502826; }
+  .address-card::after { left: auto; right: -15px; top: calc(100% - 91px); bottom: auto; box-shadow: inset 4px 0 6px #6e502826; }
+}
+.address-card + .address-card { margin-top: 16px; }

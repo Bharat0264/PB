@@ -108,7 +108,12 @@
       const utilities = element('div',null,'address-card-tools');
       utilities.append(star,pencil,trash);
       controls.append(deliver,utilities);
-      card.append(content,controls);
+      const ticketIcon = element('span',null,'address-ticket-icon');
+      ticketIcon.setAttribute('aria-hidden','true');
+      ticketIcon.innerHTML = entry.type === 'campus'
+        ? '<svg viewBox="0 0 24 24"><path d="M3 10 12 4l9 6M5 10v9h14v-9M9 19v-5h6v5"/></svg>'
+        : '<svg viewBox="0 0 24 24"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>';
+      card.append(ticketIcon,content,controls);
       list.append(card);
     });
     const more = byId('show-addresses');
