@@ -714,7 +714,7 @@ $('editor-form').onsubmit = async event => {
         $('notice').textContent = '';   // the new partner appears in the list below
       } else if (kind === 'warehouse') {
         await source.api('/api/admin/warehouses', {name: data.get('name').trim(), address: data.get('address').trim(), email: data.get('email').trim().toLowerCase(), useForPickup: data.has('useForPickup') || !warehouses.length});
-        $('notice').textContent = 'Warehouse saved.';
+        $('notice').textContent = '';   // the warehouse appears in the list below
       } else if (kind === 'order') {
         const result = await source.api('/api/admin/offline-orders', {orders: readOfflineOrders()});
         $('notice').textContent = result.saved ? 'Offline orders saved.' : 'These orders are already saved.';
