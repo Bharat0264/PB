@@ -20,13 +20,13 @@ body.warehouse {
 /* ---------- Shell: 72px clay rail + 1440 content ---------- */
 .warehouse-shell { grid-template-columns: 72px minmax(0, 1440px); justify-content: center; gap: 24px; width: 100%; max-width: none; padding: 16px 32px 32px 16px; }
 .wh-rail { top: 16px; height: calc(100dvh - 32px); gap: 12px; padding: 12px 8px; border-radius: var(--hv-r-card); background: var(--hv-surface); box-shadow: var(--hv-sh-2); }
-.wh-brand, .wh-icon-button, .wh-nav-button, .wh-account summary { width: 56px; min-height: 56px; border-radius: 18px; color: var(--hv-ink); }
+.wh-brand, .wh-icon-button, .wh-nav-button, .wh-account summary { width: 56px; min-height: 56px; border-radius: 999px; color: var(--hv-ink); }
 .wh-rail nav { gap: 8px; }
 .wh-nav-button { color: var(--hv-muted); }
 .wh-nav-button:hover, .wh-icon-button:hover { background: var(--hv-surface-2); color: var(--hv-ink); }
 .wh-nav-button[aria-current] { background: var(--hv-honey-grad); color: #2A2112; box-shadow: var(--hv-sh-1); }
 .hv-glide-host .wh-nav-button[aria-current] { background: transparent; box-shadow: none; }
-.hv-glide-host > .hv-glide { border-radius: 18px; }
+.hv-glide-host > .hv-glide { border-radius: 999px; }
 .wh-nav-button > span:not([aria-hidden]) { background: var(--hv-ink); color: var(--hv-bg); font-weight: 700; border-radius: 12px; box-shadow: var(--hv-sh-2); }
 .wh-account summary { background: var(--hv-honey-grad); color: #2A2112; box-shadow: var(--hv-sh-1); border-radius: 50%; }
 .wh-account-menu { border-radius: var(--hv-r-tile); box-shadow: var(--hv-sh-3); }
