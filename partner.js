@@ -135,14 +135,14 @@ function offers() { return state.orders.filter(o => !o.partner && o.status === '
 function delivered() { return state.orders.filter(o => o.status === 'delivered'); }
 function persist() { if (demo && !scene) save('printbee-partner-hive', JSON.stringify(state)); }
 function changed() { persist(); render(); }
-async function request(path, data) {
+async function request(path, data, extraHeaders = {}) {
   const response = await fetch(path, {method: data === undefined ? 'GET' : 'POST', cache: 'no-store',
-    headers: {'Content-Type': 'application/json'}, body: data === undefined ? undefined : JSON.stringify(data)});
+    headers: {'Content-Type': 'application/json', ...extraHeaders}, body: data === undefined ? undefined : JSON.stringify(data)});
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(body.error || 'Delivery service unavailable.');
   return body;
 }
-function orderAction(order, action, data = {}) { return request('/api/partner/orders/' + order.id + '/' + action, data); }
+function orderAction(order, action, data = {}, extraHeaders = {}) { return request('/api/partner/orders/' + order.id + '/' + action, data, extraHeaders); }
 async function refresh() {
   if (reading) { await reading.catch(() => {}); if (!busy) return; }
   const snapshot = request('/api/partner/orders');
@@ -613,9 +613,47 @@ function activeCell(order) {
     body.push(slideToAct({label: 'Slide when you’re with the customer', onConfirm: () => advance(3), ariaLabel: 'I’m with the customer. Drag, or press Enter.'}));
   }
   if (step === 3) body.push(otpKeys(order));
+  body.push(h('div', {class: 'problem-row'}, h('button', {type: 'button', class: 'problem-btn', onclick: () => reportProblem(order)},
+    h('span', {'aria-hidden': 'true', html: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2.5 20h19z"/><path d="M12 10v4M12 17.2v.01"/></svg>'}), 'Report a problem')));
   return h('section', {class: 'cell active-cell'},
     h('div', {class: 'cell-head'}, h('h2', {}, h('span', {class: 'hexdot', 'aria-hidden': 'true'}), 'Active delivery'), h('span', {class: 'tag'}, orderNo(order)), window.PrintBeeStatus?.model && order.status ? PrintBeeStatus.badge(order.status) : null),
     stepper(step), h('h3', {}, title), ...body);
+}
+const PROBLEMS = [
+  ['customer_unreachable', 'Customer not answering', 'You called or knocked and nobody replied.'],
+  ['wrong_address', 'Wrong address', 'The address or pin does not match where the customer is.'],
+  ['pickup_problem', 'Pickup problem', 'Packets missing, wrong labels or the hive is closed.'],
+  ['safety', 'Safety issue', 'You feel unsafe. This is marked urgent and the owner is told straight away.'],
+];
+function reportProblem(order) {
+  showDialog('Report a problem', body => {
+    let kind = '';
+    const error = h('p', {class: 'problem-error', role: 'alert', hidden: true});
+    const note = h('textarea', {class: 'hive-input', rows: '3', maxlength: '500', placeholder: 'Anything we should know? (optional)', 'aria-label': 'Details'});
+    const send = h('button', {type: 'submit', class: 'hive-btn hive-btn-primary', text: 'Send to PrintBee'});
+    const options = PROBLEMS.map(([key, label, hint]) => {
+      const input = h('input', {type: 'radio', name: 'problem', value: key, onchange: () => { kind = key; error.hidden = true; }});
+      return h('label', {class: 'problem-option' + (key === 'safety' ? ' is-safety' : '')}, input, h('span', {}, h('strong', {text: label}), h('small', {text: hint})));
+    });
+    const key = String(Date.now()) + Math.random().toString(16).slice(2);
+    const form = h('form', {class: 'problem-form'}, h('p', {class: 'muted', text: 'Order ' + orderNo(order) + '. Admins see this straight away.'}), ...options, note,
+      h('p', {class: 'muted problem-safe', text: 'In immediate danger, call the local emergency number first.'}), error, send);
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (!kind) { error.textContent = 'Choose what the problem is.'; error.hidden = false; return; }
+      send.disabled = true; send.textContent = 'Sending…';
+      try {
+        if (demo) await new Promise(resolve => setTimeout(resolve, 300));
+        else await orderAction(order, 'problem', {kind, note: note.value}, {'Idempotency-Key': key});
+        $('rider-dialog').close();
+        notify(kind === 'safety' ? 'Safety report sent as urgent. Stay safe.' : 'Report sent. PrintBee will contact you.', true);
+      } catch (failure) {
+        error.textContent = failure.message; error.hidden = false;
+        send.disabled = false; send.textContent = 'Send to PrintBee';
+      }
+    });
+    body.append(form);
+  });
 }
 function deliveredCell() {
   return h('section', {class: 'cell delivered'},

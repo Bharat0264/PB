@@ -6,7 +6,7 @@ const {orders, products, activity, traffic, targets, today} = source;
 import {addOfflineOrderFields, pickupMapUrl} from './admin-records.js';
 
 import {buildLedger} from './admin-ledger.js?v=mobile-layout';
-import {mountSupport, supportBadge} from './admin-support.js?v=1';
+import {mountSupport, supportBadge, supportNotifications} from './admin-support.js?v=2';
 import {buildPricingForm} from './admin-pricing.js';
 import {previewPricingUrl, readPreviewPricing, savePreviewPricing} from './pricing-preview.js';
 
@@ -806,8 +806,9 @@ if (live) {
     document.querySelector('.live-gate').hidden = true;
     refreshFeed();
     render(true);
-    supportBadge();
-    setInterval(supportBadge, 45000);
+    const supportPoll = () => { supportBadge(); supportNotifications(); };
+    supportPoll();
+    setInterval(supportPoll, 45000);
     // Orders and statuses update the moment they change; the timer is only a safety net.
     feedConnection = window.PrintBeeLive?.start({as: 'admin', onSync: softRefresh});
     setInterval(softRefresh, 45000);

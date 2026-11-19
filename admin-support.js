@@ -50,7 +50,27 @@ const newKey = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now(
 const statusChip = status => h('span', {class: 'sp-chip ' + (STATUS[status]?.[1] || ''), text: STATUS[status]?.[0] || humanise(status)});
 const priorityChip = priority => h('span', {class: 'sp-chip ' + (PRIORITY[priority]?.[1] || ''), text: PRIORITY[priority]?.[0] || humanise(priority)});
 const sourceBadge = source => source === 'buzz' ? h('span', {class: 'sp-source is-buzz', title: 'Created by Buzz, the AI assistant'}, icon('M12 3v3M5 8h14v10H5zM9 13h.01M15 13h.01M9 21h6', 14), 'Buzz AI')
+  : source === 'runner' ? h('span', {class: 'sp-source is-runner', title: 'Reported by a Bee Runner'}, icon('M3 17h13V6H3zM16 10h3l2 3v4h-5', 14), 'Bee Runner')
   : source === 'admin' ? h('span', {class: 'sp-source', title: 'Opened by the team for a customer'}, 'Team') : null;
+const escalatedBadge = t => t.escalated ? h('span', {class: 'sp-source is-escalated', title: 'Buzz escalated this ticket to the team'}, 'Escalated') : null;
+const duration = seconds => {
+  const minutes = Math.max(0, Math.round(seconds / 60));
+  if (minutes < 1) return 'under a minute';
+  if (minutes < 60) return minutes + ' min';
+  if (minutes < 1440) return (minutes / 60).toFixed(minutes % 60 ? 1 : 0) + ' h';
+  return Math.round(minutes / 1440) + ' d';
+};
+/** "First reply 12 min" once staff answered; otherwise how long it has waited (red once past the owner's limit). */
+function responseTime(t, hours) {
+  if (t.firstResponseSeconds != null) return h('small', {class: 'sp-reply-time', text: 'First reply ' + duration(t.firstResponseSeconds)});
+  if (['resolved', 'closed'].includes(t.status)) return h('small', {class: 'sp-reply-time', text: 'Closed without a reply'});
+  const waited = Date.now() / 1000 - t.created;
+  return h('small', {class: 'sp-reply-time is-waiting' + (waited > hours * 3600 ? ' is-late' : ''), text: 'No reply yet · ' + duration(waited)});
+}
+const firstName = label => {
+  const word = String(label).split('@')[0].replace(/[^A-Za-z]+/g, ' ').trim().split(' ')[0] || 'there';
+  return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+};
 
 async function request(path, {method = 'GET', body, key} = {}) {
   let response;
@@ -62,6 +82,75 @@ async function request(path, {method = 'GET', body, key} = {}) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || 'The request could not be completed.');
   return data;
+}
+
+/** First-response limit (when the owner is emailed) and the saved replies. Shown under the ticket list. */
+function settingsPanel() {
+  const msg = h('p', {class: 'sp-flash', role: 'status'});
+  const say = text => { msg.textContent = text; setTimeout(() => { if (msg.textContent === text) msg.textContent = ''; }, 4000); };
+  const hours = h('input', {type: 'number', min: '1', max: '168', step: '1', class: 'sp-input sp-hours', value: String(meta.firstResponseHours), 'aria-label': 'Hours before the owner is alerted'});
+  const saveHours = h('button', {type: 'button', class: 'sp-btn sp-primary', text: 'Save', onclick: async () => {
+    try { meta.firstResponseHours = (await request(`${API}/settings`, {method: 'POST', body: {firstResponseHours: Number(hours.value)}})).firstResponseHours; say('Saved.'); }
+    catch (error) { say(error.message); }
+  }});
+  const box = h('div', {class: 'sp-canned'});
+  let editing = null;
+  const drawCanned = () => {
+    const form = entry => {
+      const title = h('input', {class: 'sp-input', maxlength: '60', placeholder: 'Title, e.g. Late delivery', value: entry?.title || '', 'aria-label': 'Title'});
+      const body = h('textarea', {class: 'sp-input', rows: '3', maxlength: '2000', placeholder: 'Reply text. You can use {{name}}, {{ticket}} and {{order}}.', 'aria-label': 'Reply text'});
+      body.value = entry?.body || '';
+      return h('form', {class: 'sp-canned-form', onsubmit: async event => {
+        event.preventDefault();
+        try { meta.canned = (await request(`${API}/canned`, {method: 'POST', body: {id: entry?.id, title: title.value, body: body.value}})).canned; editing = null; drawCanned(); say('Saved reply stored.'); }
+        catch (error) { say(error.message); }
+      }}, title, body, h('div', {class: 'sp-canned-actions'}, h('button', {type: 'submit', class: 'sp-btn sp-primary', text: 'Save reply'}),
+        h('button', {type: 'button', class: 'sp-btn', text: 'Cancel', onclick: () => { editing = null; drawCanned(); }})));
+    };
+    fill(box,
+      ...meta.canned.map(item => editing === item.id ? form(item) : h('div', {class: 'sp-canned-row'},
+        h('span', {}, h('strong', {text: item.title}), h('small', {text: item.body})),
+        h('span', {class: 'sp-canned-actions'}, h('button', {type: 'button', class: 'sp-btn', text: 'Edit', onclick: () => { editing = item.id; drawCanned(); }}),
+          h('button', {type: 'button', class: 'sp-btn', text: 'Delete', onclick: async () => {
+            if (!window.confirm('Delete the saved reply "' + item.title + '"?')) return;
+            try { meta.canned = (await request(`${API}/canned/delete`, {method: 'POST', body: {id: item.id}})).canned; drawCanned(); } catch (error) { say(error.message); }
+          }})))),
+      editing === 'new' ? form(null) : h('button', {type: 'button', class: 'sp-btn', text: '+ New saved reply', onclick: () => { editing = 'new'; drawCanned(); }}),
+      meta.canned.length || editing === 'new' ? null : h('p', {class: 'sp-muted', text: 'No saved replies yet. Add the answers you give most often.'}));
+  };
+  drawCanned();
+  return h('details', {class: 'sp-card sp-settings'}, h('summary', {text: 'Saved replies and response alerts'}),
+    h('div', {class: 'sp-settings-body'},
+      h('div', {class: 'sp-setting'}, h('h3', {text: 'Alert the owner when a ticket has no reply after'}),
+        h('div', {class: 'sp-setting-row'}, hours, h('span', {text: 'hours'}), saveHours),
+        h('small', {class: 'sp-muted', text: 'Urgent tickets and Buzz escalations email the owner straight away. This limit covers every other ticket that is still waiting for its first reply.'})),
+      h('div', {class: 'sp-setting'}, h('h3', {text: 'Saved replies'}), box), msg));
+}
+
+/** The bell in the top bar: new tickets, customer replies and urgent tickets. The text never includes ticket content. */
+export async function supportNotifications() {
+  const button = document.getElementById('notifications');
+  const panel = document.getElementById('notification-panel');
+  if (!button || !panel) return;
+  let host = document.getElementById('support-notifications');
+  if (!host) {
+    host = h('section', {id: 'support-notifications', class: 'sp-bell'});
+    panel.prepend(host);
+  }
+  let badge = button.querySelector('.sp-bell-badge');
+  if (!badge) { badge = h('i', {class: 'sp-bell-badge', hidden: true}); button.append(badge); }
+  let data;
+  try { data = await request(`${API}/notifications`); } catch { return; }
+  badge.textContent = data.unread > 99 ? '99+' : String(data.unread);
+  badge.hidden = !data.unread;
+  button.setAttribute('aria-label', data.unread ? `Notifications, ${data.unread} unread support updates` : 'Notifications');
+  const markAll = h('button', {type: 'button', class: 'sp-link', disabled: !data.unread, text: 'Mark all as read', onclick: async () => { await request(`${API}/notifications/read`, {method: 'POST', body: {all: true}}); supportNotifications(); }});
+  const items = data.notifications.slice(0, 8).map(n => h('li', {}, h('a', {class: 'sp-bell-item' + (n.read ? '' : ' is-unread'), href: '#support/' + n.ticketId, onclick: () => {
+    if (!n.read) request(`${API}/notifications/read`, {method: 'POST', body: {id: n.id}}).then(supportNotifications).catch(() => {});
+    panel.hidden = true; button.setAttribute('aria-expanded', 'false');
+  }}, h('strong', {text: n.text}), h('small', {text: when(n.created)}))));
+  fill(host, h('div', {class: 'sp-bell-head'}, h('h3', {text: 'Support'}), markAll),
+    items.length ? h('ul', {class: 'sp-bell-list'}, items) : h('p', {class: 'sp-muted', text: 'No support updates yet.'}));
 }
 
 /** The red number on the sidebar link: tickets that are open and nobody has picked up yet. */
@@ -97,7 +186,7 @@ export function mountSupport(host, sub = '') {
     const bar = h('div', {class: 'sp-toolbar'});
     const rows = h('div', {class: 'sp-list', 'aria-live': 'polite'});
     const pager = h('div', {class: 'sp-pager'});
-    fill(host, statsBox, bar, rows, pager);
+    fill(host, statsBox, bar, rows, pager, settingsPanel());
 
     const search = h('input', {type: 'search', class: 'sp-input sp-search', placeholder: 'Search number, subject, customer or order', 'aria-label': 'Search tickets', value: filters.q});
     let debounce;
@@ -141,11 +230,11 @@ export function mountSupport(host, sub = '') {
       }
       fill(rows, data.tickets.map(t => h('a', {class: 'sp-row' + (t.status === 'open' && !t.assignee ? ' is-new' : ''), href: '#support/' + t.id},
         h('span', {class: 'sp-row-main'},
-          h('span', {class: 'sp-row-title'}, h('strong', {text: t.subject}), sourceBadge(t.source)),
-          h('small', {class: 'sp-row-meta', text: [t.number, t.customer, t.categoryLabel, t.orderNumber].filter(Boolean).join(' · ')}),
+          h('span', {class: 'sp-row-title'}, h('strong', {text: t.subject}), sourceBadge(t.source), escalatedBadge(t)),
+          h('small', {class: 'sp-row-meta', text: [t.number, t.customerLabel, t.categoryLabel, t.orderNumber].filter(Boolean).join(' · ')}),
           t.preview ? h('small', {class: 'sp-row-preview', text: t.preview}) : null),
         h('span', {class: 'sp-row-side'}, h('span', {class: 'sp-chips'}, statusChip(t.status), priorityChip(t.priority)),
-          h('small', {text: t.assignee ? 'Assigned: ' + t.assignee : 'Unassigned'}), h('small', {text: when(t.updated)})))));
+          h('small', {text: t.assignee ? 'Assigned: ' + t.assignee : 'Unassigned'}), responseTime(t, data.firstResponseHours), h('small', {text: when(t.updated)})))));
       const from = data.offset + 1, to = data.offset + data.tickets.length;
       fill(pager, h('span', {class: 'sp-count', text: `${from}–${to} of ${data.total}`}),
         h('div', {class: 'sp-pager-buttons'},
@@ -187,9 +276,9 @@ export function mountSupport(host, sub = '') {
       const assignee = h('select', {class: 'sp-input', onchange: event => act('assign', {assignee: event.target.value || null}, event.target.value ? 'Assigned.' : 'Unassigned.')},
         h('option', {value: '', text: 'Unassigned'}), meta.agents.map(a => h('option', {value: a, text: a === meta.me ? 'Me (' + a + ')' : a, selected: ticket.assignee === a})));
       fill(head,
-        h('div', {class: 'sp-title'}, h('h2', {text: ticket.subject}), statusChip(ticket.status), priorityChip(ticket.priority), sourceBadge(ticket.source)),
+        h('div', {class: 'sp-title'}, h('h2', {text: ticket.subject}), statusChip(ticket.status), priorityChip(ticket.priority), sourceBadge(ticket.source), escalatedBadge(ticket)),
         h('p', {class: 'sp-meta', text: [ticket.number, ticket.categoryLabel, 'Opened ' + when(ticket.created)].join(' · ')}),
-        h('p', {class: 'sp-meta'}, 'Customer: ', h('strong', {text: ticket.customer})),
+        h('p', {class: 'sp-meta'}, ticket.source === 'runner' ? 'Reported by: ' : 'Customer: ', h('strong', {text: ticket.customerLabel}), ' · ', responseTime(ticket, ticket.firstResponseHours)),
         h('div', {class: 'sp-controls'}, field('Status', statusSelect), field('Priority', prioritySelect), field('Assigned to', assignee),
           ticket.assignee === meta.me ? null : h('button', {type: 'button', class: 'sp-btn sp-take', text: 'Assign to me', onclick: () => act('assign', {assignee: meta.me}, 'Assigned to you.')})),
         status);
@@ -205,7 +294,7 @@ export function mountSupport(host, sub = '') {
           const note = m.kind === 'internal', agent = m.kind === 'agent';
           return h('article', {class: 'sp-msg ' + (note ? 'is-note' : agent ? 'is-agent' : 'is-customer')},
             h('header', {}, note ? icon('M7 11V8a5 5 0 0 1 10 0v3M5 11h14v9H5z', 15) : null,
-              h('strong', {text: note ? 'Internal note' : agent ? 'Reply to customer' : 'Customer'}), h('small', {text: `${m.author} · ${when(m.created)}`})),
+              h('strong', {text: note ? 'Internal note' : agent ? 'Reply to customer' : ticket.source === 'runner' ? 'Bee Runner' : 'Customer'}), h('small', {text: `${m.author} · ${when(m.created)}`})),
             note ? h('p', {class: 'sp-note-hint', text: 'Only your team can see this. The customer never does.'}) : null,
             h('p', {class: 'sp-text', text: m.body}),
             m.attachments?.length ? h('div', {class: 'sp-files'}, m.attachments.map(attachment)) : null);
@@ -231,7 +320,14 @@ export function mountSupport(host, sub = '') {
         hint.textContent = note ? 'Visible to admins and warehouse staff only.' : 'The customer gets an email that there is a reply.';
       };
       const hint = h('small', {class: 'sp-hint'});
-      const form = h('form', {class: 'sp-card sp-compose'}, tabs, box, h('div', {class: 'sp-compose-row'}, hint, send));
+      const saved = meta.canned || [];
+      const template = text => text.replaceAll('{{name}}', firstName(ticket.customerLabel)).replaceAll('{{ticket}}', ticket.number).replaceAll('{{order}}', ticket.orderNumber || 'your order');
+      const picker = saved.length ? h('select', {class: 'sp-input sp-canned-pick', 'aria-label': 'Insert a saved reply', onchange: event => {
+        const reply = saved.find(item => String(item.id) === event.target.value);
+        if (reply) { box.value = (box.value ? box.value + ' ' : '') + template(reply.body); box.focus(); }
+        event.target.value = '';
+      }}, h('option', {value: '', text: 'Insert a saved reply…'}), saved.map(item => h('option', {value: String(item.id), text: item.title}))) : null;
+      const form = h('form', {class: 'sp-card sp-compose'}, tabs, picker, box, h('div', {class: 'sp-compose-row'}, hint, send));
       form.addEventListener('submit', async event => {
         event.preventDefault();
         if (!box.value.trim()) return flash('Write a message first.');

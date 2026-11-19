@@ -473,3 +473,20 @@ body[data-page="Cockpit"] .hive-main { padding-bottom: 40px; }
 .account-sheet .pb-switch-link { display: flex; justify-content: space-between; align-items: center; min-height: 48px; padding: 0 16px; border-radius: 16px; text-decoration: none; background: var(--hv-surface-2); color: var(--hv-ink); font-weight: 700; }
 .account-sheet .pb-switch-link::after { content: ""; width: 8px; height: 8px; border-right: 2px solid currentColor; border-top: 2px solid currentColor; transform: rotate(45deg); opacity: .45; }
 .account-sheet #portal-logout.is-visible { display: block; width: 100%; min-height: 52px; margin-top: 14px; border: 0; border-radius: 16px; box-shadow: none; background: var(--hv-danger-bg, #fce3e0); color: var(--hv-danger-ink, #9a2626); font-weight: 800; }
+
+/* Report a problem (Runner Hub) */
+.problem-row { display: flex; justify-content: center; margin-top: 18px; padding-top: 14px; border-top: 1px dashed var(--line, #efe3b8); }
+.problem-btn { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; border: 0; border-radius: var(--r-pill, 999px); cursor: pointer;
+  background: transparent; color: var(--muted, #6e5e3e); font: 800 14px Manrope, system-ui, sans-serif; }
+.problem-btn:hover { background: var(--surface-3, #fff0c7); color: var(--ink, #2a2112); }
+.problem-form { display: grid; gap: 10px; }
+.problem-option { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border-radius: 18px; cursor: pointer; background: var(--surface-2, #fff6dd); box-shadow: inset 0 0 0 1.5px var(--line, #efe3b8); }
+.problem-option input { margin-top: 4px; accent-color: var(--honey-600, #e0a91e); width: 18px; height: 18px; flex: none; }
+.problem-option span { display: grid; gap: 2px; }
+.problem-option small { color: var(--muted, #6e5e3e); font-size: 13px; line-height: 1.35; }
+.problem-option:has(input:checked) { background: color-mix(in srgb, var(--honey-300, #fbe08a) 45%, var(--surface, #fff)); box-shadow: inset 0 0 0 2px var(--honey-500, #f5c542); }
+.problem-option.is-safety:has(input:checked) { background: #fce3e0; box-shadow: inset 0 0 0 2px #d64545; color: #5b1a1a; }
+.problem-option.is-safety:has(input:checked) small { color: #7a2a2a; }
+.problem-safe { font-size: 13px; }
+.problem-error { margin: 0; padding: 10px 14px; border-radius: 14px; background: #fce3e0; color: #9a2626; font-weight: 700; }
+.problem-error[hidden] { display: none; }

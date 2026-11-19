@@ -144,3 +144,44 @@ textarea.sp-input { padding: 12px 14px; min-height: 110px; resize: vertical; fon
   .sp-pager-buttons .sp-btn { flex: 1; }
 }
 @media (prefers-reduced-motion: reduce) { .sp-btn, .sp-row { transition: none; } }
+
+/* Phase 4: runner and escalation badges, response time, saved replies, response alerts, the bell */
+.sp-source.is-runner { background: color-mix(in srgb, var(--hv-info-bg) 70%, var(--hv-surface)); color: var(--hv-info-ink); box-shadow: none; }
+.sp-source.is-escalated { background: var(--hv-danger-bg); color: var(--hv-danger-ink); box-shadow: none; }
+.sp-reply-time { color: var(--hv-muted); font-size: 12.5px; font-weight: 700; }
+.sp-reply-time.is-waiting { color: var(--hv-warning-ink); }
+.sp-reply-time.is-late { color: var(--hv-danger-ink); }
+.sp-reply-time.is-late::before { content: "! "; font-weight: 800; }
+.sp-canned-pick { max-width: 320px; min-height: 40px; }
+.sp-settings { padding: 0; overflow: hidden; }
+.sp-settings summary { cursor: pointer; padding: 16px 20px; font-weight: 800; list-style: none; display: flex; align-items: center; justify-content: space-between; }
+.sp-settings summary::-webkit-details-marker { display: none; }
+.sp-settings summary::after { content: ""; width: 8px; height: 8px; border: solid currentColor; border-width: 0 2px 2px 0; transform: rotate(45deg); margin-right: 4px; transition: transform .2s; }
+.sp-settings[open] summary::after { transform: rotate(-135deg); }
+.sp-settings-body { display: grid; gap: 22px; padding: 0 20px 20px; }
+.sp-setting { display: grid; gap: 10px; }
+.sp-setting h3 { margin: 0; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--hv-muted); }
+.sp-setting-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sp-hours { width: 96px; }
+.sp-canned { display: grid; gap: 8px; }
+.sp-canned-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-radius: 16px; background: var(--hv-surface); box-shadow: inset 0 0 0 1px var(--hv-border); }
+.sp-canned-row > span:first-child { display: grid; gap: 2px; min-width: 0; }
+.sp-canned-row strong { font-size: 14.5px; }
+.sp-canned-row small { color: var(--hv-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60ch; }
+.sp-canned-actions { display: flex; gap: 8px; flex: none; }
+.sp-canned-form { display: grid; gap: 10px; padding: 12px; border-radius: 16px; background: var(--hv-surface); box-shadow: inset 0 0 0 2px var(--hv-honey-500); }
+.sp-bell-badge { position: absolute; top: -3px; right: -3px; min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box; border-radius: 999px; display: grid; place-items: center;
+  background: #d64545; color: #fff; font: 800 11.5px/1 Manrope, system-ui, sans-serif; font-style: normal; box-shadow: 0 0 0 2px var(--hv-surface); pointer-events: none; }
+.sp-bell-badge[hidden] { display: none; }
+#notifications { position: relative; }
+.sp-bell { display: grid; gap: 8px; margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--hv-border); }
+.sp-bell-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sp-bell-head h3 { margin: 0; font-size: 15px; }
+.sp-link { border: 0; background: none; padding: 6px 8px; border-radius: 999px; cursor: pointer; font: 800 12.5px Manrope, system-ui, sans-serif; color: var(--hv-honey-ink); }
+.sp-link:disabled { opacity: .45; cursor: default; }
+.sp-bell-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.sp-bell-item { display: grid; gap: 2px; padding: 9px 12px; border-radius: 14px; text-decoration: none; color: inherit; background: var(--hv-surface-2); }
+.sp-bell-item.is-unread { background: color-mix(in srgb, var(--hv-honey-300) 38%, var(--hv-surface)); }
+.sp-bell-item strong { font-size: 13.5px; }
+.sp-bell-item small { color: var(--hv-muted); font-size: 12px; }
+@media (max-width: 760px) { .sp-canned-row { flex-direction: column; align-items: stretch; } .sp-canned-actions { justify-content: flex-end; } .sp-canned-pick { max-width: none; } }

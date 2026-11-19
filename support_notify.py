@@ -42,7 +42,8 @@ def send_batch(smtp, sender, origin, limit=50):
         cursor = db.execute("SELECT last_seen FROM support_email_cursor").fetchone()[0]
         rows = db.execute(
             "SELECT m.id AS message_id, t.id, t.ticket_number, t.subject, t.customer_email FROM support_messages m "
-            "JOIN support_tickets t ON t.id=m.ticket_id WHERE m.id>? AND m.kind='agent' ORDER BY m.id LIMIT ?",
+            "JOIN support_tickets t ON t.id=m.ticket_id WHERE m.id>? AND m.kind='agent' AND t.customer_email LIKE '%@%' "
+            "AND t.source!='runner' ORDER BY m.id LIMIT ?",
             (cursor, limit)).fetchall()
         sent = 0
         for row in rows:
@@ -63,6 +64,64 @@ def send_batch(smtp, sender, origin, limit=50):
     return sent
 
 
+REASONS = {
+    "urgent": "A ticket was marked URGENT",
+    "buzz_escalation": "Buzz escalated a ticket",
+    "overdue": "A ticket has had no staff reply for too long",
+}
+
+
+def build_escalation(row, origin):
+    """(subject, body) for the owner. It names the ticket and why, and links to it; it never quotes the conversation."""
+    subject = f"[PrintBee] {REASONS.get(row['reason'], 'Support escalation')}: {row['ticket_number']}"
+    body = chr(10).join([
+        REASONS.get(row["reason"], "Support escalation") + ".",
+        "",
+        f"Ticket: {row['ticket_number']}",
+        f"Category: {row['category'].replace('_', ' ')}",
+        f"Priority: {row['priority']}",
+        f"Created by: {row['source']}",
+        "",
+        f"Open it in the admin portal: {origin}/admin#support/{row['ticket_id']}",
+    ]) + chr(10)
+    return subject, body
+
+
+def send_escalations(smtp, sender, origin, owner, db):
+    """Email the owner about urgent / escalated / overdue tickets that have not been reported yet. Returns how many."""
+    import support
+    with db:
+        support.queue_overdue(db)
+    sent = 0
+    for row in support.pending_escalations(db):
+        subject, body = build_escalation(row, origin)
+        mail = EmailMessage()
+        mail["From"], mail["To"], mail["Subject"] = sender, owner, subject
+        mail.set_content(body)
+        smtp.send_message(mail)
+        with db:
+            support.mark_escalation_sent(db, row["id"])
+        sent += 1
+    return sent
+
+
+def send_pending_now():
+    """Called by the web server in the background right after an urgent / escalated ticket is created."""
+    owner, host, sender = os.environ.get("PRINTBEE_OWNER_EMAIL"), os.environ.get("PRINTBEE_SMTP_HOST"), os.environ.get("PRINTBEE_SMTP_FROM")
+    origin = public_origin()
+    if not (owner and host and sender and origin.startswith("https://")):
+        return 0
+    from server import connect
+    try:
+        with closing(connect()) as db, smtplib.SMTP(host, int(os.environ.get("PRINTBEE_SMTP_PORT", "587")), timeout=10) as smtp:
+            smtp.starttls(context=ssl.create_default_context())
+            if os.environ.get("PRINTBEE_SMTP_USER"):
+                smtp.login(os.environ["PRINTBEE_SMTP_USER"], os.environ["PRINTBEE_SMTP_PASSWORD"])
+            return send_escalations(smtp, sender, origin, owner, db)
+    except (OSError, smtplib.SMTPException):
+        return 0          # the scheduled worker tries again
+
+
 if __name__ == "__main__":
     origin = public_origin()
     if urlsplit(origin).scheme != "https":
@@ -72,3 +131,7 @@ if __name__ == "__main__":
         if os.environ.get("PRINTBEE_SMTP_USER"):
             smtp.login(os.environ["PRINTBEE_SMTP_USER"], os.environ["PRINTBEE_SMTP_PASSWORD"])
         print(f"Sent {send_batch(smtp, os.environ['PRINTBEE_SMTP_FROM'], origin)} support emails.")
+        if os.environ.get("PRINTBEE_OWNER_EMAIL"):
+            from server import connect
+            with closing(connect()) as db:
+                print(f"Sent {send_escalations(smtp, os.environ['PRINTBEE_SMTP_FROM'], origin, os.environ['PRINTBEE_OWNER_EMAIL'], db)} owner alerts.")

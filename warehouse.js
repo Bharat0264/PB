@@ -18,7 +18,7 @@ const floorStages = [
 ];
 const conveyorStage = order => buckets.includes(stage(order))?stage(order):'Handed over';
 const buckets = ['New', 'Printing', 'Ready'];
-const sections = [['Home','home'],['Print Queue','printer'],['Printers','monitor'],['History','history'],['Settings','settings']];
+const sections = [['Home','home'],['Print Queue','printer'],['Printers','monitor'],['History','history'],['Support','support'],['Settings','settings']];
 const glyphs = {
   home:'<path d="m3 10 9-7 9 7v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 21v-7h6v7"/>',
   printer:'<path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6zM6 12h.01"/>',
@@ -42,6 +42,7 @@ const glyphs = {
   contrast:'<circle cx="12" cy="12" r="9"/><path d="M12 3v18a9 9 0 0 0 0-18z" fill="currentColor"/>',
   puzzle:'<path d="M10 4a2 2 0 1 1 4 0v2h4a1 1 0 0 1 1 1v4h-2a2 2 0 1 0 0 4h2v4a1 1 0 0 1-1 1h-4v-2a2 2 0 1 0-4 0v2H6a1 1 0 0 1-1-1v-4h2a2 2 0 1 0 0-4H5V7a1 1 0 0 1 1-1h4z"/>',
   chevron:'<path d="m9 6 6 6-6 6"/>',
+  support:'<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/>',
   pencil:'<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
   trash:'<path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/>',
   star:'<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
@@ -180,7 +181,7 @@ function go(section, selectedTab, keepSearch=false) {
   floorFilter=null;
   if (!keepSearch) byId('warehouse-search').value='';
   tab=selectedTab || 'New';
-  if (['Printers','Settings','Inventory','History'].includes(section)) {
+  if (['Printers','Settings','Inventory','History','Support'].includes(section)) {
     active=null;
     closeSheet(false);
   }
@@ -240,6 +241,7 @@ function render(refreshStation=true,focusDate=false) {
   columns.classList.toggle('wh-context-layout',view==='Printers' || view==='Inventory' || view==='History');
   columns.classList.toggle('wh-settings-layout',view==='Settings');
   if (tools) renderTools();
+  else if (view==='Support') renderSupport();
   else if (view==='History') renderHistory(filterOpen);
   else if (view==='Home') renderHome();
   else renderQueue(filterOpen);
@@ -261,6 +263,108 @@ function updateStageCount(control,label) {
   control.setAttribute('aria-label',label+', '+total+(total===1?' order':' orders'));
 }
 const orderAmount = order => Number.isInteger(order.bill?.total)?order.bill.total:Number.isInteger(order.subtotal)?order.subtotal:0;
+// ---- Support: only the tickets assigned to this person or about print quality. The server filters them; nothing private is sent.
+let supportList = null, supportOpen = null, supportDraft = '', supportKey = '', supportLoading = false;
+const supportStatus = {open:'Open', in_progress:'In progress', pending:'Waiting for customer', resolved:'Resolved', closed:'Closed'};
+async function supportApi(path,body) {
+  const response=await fetch(path,{method:body?'POST':'GET',cache:'no-store',credentials:'same-origin',
+    headers:body?{'Content-Type':'application/json','Idempotency-Key':supportKey}:{},body:body?JSON.stringify(body):undefined});
+  const data=await response.json().catch(()=>({}));
+  if (!response.ok) throw new Error(data.error || 'That could not be done. Try again.');
+  return data;
+}
+function supportWhen(seconds) { return new Date(seconds*1000).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}); }
+async function loadSupport() {
+  if (supportLoading) return;
+  supportLoading=true;
+  try {
+    supportList=(await supportApi('/api/staff/support/tickets?status=active&limit=50')).tickets;
+    if (supportOpen) supportOpen=(await supportApi('/api/staff/support/tickets/'+supportOpen.id)).ticket;
+  } catch (error) { announce(error.message,true); }
+  finally { supportLoading=false; }
+  if (view==='Support' && !board.contains(document.activeElement?.closest('textarea'))) redrawSupport();
+}
+function redrawSupport() { board.replaceChildren(); renderSupport(true); }
+function renderSupport(fromLoad=false) {
+  if (preview) { board.append(node('p','Support tickets show up here on the live site.','clay-card wh-sup-empty')); return; }
+  if (supportOpen) drawSupportTicket(); else drawSupportList();
+  if (!fromLoad) loadSupport();
+}
+function drawSupportList() {
+  const wrap=node('div',null,'wh-sup');
+  wrap.append(node('p','You see tickets assigned to you and every print quality ticket. Open one to read it and reply.','wh-muted'));
+  if (supportList===null) wrap.append(node('p','Loading tickets…','wh-muted'));
+  else if (!supportList.length) {
+    const empty=node('div',null,'clay-card wh-empty'); empty.append(icon('support'),node('h3','No tickets for you right now'),node('p','Print quality problems and tickets assigned to you will appear here.')); wrap.append(empty);
+  }
+  for (const ticket of supportList || []) {
+    const row=button('',async()=>{ supportOpen=(await supportApi('/api/staff/support/tickets/'+ticket.id)).ticket; supportDraft=''; supportKey=String(Date.now())+Math.random().toString(16).slice(2); redrawSupport(); },'wh-sup-row');
+    const main=node('span',null,'wh-sup-main');
+    main.append(node('strong',ticket.subject),node('small',[ticket.number,ticket.categoryLabel,ticket.orderNumber].filter(Boolean).join(' · ')));
+    const side=node('span',null,'wh-sup-side');
+    side.append(chip(supportStatus[ticket.status] || ticket.status,ticket.status==='open'?'wh-attention':ticket.status==='resolved'?'wh-good':''));
+    if (ticket.mine) side.append(chip('Assigned to you','wh-good'));
+    side.append(node('small',supportWhen(ticket.updated)));
+    row.append(main,side);
+    wrap.append(row);
+  }
+  board.append(wrap);
+}
+function drawSupportTicket() {
+  const ticket=supportOpen, wrap=node('div',null,'wh-sup');
+  wrap.append(button('← All tickets',()=>{ supportOpen=null; redrawSupport(); },'wh-sup-back'));
+  const head=node('section',null,'clay-card wh-sup-head');
+  const title=node('div',null,'wh-meta');
+  title.append(node('h2',ticket.subject),chip(supportStatus[ticket.status] || ticket.status));
+  head.append(title,node('p',[ticket.number,ticket.categoryLabel,'Updated '+supportWhen(ticket.updated)].join(' · '),'wh-muted'));
+  wrap.append(head);
+  if (ticket.order) {
+    const order=node('section',null,'clay-card wh-sup-order');
+    order.append(node('h3','Order '+ticket.order.number),chip(ticket.order.status));
+    const files=node('ul',null,'wh-sup-files');
+    for (const file of ticket.order.files) {
+      const row=node('li'), options=[file.pages!=null?file.pages+' pages':'',file.copies!=null?file.copies+(file.copies===1?' copy':' copies'):'',
+        file.colourPages?.length?'Mixed colour':file.colour?'Colour':'B&W',file.duplex?'Double-sided':'Single-sided',file.paper||'',file.orientation||'',
+        file.binding&&file.binding!=='none'?file.binding+' binding':'',file.pageRange?.length?'Pages '+file.pageRange[0]+'-'+file.pageRange[file.pageRange.length-1]:''].filter(Boolean);
+      row.append(icon('file'),node('strong',file.name),node('small',options.join(' · ')));
+      files.append(row);
+    }
+    order.append(files);
+    wrap.append(order);
+  }
+  const thread=node('div',null,'wh-sup-thread');
+  for (const message of ticket.messages) {
+    const bubble=node('article',null,'wh-sup-msg '+(message.from==='support'?'is-support':'is-customer'));
+    bubble.append(node('strong',message.from==='support'?'PrintBee Support':'Customer'),node('small',supportWhen(message.created)),node('p',message.body,'wh-sup-text'));
+    if (message.attachments?.length) {
+      const list=node('div',null,'wh-sup-attach');
+      for (const file of message.attachments) { const link=node('a',file.name+' ('+Math.max(1,Math.round(file.size/1024))+' KB)'); link.href='/api/staff/support/attachments/'+file.id; link.download=file.name; link.rel='noopener'; list.append(link); }
+      bubble.append(list);
+    }
+    thread.append(bubble);
+  }
+  wrap.append(thread);
+  if (ticket.status==='closed') wrap.append(node('p','This ticket is closed.','wh-muted'));
+  else {
+    const form=node('form',null,'clay-card wh-sup-reply'), box=node('textarea',null,'clay-input'), send=node('button','Send reply','clay-button wh-primary');
+    box.rows=4; box.maxLength=4000; box.placeholder='Reply to the customer. They see this as PrintBee Support.'; box.setAttribute('aria-label','Reply'); box.value=supportDraft;
+    box.addEventListener('input',()=>{ supportDraft=box.value; });
+    send.type='submit';
+    form.append(box,send);
+    form.addEventListener('submit',async event=>{
+      event.preventDefault();
+      if (!box.value.trim()) return announce('Write a reply first.');
+      send.disabled=true;
+      try {
+        supportOpen=(await supportApi('/api/staff/support/tickets/'+ticket.id+'/reply',{message:box.value})).ticket;
+        supportDraft=''; supportKey=String(Date.now())+Math.random().toString(16).slice(2);
+        announce('Reply sent.'); redrawSupport();
+      } catch (error) { announce(error.message,true); send.disabled=false; }
+    });
+    wrap.append(form);
+  }
+  board.append(wrap);
+}
 function renderHome() {
   // Revenue from the orders this warehouse has handled.
   const now=Date.now()/1000, week=now-7*86400;

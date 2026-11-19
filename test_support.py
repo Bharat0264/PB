@@ -234,6 +234,244 @@ class SupportInbox(SupportModule):
         self.assertEqual(support.staff_ticket(self.db, ident)["nextStatuses"], ["open"])
 
 
+class SupportPhase4(SupportModule):
+    """Notifications, settings, escalation, the warehouse view, Runner reports and the Buzz hook."""
+
+    SECRET = "My phone is 98765 43210 and my flat is B-12"
+
+    def private(self, **extra):
+        return self.make(subject="Secret subject about my flat", message=self.SECRET, **extra)
+
+    # ---- in-app notifications
+    def test_notifications_never_contain_private_ticket_content(self):
+        ident = self.private()
+        support.staff_reply(self.db, ident, "admin@example.test", "Internal: refund them, they are lying about B-12", internal=True)
+        support.staff_reply(self.db, ident, "admin@example.test", "We will look into the flat issue.")
+        support.set_status(self.db, ident, "admin@example.test", "resolved")
+        support.customer_reply(self.db, ident, "me@example.test", "It is still broken, B-12")
+        support.set_priority(self.db, ident, "admin@example.test", "urgent")
+        mine = support.notifications(self.db, "me@example.test", "me@example.test")
+        staff = support.notifications(self.db, "admin@example.test", "staff")
+        everything = json.dumps(mine) + json.dumps(staff)
+        for secret in ("Secret subject", "98765", "B-12", "refund", "flat", "lying"):
+            self.assertNotIn(secret, everything)
+        self.assertIn(f"SP-{ident:05d}", everything)          # only the ticket number
+        self.assertEqual([n["kind"] for n in reversed(mine["notifications"])], ["staff_reply", "resolved"])
+        self.assertEqual([n["kind"] for n in reversed(staff["notifications"])], ["new_ticket", "customer_reply", "urgent"])
+
+    def test_unread_counts_and_mark_as_read_are_per_person(self):
+        first, second = self.private(), self.private(category="account", order_id=None)
+        support.staff_reply(self.db, first, "admin@example.test", "Hello.")
+        support.staff_reply(self.db, second, "admin@example.test", "Hello again.")
+        other = support.create_ticket(self.db, email="other@example.test", category="account", subject="My own ticket", message="Hi there")
+        support.staff_reply(self.db, other, "admin@example.test", "Reply for the other customer.")
+        mine = support.notifications(self.db, "me@example.test", "me@example.test")
+        self.assertEqual(mine["unread"], 2)
+        support.mark_notifications_read(self.db, "me@example.test", "me@example.test", [mine["notifications"][0]["id"]])
+        self.assertEqual(support.notifications(self.db, "me@example.test", "me@example.test")["unread"], 1)
+        # the other customer's bell is untouched, and I cannot mark their notifications even by guessing ids
+        theirs = support.notifications(self.db, "other@example.test", "other@example.test")
+        support.mark_notifications_read(self.db, "me@example.test", "me@example.test", [theirs["notifications"][0]["id"]])
+        self.assertEqual(support.notifications(self.db, "other@example.test", "other@example.test")["unread"], 1)
+        # two admins each have their own read state for the shared staff list
+        total = support.notifications(self.db, "a1@example.test", "staff")["unread"]
+        self.assertGreaterEqual(total, 3)
+        support.mark_notifications_read(self.db, "a1@example.test", "staff")
+        self.assertEqual(support.notifications(self.db, "a1@example.test", "staff")["unread"], 0)
+        self.assertEqual(support.notifications(self.db, "a2@example.test", "staff")["unread"], total)
+        support.mark_notifications_read(self.db, "me@example.test", "me@example.test")
+        self.assertEqual(support.notifications(self.db, "me@example.test", "me@example.test")["unread"], 0)
+
+    # ---- settings, canned replies, first response
+    def test_first_response_setting_and_canned_replies(self):
+        self.assertEqual(support.first_response_hours(self.db), 4)
+        support.set_first_response_hours(self.db, 8)
+        self.assertEqual(support.first_response_hours(self.db), 8)
+        for bad in (0, 169, "4", 2.5, None):
+            with self.assertRaises(support.SupportError):
+                support.set_first_response_hours(self.db, bad)
+        support.save_canned(self.db, {"title": "Late delivery", "body": "Sorry your order is late. We are on it."})
+        support.save_canned(self.db, {"title": "Another", "body": "Text"})
+        first = support.list_canned(self.db)[1]
+        support.save_canned(self.db, {"id": first["id"], "title": "Late delivery v2", "body": "New text"})
+        self.assertEqual([c["title"] for c in support.list_canned(self.db)], ["Another", "Late delivery v2"])
+        support.delete_canned(self.db, first["id"])
+        self.assertEqual(len(support.list_canned(self.db)), 1)
+        for bad in ({"title": "", "body": "x"}, {"title": "t", "body": ""}, {"title": "x" * 61, "body": "b"}):
+            with self.assertRaises(support.SupportError):
+                support.save_canned(self.db, bad)
+        with self.assertRaises(support.NotFound):
+            support.delete_canned(self.db, 999)
+
+    def test_first_response_time_is_measured_from_the_first_staff_reply(self):
+        ident = self.make()
+        self.assertIsNone(support.staff_ticket(self.db, ident)["firstResponseSeconds"])
+        self.db.execute("UPDATE support_tickets SET created=created-600")
+        support.staff_reply(self.db, ident, "admin@example.test", "Internal first", internal=True)       # a note is not a response
+        self.assertIsNone(support.staff_ticket(self.db, ident)["firstResponseSeconds"])
+        support.staff_reply(self.db, ident, "admin@example.test", "Hello, looking now.")
+        support.staff_reply(self.db, ident, "admin@example.test", "A later reply.")
+        seconds = support.staff_ticket(self.db, ident)["firstResponseSeconds"]
+        self.assertTrue(600 <= seconds <= 610, seconds)
+        self.assertEqual(support.staff_tickets(self.db)["tickets"][0]["firstResponseSeconds"], seconds)
+
+    # ---- owner escalation
+    def test_urgent_buzz_and_overdue_escalations_are_queued_once(self):
+        urgent = self.make(priority="urgent")
+        buzz = self.make(source="buzz", summary="Customer is angry.", escalation=True)
+        calm = self.make()
+        reasons = {row["ticket_id"]: row["reason"] for row in support.pending_escalations(self.db)}
+        self.assertEqual(reasons, {urgent: "urgent", buzz: "buzz_escalation"})
+        support.set_priority(self.db, calm, "admin@example.test", "urgent")          # becoming urgent later queues it
+        support.set_priority(self.db, calm, "admin@example.test", "high")
+        support.set_priority(self.db, calm, "admin@example.test", "urgent")          # but never twice
+        self.assertEqual(sum(1 for r in support.pending_escalations(self.db) if r["ticket_id"] == calm), 1)
+
+    def test_overdue_uses_the_configured_hours_and_ignores_answered_tickets(self):
+        waiting, answered = self.make(), self.make()
+        support.staff_reply(self.db, answered, "admin@example.test", "On it.")
+        created = self.db.execute("SELECT created FROM support_tickets WHERE id=?", (waiting,)).fetchone()[0]
+        support.queue_overdue(self.db, now=created + 4 * 3600 - 5)
+        self.assertEqual(support.pending_escalations(self.db), [])                    # not yet 4 hours
+        support.queue_overdue(self.db, now=created + 4 * 3600 + 5)
+        self.assertEqual([(r["ticket_id"], r["reason"]) for r in support.pending_escalations(self.db)], [(waiting, "overdue")])
+        support.set_first_response_hours(self.db, 12)                                  # the setting is honoured
+        later = self.make()
+        made = self.db.execute("SELECT created FROM support_tickets WHERE id=?", (later,)).fetchone()[0]
+        queued = lambda: {r["ticket_id"] for r in support.pending_escalations(self.db)}
+        support.queue_overdue(self.db, now=made + 5 * 3600)
+        self.assertNotIn(later, queued())                                              # 5 hours is fine when the limit is 12
+        support.queue_overdue(self.db, now=made + 13 * 3600)
+        self.assertIn(later, queued())
+
+    def test_owner_email_names_the_ticket_but_never_quotes_it(self):
+        import support_notify
+        ident = self.private(priority="urgent")
+        row = support.pending_escalations(self.db)[0]
+
+        class Smtp:
+            sent = []
+
+            def send_message(self, mail):
+                self.sent.append((mail["To"], mail["Subject"], mail.get_content()))
+
+        smtp = Smtp()
+        self.assertEqual(support_notify.send_escalations(smtp, "from@example.test", "https://printbee.example", "owner@example.test", self.db), 1)
+        self.assertEqual(support_notify.send_escalations(smtp, "from@example.test", "https://printbee.example", "owner@example.test", self.db), 0)
+        to, subject, body = smtp.sent[0]
+        self.assertEqual(to, "owner@example.test")
+        self.assertIn(f"SP-{ident:05d}", subject)
+        self.assertIn(f"https://printbee.example/admin#support/{ident}", body)
+        for secret in ("Secret subject", "98765", "B-12"):
+            self.assertNotIn(secret, subject + body)
+        self.assertEqual(row["reason"], "urgent")
+
+    # ---- the warehouse view
+    def test_warehouse_sees_only_assigned_or_print_quality_tickets_and_no_private_fields(self):
+        self.db.execute("UPDATE orders SET details=? WHERE id=?", (json.dumps({"customer": "Priya", "phone": "+91 98765 43210", "address": "Flat B-12",
+            "bill": {"total": 9800}, "items": [{"name": "notes.pdf", "pages": 12, "copies": 2, "colour": True, "duplex": True, "paper": "A4",
+                                                "orientation": "Portrait", "binding": "spiral", "subtotal": 4800}]}), self.order))
+        quality = self.make(category="print_quality", subject="Faded pages")
+        assigned = self.make(category="order", order_id=None, subject="Refund question")
+        hidden = self.make(category="account", order_id=None, subject="Cannot log in")
+        support.assign(self.db, assigned, "admin@example.test", "ware@example.test", {"ware@example.test"})
+        support.staff_reply(self.db, quality, "admin@example.test", "Secret admin note about the customer", internal=True)
+        support.staff_reply(self.db, quality, "admin@example.test", "Please reprint page 3.")
+        listing = support.warehouse_tickets(self.db, "ware@example.test")
+        self.assertEqual({t["id"] for t in listing["tickets"]}, {quality, assigned})
+        other = support.warehouse_tickets(self.db, "someone-else@example.test")
+        self.assertEqual({t["id"] for t in other["tickets"]}, {quality})                  # print quality only
+        detail = support.warehouse_ticket(self.db, quality, "ware@example.test")
+        text = json.dumps(detail)
+        for forbidden in ("Secret admin note", "98765", "Flat B-12", "me@example.test", "Priya", "admin@example.test", "Status changed", "@"):
+            self.assertNotIn(forbidden, text, forbidden)
+        self.assertEqual(detail["order"]["files"][0], {"name": "notes.pdf", "pages": 12, "copies": 2, "colour": True, "duplex": True,
+                                                       "paper": "A4", "orientation": "Portrait", "binding": "spiral"})
+        self.assertEqual([m["from"] for m in detail["messages"]], ["customer", "support"])
+        with self.assertRaises(support.NotFound):
+            support.warehouse_ticket(self.db, hidden, "ware@example.test")
+        with self.assertRaises(support.NotFound):
+            support.warehouse_reply(self.db, hidden, "ware@example.test", "I should not be able to")
+
+    def test_warehouse_reply_reaches_the_customer_as_support(self):
+        ident = self.make(category="print_quality", subject="Smudged")
+        support.warehouse_reply(self.db, ident, "ware@example.test", "Sorry, we will reprint it today.")
+        seen = support.customer_ticket(self.db, ident, "me@example.test")
+        self.assertEqual([m["from"] for m in seen["messages"]], ["you", "support"])
+        self.assertNotIn("ware@example.test", json.dumps(seen))
+        self.assertEqual(seen["status"], "pending")
+        self.assertEqual(support.notifications(self.db, "me@example.test", "me@example.test")["notifications"][0]["kind"], "staff_reply")
+
+    # ---- Bee Runner reports
+    def test_runner_report_needs_an_assigned_delivery_and_safety_is_urgent(self):
+        with self.assertRaises(support.NotFound):
+            support.create_runner_ticket(self.db, "rider-two", self.order, "wrong_address", "x")          # not their delivery
+        with self.assertRaises(support.SupportError):
+            support.create_runner_ticket(self.db, "rider-one", self.order, "made_up")
+        ident = support.create_runner_ticket(self.db, "rider-one", self.order, "wrong_address", "Gate is locked")
+        staff = support.staff_ticket(self.db, ident)
+        self.assertEqual((staff["source"], staff["priority"], staff["category"], staff["orderNumber"]), ("runner", "high", "runner", "PB-1"))
+        self.assertEqual(staff["customerLabel"], "Bee Runner Rider One")
+        self.assertEqual(support.create_runner_ticket(self.db, "rider-one", self.order, "wrong_address", "Still locked"), ident)    # repeat = same ticket
+        self.assertEqual(len(support.staff_ticket(self.db, ident)["messages"]), 3)
+        safe = support.create_runner_ticket(self.db, "rider-one", self.order, "safety", "Dog off its lead")
+        self.assertEqual(support.staff_ticket(self.db, safe)["priority"], "urgent")
+        self.assertIn((safe, "urgent"), [(r["ticket_id"], r["reason"]) for r in support.pending_escalations(self.db)])
+        self.assertEqual(support.notifications(self.db, "admin@example.test", "staff")["notifications"][0]["kind"], "urgent")
+
+    def test_runner_reports_are_invisible_to_customers_and_never_emailed(self):
+        ident = support.create_runner_ticket(self.db, "rider-one", self.order, "pickup_problem", "Packet missing")
+        self.assertEqual(support.customer_tickets(self.db, "me@example.test"), [])          # the order's owner cannot see it
+        with self.assertRaises(support.NotFound):
+            support.customer_ticket(self.db, ident, "me@example.test")
+        self.assertEqual(support.buzz_find_tickets(self.db, "me@example.test"), [])
+        self.assertNotIn("runner", [c["key"] for c in support.categories()])
+        with self.assertRaises(support.SupportError):                                         # a customer cannot pick the runner category
+            support.create_ticket(self.db, email="me@example.test", category="runner", subject="Sneaky", message="Trying", order_id=self.order)
+        support.staff_reply(self.db, ident, "admin@example.test", "Thanks, we are calling the customer.")
+        self.assertEqual(support.notifications(self.db, "me@example.test", "me@example.test")["notifications"], [])
+        rows = self.db.execute("SELECT t.customer_email FROM support_messages m JOIN support_tickets t ON t.id=m.ticket_id "
+                               "WHERE m.kind='agent' AND t.customer_email LIKE '%@%' AND t.source!='runner'").fetchall()
+        self.assertEqual(rows, [])                                                            # the email worker's query skips it
+
+    # ---- the Buzz hook
+    def test_buzz_creates_tickets_with_a_summary_and_can_escalate(self):
+        ident = support.create_buzz_ticket(self.db, customer_email="me@example.test", category="delivery", subject="Runner not here",
+                                           message="Where is my order?", summary="Customer waited 50 minutes.", order_id=self.order, escalation=True)
+        staff = support.staff_ticket(self.db, ident)
+        self.assertEqual((staff["source"], staff["priority"], staff["escalated"]), ("buzz", "urgent", True))
+        self.assertEqual(staff["aiSummary"], "Customer waited 50 minutes.")
+        self.assertEqual([r["reason"] for r in support.pending_escalations(self.db)], ["buzz_escalation"])
+        same = support.create_ticket(self.db, email="me@example.test", category="account", subject="Via create_ticket", message="Hello there",
+                                     source="buzz", summary="Short summary.")
+        self.assertEqual(support.staff_ticket(self.db, same)["aiSummary"], "Short summary.")
+
+    def test_buzz_can_only_read_the_signed_in_customers_own_tickets(self):
+        mine = self.private()
+        support.staff_reply(self.db, mine, "admin@example.test", "Private staff note", internal=True)
+        support.staff_reply(self.db, mine, "admin@example.test", "A reply for you.")
+        theirs = support.create_ticket(self.db, email="victim@example.test", category="account", subject="Victim secret subject",
+                                       message="Victim private message with their phone 90000 11111")
+        found = support.buzz_find_tickets(self.db, "me@example.test")
+        self.assertEqual([t["id"] for t in found], [mine])
+        self.assertNotIn("Victim", json.dumps(found))
+        # the email is always the signed-in customer's (read from the session by the server); tricks in the other inputs find nothing
+        for attempt in ("ME@example.test ", "me@example.test' OR '1'='1", "%", "me@example.test%", "_@example.test"):
+            seen = support.buzz_find_tickets(self.db, attempt, query="victim")
+            self.assertNotIn(theirs, [t["id"] for t in seen], attempt)
+        self.assertEqual(support.buzz_find_tickets(self.db, "me@example.test", query="x' OR 1=1 --"), [])
+        self.assertEqual(support.buzz_find_tickets(self.db, "me@example.test", query="victim secret"), [])     # a search cannot cross over either
+        with self.assertRaises(support.NotFound):
+            support.buzz_get_ticket(self.db, "me@example.test", theirs)
+        opened = support.buzz_get_ticket(self.db, "me@example.test", mine)
+        self.assertNotIn("Private staff note", json.dumps(opened))                                              # no internal notes
+        self.assertEqual([m["from"] for m in opened["messages"]], ["you", "support"])
+        for hook in (support.buzz_find_tickets, support.buzz_get_ticket):
+            before = self.db.execute("SELECT count(*) FROM support_messages").fetchone()[0], self.db.total_changes
+            hook(self.db, "me@example.test", **({} if hook is support.buzz_find_tickets else {"ticket_id": mine}))
+            self.assertEqual((self.db.execute("SELECT count(*) FROM support_messages").fetchone()[0], self.db.total_changes), before)   # read only
+
+
 class SupportStorage(SupportModule):
     class FakeStorage:
         """Stands in for the S3 private bucket: same put_support / read interface as order_documents.PrivateFiles."""
@@ -417,6 +655,141 @@ class SupportApi(unittest.TestCase):
         self.assertEqual(self.server.request("GET", f"/api/support/attachments/{attachment}")[0], 401)
         self.assertEqual(bea.get(f"/api/admin/support/tickets/{ticket['id']}")[0], 403)
         self.assertEqual(bea.get(f"/api/admin/support/attachments/{attachment}")[0], 403)
+
+
+class SupportLifecycle(unittest.TestCase):
+    """One real order travelling through customer, admin, warehouse and Bee Runner, with tickets at every step."""
+
+    @classmethod
+    def setUpClass(cls):
+        from test_e2e_workflow import RIDER_KEYS
+        cls.server = Server()
+        keys = cls.server.keys
+        cls.admin, cls.warehouse = {"X-Staff-Key": keys["admin"]}, {"X-Staff-Key": keys["warehouse"]}
+        cls.rider = {name: {"X-Staff-Key": key} for name, key in RIDER_KEYS.items()}
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.server.stop()
+
+    def active_delivery(self, customer):
+        """A paid, printed, packed order that rider-a has picked up. Returns (order, the real delivery code)."""
+        import fulfillment as ops
+        import print_agent
+        from test_e2e_workflow import closing_db
+        order = customer.order()
+        customer.pay(order)
+        self.assertEqual(self.server.request("POST", f"/api/staff/orders/{order['id']}/print/all", {}, self.warehouse)[0], 200)
+        for _ in range(6):
+            print_agent.run(self.server.origin, self.server.keys["print-agent"], "Mock printer", None, once=True, mock=True)
+            with closing_db(self.server) as db:
+                if db.execute("SELECT status FROM orders WHERE id=?", (order["id"],)).fetchone()[0] == "packed":
+                    break
+        self.assertEqual(self.server.request("POST", "/api/partner/availability", {"available": True}, self.rider["rider-a"])[0], 200)
+        self.assertEqual(self.server.request("POST", f"/api/partner/orders/{order['id']}/accept", {}, self.rider["rider-a"])[0], 200)
+        self.assertEqual(self.server.request("POST", f"/api/partner/orders/{order['id']}/pickup", {}, self.rider["rider-a"])[0], 200)
+        with closing_db(self.server) as db:
+            nonce = db.execute("SELECT nonce FROM deliveries WHERE order_id=?", (order["id"],)).fetchone()[0]
+        code = ops.delivery_code(self.server.keys["delivery-code"].encode(), nonce)
+        self.assertRegex(code, r"^[0-9]{4}$")
+        return order, code
+
+    def test_ticket_lifecycle_across_customer_admin_warehouse_and_runner(self):
+        request = self.server.request
+        cara = Customer(self.server, "cara@example.test")
+        order, code = self.active_delivery(cara)
+        # the customer's own tracking page does show her the code: that is the one place it belongs
+        self.assertEqual(cara.get(f"/api/orders/{order['id']}")[1]["delivery"]["code"], code)
+
+        # 1. customer opens a delivery ticket; the admin bell and the sidebar number go up
+        status, made, _ = cara.post("/api/support/tickets", {"category": "delivery", "subject": "Bee Runner is late", "message": "Waiting 40 minutes.",
+                                                               "orderId": order["id"]}, **{"Idempotency-Key": "lifecycle-key-000001"})
+        self.assertEqual(status, 200, made)
+        ticket = made["ticket"]
+        status, staff_bell, _ = request("GET", "/api/admin/support/notifications", headers=self.admin)
+        self.assertEqual((status, staff_bell["unread"], staff_bell["notifications"][0]["kind"]), (200, 1, "new_ticket"))
+
+        # 2. admin opens it: order status, Bee Runner, invoice and an ACTIVE code state, but never the code itself
+        status, detail, raw = request("GET", f"/api/admin/support/tickets/{ticket['id']}", headers=self.admin, raw=True)
+        info = json.loads(detail)["ticket"]["order"]
+        self.assertEqual((info["status"], info["delivery"]["otpState"], info["delivery"]["beeRunner"]), ("out_for_delivery", "active", "Rider A"))
+        self.assertNotIn(code.encode(), detail)
+        self.assertNotIn("nonce", detail.decode())
+        everywhere = [request("GET", "/api/admin/support/tickets?limit=50", headers=self.admin, raw=True)[1],
+                      request("GET", "/api/admin/support/notifications", headers=self.admin, raw=True)[1],
+                      request("GET", "/api/admin/support/agents", headers=self.admin, raw=True)[1]]
+        self.assertFalse(any(code.encode() in body for body in everywhere))
+        self.assertEqual(request("GET", info["invoice"]["url"], headers=self.admin, raw=True)[1][:5], b"%PDF-")
+
+        # 3. admin replies with a canned reply, leaves an internal note and an urgent flag; the customer is told, without content
+        self.assertEqual(request("POST", "/api/admin/support/canned", {"title": "Late delivery", "body": "Sorry, we are checking with your Bee Runner."}, self.admin)[0], 200)
+        canned = request("GET", "/api/admin/support/agents", headers=self.admin)[1]["canned"][0]
+        base = f"/api/admin/support/tickets/{ticket['id']}"
+        self.assertEqual(request("POST", base + "/note", {"message": "Rider A has been slow all week."}, self.admin)[0], 200)
+        self.assertEqual(request("POST", base + "/reply", {"message": canned["body"]}, self.admin)[0], 200)
+        self.assertEqual(request("POST", base + "/priority", {"priority": "urgent"}, self.admin)[0], 200)
+        bell = cara.get("/api/support/notifications")[1]
+        self.assertEqual((bell["unread"], bell["notifications"][0]["kind"]), (1, "staff_reply"))
+        self.assertNotIn("Bee Runner", json.dumps(bell))
+        self.assertNotIn("slow all week", cara.get(f"/api/support/tickets/{ticket['id']}", )[1]["ticket"]["messages"].__str__())
+        self.assertEqual(cara.post("/api/support/notifications/read", {"all": True})[1]["unread"], 0)
+
+        # 4. the Bee Runner reports a problem on this delivery; another runner cannot report on it
+        problem = f"/api/partner/orders/{order['id']}/problem"
+        self.assertEqual(request("POST", problem, {"kind": "wrong_address", "note": "Gate is locked"}, self.rider["rider-b"])[0], 404)
+        self.assertEqual(request("POST", problem, {"kind": "made_up"}, self.rider["rider-a"])[0], 400)
+        status, reported, _ = request("POST", problem, {"kind": "wrong_address", "note": "Gate is locked"}, self.rider["rider-a"])
+        self.assertEqual((status, reported["saved"]), (200, True), reported)
+        status, safety, _ = request("POST", problem, {"kind": "safety", "note": "A dog is loose"}, self.rider["rider-a"])
+        self.assertEqual(status, 200, safety)
+        listing = request("GET", "/api/admin/support/tickets?category=runner", headers=self.admin)[1]
+        self.assertEqual({(t["source"], t["priority"]) for t in listing["tickets"]}, {("runner", "high"), ("runner", "urgent")})
+        self.assertEqual(listing["tickets"][0]["customerLabel"], "Bee Runner Rider A")
+        self.assertEqual(cara.get("/api/support/tickets")[1]["tickets"][0]["id"], ticket["id"])
+        self.assertEqual(len(cara.get("/api/support/tickets")[1]["tickets"]), 1)               # she cannot see runner reports
+        from test_e2e_workflow import closing_db
+        with closing_db(self.server) as db:
+            reasons = sorted(r[0] for r in db.execute("SELECT reason FROM support_escalations"))
+        self.assertEqual(reasons, ["urgent", "urgent"])                                          # her urgent ticket + the safety report
+
+        # 5. warehouse: a print quality ticket is visible with print options, other tickets are not, and a reply reaches the customer
+        status, quality, _ = cara.post("/api/support/tickets", {"category": "print_quality", "subject": "Page 2 is faded", "message": "Too light.", "orderId": order["id"]})
+        self.assertEqual(status, 200, quality)
+        wh = request("GET", "/api/staff/support/tickets", headers=self.warehouse)[1]
+        self.assertEqual([t["id"] for t in wh["tickets"]], [quality["ticket"]["id"]])          # not her delivery ticket
+        status, raw, _ = request("GET", f"/api/staff/support/tickets/{quality['ticket']['id']}", headers=self.warehouse, raw=True)
+        self.assertEqual(json.loads(raw)["ticket"]["order"]["files"][0]["copies"], 1)
+        for forbidden in ("cara@example.test", "+91", "North Hostel", "Rider A has been slow", "Test Customer"):
+            self.assertNotIn(forbidden.encode(), raw)
+        self.assertNotIn(code.encode(), raw)
+        self.assertEqual(request("GET", f"/api/staff/support/tickets/{ticket['id']}", headers=self.warehouse)[0], 404)
+        self.assertEqual(request("POST", f"/api/staff/support/tickets/{ticket['id']}/reply", {"message": "Not mine"}, self.warehouse)[0], 404)
+        self.assertEqual(request("POST", f"/api/staff/support/tickets/{quality['ticket']['id']}/reply", {"message": "We will reprint page 2 today."}, self.warehouse)[0], 200)
+        self.assertEqual(cara.get(f"/api/support/tickets/{quality['ticket']['id']}")[1]["ticket"]["messages"][-1]["from"], "support")
+        self.assertEqual(cara.get("/api/support/notifications")[1]["unread"], 1)
+        self.assertEqual(Customer(self.server, "dan@example.test").get("/api/staff/support/tickets")[0], 403)    # a customer is not warehouse staff
+
+        # 6. customer replies, admin resolves, the customer is told
+        self.assertEqual(cara.post(f"/api/support/tickets/{ticket['id']}/reply", {"message": "Thanks, it has arrived now."})[0], 200)
+        self.assertEqual(request("POST", base + "/status", {"status": "resolved"}, self.admin)[0], 200)
+        kinds = [n["kind"] for n in cara.get("/api/support/notifications")[1]["notifications"]]
+        self.assertIn("resolved", kinds)
+        staff_kinds = [n["kind"] for n in request("GET", "/api/admin/support/notifications", headers=self.admin)[1]["notifications"]]
+        self.assertTrue({"new_ticket", "customer_reply", "urgent"} <= set(staff_kinds), staff_kinds)
+        final = request("GET", base, headers=self.admin)[1]["ticket"]
+        self.assertEqual((final["status"], final["priority"], final["firstResponseSeconds"] is not None), ("resolved", "urgent", True))
+
+    def test_admin_settings_canned_and_notification_endpoints_over_http(self):
+        request = self.server.request
+        self.assertEqual(request("GET", "/api/admin/support/agents", headers=self.admin)[1]["firstResponseHours"], 4)
+        self.assertEqual(request("POST", "/api/admin/support/settings", {"firstResponseHours": 6}, self.admin)[1]["firstResponseHours"], 6)
+        self.assertEqual(request("POST", "/api/admin/support/settings", {"firstResponseHours": 0}, self.admin)[0], 400)
+        saved = request("POST", "/api/admin/support/canned", {"title": "Thanks", "body": "Thank you for telling us."}, self.admin)[1]["canned"]
+        self.assertEqual(request("POST", "/api/admin/support/canned/delete", {"id": saved[0]["id"]}, self.admin)[1]["canned"], [])
+        eve = Customer(self.server, "eve@example.test")
+        self.assertEqual(eve.get("/api/admin/support/notifications")[0], 403)
+        self.assertEqual(eve.post("/api/admin/support/settings", {"firstResponseHours": 1})[0], 403)
+        self.assertEqual(request("GET", "/api/support/notifications")[0], 401)
 
 
 class SupportEmail(unittest.TestCase):

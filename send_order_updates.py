@@ -85,3 +85,6 @@ if __name__ == "__main__":
         print(f"Sent {send_batch(smtp, os.environ['PRINTBEE_SMTP_FROM'], origin)} order updates.")
         import support_notify
         print(f"Sent {support_notify.send_batch(smtp, os.environ['PRINTBEE_SMTP_FROM'], origin)} support emails.")
+        if os.environ.get("PRINTBEE_OWNER_EMAIL"):
+            with closing(connect()) as db:
+                print(f"Sent {support_notify.send_escalations(smtp, os.environ['PRINTBEE_SMTP_FROM'], origin, os.environ['PRINTBEE_OWNER_EMAIL'], db)} owner alerts.")

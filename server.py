@@ -14,6 +14,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlsplit
 from http.cookies import CookieError, SimpleCookie
+import threading
 from threading import BoundedSemaphore
 
 import admin_ledger
@@ -425,7 +426,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                        "/pricing.html", "/terms.html", "/queue.html", "/cart.html", "/orders.html", "/profile.html", "/profile.js", "/address.html", "/address-book.js", "/address-book.css", "/customer-login.js", "/account-home.js", "/session-sync.js",
                        "/preloader.js", "/preloader.css", "/gsap-3.13.0.min.js", "/live.js", "/status-model.js", "/status-model.css", "/portal-switch.js", "/demo-login.js", "/backend-check.js",
                        "/navigation.html", "/navigation.css", "/bottom-nav.js", "/nav-tokens.js", "/embedded-tab.js",
-                       "/order-tracking.js", "/order-tracking.css", "/help.html", "/help.js", "/help.css", "/admin-support.js", "/admin-support.css"}
+                       "/order-tracking.js", "/order-tracking.css", "/help.html", "/help.js", "/help.css", "/admin-support.js", "/admin-support.css", "/support-bell.js"}
             if path in allowed:
                 return super().do_GET()
             if re.fullmatch(r"/[a-z0-9.-]+\.(png|webp|woff2)", path):
@@ -489,7 +490,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                             order["delivery"] = {"etaMinutes": delivery["etaMinutes"]}
                     orders.append(order)
                 return self.json_response(200, {"orders": orders})
-            if path.startswith(("/api/support/", "/api/admin/support/")) or re.fullmatch(r"/api/admin/orders/[a-f0-9]{32}/invoice", path):
+            if path.startswith(("/api/support/", "/api/admin/support/", "/api/staff/support/")) or re.fullmatch(r"/api/admin/orders/[a-f0-9]{32}/invoice", path):
                 return self.support_api(path)
             if path == "/api/staff/printers":
                 return self.printers_api(path)
@@ -804,6 +805,8 @@ class PrintBee(SimpleHTTPRequestHandler):
                 return self.support_api(path)
             if path.startswith(("/api/print-agent/", "/api/partner/", "/api/admin/")):
                 return self.operations_post(path)
+            if path.startswith("/api/staff/support/"):
+                return self.support_api(path)
             if path in ("/api/staff/printers", "/api/staff/printers/remove"):
                 return self.printers_api(path)
             match = re.fullmatch(r"/api/staff/orders/([a-f0-9]{32})/print/(all|\d+)", path)
@@ -1179,12 +1182,18 @@ class PrintBee(SimpleHTTPRequestHandler):
 
     def support_api(self, path):
         """Support tickets. Customers use /api/support/..., admins /api/admin/support/... All updates are POST."""
-        admin_area = path.startswith("/api/admin/")
+        area = "admin" if path.startswith("/api/admin/") else "staff" if path.startswith("/api/staff/") else "customer"
         with closing(connect()) as db:
-            if admin_area:
+            if area == "admin":
                 if self.get_role() != "admin":
                     return self.json_response(403, {"error": "Admin access is required."})
                 actor = "admin" if self.headers.get("X-Staff-Key") else auth.portal_google_email(db, self.headers, "admin") or "admin"
+                email = None
+            elif area == "staff":
+                role = self.get_role()
+                if role not in ("warehouse", "admin"):
+                    return self.json_response(403, {"error": "Warehouse access is required."})
+                actor = role if self.headers.get("X-Staff-Key") else auth.portal_google_email(db, self.headers, "warehouse") or role
                 email = None
             else:
                 email = auth.session_email(db, self.headers)
@@ -1194,7 +1203,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                     return self.json_response(403, {"error": "Open PrintBee directly and try again."})
                 actor = email
         upload = re.fullmatch(r"/api/support/tickets/(\d+)/messages/(\d+)/attachments", path)
-        if upload and self.command == "POST" and not admin_area:
+        if upload and self.command == "POST" and area == "customer":
             try:
                 with closing(connect()) as db, db:
                     db.execute("BEGIN IMMEDIATE")
@@ -1222,7 +1231,7 @@ class PrintBee(SimpleHTTPRequestHandler):
             with closing(connect()) as db, db:
                 if self.command == "POST":
                     db.execute("BEGIN IMMEDIATE")
-                run = lambda: self.support_route(db, path, query, data, admin_area, actor, email)
+                run = lambda: self.support_route(db, path, query, data, area, actor, email)
                 if self.command == "POST":
                     # A double click or retry carries the same Idempotency-Key and gets the first answer back.
                     result = support.idempotent(db, f"{actor}|{path}", self.headers.get("Idempotency-Key"), run)
@@ -1234,20 +1243,58 @@ class PrintBee(SimpleHTTPRequestHandler):
             return self.json_response(429, {"error": str(error)})
         except support.SupportError as error:
             return self.json_response(400, {"error": str(error)})
+        if self.command == "POST":
+            self.kick_escalations()
         if isinstance(result, tuple):       # a download: (body, type, disposition)
             return self.send_download(*result)
         return self.json_response(200, result)
 
-    def support_route(self, db, path, query, data, admin_area, actor, email):
+    def kick_escalations(self):
+        """Email the owner right away when a ticket just became urgent or a Buzz escalation (the worker also sweeps)."""
+        if not os.environ.get("PRINTBEE_OWNER_EMAIL") or not os.environ.get("PRINTBEE_SMTP_HOST"):
+            return
+        try:
+            with closing(connect()) as db:
+                waiting = db.execute("SELECT count(*) FROM support_escalations WHERE sent IS NULL AND reason!='overdue'").fetchone()[0]
+        except sqlite3.Error:
+            return
+        if waiting:
+            import support_notify
+            threading.Thread(target=support_notify.send_pending_now, daemon=True).start()
+
+    def support_route(self, db, path, query, data, area, actor, email):
         post = self.command == "POST"
         ip = self.client_ip()
-        file = re.fullmatch(r"/api/(?:admin/)?support/attachments/(\d+)", path)
+        admin_area = area == "admin"
+        file = re.fullmatch(r"/api/(admin/|staff/)?support/attachments/(\d+)", path)
         if file and not post:
-            row = support.attachment_for_staff(db, int(file[1])) if admin_area else support.attachment_for_customer(db, int(file[1]), email)
+            if area == "admin":
+                row = support.attachment_for_staff(db, int(file[2]))
+            elif area == "staff":
+                row = support.warehouse_attachment(db, int(file[2]), actor)
+            else:
+                row = support.attachment_for_customer(db, int(file[2]), email)
             return self.read_support_attachment(row)
+        if area == "staff":
+            if path == "/api/staff/support/tickets" and not post:
+                return support.warehouse_tickets(db, actor, status=query.get("status"), limit=query.get("limit", 25), offset=query.get("offset", 0))
+            match = re.fullmatch(r"/api/staff/support/tickets/(\d+)(?:/(reply))?", path)
+            if match and not post and not match[2]:
+                return {"ticket": support.warehouse_ticket(db, int(match[1]), actor)}
+            if match and post and match[2] == "reply":
+                support.check_rate(db, "message", actor, ip)
+                support.warehouse_reply(db, int(match[1]), actor, data.get("message"))
+                support.record_rate(db, "message", actor, ip)
+                return {"ticket": support.warehouse_ticket(db, int(match[1]), actor)}
+            raise support.NotFound("Unknown support request.")
         if not admin_area:
             if path == "/api/support/categories" and not post:
                 return {"categories": support.categories()}
+            if path == "/api/support/notifications" and not post:
+                return support.notifications(db, email, email)
+            if path == "/api/support/notifications/read" and post:
+                support.mark_notifications_read(db, email, email, None if data.get("all") else [data.get("id")])
+                return support.notifications(db, email, email)
             if path == "/api/support/tickets":
                 if not post:
                     return {"tickets": support.customer_tickets(db, email)}
@@ -1285,7 +1332,22 @@ class PrintBee(SimpleHTTPRequestHandler):
         if path == "/api/admin/support/agents" and not post:
             agents = sorted(set(self.server.google_access["admin"]) | set(self.server.google_access["warehouse"]))
             return {"me": actor, "agents": agents, "categories": support.categories(),
-                    "statuses": list(support.STATUSES), "priorities": list(support.PRIORITIES)}
+                    "statuses": list(support.STATUSES), "priorities": list(support.PRIORITIES),
+                    "firstResponseHours": support.first_response_hours(db), "canned": support.list_canned(db)}
+        if path == "/api/admin/support/notifications" and not post:
+            return support.notifications(db, actor, "staff")
+        if path == "/api/admin/support/notifications/read" and post:
+            support.mark_notifications_read(db, actor, "staff", None if data.get("all") else [data.get("id")])
+            return support.notifications(db, actor, "staff")
+        if path == "/api/admin/support/settings" and post:
+            support.set_first_response_hours(db, data.get("firstResponseHours"))
+            return {"firstResponseHours": support.first_response_hours(db)}
+        if path == "/api/admin/support/canned" and post:
+            support.save_canned(db, data)
+            return {"canned": support.list_canned(db)}
+        if path == "/api/admin/support/canned/delete" and post:
+            support.delete_canned(db, data.get("id"))
+            return {"canned": support.list_canned(db)}
         if path == "/api/admin/support/tickets":
             if not post:
                 return support.staff_tickets(db, status=query.get("status"), priority=query.get("priority"),
@@ -1688,11 +1750,26 @@ class PrintBee(SimpleHTTPRequestHandler):
                            (partner, data["available"], int(time.time())))
                 result = {"saved": True}
             else:
-                match = re.fullmatch(r"/api/partner/orders/([a-f0-9]{32})/(accept|pickup|deliver|location|undeliverable)", path)
+                match = re.fullmatch(r"/api/partner/orders/([a-f0-9]{32})/(accept|pickup|deliver|location|undeliverable|problem)", path)
                 if not match:
                     return self.json_response(404, {"error": "Unknown operation."})
                 order_id, action = match.groups()
                 result = {"saved": True}
+                if action == "problem":
+                    # A Bee Runner reports a problem on their own delivery. It becomes an admin ticket with a Runner source.
+                    try:
+                        support.check_rate(db, "ticket", "runner:" + partner, self.client_ip())
+                        ticket = support.idempotent(db, f"runner:{partner}|{path}", self.headers.get("Idempotency-Key"), lambda: {
+                            "ticketId": support.create_runner_ticket(db, partner, order_id, data.get("kind"), data.get("note") or "")})
+                        support.record_rate(db, "ticket", "runner:" + partner, self.client_ip())
+                    except support.RateLimited as error:
+                        return self.json_response(429, {"error": str(error)})
+                    except support.NotFound as error:
+                        return self.json_response(404, {"error": str(error)})
+                    except support.SupportError as error:
+                        return self.json_response(400, {"error": str(error)})
+                    number = f"SP-{ticket['ticketId']:05d}"
+                    return self.json_response(200, {"saved": True, "ticket": number})
                 if action == "accept":
                     if not db.execute(
                         "SELECT 1 FROM partner_availability WHERE partner=? AND available=1 AND updated>?",
@@ -1860,7 +1937,7 @@ if __name__ == "__main__":
         db.executescript(razorpay_checkout.SCHEMA)
         db.executescript(ops.SCHEMA)
         db.executescript(admin_records.SCHEMA)
-        db.executescript(support.SCHEMA)
+        support.install(db)
         google_access["partner"].update(admin_records.partner_accounts(db))
         google_access["warehouse"].update({email: "warehouse" for email in admin_records.warehouse_staff(db)})
         db.executescript(partner_auth.SCHEMA)
