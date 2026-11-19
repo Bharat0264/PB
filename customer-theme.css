@@ -1,5 +1,9 @@
 /* Customer screens share the Hive switch and keep their own layout and typography. */
 .customer-header-actions { display: flex; flex: none; align-items: center; gap: clamp(8px,1vw,12px); }
+/* A page header with no tab bar (Terms) has only the logo and these buttons: keep the buttons at the right edge,
+   not in the middle grid column next to the logo. */
+.customer-theme .top > .brand:has(+ .customer-header-actions) { grid-column: 1; grid-row: 1; align-self: center; }
+.customer-theme .top > .brand + .customer-header-actions { grid-column: 1 / -1; grid-row: 1; justify-self: end; align-self: center; }
 .customer-header-actions .header-profile {
   display: grid; place-items: center; width: 44px; height: 44px; flex: none;
   border-radius: 50%; background: #f8e4a6; color: #413719;
