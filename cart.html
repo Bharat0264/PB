@@ -19,7 +19,7 @@
 <link rel="stylesheet" href="/status-model.css?v=2">
 <script src="/status-model.js?v=1" defer></script>
 <script src="/live.js?v=1" defer></script>
-<script src="studio.js?v=cart-tab" defer></script>
+<script src="studio.js?v=no-coupon" defer></script>
 <link rel="stylesheet" href="/hive-theme.css?v=soft-focus">
 <link rel="stylesheet" href="/customer-theme.css?v=hive-clay">
 <script src="/hive-theme.js?v=sun-moon"></script>
@@ -91,8 +91,8 @@
       </div>
       <label id="checkout-slot" hidden>Delivery slot<select name="slot" disabled></select></label>
       <label class="checkout-address">Delivery notes (optional)<textarea name="notes" maxlength="500"></textarea></label>
-      <label>Coupon code (optional)<input name="coupon" maxlength="30"></label>
-      <button class="pill raised" type="button" id="apply-coupon">Apply coupon</button>
+      <label hidden>Coupon code (optional)<input name="coupon" maxlength="30"></label>
+      <button class="pill raised" type="button" id="apply-coupon" hidden>Apply coupon</button>
     </fieldset>
     <section id="checkout-bill" aria-label="Order bill" hidden><h3>Order bill</h3><ul></ul></section>
     <p id="checkout-payment-note" hidden></p>

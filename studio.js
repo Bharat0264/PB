@@ -522,12 +522,11 @@ function setCheckoutStep(payment) {
   delivery.hidden = !payment;
   delivery.disabled = !payment;
   const paymentNote = document.querySelector('#checkout-payment-note');
-  paymentNote.hidden = !payment;
   paymentNote.textContent = {
     test: 'Local test payment. No money is charged.',
-    razorpay: 'Pay once for all files using Razorpay.',
     disabled: 'Payments are currently unavailable.',
-  }[paymentMode];
+  }[paymentMode] || '';
+  paymentNote.hidden = !payment || !paymentNote.textContent;
   document.querySelector('#checkout-back').hidden = !payment;
   document.querySelector('#checkout-title').textContent = payment ? 'Delivery and payment' : 'Print settings';
   checkoutSubmit.textContent = payment ? (paymentMode === 'test' ? 'Place test order' : 'Pay for order') : 'Review order';
