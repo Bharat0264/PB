@@ -55,10 +55,18 @@ class BeeHq(unittest.TestCase):
         self.assertGreater(np.linalg.norm(n, axis=2).mean(), 0.97)                   # still unit vectors after enlarging
         self.assertGreater(n[..., 2].mean(), 0.9)                                     # and still mostly pointing out
 
-    def test_colours_are_the_shipped_clay_colours(self):
-        shown = np.asarray(g.image(self.new_doc, self.new_bin, 0).convert("RGB").resize((64, 64))).astype(float).mean(axis=(0, 1))
-        clay = np.asarray(__import__("PIL.Image", fromlist=["Image"]).open(root / "buzz-bee-clay.webp").convert("RGB").resize((64, 64))).astype(float).mean(axis=(0, 1))
-        self.assertLess(abs(shown - clay).max(), 6)
+    def test_colours_are_the_flat_palette(self):
+        """Honey yellow, ink and the other palette colours fill their parts evenly: no baked highlights, no grey blotches."""
+        pic = np.asarray(g.image(self.new_doc, self.new_bin, 0).convert("RGB").resize((512, 512))).astype(float)
+        def share(colour, tolerance=14):
+            return float((np.abs(pic - np.array(colour)).max(axis=2) < tolerance).mean())
+        self.assertGreater(share((245, 197, 66)), 0.08)              # honey yellow
+        self.assertGreater(share((42, 33, 18)), 0.03)                # ink
+        self.assertGreater(share((245, 160, 75)), 0.0005)            # cheeks and tongue
+        self.assertGreater(share((255, 248, 232)), 0.02)             # wings
+        used = np.abs(pic - pic.mean(axis=2, keepdims=True)).max(axis=2)
+        palette = sum(share(c) for c in ((245, 197, 66), (42, 33, 18), (245, 160, 75), (255, 248, 232), (255, 255, 255)))
+        self.assertGreater(palette, 0.45)                            # most of the picture is flat palette colour
 
     def test_the_original_model_is_untouched(self):
         committed = subprocess.run(["git", "show", "HEAD:buzz-bee.glb"], cwd=root, capture_output=True)
@@ -88,12 +96,14 @@ class BeeLook(unittest.TestCase):
 
     def test_the_values_follow_the_brief(self):
         body = self.js[self.js.index("    body: {"):self.js.index("    eyes: {")]
-        self.assertIn("clearcoat: 0.15", body)
-        self.assertRegex(body, r"roughness: 0\.[56][0-9]?,")
+        self.assertIn("clearcoat: 0,", body)
+        self.assertIn("sheen: 0,", body)
+        self.assertRegex(body, r"roughness: 0\.[67][0-9]?,")
         wings = self.js[self.js.index("    wings: {"):self.js.index("    bubble: {")]
         for needle in ("transmission:", "thickness:", "ior: 1.4", "doubleSided: true"):
             self.assertIn(needle, wings)
         self.assertIn("ACESFilmic", self.js)
+        self.assertIn("toneMapping: 'Neutral'", self.js)         # Neutral keeps the palette colours; ACES turned the honey yellow lemon
         self.assertIn("SRGBColorSpace", self.js)
         self.assertIn("getMaxAnisotropy", self.js)
         self.assertIn("antialias: true", self.js)

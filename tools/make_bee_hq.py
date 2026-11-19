@@ -138,6 +138,63 @@ def enlarge_colour(img, size=TEXTURE_SIZE):
     return Image.fromarray(np.clip(np.minimum(np.maximum(sharp, bottom), top), 0, 255).astype(np.uint8))
 
 
+HONEY, INK, ORANGE, WHITE, CREAM = (245, 197, 66), (42, 33, 18), (245, 160, 75), (255, 255, 255), (255, 248, 232)
+
+
+def uv_classes(uv, index, cls, size):
+    """Paint every triangle's class into the picture's own space (class number + 1; 0 = not used by any triangle)."""
+    label = np.zeros((size, size), np.uint8)
+    for k in range(len(index)):
+        pts = np.round(uv[index[k]] * (size - 1)).astype(np.int32)
+        cv2.fillConvexPoly(label, pts, int(cls[k]) + 1)
+    return cv2.dilate(label, np.ones((5, 5), np.uint8))                      # a little past each chart's edge, so mip-mapping never shows the old colours
+
+
+def nearest_fill(labels, known):
+    """For every pixel not `known`, the label of the nearest known pixel."""
+    _, nearest = cv2.distanceTransformWithLabels((~known).astype(np.uint8), cv2.DIST_L2, 5, labelType=cv2.DIST_LABEL_PIXEL)
+    ys, xs = np.nonzero(known)
+    lookup = np.zeros(nearest.max() + 1, labels.dtype)
+    lookup[nearest[ys, xs]] = labels[ys, xs]
+    return lookup[nearest]
+
+
+def solid_colours(img, classes):
+    """Clean, evenly filled colour: the painted-in highlights, shading and speckle of the original picture are replaced by flat palette colours.
+    body: honey yellow / ink (dark brown-black) / soft orange cheeks and tongue; bubble: white with ink dots; wings: cream; eyes: left as drawn.
+    Each flat area is decided at 2048 px and its edge is softened by about 1 px, so the edges stay crisp and round."""
+    rgb = np.asarray(img.convert("RGB")).astype(np.float32) / 255
+    hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)                                   # hue 0-360, saturation and value 0-1
+    hue, sat, val = hsv[..., 0], hsv[..., 1], hsv[..., 2]
+    out = rgb.copy()
+
+    def paint(region, parts):
+        """parts: list of (confident mask, colour). Everything unsure inside `region` takes the colour of the nearest sure pixel."""
+        sure = np.zeros(region.shape, bool)
+        which = np.zeros(region.shape, np.uint8)
+        for number, (mask, _) in enumerate(parts, 1):
+            take = mask & region & ~sure
+            which[take] = number
+            sure |= take
+        if not sure.any():
+            return
+        which = np.where(region, nearest_fill(which, sure), 0)
+        for number, (_, colour) in enumerate(parts, 1):
+            weight = cv2.GaussianBlur(((which == number) & region).astype(np.float32), (0, 0), 1.1)
+            out[...] = np.where(((which == number) & region)[..., None] | (weight[..., None] > 0) & region[..., None],
+                                out * (1 - weight[..., None]) + np.array(colour, np.float32) / 255 * weight[..., None], out)
+
+    body = classes == 1
+    dark = val < 0.36
+    orange = (hue < 33) & (sat > 0.42) & (val > 0.62)
+    yellow = (hue >= 33) & (hue < 70) & (sat > 0.40) & (val > 0.55)
+    paint(body, [(dark, INK), (yellow, HONEY), (orange, ORANGE)])
+    bubble = classes == 4
+    paint(bubble, [(val < 0.42, INK), (val > 0.72, WHITE)])
+    paint(classes == 3, [(np.ones(val.shape, bool), CREAM)])
+    return Image.fromarray(np.clip(out * 255 + 0.5, 0, 255).astype(np.uint8))
+
+
 def enlarge_normal(img, size=TEXTURE_SIZE):
     n = np.asarray(img.convert("RGB")).astype(np.float32) / 255 * 2 - 1
     big = cv2.resize(n, (size, size), interpolation=cv2.INTER_CUBIC)
@@ -165,6 +222,7 @@ def build(source, clay_path, target):
     material_index = {name: i for i, name in enumerate(PIECES)}
 
     colour = enlarge_colour(Image.open(clay_path))
+    colour = solid_colours(colour, uv_classes(uv, index, cls, TEXTURE_SIZE))
     original = {i: g.image(doc, binary, i) for i in range(len(doc["images"]))}
     normal_source = doc["textures"][doc["materials"][0]["normalTexture"]["index"]]["source"]
     normal_map = enlarge_normal(original[normal_source])

@@ -236,8 +236,8 @@
 
   const root = el('div', {className: 'buzz-root'});
   // The still bee pictures (idle, wave, typing): one transparent picture per pose, each made at 108, 216 and 324 px (1x, 2x, 3x), all the same canvas.
-  const picture = (kind, className, size) => el('img', {className, alt: '', width: size, height: size, decoding: 'async', src: `/buzz-bee-${kind}-1x.webp?v=6`,
-    srcset: `/buzz-bee-${kind}-1x.webp?v=6 1x, /buzz-bee-${kind}-2x.webp?v=6 2x, /buzz-bee-${kind}-3x.webp?v=6 3x`});
+  const picture = (kind, className, size) => el('img', {className, alt: '', width: size, height: size, decoding: 'async', src: `/buzz-bee-${kind}-1x.webp?v=7`,
+    srcset: `/buzz-bee-${kind}-1x.webp?v=7 1x, /buzz-bee-${kind}-2x.webp?v=7 2x, /buzz-bee-${kind}-3x.webp?v=7 3x`});
   const canvas = el('canvas', {className: 'buzz-canvas', 'aria-hidden': 'true'});
   const fab = el('button', {type: 'button', className: 'buzz-fab', 'aria-label': 'Chat with Buzz, PrintBee support', 'aria-haspopup': 'dialog', 'aria-expanded': 'false',
     'aria-describedby': 'buzz-tip'},
@@ -515,7 +515,7 @@
     const link = navigator.connection;
     if (link && (link.saveData || /(^|-)2g$/.test(link.effectiveType || ''))) { fab.dataset.state = 'fallback'; introTip(); return; }
     const giveUp = setTimeout(() => { if (fab.dataset.state === 'loading') { fab.dataset.state = 'fallback'; introTip(); } }, 7000);
-    import('/buzz-bee3d.js?v=15')
+    import('/buzz-bee3d.js?v=16')
       .then(module => module.createBee(canvas, {reducedMotion: REDUCED, scale: 0.86, onFrame: lift => fab.style.setProperty('--lift', lift.toFixed(3))}))
       .then(created => {
         clearTimeout(giveUp);

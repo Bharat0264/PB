@@ -12,43 +12,43 @@ import * as THREE from '/vendor/three/three.module.js';
 import {GLTFLoader} from '/vendor/three/GLTFLoader.js';
 import {RoomEnvironment} from '/vendor/three/RoomEnvironment.js';
 
-const MODEL = '/bee_hq.glb?v=1';                     // the improved model: smooth seam normals, four parts (body, eyes, wings, bubble), 2048 px WebP textures
+const MODEL = '/bee_hq.glb?v=3';                     // the improved model: smooth seam normals, four parts (body, eyes, wings, bubble), 2048 px WebP textures
 const FALLBACK_MODEL = '/buzz-bee.glb?v=1';           // the original, used if the improved one cannot be loaded (it is never changed)
 const CLAY_TEXTURE = '/buzz-bee-clay.webp?v=3';       // the original model's colour picture (only used with the fallback model)
 
 // Every look value in one place. Change a number here and reload: nothing else needs touching.
 // Material names match the four parts of bee_hq.glb. Values follow three.js MeshPhysicalMaterial.
 export const BEE_LOOK = {
+  // The bee's colours are flat palette colours baked into its colour picture by tools/make_bee_hq.py (honey #F5C542, ink #2A2112, cheeks #F5A04B,
+  // wings #FFF8E8, bubble white with ink dots). Everything below is only how that flat colour is lit: a soft clay, no gloss, no baked light.
   render: {
-    toneMapping: 'ACESFilmic',              // 'ACESFilmic' | 'AgX' | 'Neutral' | 'None'
-    exposure: 0.9,                         // ACES darkens and shifts colour a little: this, the light, and each material's mapGlow keep the bee's colours as they were
+    toneMapping: 'Neutral',                  // 'ACESFilmic' | 'AgX' | 'Neutral' | 'None'
+    exposure: 1.12,                          // ACES darkens and shifts colour a little: this, the light, and each material's mapGlow keep the palette colours as painted
     environment: 'studio',                  // the soft studio room that ships with three.js (RoomEnvironment), blurred like a studio HDRI
     environmentBlur: 0.04,
-    environmentIntensity: 0.3,
-    anisotropy: 8,                      // 'max' or a number: keeps the texture sharp when the bee turns
-    keyLight: {color: 0xfff1d6, intensity: 1.0, position: [1.6, 2.4, 2.6]},
-    rimLight: {color: 0xffe3a8, intensity: 0.45, position: [-2.2, 1.2, -2]},
-    fill: {sky: 0xfffaf0, ground: 0xffdca0, intensity: 0.68},
-    normalScale: 0.25,                      // a gentle bump only: a strong normal map speckled the antennae and headphones
+    environmentIntensity: 0.25,
+    anisotropy: 8,                          // 'max' or a number: keeps the texture sharp when the bee turns
+    keyLight: {color: 0xfff1d6, intensity: 0.8, position: [1.6, 2.4, 2.6]},
+    rimLight: {color: 0xffe3a8, intensity: 0.25, position: [-2.2, 1.2, -2]},                 // the faint fill
+    fill: {sky: 0xfff8e8, ground: 0xe9d9b0, intensity: 0.7},                                  // hemisphere light
+    normalScale: 0.2,                       // a very gentle bump only
   },
   fallback: {roughness: 0.78, clearcoat: 0, sheen: 0.6, transmission: 0},     // the matte clay look used only if bee_hq.glb cannot load and the original model is shown
   materials: {
     body: {                                  // head, headphones, body, arms, stripes, antennae
-      roughness: 0.62, metalness: 0, clearcoat: 0.15, clearcoatRoughness: 0.5,
-      sheen: 0.1, sheenRoughness: 0.55, sheenColor: 0xffc23a, envMapIntensity: 0.3, mapGlow: 0.42,
+      roughness: 0.7, metalness: 0, clearcoat: 0, sheen: 0, specularIntensity: 0.2, envMapIntensity: 0.25, mapGlow: 0.28,
     },
-    eyes: {                                  // glossy black with crisp white highlights
-      roughness: 0.12, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.03,
-      specularIntensity: 1, envMapIntensity: 0.8, mapGlow: 0,
+    eyes: {                                  // glossy black with its one white highlight
+      roughness: 0.15, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.05,
+      specularIntensity: 1, envMapIntensity: 0.6, mapGlow: 0,
     },
-    wings: {                                 // see-through, a little thick, glassy
-      roughness: 0.4, metalness: 0, clearcoat: 0.2, clearcoatRoughness: 0.4,
-      transmission: 0.4, thickness: 0.18, ior: 1.4, attenuationColor: 0xfff4dc, attenuationDistance: 0.6,
-      sheen: 0.05, sheenColor: 0xffffff, sheenRoughness: 0.4, envMapIntensity: 0.3, mapGlow: 0.2, doubleSided: true,
+    wings: {                                 // translucent cream, a clean rim, no grey
+      roughness: 0.55, metalness: 0, clearcoat: 0, sheen: 0, specularIntensity: 0.2,
+      transmission: 0.45, thickness: 0.12, ior: 1.4, attenuationColor: 0xfff8e8, attenuationDistance: 0.8,
+      envMapIntensity: 0.25, mapGlow: 0.3, doubleSided: true,
     },
-    bubble: {                                // soft glossy white
-      roughness: 0.6, metalness: 0, clearcoat: 0.1, clearcoatRoughness: 0.5,
-      sheen: 0.1, sheenRoughness: 0.5, sheenColor: 0xffffff, envMapIntensity: 0.3, mapGlow: 0.7,   // mapGlow: how much of the picture's own colour is added back as light, so ACES and the gloss do not wash it out
+    bubble: {                                // warm white with crisp ink dots
+      roughness: 0.7, metalness: 0, clearcoat: 0, sheen: 0, specularIntensity: 0.2, envMapIntensity: 0.25, mapGlow: 0.55,   // mapGlow: how much of the picture's own colour is added back as light, so ACES does not grey it
     },
   },
 };
@@ -110,7 +110,7 @@ export async function createBee(canvas, {reducedMotion = false, exact = false, p
     const map = clay || original.map;
     for (const texture of [map, original.normalMap]) if (texture) texture.anisotropy = anisotropy;
     node.material = new THREE.MeshPhysicalMaterial({
-      ...values, map, normalMap: original.normalMap, normalScale: new THREE.Vector2(L.normalScale, L.normalScale),
+      name: original.name, ...values, map, normalMap: original.normalMap, normalScale: new THREE.Vector2(L.normalScale, L.normalScale),
       side: doubleSided ? THREE.DoubleSide : THREE.FrontSide,
       ...(mapGlow ? {emissive: new THREE.Color(0xffffff), emissiveMap: map, emissiveIntensity: mapGlow} : {}),
     });
@@ -257,6 +257,25 @@ export async function createBee(canvas, {reducedMotion = false, exact = false, p
   return {
     start, stop,
     show(on) { shown = on; if (on) start(); else stop(); },
+    // QA only (never called by the page): 'current' | 'flat' (no pictures, one flat colour per part) | 'noenv' (no studio reflections).
+    // Used to tell baked light in the pictures, reflections, and bad normals apart.
+    qa(mode) {
+      const flat = {body: 0xf5c542, eyes: 0x111111, wings: 0xfff8e8, bubble: 0xffffff};
+      model.traverse(node => {
+        if (!node.isMesh) return;
+        const m = node.material;
+        m.userData.keep ??= {map: m.map, normalMap: m.normalMap, emissiveMap: m.emissiveMap, color: m.color.clone(), env: m.envMapIntensity, glow: m.emissiveIntensity};
+        const keep = m.userData.keep;
+        const noMaps = mode === 'flat';
+        m.map = noMaps ? null : keep.map; m.normalMap = noMaps ? null : keep.normalMap; m.emissiveMap = noMaps ? null : keep.emissiveMap;
+        m.color.copy(noMaps ? new THREE.Color(flat[m.name] ?? 0xf5c542) : keep.color);
+        m.envMapIntensity = mode === 'noenv' ? 0 : keep.env;
+        m.emissiveIntensity = noMaps ? 0 : keep.glow;
+        m.needsUpdate = true;
+      });
+      scene.environmentIntensity = mode === 'noenv' ? 0 : BEE_LOOK.render.environmentIntensity;
+      return mode;
+    },
     hover(on) { state.hover = on; if (on && !reducedMotion && state.fly < 0) state.wave = 0; if (!on) { state.lookX = state.lookY = 0; } if (reducedMotion) drawOnce(); },
     look(x, y) { if (!reducedMotion) { state.lookX = clamp(x, -1, 1); state.lookY = clamp(y, -1, 1); } },
     poke() { if (!reducedMotion) state.fly = 0; },
