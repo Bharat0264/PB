@@ -25,9 +25,10 @@
   const style = document.createElement('style');
   style.textContent = `
   .buzz-root { --buzz-lift: 0px; font-family: Manrope, system-ui, sans-serif; color: var(--hv-ink, #2a2112); }
-  .buzz-fab { position: fixed; z-index: 80; right: 18px; bottom: calc(var(--buzz-lift) + 18px + env(safe-area-inset-bottom, 0px)); width: 62px; height: 62px; padding: 0; border: 0; border-radius: 50%;
-    display: grid; place-items: center; cursor: pointer; background: var(--hv-honey-grad, linear-gradient(180deg, #ffe495, #f5c542 70%, #edb52f)); box-shadow: var(--hv-sh-2, 0 6px 16px rgba(110,80,28,.25)); }
-  .buzz-fab img { width: 40px; height: 36px; object-fit: contain; display: block; animation: buzz-bob 3.2s ease-in-out infinite; }
+  .buzz-fab { position: fixed; z-index: 80; right: 18px; bottom: calc(var(--buzz-lift) + 18px + env(safe-area-inset-bottom, 0px)); width: 72px; height: 72px; padding: 0; border: 0; border-radius: 50%;
+    display: block; cursor: pointer; background: transparent; filter: drop-shadow(0 6px 10px rgba(150,100,10,.28)); animation: buzz-bob 3.2s ease-in-out infinite; transition: transform .15s ease; }
+  .buzz-fab:hover { transform: scale(1.06); }
+  .buzz-fab img { width: 100%; height: 100%; object-fit: contain; display: block; pointer-events: none; }
   .buzz-fab:focus-visible, .buzz-chip:focus-visible, .buzz-send:focus-visible, .buzz-close:focus-visible, .buzz-btn:focus-visible, .buzz-thumb:focus-visible, .buzz-input:focus-visible { outline: 3px solid var(--hv-honey-700, #b9831a); outline-offset: 2px; }
   .buzz-fab[hidden] { display: none; }
   .buzz-sheet { position: fixed; z-index: 85; right: 24px; bottom: 24px; width: min(400px, calc(100vw - 32px)); height: min(640px, calc(100dvh - 48px)); display: flex; flex-direction: column; overflow: hidden;
@@ -35,7 +36,7 @@
   .buzz-sheet[hidden] { display: none; }
   @media (max-width: 600px) { .buzz-sheet { inset: 0; width: auto; height: 100dvh; border-radius: 0; padding-bottom: env(safe-area-inset-bottom, 0px); } }
   .buzz-head { flex: none; display: flex; align-items: center; gap: 10px; padding: 12px 14px 12px 16px; background: var(--hv-surface-2, #fff6dd); padding-top: calc(12px + env(safe-area-inset-top, 0px)); }
-  .buzz-head img { width: 34px; height: 30px; object-fit: contain; flex: none; }
+  .buzz-head img { width: 38px; height: 38px; object-fit: contain; flex: none; border-radius: 50%; }
   .buzz-head h2 { flex: 1; margin: 0; font-size: 16px; line-height: 1.2; font-weight: 800; }
   .buzz-close { flex: none; width: 40px; height: 40px; border: 0; border-radius: 50%; cursor: pointer; font-size: 22px; line-height: 1; background: var(--hv-surface, #fff); color: inherit; }
   .buzz-context { flex: none; display: flex; align-items: center; gap: 8px; margin: 10px 14px 0; padding: 6px 6px 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 700; background: var(--hv-surface-3, #ffefc7); }
@@ -107,7 +108,7 @@
 
   const root = el('div', {className: 'buzz-root'});
   const fab = el('button', {type: 'button', className: 'buzz-fab', 'aria-label': 'Chat with Buzz, PrintBee support', 'aria-haspopup': 'dialog', 'aria-expanded': 'false'},
-    el('img', {src: '/printbee-header-bee.webp', alt: '', width: 40, height: 36}));
+    el('img', {src: '/buzz-bee.webp', alt: '', width: 72, height: 72}));
   const title = el('h2', {id: 'buzz-title', text: 'Buzz - PrintBee support'});
   const close = el('button', {type: 'button', className: 'buzz-close', 'aria-label': 'Close chat', text: '×'});
   const contextText = el('span');
@@ -119,7 +120,7 @@
   const send = el('button', {type: 'submit', className: 'buzz-send', 'aria-label': 'Send message'}, svg(['M4 12l16-8-6 16-3-6z']));
   const form = el('form', {className: 'buzz-form'}, input, send);
   const sheet = el('section', {className: 'buzz-sheet', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'buzz-title', hidden: true},
-    el('header', {className: 'buzz-head'}, el('img', {src: '/printbee-header-bee.webp', alt: '', width: 34, height: 30}), title, close), context, log, chips, form);
+    el('header', {className: 'buzz-head'}, el('img', {src: '/buzz-bee.webp', alt: '', width: 38, height: 38}), title, close), context, log, chips, form);
   root.append(fab, sheet);
 
   // ---- placing the button above the phone dock ----
