@@ -1,5 +1,6 @@
 import argparse
 import hashlib
+import support
 import hmac
 import json
 import os
@@ -488,6 +489,8 @@ class PrintBee(SimpleHTTPRequestHandler):
                             order["delivery"] = {"etaMinutes": delivery["etaMinutes"]}
                     orders.append(order)
                 return self.json_response(200, {"orders": orders})
+            if path.startswith(("/api/support/", "/api/admin/support/")) or re.fullmatch(r"/api/admin/orders/[a-f0-9]{32}/invoice", path):
+                return self.support_api(path)
             if path == "/api/staff/printers":
                 return self.printers_api(path)
             if path == "/api/staff/orders":
@@ -797,6 +800,8 @@ class PrintBee(SimpleHTTPRequestHandler):
                 return self.customer_notifications(mark_read=True)
             if path in ("/api/partner/auth/send", "/api/partner/auth/check", "/api/partner/auth/logout"):
                 return self.verify_partner_phone(path.rsplit("/", 1)[1])
+            if path.startswith(("/api/support/", "/api/admin/support/")):
+                return self.support_api(path)
             if path.startswith(("/api/print-agent/", "/api/partner/", "/api/admin/")):
                 return self.operations_post(path)
             if path in ("/api/staff/printers", "/api/staff/printers/remove"):
@@ -1133,6 +1138,118 @@ class PrintBee(SimpleHTTPRequestHandler):
             )] if selection == "all" else [int(selection)])
             queued = sum(ops.queue_job(db, order_id, position, role, printer_id) for position in positions)
         return self.json_response(200, {"queued": queued})
+
+    def support_api(self, path):
+        """Support tickets. Customers use /api/support/..., admins /api/admin/support/... All updates are POST."""
+        admin_area = path.startswith("/api/admin/")
+        with closing(connect()) as db:
+            if admin_area:
+                if self.get_role() != "admin":
+                    return self.json_response(403, {"error": "Admin access is required."})
+                actor = "admin" if self.headers.get("X-Staff-Key") else auth.portal_google_email(db, self.headers, "admin") or "admin"
+                email = None
+            else:
+                email = auth.session_email(db, self.headers)
+                if not email:
+                    return self.json_response(401, {"error": "Sign in to use support."})
+                if self.command == "POST" and not self.same_origin():
+                    return self.json_response(403, {"error": "Open PrintBee directly and try again."})
+                actor = email
+        data = {}
+        if self.command == "POST":
+            length = int(self.headers.get("Content-Length", "0") or 0)
+            if not 0 <= length <= 16384:
+                return self.json_response(400, {"error": "That message is too long."})
+            data = json.loads(self.rfile.read(length)) if length else {}
+            if not isinstance(data, dict):
+                return self.json_response(400, {"error": "Invalid request."})
+        parts = urlsplit(self.path)
+        query = {key: values[0] for key, values in parse_qs(parts.query, max_num_fields=20).items()}
+        try:
+            with closing(connect()) as db, db:
+                if self.command == "POST":
+                    db.execute("BEGIN IMMEDIATE")
+                result = self.support_route(db, path, query, data, admin_area, actor, email)
+        except support.NotFound as error:
+            return self.json_response(404, {"error": str(error)})
+        except support.SupportError as error:
+            return self.json_response(400, {"error": str(error)})
+        if isinstance(result, tuple):       # a download: (body, type, disposition)
+            return self.send_download(*result)
+        return self.json_response(200, result)
+
+    def support_route(self, db, path, query, data, admin_area, actor, email):
+        post = self.command == "POST"
+        if not admin_area:
+            if path == "/api/support/categories" and not post:
+                return {"categories": support.categories()}
+            if path == "/api/support/tickets":
+                if not post:
+                    return {"tickets": support.customer_tickets(db, email)}
+                ident = support.create_ticket(db, email=email, category=data.get("category"), subject=data.get("subject"),
+                                              message=data.get("message"), order_id=data.get("orderId") or None)
+                return {"ticket": support.customer_ticket(db, ident, email)}
+            match = re.fullmatch(r"/api/support/tickets/(\d+)(?:/(reply|resolve))?", path)
+            if match:
+                ident, action = int(match[1]), match[2]
+                if not post and not action:
+                    return {"ticket": support.customer_ticket(db, ident, email)}
+                if post and action == "reply":
+                    support.customer_reply(db, ident, email, data.get("message"))
+                elif post and action == "resolve":
+                    support.customer_resolve(db, ident, email)
+                else:
+                    raise support.NotFound("Unknown support request.")
+                return {"ticket": support.customer_ticket(db, ident, email)}
+            raise support.NotFound("Unknown support request.")
+        # ---- admin / support agents
+        invoice = re.fullmatch(r"/api/admin/orders/([a-f0-9]{32})/invoice", path)
+        if invoice and not post:
+            row = db.execute("SELECT details, order_number, provider_id FROM orders LEFT JOIN order_owners "
+                             "ON orders.id=order_owners.order_id LEFT JOIN razorpay_orders ON orders.id=razorpay_orders.order_id "
+                             "WHERE orders.id=? AND status!='pending'", (invoice[1],)).fetchone()
+            if not row:
+                raise support.NotFound("That order was not found.")
+            number = row["order_number"] or "PB-" + invoice[1][:8].upper()
+            body = invoice_pdf(number, json.loads(row["details"]), "razorpay" if row["provider_id"] else "test")
+            return (body, "application/pdf", f'attachment; filename="{number}.pdf"')
+        if path == "/api/admin/support/agents" and not post:
+            agents = sorted(set(self.server.google_access["admin"]) | set(self.server.google_access["warehouse"]))
+            return {"agents": agents, "categories": support.categories(),
+                    "statuses": list(support.STATUSES), "priorities": list(support.PRIORITIES)}
+        if path == "/api/admin/support/tickets":
+            if not post:
+                return support.staff_tickets(db, status=query.get("status"), priority=query.get("priority"),
+                                             assignee=query.get("assignee"), category=query.get("category"),
+                                             query=query.get("q"), limit=query.get("limit", 50), offset=query.get("offset", 0))
+            # an admin opens a ticket for a customer (also the shape Buzz will use with source="buzz")
+            ident = support.create_ticket(db, email=data.get("email"), category=data.get("category"),
+                                          subject=data.get("subject"), message=data.get("message"),
+                                          order_id=data.get("orderId") or None, source="admin",
+                                          priority=data.get("priority") or "normal", actor=actor)
+            return {"ticket": support.staff_ticket(db, ident)}
+        match = re.fullmatch(r"/api/admin/support/tickets/(\d+)(?:/(reply|note|status|priority|assign))?", path)
+        if not match:
+            raise support.NotFound("Unknown support request.")
+        ident, action = int(match[1]), match[2]
+        if not post:
+            if action:
+                raise support.NotFound("Unknown support request.")
+            return {"ticket": support.staff_ticket(db, ident)}
+        if action == "reply":
+            support.staff_reply(db, ident, actor, data.get("message"))
+        elif action == "note":
+            support.staff_reply(db, ident, actor, data.get("message"), internal=True)
+        elif action == "status":
+            support.set_status(db, ident, actor, data.get("status"))
+        elif action == "priority":
+            support.set_priority(db, ident, actor, data.get("priority"))
+        elif action == "assign":
+            allowed = set(self.server.google_access["admin"]) | set(self.server.google_access["warehouse"])
+            support.assign(db, ident, actor, data.get("assignee"), allowed)
+        else:
+            raise support.NotFound("Unknown support request.")
+        return {"ticket": support.staff_ticket(db, ident)}
 
     def printers_api(self, path):
         role = self.get_role()
@@ -1673,6 +1790,7 @@ if __name__ == "__main__":
         db.executescript(razorpay_checkout.SCHEMA)
         db.executescript(ops.SCHEMA)
         db.executescript(admin_records.SCHEMA)
+        db.executescript(support.SCHEMA)
         google_access["partner"].update(admin_records.partner_accounts(db))
         google_access["warehouse"].update({email: "warehouse" for email in admin_records.warehouse_staff(db)})
         db.executescript(partner_auth.SCHEMA)
