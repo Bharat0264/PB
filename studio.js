@@ -832,6 +832,10 @@ async function showOrders() {
       help.className = 'order-help';
       help.href = '/help.html#/new?order=' + encodeURIComponent(order.id);
       help.setAttribute('aria-label', 'Need help with ' + displayOrderNumber(order) + '?');
+      // Buzz answers first, with this order selected. Without Buzz the link still opens a ticket.
+      help.addEventListener('click', event => {
+        if (window.PrintBeeBuzz && window.PrintBeeBuzz.open({orderNumber: displayOrderNumber(order)})) event.preventDefault();
+      });
       const beeIcon = document.createElement('img');
       beeIcon.src = '/printbee-header-bee.webp';
       beeIcon.alt = '';

@@ -527,6 +527,8 @@
       copy(url.href,'Tracking link copied.');
     };
     byId('tracking-help').onclick = () => {
+      // Buzz first, with this order selected; the sheet with the ticket and WhatsApp links is the fallback.
+      if (window.PrintBeeBuzz && window.PrintBeeBuzz.open({orderNumber: order.number || ''})) return;
       byId('tracking-help-order').textContent = order.number || '';
       byId('tracking-ticket').href = '/help.html#/new?order=' + encodeURIComponent(orderId);
       byId('tracking-contact').href = 'https://wa.me/919347541419?' + new URLSearchParams({text:'I need help with my PrintBee order'+(order.number ? ' '+order.number : '')+'.'});

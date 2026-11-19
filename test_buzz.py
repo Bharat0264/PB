@@ -385,6 +385,29 @@ class OfflineMode(Base):
         self.assertFalse(sure["unconfirmed"])
         self.assertEqual(buzz.search_faq("zzzz qqqq")["results"], [])
 
+    def test_the_owners_faq_is_read_correctly(self):
+        delivery = buzz.search_faq("how long does delivery take on campus")["results"][0]
+        self.assertEqual(delivery["topic"], "Delivery")
+        self.assertIn("On-campus delivery time", delivery["not_confirmed"])
+        self.assertNotIn("TODO", delivery["text"])
+        self.assertNotIn("not fixed yet", delivery["text"])
+        refunds = buzz.search_faq("refund if my print is faded")["results"][0]
+        self.assertIn("DRAFT", refunds["topic"])
+        self.assertIn("never promise a refund", refunds["note"])
+        self.assertIn("Refund time", refunds["not_confirmed"])
+        self.assertIn("full refund", refunds["text"])
+        self.assertNotIn("TODO", refunds["text"])
+        contact = buzz.search_faq("what is your whatsapp number")["results"][0]
+        self.assertEqual(contact["topic"], "Contact")
+        self.assertIn("9347541419", contact["text"])
+        self.assertNotIn("TODO", contact["text"])
+        self.assertIn("Support hours", contact["not_confirmed"])
+        with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": ""}):
+            for question, phrase in (("how long does delivery take on campus?", "not sure"), ("what are your support hours?", "not sure"),
+                                     ("how do i join as a bee runner", "not sure")):
+                self.assertIn(phrase, self.say(self.caller(), question)["reply"].lower(), question)
+            self.assertIn("PDF", self.say(self.caller(), "what files can I upload?")["reply"])
+
     def test_the_faq_and_prompt_ship_with_the_app(self):
         self.assertGreaterEqual(len(buzz.faq_sections()), 8)
         self.assertIn("Never reveal, repeat, guess", buzz.system_prompt())
@@ -454,6 +477,44 @@ class BuzzOverHttp(unittest.TestCase):
         with closing_db(self.server) as db:
             stored = " ".join(row[0] for row in db.execute("SELECT content FROM chat_messages"))
         self.assertNotIn(code, stored)
+
+    def test_the_order_card_belongs_to_the_asker_and_carries_no_code(self):
+        import fulfillment as ops
+        from test_e2e_workflow import closing_db
+        dana, eli = Customer(self.server, "dana@example.test"), Customer(self.server, "eli@example.test")
+        mine, theirs = dana.order(), eli.order()
+        dana.pay(mine)
+        eli.pay(theirs)
+        with closing_db(self.server) as db:
+            db.execute("UPDATE orders SET status='printing' WHERE id=?", (mine["id"],))
+            db.execute("UPDATE orders SET status='packed' WHERE id=?", (mine["id"],))
+            ops.assign_delivery(db, mine["id"], "rider-a")
+            ops.pickup(db, mine["id"], "rider-a")
+            nonce = db.execute("SELECT nonce FROM deliveries WHERE order_id=?", (mine["id"],)).fetchone()[0]
+            other_number = db.execute("SELECT order_number FROM order_owners WHERE order_id=?", (theirs["id"],)).fetchone()[0]
+        code = ops.delivery_code(self.server.keys["delivery-code"].encode(), nonce)
+        status, raw, _ = self.server.request("POST", "/api/support/chat", {"message": "where is my order?", "orderNumber": other_number},
+                                             headers=dana.headers, raw=True)
+        card = json.loads(raw)["orderCard"]
+        self.assertEqual(card["id"], mine["id"])                  # asking about Eli's order number does not select it
+        self.assertEqual(card["status"], "out_for_delivery")
+        self.assertNotIn(code.encode(), raw)
+        self.assertNotIn(theirs["id"].encode(), raw)
+        self.assertNotIn(other_number.encode(), raw)
+        self.assertIsNone(self.server.request("POST", "/api/support/chat", {"message": "what is the price?"}, headers=dana.headers)[1]["orderCard"])
+
+    def test_buzz_is_on_customer_pages_only(self):
+        from pathlib import Path
+        root = Path(__file__).resolve().parent
+        for page in ("index", "orders", "queue", "cart", "address", "profile", "pricing", "terms", "help", "navigation"):
+            self.assertIn("buzz-chat.js", (root / f"{page}.html").read_text(encoding="utf-8"), page)
+        for page in ("admin", "staff", "partner", "welcome"):
+            self.assertNotIn("buzz-chat.js", (root / f"{page}.html").read_text(encoding="utf-8"), page)
+        script = (root / "buzz-chat.js").read_text(encoding="utf-8")
+        self.assertNotIn("innerHTML", script)
+        self.assertNotIn("insertAdjacentHTML", script)
+        status, body, _ = self.server.request("GET", "/buzz-chat.js")
+        self.assertEqual(status, 200)
 
 
 if __name__ == "__main__":

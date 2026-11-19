@@ -427,7 +427,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                        "/pricing.html", "/terms.html", "/queue.html", "/cart.html", "/orders.html", "/profile.html", "/profile.js", "/address.html", "/address-book.js", "/address-book.css", "/customer-login.js", "/account-home.js", "/session-sync.js",
                        "/preloader.js", "/preloader.css", "/gsap-3.13.0.min.js", "/live.js", "/status-model.js", "/status-model.css", "/portal-switch.js", "/demo-login.js", "/backend-check.js",
                        "/navigation.html", "/navigation.css", "/bottom-nav.js", "/nav-tokens.js", "/embedded-tab.js",
-                       "/order-tracking.js", "/order-tracking.css", "/help.html", "/help.js", "/help.css", "/admin-support.js", "/admin-support.css", "/support-bell.js"}
+                       "/order-tracking.js", "/order-tracking.css", "/help.html", "/help.js", "/help.css", "/admin-support.js", "/admin-support.css", "/support-bell.js", "/buzz-chat.js"}
             if path in allowed:
                 return super().do_GET()
             if re.fullmatch(r"/[a-z0-9.-]+\.(png|webp|woff2)", path):

@@ -176,7 +176,7 @@ def looks_like_injection(text):
 # ---- FAQ (kb/faq.md) --------------------------------------------------------------------------------------
 
 def faq_sections():
-    """[(title, body, unconfirmed)] from kb/faq.md. A section with a TODO line is unconfirmed."""
+    """[(title, body, unconfirmed)] from kb/faq.md. A section with a TODO anywhere, or DRAFT in its heading, is unconfirmed."""
     try:
         raw = FAQ_FILE.read_text(encoding="utf-8")
     except OSError:
@@ -186,32 +186,76 @@ def faq_sections():
         if line.startswith("## "):
             if title:
                 body = "\n".join(lines).strip()
-                sections.append((title, body, "TODO:" in body))
+                sections.append((title, body, "TODO" in body or "DRAFT" in title.upper()))
             title, lines = line[3:].strip(), []
         elif title:
             lines.append(line)
     return sections
 
 
+STOPWORDS = {"what", "your", "the", "how", "does", "for", "and", "can", "you", "with", "this", "that", "from", "have", "are", "was",
+             "who", "why", "when", "where", "which", "will", "its", "our", "any", "get", "about", "tell", "please"}
+
+
 def _words(text):
-    return {w for w in re.findall(r"[a-z0-9]+", text.lower()) if len(w) > 2}
+    return {w for w in re.findall(r"[a-z0-9]+", text.lower()) if len(w) > 2 and w not in STOPWORDS}
+
+
+def _items(body):
+    """The section's lines, with the wrapped lines of one bullet joined back together."""
+    items = []
+    for line in body.splitlines():
+        if line.lstrip().startswith("- ") and not line.startswith(" "):
+            items.append(line.strip()[2:].strip())
+        elif line.strip() and items and line.startswith(" "):
+            items[-1] += " " + line.strip()
+        elif line.strip():
+            items.append(line.strip())
+    return items
+
+
+def faq_facts(body):
+    """(facts, not_confirmed): the section text without its TODO placeholders, and the names of the facts still missing.
+    "Label: TODO ..." drops the label and the TODO sentence (the label goes into not_confirmed); "(TODO: ...)" notes are removed."""
+    facts, missing = [], []
+    for item in _items(body):
+        trimmed = re.sub(r"\s*\(TODO[^)]*\)", "", item)
+        if trimmed != item:
+            missing.append("exact details of: a figure in this topic marked as not final (say 'usually' or 'the team will confirm')")
+        item = trimmed
+        if "TODO" in item:
+            before, _, after = item.partition("TODO")
+            label = before.rstrip(" :-").strip()
+            if label:
+                missing.append(label)
+            after = after.split(". ", 1)[1] if ". " in after else ""
+            item = after.strip() if label else ""
+        if item:
+            facts.append(item)
+    return "\n".join(facts), missing
 
 
 def search_faq(query):
-    """Best matching help topics. Unconfirmed (TODO) facts are flagged and the TODO text is never shown as a fact."""
+    """Best matching help topics. Unconfirmed (TODO or DRAFT) facts are flagged, and a TODO placeholder is never shown as a fact."""
     wanted = _words(str(query))
+    if wanted & {"whatsapp", "email", "instagram", "phone", "call", "number", "reach"}:
+        wanted.add("contact")
     scored = []
     for title, body, unconfirmed in faq_sections():
-        title_words, body_words = _words(title), _words(body)
-        score = 3 * len(wanted & title_words) + len(wanted & body_words)
+        facts, missing = faq_facts(body)
+        score = 3 * len(wanted & _words(title)) + len(wanted & _words(facts)) + 2 * len(wanted & _words(" ".join(missing)))
         if score:
-            scored.append((score, title, body, unconfirmed))
+            scored.append((score, title, facts, missing, unconfirmed))
     scored.sort(key=lambda item: -item[0])
     results = []
-    for _, title, body, unconfirmed in scored[:2]:
-        facts = "\n".join(line for line in body.splitlines() if not line.strip().startswith("TODO:"))
-        results.append({"topic": title, "text": facts.strip(), "unconfirmed": unconfirmed,
-                        "note": "Part of this answer is not confirmed yet. Say you are not sure about that part." if unconfirmed else ""})
+    for _, title, facts, missing, unconfirmed in scored[:2]:
+        note = ""
+        if "DRAFT" in title.upper():
+            note = ("This is the planned policy, not final. Describe it as our usual approach, say the PrintBee team confirms every case, "
+                    "and never promise a refund.")
+        if missing:
+            note += (" " if note else "") + "Not confirmed yet, so say you are not sure and offer a person: " + "; ".join(missing) + "."
+        results.append({"topic": title, "text": facts, "unconfirmed": unconfirmed, "not_confirmed": missing, "note": note})
     return {"results": results} if results else {"results": [], "note": "No help topic matched. Say you are not sure and offer a human."}
 
 
@@ -258,7 +302,7 @@ def _order_view(db, row, eta_minutes=None):
     events = [{"event": order_status.EVENT_LABELS.get(e["action"], e["action"].replace("_", " ").capitalize()), "at": e["created"]}
               for e in db.execute("SELECT action, created FROM audit WHERE order_id=? ORDER BY id", (row["id"],))
               if e["action"] in order_status.EVENT_LABELS]
-    view = {"order_number": row["order_number"] or "PB-" + row["id"][:8].upper(), "status": row["status"],
+    view = {"id": row["id"], "order_number": row["order_number"] or "PB-" + row["id"][:8].upper(), "status": row["status"],
             "status_label": model["label"], "what_it_means": model["customer"],
             "total_inr": _rupees(details["bill"]["total"]) if details.get("bill") else None,
             "items": len(details.get("items", [])), "timeline": events[-6:]}
@@ -395,6 +439,16 @@ class Caller:
         self.eta = eta                      # eta(db, order_id, status) -> minutes or None
         self.codes = codes                  # codes(db, email) -> the customer's active delivery codes, only used to scrub text
         self.session_id = None
+        self.cards = []                     # the customer's orders as Buzz looked them up this turn (for the order card)
+
+    def order_card(self, preferred=None):
+        """What the chat shows as an order card: the order the customer asked about, else their latest. No codes."""
+        if not self.cards:
+            return None
+        order = next((o for o in self.cards if preferred and o["order_number"] == preferred), self.cards[0])
+        card = {key: order.get(key) for key in ("id", "order_number", "status", "status_label", "what_it_means", "items", "total_inr", "eta_minutes")}
+        card["timeline"] = order["timeline"][-3:]
+        return card
 
     def active_codes(self):
         return list(self.codes(self.db, self.email)) if self.codes and self.email else []
@@ -417,7 +471,8 @@ class Caller:
             if name in ("get_my_orders", "get_my_tickets", "get_my_ticket", "draft_ticket") and not self.email:
                 return {"error": "sign_in_required", "note": "Ask the customer to sign in on PrintBee to use this."}
             if name == "get_my_orders":
-                return {"orders": my_orders(self.db, self.email, self.eta)}
+                self.cards = my_orders(self.db, self.email, self.eta)
+                return {"orders": [{key: value for key, value in order.items() if key != "id"} for order in self.cards]}
             if name == "get_my_tickets":
                 return {"tickets": my_tickets(self.db, self.email, args.get("query") or None, args.get("status") or None)}
             if name == "get_my_ticket":
@@ -541,7 +596,8 @@ def mock_reply(caller, text, order_number=None):
         top = orders[0]
         eta = f" It should reach you in about {top['eta_minutes']} minutes." if top.get("eta_minutes") else ""
         return f"{top['order_number']}: {top['status_label']}. {top['what_it_means']}{eta}"
-    if re.search(r"payment|paid|refund|charged|money|wrong print|faded|missing page|bee runner|rider", lower):
+    runner_problem = re.search(r"runner|rider", lower) and re.search(r"late|rude|problem|issue|complain|unsafe|didn|wrong|missing|can.?t find|not (come|came|arriv|here)", lower)
+    if runner_problem or re.search(r"payment|paid|refund|charged|money|wrong print|faded|missing page", lower):
         if not caller.email:
             return "I'm sorry about that. Please sign in so I can write this up for our team."
         category = ("print_quality" if re.search(r"print|faded|page", lower) else "delivery" if re.search(r"rider|runner|late", lower) else "order")
@@ -562,10 +618,18 @@ def mock_reply(caller, text, order_number=None):
     found = search_faq(text)["results"]
     if found:
         top = found[0]
+        asked = _words(text)
+        for label in top["not_confirmed"]:
+            if label.startswith("exact details"):
+                continue
+            label_words = _words(label)
+            when = asked & {"long", "time", "when", "hours", "take", "takes", "fast", "soon"} and label_words & {"time", "hours"}
+            if len(asked & label_words) >= 2 or (when and asked & label_words):
+                return f"I'm not sure about the {label.lower()} yet. I can create a ticket so a person can answer. Want that?"
         if top["unconfirmed"] and not top["text"]:
             return "I'm not sure about that yet. I can create a ticket so a person can answer. Want that?"
-        lead = top["text"].split("\n")[0]
-        return lead + (" I'm not sure about the rest yet, so I can ask a person if you like." if top["unconfirmed"] else "")
+        lead = " ".join(re.split(r"(?<=[.!?]) ", " ".join(top["text"].split("\n")))[:3])
+        return lead + (" I'm not sure about the rest yet, so I can ask a person if you like." if top["not_confirmed"] else "")
     return "Bzzz, I'm not sure about that one. I can help with pricing, uploads, your orders and problems, or hand you to a person."
 
 
@@ -622,6 +686,8 @@ def _order_hint(caller, order_number):
 def _result(db, session, reply, **extra):
     fresh = db.execute("SELECT draft, unhelpful FROM chat_sessions WHERE id=?", (session["id"],)).fetchone()
     draft = json.loads(fresh["draft"]) if fresh["draft"] else None
+    if draft and draft.get("ticketId"):
+        draft = None            # a confirmed draft is finished: later replies do not show it again
     return {"sessionId": session["id"], "reply": reply, "draft": public_draft(draft), "offerTicket": fresh["unhelpful"] >= 2,
             "mock": mock_mode(), **extra}
 
@@ -666,7 +732,7 @@ def chat(caller, body, client=None):
     message_id = _log(db, session["id"], "assistant", redact(reply))
     if secrets.randbelow(50) == 0:
         purge(db)
-    return _result(db, session, reply, messageId=message_id)
+    return _result(db, session, reply, messageId=message_id, orderCard=caller.order_card(number))
 
 
 def human_draft(caller, session_id, order_number=None):
