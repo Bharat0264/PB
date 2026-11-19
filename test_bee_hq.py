@@ -88,8 +88,8 @@ class BeeLook(unittest.TestCase):
 
     def test_the_values_follow_the_brief(self):
         body = self.js[self.js.index("    body: {"):self.js.index("    eyes: {")]
-        self.assertIn("clearcoat: 1", body)
-        self.assertRegex(body, r"roughness: 0\.3[0-9]?,")
+        self.assertIn("clearcoat: 0.15", body)
+        self.assertRegex(body, r"roughness: 0\.[56][0-9]?,")
         wings = self.js[self.js.index("    wings: {"):self.js.index("    bubble: {")]
         for needle in ("transmission:", "thickness:", "ior: 1.4", "doubleSided: true"):
             self.assertIn(needle, wings)

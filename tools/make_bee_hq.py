@@ -88,6 +88,30 @@ def classify(position, uv, index, base):
     for side in (-1, 1):                                                                         # the two eyes: an oval on the front of the face
         d = np.hypot((cen[:, 0] - side * 0.11) / 0.05, (cen[:, 1] - 0.585) / 0.063)
         cls[(d < 1) & (cen[:, 2] > 0.2)] = 1
+    # The wings are two separate, mostly pale pieces out to the sides and behind. Pale paint highlights on the head, headphones and antennae
+    # are NOT wings (they used to be drawn with the see-through glassy wing material, which showed as white blotches), so a pale triangle only
+    # stays a wing if the whole texture island it belongs to is pale, it sits well out to the side, and it is behind the body.
+    parent = np.arange(len(position))
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+    for a_, b_, c_ in index:
+        for u, v in ((a_, b_), (b_, c_)):
+            ru, rv = find(u), find(v)
+            if ru != rv:
+                parent[ru] = rv
+    _, island = np.unique([find(i) for i in index[:, 0]], return_inverse=True)
+    for part in range(island.max() + 1):
+        mine = island == part
+        if not (cls[mine] == 2).any():
+            continue
+        pure = (cls[mine] == 2).mean()
+        out_wide = np.abs(cen[mine][:, 0]).mean() > 0.14
+        behind = cen[mine][:, 2].mean() < -0.18
+        if not (pure >= 0.85 and out_wide and behind):
+            cls[mine & (cls == 2)] = 0
     ids = g.welded_ids(position)                                                                 # fill: the dots inside the bubble, the veins in the wings
     for _ in range(3):
         votes = np.zeros((ids.max() + 1, 4))

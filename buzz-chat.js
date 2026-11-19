@@ -87,8 +87,8 @@
   .buzz-fab[hidden] { display: none; }
 
   /* ---- tooltip: a white clay bubble centred on the bee's face, one tail, always on screen ---- */
-  .buzz-tip { position: fixed; z-index: 81; right: calc(max(16px, env(safe-area-inset-right)) + var(--bz-fab) * .82); bottom: calc(var(--bz-lift) + max(18px, env(safe-area-inset-bottom)) + var(--bz-fab) * .59);
-    translate: 0 50%; width: max-content; max-width: calc(100vw - 120px); box-sizing: border-box; padding: 12px 18px; border-radius: 22px; background: var(--bz-white); color: var(--bz-ink);
+  .buzz-tip { position: fixed; z-index: 79; right: calc(max(16px, env(safe-area-inset-right)) + var(--bz-fab) * .76 + 22px); bottom: calc(var(--bz-lift) + max(18px, env(safe-area-inset-bottom)) + var(--bz-fab) * .59);
+    translate: 0 50%; width: max-content; max-width: calc(100vw - max(16px, env(safe-area-inset-right)) - var(--bz-fab) * .76 - 22px - 16px); box-sizing: border-box; padding: 12px 18px; border-radius: 22px; background: var(--bz-white); color: var(--bz-ink);
     font: 700 15px/1.2 Manrope, system-ui, sans-serif; text-align: center; pointer-events: none;
     box-shadow: 0 10px 22px rgba(185,131,26,.22), inset 3px 3px 6px rgba(255,255,255,.95), inset -3px -4px 8px rgba(185,131,26,.10);
     opacity: 0; transform: translateX(10px) scale(.9); transform-origin: right center; transition: opacity .15s ease, transform .22s cubic-bezier(.34,1.56,.64,1); }
@@ -236,8 +236,8 @@
 
   const root = el('div', {className: 'buzz-root'});
   // The still bee pictures (idle, wave, typing): one transparent picture per pose, each made at 108, 216 and 324 px (1x, 2x, 3x), all the same canvas.
-  const picture = (kind, className, size) => el('img', {className, alt: '', width: size, height: size, decoding: 'async', src: `/buzz-bee-${kind}-1x.webp?v=5`,
-    srcset: `/buzz-bee-${kind}-1x.webp?v=5 1x, /buzz-bee-${kind}-2x.webp?v=5 2x, /buzz-bee-${kind}-3x.webp?v=5 3x`});
+  const picture = (kind, className, size) => el('img', {className, alt: '', width: size, height: size, decoding: 'async', src: `/buzz-bee-${kind}-1x.webp?v=6`,
+    srcset: `/buzz-bee-${kind}-1x.webp?v=6 1x, /buzz-bee-${kind}-2x.webp?v=6 2x, /buzz-bee-${kind}-3x.webp?v=6 3x`});
   const canvas = el('canvas', {className: 'buzz-canvas', 'aria-hidden': 'true'});
   const fab = el('button', {type: 'button', className: 'buzz-fab', 'aria-label': 'Chat with Buzz, PrintBee support', 'aria-haspopup': 'dialog', 'aria-expanded': 'false',
     'aria-describedby': 'buzz-tip'},
@@ -515,7 +515,7 @@
     const link = navigator.connection;
     if (link && (link.saveData || /(^|-)2g$/.test(link.effectiveType || ''))) { fab.dataset.state = 'fallback'; introTip(); return; }
     const giveUp = setTimeout(() => { if (fab.dataset.state === 'loading') { fab.dataset.state = 'fallback'; introTip(); } }, 7000);
-    import('/buzz-bee3d.js?v=14')
+    import('/buzz-bee3d.js?v=15')
       .then(module => module.createBee(canvas, {reducedMotion: REDUCED, scale: 0.86, onFrame: lift => fab.style.setProperty('--lift', lift.toFixed(3))}))
       .then(created => {
         clearTimeout(giveUp);

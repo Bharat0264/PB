@@ -623,9 +623,9 @@ class AnimatedBee(unittest.TestCase):
         self.assertGreater(int(edge.sum()), 100)
         self.assertGreater(solid[edge][:, :3].mean(), 0.6 * solid[inside][:, :3].mean())
         for page in self.read("buzz-chat.js").split("srcset:")[1:2]:
-            self.assertIn("1x.webp?v=5 1x", page)
-            self.assertIn("2x.webp?v=5 2x", page)
-            self.assertIn("3x.webp?v=5 3x", page)
+            self.assertIn("1x.webp?v=6 1x", page)
+            self.assertIn("2x.webp?v=6 2x", page)
+            self.assertIn("3x.webp?v=6 3x", page)
         for tool in ("make_bee_pictures.py", "make_clay_bee_texture.py"):
             self.assertTrue((self.root / "tools" / tool).exists())
 
@@ -648,7 +648,7 @@ class AnimatedBee(unittest.TestCase):
 
     def test_the_tooltip_is_one_clean_clay_bubble_with_the_right_timing(self):
         chat = self.read("buzz-chat.js")
-        for needle in ("padding: 12px 18px", "border-radius: 22px", "font: 700 15px/1.2 Manrope", "max-width: calc(100vw - 120px)", "width: 16px; height: 16px",
+        for needle in ("padding: 12px 18px", "border-radius: 22px", "font: 700 15px/1.2 Manrope", "var(--bz-fab) * .76 + 22px", "max-width: calc(100vw - max(16px, env(safe-area-inset-right))", "width: 16px; height: 16px",
                        "right: -7px", "transform: translateY(-50%) rotate(45deg)", "box-shadow: 4px -4px 8px rgba(185,131,26,.10)",
                        "0 10px 22px rgba(185,131,26,.22), inset 3px 3px 6px rgba(255,255,255,.95), inset -3px -4px 8px rgba(185,131,26,.10)",
                        "cubic-bezier(.34,1.56,.64,1)", "translate: 0 50%", "Need help? Buzz me!"):

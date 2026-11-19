@@ -21,34 +21,34 @@ const CLAY_TEXTURE = '/buzz-bee-clay.webp?v=3';       // the original model's co
 export const BEE_LOOK = {
   render: {
     toneMapping: 'ACESFilmic',              // 'ACESFilmic' | 'AgX' | 'Neutral' | 'None'
-    exposure: 0.98,                         // ACES darkens and shifts colour a little: this, the light, and each material's mapGlow keep the bee's colours as they were
+    exposure: 0.9,                         // ACES darkens and shifts colour a little: this, the light, and each material's mapGlow keep the bee's colours as they were
     environment: 'studio',                  // the soft studio room that ships with three.js (RoomEnvironment), blurred like a studio HDRI
     environmentBlur: 0.04,
     environmentIntensity: 0.3,
-    anisotropy: 'max',                      // 'max' or a number: keeps the texture sharp when the bee turns
+    anisotropy: 8,                      // 'max' or a number: keeps the texture sharp when the bee turns
     keyLight: {color: 0xfff1d6, intensity: 1.0, position: [1.6, 2.4, 2.6]},
     rimLight: {color: 0xffe3a8, intensity: 0.45, position: [-2.2, 1.2, -2]},
     fill: {sky: 0xfffaf0, ground: 0xffdca0, intensity: 0.68},
-    normalScale: 0.6,
+    normalScale: 0.25,                      // a gentle bump only: a strong normal map speckled the antennae and headphones
   },
   fallback: {roughness: 0.78, clearcoat: 0, sheen: 0.6, transmission: 0},     // the matte clay look used only if bee_hq.glb cannot load and the original model is shown
   materials: {
     body: {                                  // head, headphones, body, arms, stripes, antennae
-      roughness: 0.35, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.45,
-      sheen: 0.12, sheenRoughness: 0.5, sheenColor: 0xffc23a, envMapIntensity: 0.6, mapGlow: 0.3,
+      roughness: 0.62, metalness: 0, clearcoat: 0.15, clearcoatRoughness: 0.5,
+      sheen: 0.1, sheenRoughness: 0.55, sheenColor: 0xffc23a, envMapIntensity: 0.3, mapGlow: 0.42,
     },
     eyes: {                                  // glossy black with crisp white highlights
       roughness: 0.12, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.03,
-      specularIntensity: 1, envMapIntensity: 1.2, mapGlow: 0,
+      specularIntensity: 1, envMapIntensity: 0.8, mapGlow: 0,
     },
     wings: {                                 // see-through, a little thick, glassy
-      roughness: 0.22, metalness: 0, clearcoat: 0.6, clearcoatRoughness: 0.15,
-      transmission: 0.55, thickness: 0.18, ior: 1.4, attenuationColor: 0xfff4dc, attenuationDistance: 0.6,
-      sheen: 0.05, sheenColor: 0xffffff, sheenRoughness: 0.4, envMapIntensity: 1.0, mapGlow: 0.25, doubleSided: true,
+      roughness: 0.4, metalness: 0, clearcoat: 0.2, clearcoatRoughness: 0.4,
+      transmission: 0.4, thickness: 0.18, ior: 1.4, attenuationColor: 0xfff4dc, attenuationDistance: 0.6,
+      sheen: 0.05, sheenColor: 0xffffff, sheenRoughness: 0.4, envMapIntensity: 0.3, mapGlow: 0.2, doubleSided: true,
     },
     bubble: {                                // soft glossy white
-      roughness: 0.3, metalness: 0, clearcoat: 0.45, clearcoatRoughness: 0.2,
-      sheen: 0.1, sheenRoughness: 0.5, sheenColor: 0xffffff, envMapIntensity: 0.45, mapGlow: 0.62,   // mapGlow: how much of the picture's own colour is added back as light, so ACES and the gloss do not wash it out
+      roughness: 0.6, metalness: 0, clearcoat: 0.1, clearcoatRoughness: 0.5,
+      sheen: 0.1, sheenRoughness: 0.5, sheenColor: 0xffffff, envMapIntensity: 0.3, mapGlow: 0.7,   // mapGlow: how much of the picture's own colour is added back as light, so ACES and the gloss do not wash it out
     },
   },
 };
@@ -269,6 +269,8 @@ export async function createBee(canvas, {reducedMotion = false, exact = false, p
         idle: rest,
         wave: {...rest, hover: true, grow: 1.08, lookX: 0.4, lookY: -0.2, smoothX: 0.4, smoothY: -0.2, wave: 0.13 - 0.016 / 0.95},
         typing: {...rest, grow: 1, lookX: 0.3, lookY: 0.3, smoothX: 0.3, smoothY: 0.3},
+        side: {...rest, smoothX: 2.85},          // QA only: the bee turned three-quarters away, to check the back and the wings for blotches
+        back: {...rest, smoothX: 5.7},
       };
       Object.assign(state, poses[kind] || rest);
       resize();
