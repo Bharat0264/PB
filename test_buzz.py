@@ -15,6 +15,7 @@ from order_rules import quote_items
 from test_e2e_workflow import Customer, Server
 
 CODE = "482913"
+B_KEY = "ab" * 32           # Bob's secret order key (64 hex characters, like a real one)
 
 
 def terms(**extra):
@@ -50,7 +51,8 @@ class FakeModel:
 
 class Base(unittest.TestCase):
     def setUp(self):
-        self.env = mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key-not-real", "PRINTBEE_BUZZ_MOCK": ""})
+        self.env = mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key-not-real", "PRINTBEE_BUZZ_MOCK": "", "PRINTBEE_SUPPORT_PROVIDER": "anthropic",
+                                                "GEMINI_API_KEY": "", "PRINTBEE_CHAT_DAILY_CAP_USD": "5"})
         self.env.start()
         self.addCleanup(self.env.stop)
         self.db = sqlite3.connect(":memory:")
@@ -65,7 +67,7 @@ class Base(unittest.TestCase):
         self.terms = terms()
         self.a_order, self.b_order = "a" * 32, "b" * 32
         self.add_order(self.a_order, "ann@example.test", "PB-1001", "out_for_delivery", "secret-key-a")
-        self.add_order(self.b_order, "bob@example.test", "PB-2002", "packed", "secret-key-b")
+        self.add_order(self.b_order, "bob@example.test", "PB-2002", "packed", B_KEY)
         self.b_ticket = support.create_ticket(self.db, email="bob@example.test", category="delivery",
                                               subject="Bob private issue about his hostel", message="Bob's details.", order_id=self.b_order)
 
@@ -79,6 +81,9 @@ class Base(unittest.TestCase):
                            codes=(lambda db, who: [CODE]) if codes else None)
 
     def say(self, caller, text, model=None, **extra):
+        """Chat through a scripted fake model. In offline (mock) mode, with nothing scripted, Buzz answers from its own tools."""
+        if model is None and buzz.mock_mode():
+            return buzz.chat(caller, {"message": text, **extra})
         return buzz.chat(caller, {"message": text, **extra}, client=model or FakeModel(reply(text_block("Hi from Buzz!"))))
 
 
@@ -112,12 +117,19 @@ class DataBoundaries(Base):
 
     def test_guests_see_status_only_with_the_right_order_key(self):
         guest = self.caller(email=None, codes=False)
-        found = guest.run_tool("get_order_with_key", {"order_number": "pb-2002", "order_key": "secret-key-b"})
+        found = buzz.order_with_key(self.db, "pb-2002", B_KEY)
         self.assertEqual(found["status_label"], "Ready for pickup")
         self.assertNotIn("total_inr", found)
-        wrong_key = guest.run_tool("get_order_with_key", {"order_number": "PB-2002", "order_key": "nope"})
-        wrong_number = guest.run_tool("get_order_with_key", {"order_number": "PB-9999", "order_key": "secret-key-b"})
-        self.assertEqual(wrong_key, wrong_number)
+        self.assertEqual(buzz.order_with_key(self.db, "PB-2002", "nope"), buzz.order_with_key(self.db, "PB-9999", B_KEY))
+        # the model has no tool for it: the app checks the number and key itself, and the key never goes to the model
+        self.assertEqual(guest.run_tool("get_order_with_key", {"order_number": "PB-2002", "order_key": B_KEY}), {"error": "Unknown tool."})
+        script = FakeModel(reply(text_block("It is ready for pickup.")))
+        out = self.say(guest, f"status of PB-2002 key {B_KEY}", script)
+        sent = json.dumps(script.calls[0], default=str)
+        self.assertNotIn(B_KEY, sent)
+        self.assertIn("Ready for pickup", sent)                  # the app's note, not the key
+        self.assertNotIn(B_KEY, json.dumps(out))
+        self.assertEqual(self.say(guest, f"status of PB-2002 key {'cd' * 32}", FakeModel(reply(text_block("ok"))))["reply"], "ok")
 
     def test_somebody_elses_chat_session_id_starts_a_fresh_chat(self):
         first = self.say(self.caller(), "hello")

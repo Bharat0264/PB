@@ -271,10 +271,24 @@ Buzz answers FAQs, prices, upload help and order questions, and drafts support t
 support tickets (`support.create_buzz_ticket`, `buzz_find_tickets`, `buzz_get_ticket`); there is no separate tickets table.
 
 - Routes: `POST /api/support/chat` (a message, or `action: "confirm"` / `"human"`) and `POST /api/support/chat/feedback`.
-- Settings (all optional, see `.env.example`): `ANTHROPIC_API_KEY` (server only, never sent to the browser),
-  `PRINTBEE_SUPPORT_MODEL` (default `claude-haiku-5-5`), `PRINTBEE_CHAT_DAILY_CAP_USD` (default 5),
-  `PRINTBEE_CHAT_RETENTION_DAYS` (default 30), `PRINTBEE_BUZZ_MOCK=1` to force offline mode.
-- With no API key Buzz runs in offline mode: canned answers built from the same live pricing, FAQ and order data.
+- Provider switch: `PRINTBEE_SUPPORT_PROVIDER` = `mock` (the default) | `gemini` | `anthropic`. All model calls go through one
+  small adapter (`buzz_providers.py`), so the tools, guardrails and tests are the same on both providers.
+  - Gemini: `GEMINI_API_KEY` and `PRINTBEE_GEMINI_MODEL` (default `gemini-2.5-flash-lite`). Optional
+    `PRINTBEE_GEMINI_PRICE_INPUT` / `PRINTBEE_GEMINI_PRICE_OUTPUT` (US dollars per million tokens) for the daily cost cap.
+  - Claude: `ANTHROPIC_API_KEY` and `PRINTBEE_SUPPORT_MODEL` (default `claude-haiku-5-5`).
+  - Keys are read only from the environment on the server. They are never logged and never sent to the browser. A provider
+    without its key (or an unknown name) falls back to `mock`.
+- Other settings: `PRINTBEE_CHAT_DAILY_CAP_USD` (default 5), `PRINTBEE_CHAT_RETENTION_DAYS` (default 30),
+  `PRINTBEE_BUZZ_MOCK=1` to force `mock` whatever the provider setting says.
+- `mock` mode: canned answers built from the same live pricing, FAQ and order data, no model and no outside call.
+- Data minimisation (every provider, and essential on Gemini's free tier, which may use what it is sent): the model only
+  sees order numbers, statuses, timelines, ETAs and ticket numbers. It never sees names, emails, phone numbers, addresses,
+  payment ids, file names, amounts or order keys. What a customer types is redacted (emails, UPI ids, phone and card-like
+  numbers, payment ids, file names, order keys, delivery codes) before the model call and before it is stored. Tickets are
+  created by the server under the customer's own session, which fills the personal fields. A guest's order number and key are
+  checked by the server, so the key never reaches the model. Names or addresses a customer types in plain words cannot be
+  detected, which is why the chat shows "AI assistant. Please don't share personal or payment details."
+- If the provider is rate-limited or down, Buzz shows a friendly message and offers "Create a ticket" instead of failing.
 - Edit what Buzz knows in `kb/faq.md`. Any section with a `TODO:` line is treated as unconfirmed and Buzz says
   "I'm not sure" about it. Buzz's rules live in `buzz_prompt.md`.
 - The model can only draft a ticket. The customer presses Confirm, which creates exactly one ticket per draft.

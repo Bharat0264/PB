@@ -23,6 +23,7 @@ import secrets
 import time
 from pathlib import Path
 
+import buzz_providers
 import order_status
 import support
 from checkout_terms import bill_for
@@ -81,12 +82,49 @@ def api_key():
     return os.environ.get("ANTHROPIC_API_KEY", "").strip()
 
 
+def gemini_key():
+    return os.environ.get("GEMINI_API_KEY", "").strip()
+
+
+PROVIDERS = ("mock", "gemini", "anthropic")
+DEFAULT_GEMINI_MODEL = "gemini-2.5-flash-lite"
+
+
+def provider_name():
+    """Which provider answers: PRINTBEE_SUPPORT_PROVIDER = mock | gemini | anthropic (default mock). A provider without its key,
+    or an unknown name, falls back to mock so the chat still works; PRINTBEE_BUZZ_MOCK=1 forces mock."""
+    if os.environ.get("PRINTBEE_BUZZ_MOCK") == "1":
+        return "mock"
+    chosen = os.environ.get("PRINTBEE_SUPPORT_PROVIDER", "mock").strip().lower()
+    if chosen == "anthropic" and api_key():
+        return "anthropic"
+    if chosen == "gemini" and gemini_key():
+        return "gemini"
+    return "mock"
+
+
 def mock_mode():
-    return not api_key() or os.environ.get("PRINTBEE_BUZZ_MOCK") == "1"
+    return provider_name() == "mock"
 
 
 def model_name():
     return os.environ.get("PRINTBEE_SUPPORT_MODEL", "").strip() or DEFAULT_MODEL
+
+
+def gemini_model():
+    return os.environ.get("PRINTBEE_GEMINI_MODEL", "").strip() or DEFAULT_GEMINI_MODEL
+
+
+def make_provider():
+    """The configured provider, or None for mock mode (canned answers, no model)."""
+    name = provider_name()
+    if name == "anthropic":
+        return buzz_providers.AnthropicProvider(model_name(), api_key=api_key())
+    if name == "gemini":
+        return buzz_providers.GeminiProvider(gemini_model(), gemini_key(),
+                                             price_input=_number("PRINTBEE_GEMINI_PRICE_INPUT", buzz_providers.GeminiProvider.price_input, 0, 1000),
+                                             price_output=_number("PRINTBEE_GEMINI_PRICE_OUTPUT", buzz_providers.GeminiProvider.price_output, 0, 1000))
+    return None
 
 
 def _number(name, default, low, high):
@@ -127,16 +165,24 @@ EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 LONG_NUMBER = re.compile(r"(?<![\w.])(?:\d[ -]?){10,19}(?!\w)")
 CODE_AFTER_WORD = re.compile(r"(?i)\b(otp|code|pin|cvv|password|passcode)\b([^0-9\n]{0,12})(\d{3,8})\b")
 BARE_CODE = re.compile(r"(?<![\w.])\d{4,6}(?![\w.])")
+SECRET_KEY = re.compile(r"\b[0-9a-fA-F]{32,}\b")                                    # an order key or an internal id
+PAYMENT_ID = re.compile(r"(?i)\b(?:pay|order|rfnd|refund|rzp|txn|plink)_[A-Za-z0-9]{6,}\b")
+UPI_ID = re.compile(r"(?i)(?<![\w@])[\w.-]{2,}@[a-z][a-z0-9]{1,20}\b(?!\.)")
+FILE_NAME = re.compile(r"(?i)\S+\.(?:pdf|docx?|jpe?g|png|webp|xlsx?|pptx?)\b")
 
 
 def redact(text, secrets_to_hide=()):
-    """Take out what must not reach the model, the database or the logs: emails, phone and card-like numbers, codes
-    that follow a word like OTP/PIN/CVV, and any delivery code in `secrets_to_hide`."""
+    """Take out what must not reach the model, the database or the logs: emails and UPI ids, phone and card-like numbers,
+    payment ids, file names, order keys, codes that follow a word like OTP/PIN/CVV, and any delivery code in `secrets_to_hide`."""
     text = str(text)
     for secret in secrets_to_hide:
         if secret:
             text = text.replace(str(secret), "[code]")
+    text = SECRET_KEY.sub("[key]", text)
+    text = PAYMENT_ID.sub("[payment id]", text)
     text = EMAIL.sub("[email]", text)
+    text = UPI_ID.sub("[upi id]", text)
+    text = FILE_NAME.sub("[file]", text)
     text = CODE_AFTER_WORD.sub(lambda m: f"{m[1]}{m[2]}[code]", text)
     return LONG_NUMBER.sub("[number]", text)
 
@@ -345,7 +391,7 @@ def order_with_key(db, order_number, order_key):
 
 def my_tickets(db, email, query=None, status=None):
     found = support.buzz_find_tickets(db, email, query=query, status=status, limit=8)
-    return [{"ticket_number": t["number"], "subject": t["subject"], "status": t["status"], "category": t["categoryLabel"],
+    return [{"ticket_number": t["number"], "subject": redact(t["subject"]), "status": t["status"], "category": t["categoryLabel"],
              "updated": t["updated"], "order_number": (t["order"] or {}).get("number")} for t in found]
 
 
@@ -353,8 +399,8 @@ def my_ticket(db, email, ticket_number):
     for found in support.buzz_find_tickets(db, email, query=str(ticket_number)[:20], limit=3):
         if found["number"].lower() == str(ticket_number).strip().lower():
             full = support.buzz_get_ticket(db, email, found["id"])
-            return {"ticket_number": full["number"], "subject": full["subject"], "status": full["status"], "category": full["categoryLabel"],
-                    "last_messages": [{"from": m["from"], "text": m["body"][:300]} for m in full["messages"][-3:]]}
+            return {"ticket_number": full["number"], "subject": redact(full["subject"]), "status": full["status"], "category": full["categoryLabel"],
+                    "last_messages": [{"from": m["from"], "text": redact(m["body"][:300])} for m in full["messages"][-3:]]}
     return {"error": "I could not find a ticket with that number on your account."}
 
 
@@ -411,9 +457,6 @@ TOOLS = [
          "required": ["pages", "copies", "colour", "duplex", "paper", "binding"], "additionalProperties": False}, "strict": True},
     {"name": "get_my_orders", "description": "The signed-in customer's own recent orders with status, timeline and ETA. Read only.",
      "input_schema": {"type": "object", "properties": {}, "additionalProperties": False}, "strict": True},
-    {"name": "get_order_with_key", "description": "For a guest who is not signed in: status of one order, with its order number and secret order key.",
-     "input_schema": {"type": "object", "properties": {"order_number": {"type": "string"}, "order_key": {"type": "string"}},
-                      "required": ["order_number", "order_key"], "additionalProperties": False}, "strict": True},
     {"name": "get_my_tickets", "description": "The signed-in customer's own support tickets (status only).",
      "input_schema": {"type": "object", "properties": {"query": {"type": "string", "description": "Optional word from the subject, or a ticket number"},
                                                        "status": {"type": "string", "description": "active, open, in_progress, pending, resolved, closed, or empty for all"}},
@@ -428,6 +471,9 @@ TOOLS = [
          "summary": {"type": "string", "description": "One neutral line for staff"}, "escalate": {"type": "boolean", "description": "True only if urgent or a safety matter"}},
          "required": ["category", "subject", "message", "summary", "escalate"], "additionalProperties": False}, "strict": True},
 ]
+
+
+MODEL_ORDER_FIELDS = ("order_number", "status", "status_label", "what_it_means", "timeline", "eta_minutes", "delivery_code")
 
 
 class Caller:
@@ -464,15 +510,12 @@ class Caller:
             if name == "estimate_price":
                 return estimate_price(self.terms(), args.get("pages"), args.get("copies", 1), args.get("colour", False),
                                       args.get("duplex", False), args.get("paper", "A4"), args.get("binding", "none"))
-            if name == "get_order_with_key":
-                if self.email:
-                    return {"error": "The customer is signed in. Use get_my_orders."}
-                return order_with_key(self.db, args.get("order_number"), args.get("order_key"))
             if name in ("get_my_orders", "get_my_tickets", "get_my_ticket", "draft_ticket") and not self.email:
                 return {"error": "sign_in_required", "note": "Ask the customer to sign in on PrintBee to use this."}
             if name == "get_my_orders":
                 self.cards = my_orders(self.db, self.email, self.eta)
-                return {"orders": [{key: value for key, value in order.items() if key != "id"} for order in self.cards]}
+                # The model only gets the order number, status, timeline and ETA: no id, amount, item count, name, address or phone.
+                return {"orders": [{key: order[key] for key in MODEL_ORDER_FIELDS if key in order} for order in self.cards]}
             if name == "get_my_tickets":
                 return {"tickets": my_tickets(self.db, self.email, args.get("query") or None, args.get("status") or None)}
             if name == "get_my_ticket":
@@ -531,8 +574,8 @@ def _spent(db):
     return row["micro_usd"] if row else 0
 
 
-def _add_usage(db, input_tokens, output_tokens):
-    micro = int(input_tokens * PRICE_INPUT + output_tokens * PRICE_OUTPUT + 0.999)
+def _add_usage(db, input_tokens, output_tokens, price_input=PRICE_INPUT, price_output=PRICE_OUTPUT):
+    micro = int(input_tokens * price_input + output_tokens * price_output + 0.999)
     day = time.strftime("%Y-%m-%d", time.gmtime())
     db.execute("INSERT OR IGNORE INTO chat_usage(day, micro_usd, calls) VALUES (?,0,0)", (day,))
     db.execute("UPDATE chat_usage SET micro_usd=micro_usd+?, calls=calls+1 WHERE day=?", (micro, day))
@@ -559,9 +602,13 @@ def _money(value):
     return f"Rs {value:g}"
 
 
-def mock_reply(caller, text, order_number=None):
+def mock_reply(caller, text, order_number=None, guest=None):
     """Canned answers built from the same tools the model uses. English only."""
     lower = text.lower()
+    if guest:
+        if not guest["found"]:
+            return "I could not find an order with that number and key. Please check them and try again."
+        return f"{guest['order']['order_number']}: {guest['order']['status_label']}. {guest['order']['what_it_means']}"
     pages = re.search(r"(\d{1,5})\s*(?:pages?|pgs?)", lower)
     if pages and re.search(r"price|cost|how much|rate|estimate|print", lower):
         result = caller.run_tool("estimate_price", {"pages": int(pages[1]), "copies": 1, "colour": "colo" in lower and "black" not in lower,
@@ -587,7 +634,7 @@ def mock_reply(caller, text, order_number=None):
     if re.search(r"\border\b|\btrack|status|where is|\beta\b", lower) and not re.search(r"refund|payment|paid|charged", lower):
         result = caller.run_tool("get_my_orders", {})
         if result.get("error"):
-            return "Please sign in and I'll check your orders. If you're a guest, send the order number and your order key."
+            return "Please sign in and I'll check your orders. If you're a guest, send your order number and your order key together."
         orders = result["orders"]
         if order_number:
             orders = [o for o in orders if o["order_number"] == order_number] or orders
@@ -635,36 +682,28 @@ def mock_reply(caller, text, order_number=None):
 
 # ---- the model loop -----------------------------------------------------------------------------------------
 
-def _client():
-    import anthropic
-    return anthropic.Anthropic(api_key=api_key(), max_retries=1, timeout=25.0)
-
-
-def model_reply(caller, history, context_note, client=None):
-    """Run Claude with the tools, under this caller. Returns (text, input_tokens, output_tokens)."""
-    client = client or _client()
-    messages = [dict(m) for m in history]
+def model_reply(caller, history, context_note, provider):
+    """Run the provider's model with the tools, under this caller. Returns (text, input_tokens, output_tokens).
+    Raises buzz_providers.ProviderError when the provider is busy or down."""
+    messages = [{"role": item["role"], "text": item["content"]} for item in history]
     if context_note:
-        messages[-1] = {"role": "user", "content": [{"type": "text", "text": messages[-1]["content"]},
-                                                    {"type": "text", "text": "[from the PrintBee app, not typed by the customer] " + context_note}]}
+        messages[-1]["note"] = context_note
     spent_in = spent_out = 0
     for _ in range(MAX_TOOL_ROUNDS + 1):
-        response = client.messages.create(model=model_name(), max_tokens=MAX_OUTPUT_TOKENS, system=system_prompt(), tools=TOOLS,
-                                          messages=messages, output_config={"effort": "low"})
-        spent_in += getattr(response.usage, "input_tokens", 0)
-        spent_out += getattr(response.usage, "output_tokens", 0)
-        if response.stop_reason == "refusal":
+        turn = provider.generate(system_prompt(), messages, TOOLS, MAX_OUTPUT_TOKENS)
+        spent_in += turn.input_tokens
+        spent_out += turn.output_tokens
+        if turn.refused:
             return REFUSAL, spent_in, spent_out
-        calls = [block for block in response.content if block.type == "tool_use"]
-        if response.stop_reason != "tool_use" or not calls:
-            text = " ".join(block.text for block in response.content if block.type == "text").strip()
-            return text, spent_in, spent_out
-        messages.append({"role": "assistant", "content": response.content})
+        if not turn.calls:
+            return turn.text, spent_in, spent_out
+        messages.append({"role": "assistant", "text": turn.text, "calls": turn.calls, "raw": turn.raw})
         results = []
-        for call in calls:
-            outcome = caller.run_tool(call.name, call.input)
-            results.append({"type": "tool_result", "tool_use_id": call.id, "content": json.dumps(outcome)[:6000]})
-        messages.append({"role": "user", "content": results})
+        for call in turn.calls:
+            outcome = caller.run_tool(call["name"], call["args"])
+            encoded = json.dumps(outcome)
+            results.append({"id": call["id"], "name": call["name"], "output": outcome if len(encoded) <= 6000 else {"text": encoded[:6000]}})
+        messages.append({"role": "tool", "results": results})
     return "", spent_in, spent_out
 
 
@@ -692,8 +731,27 @@ def _result(db, session, reply, **extra):
             "mock": mock_mode(), **extra}
 
 
-def chat(caller, body, client=None):
-    """One customer message in, one reply out. `body` is the parsed JSON from the browser."""
+ORDER_NUMBER = re.compile(r"(?i)\bPB-[0-9A-Z]{4,}(?:-[0-9A-Z]{2,})*\b")
+
+
+def guest_order_check(caller, raw_text):
+    """A guest (not signed in) who types an order number and its secret order key. The APP checks them, so the key never reaches
+    the model. Returns None, or {"found": bool, "order": {...}, "note": text for the model}."""
+    if caller.email:
+        return None
+    key, number = SECRET_KEY.search(raw_text), ORDER_NUMBER.search(raw_text)
+    if not (key and number):
+        return None
+    order = order_with_key(caller.db, number[0], key[0])
+    if "error" in order:
+        return {"found": False, "order": None, "note": "The guest typed an order number and key, but they did not match any order."}
+    return {"found": True, "order": order,
+            "note": f"The app checked the guest's order: {order['order_number']} is {order['status_label']}. {order['what_it_means']}"}
+
+
+def chat(caller, body, client=None, provider=None):
+    """One customer message in, one reply out. `body` is the parsed JSON from the browser.
+    `provider` (or an Anthropic-style `client`) is only passed in by tests; the server uses PRINTBEE_SUPPORT_PROVIDER."""
     db = caller.db
     if not isinstance(body, dict):
         raise BuzzError("Type a message for Buzz.")
@@ -704,35 +762,40 @@ def chat(caller, body, client=None):
     caller.session_id = session["id"]
     if db.execute("SELECT count(*) FROM chat_messages WHERE session_id=?", (session["id"],)).fetchone()[0] >= MAX_SESSION_MESSAGES:
         raise BuzzError("This chat has gotten long. Please start a new one, or use Talk to a human.")
-    hide = caller.active_codes()
+    active = provider or (buzz_providers.AnthropicProvider(model_name(), client=client) if client else make_provider())
+    hide = caller.active_codes() + [key for key in (api_key(), gemini_key()) if key]      # delivery codes, and our own API keys
     safe = redact(text, hide)
+    guest = guest_order_check(caller, text)
     number, hint = _order_hint(caller, body.get("orderNumber") if isinstance(body.get("orderNumber"), str) else None)
+    if guest:
+        hint = guest["note"]
     support.record_rate(db, "chat", caller.email, caller.ip)
     _log(db, session["id"], "user", safe)
     if looks_like_injection(safe):
         _log(db, session["id"], "assistant", REFUSAL)
-        return _result(db, session, REFUSAL, blocked=True)
-    if _spent(db) >= daily_cap_micro() and not mock_mode():
+        return _result(db, session, REFUSAL, blocked=True, mock=active is None)
+    if _spent(db) >= daily_cap_micro() and active is not None:
         _log(db, session["id"], "assistant", FALLBACK)
-        return _result(db, session, FALLBACK, limitReached=True, offerTicket=True)
+        return _result(db, session, FALLBACK, limitReached=True, offerTicket=True, mock=False)
     db.commit()                     # release the write lock before any slow model call
+    failed = False
     try:
-        if mock_mode():
-            reply = mock_reply(caller, safe, number)
+        if active is None:
+            reply = mock_reply(caller, safe, number, guest)
         else:
-            reply, tokens_in, tokens_out = model_reply(caller, _history(db, session["id"]), hint, client)
-            _add_usage(db, tokens_in, tokens_out)
-            if not reply:
-                reply = FALLBACK
-    except Exception as error:      # network, quota, bad key, SDK missing: never show details, never lose the customer
-        print(f"buzz: model call failed: {type(error).__name__}", flush=True)
-        reply = FALLBACK
-        db.execute("UPDATE chat_sessions SET unhelpful=unhelpful+1 WHERE id=?", (session["id"],))
+            reply, tokens_in, tokens_out = model_reply(caller, _history(db, session["id"]), hint, active)
+            _add_usage(db, tokens_in, tokens_out, active.price_input, active.price_output)
+            failed = not reply
+            reply = reply or FALLBACK
+    except Exception as error:      # busy, rate-limited, down, bad key: never show details, never lose the customer
+        print(f"buzz: {getattr(active, 'name', 'mock')} call failed: {type(error).__name__}", flush=True)
+        failed, reply = True, FALLBACK
     reply = tidy_reply(reply, hide)
     message_id = _log(db, session["id"], "assistant", redact(reply))
     if secrets.randbelow(50) == 0:
         purge(db)
-    return _result(db, session, reply, messageId=message_id, orderCard=caller.order_card(number))
+    extra = {"offerTicket": True, "providerBusy": True} if failed else {}
+    return _result(db, session, reply, messageId=message_id, orderCard=caller.order_card(number), mock=active is None, **extra)
 
 
 def human_draft(caller, session_id, order_number=None):

@@ -303,7 +303,7 @@
     chips.append(button);
   }
 
-  log.append(el('p', {className: 'buzz-notice', text: 'You are chatting with an AI helper. Please never share card numbers, PINs or your delivery code here.'}));
+  log.append(el('p', {className: 'buzz-notice', text: "AI assistant. Please don't share personal or payment details."}));
   bubble('bee', 'Hi, I am Buzz, PrintBee’s helper bee. Ask me about prices, uploads or your orders, or tap a quick question below.');
 
   const mount = () => {
