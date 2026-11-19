@@ -1,0 +1,4 @@
+# Only for the print agent on the print-room PC (not the web server). Needed for finding printers on the Wi-Fi/LAN (mDNS).
+# Without it the agent still prints, and still finds printers installed on this PC and ones added by IP address.
+# Pinned: check https://pypi.org/project/zeroconf/ before changing. Install with: pip install -r print-agent/requirements.txt
+zeroconf==0.148.0

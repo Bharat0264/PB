@@ -10,6 +10,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 from document_pages import render_docx
+from print_discovery import IppError, IppTimeout, PrinterManager, ipp_print, scan_inventory, mock_printers
 
 
 def print_command(item, file, printer, sumatra=None):
@@ -29,7 +30,37 @@ def print_command(item, file, printer, sumatra=None):
             "-o", "print-color-mode=" + ("color" if item["colour"] else "monochrome"), "--", str(file)]
 
 
-def run(origin, key, printer, sumatra, once, mock=False):
+def print_job(target, item, file, sumatra=None, mock=False, manager=None, ipp_send=None, runner=subprocess.run):
+    """Print one job on `target`: a printer id the server approved, or (older servers) a plain printer name.
+    A printer that takes PDF over IPP gets the job directly with every setting as an IPP attribute; anything else goes through the
+    installed queue (SumatraPDF on Windows, lp on Linux and macOS). Returns "ipp" or "queue" (which way it went)."""
+    rec = manager.record_for(target) if manager else None
+    approved = manager.approved_ids() if manager else None
+    if approved is not None and str(target).startswith("p_") and target not in approved:
+        raise ValueError("That printer has not been approved for printing. Add it on the Printers page.")
+    if rec and rec["state"] == "offline":
+        raise ValueError("That printer is offline.")
+    if rec and rec["capabilities"]["pdf"] and rec.get("ipp"):
+        if item.get("colourPages"):
+            raise ValueError("Mixed-colour pages require manual printing.")
+        if not mock:
+            try:
+                (ipp_send or ipp_print)(rec["ipp"], Path(file).read_bytes(), item)
+            except IppTimeout:
+                raise subprocess.TimeoutExpired("ipp", 60)          # it may have printed: same rule as a spooler timeout
+            except IppError as error:
+                raise ValueError(str(error))
+        return "ipp"
+    queue = rec.get("queue") if rec else target
+    if not queue:
+        raise ValueError("This printer has no print queue on this PC. Install it in Windows or CUPS, then scan again.")
+    command = print_command(item, file, queue, sumatra)
+    if not mock:                # mock printer: everything but the spooler call runs, so jobs complete end to end
+        runner(command, check=True, timeout=120, capture_output=True)
+    return "queue"
+
+
+def run(origin, key, printer, sumatra, once, mock=False, manager=None):
     def request(path, body=None, claim=""):
         data = None if body is None else json.dumps(body).encode()
         headers = {"X-Staff-Key": key, "Content-Type": "application/json", "X-Print-Claim": claim}
@@ -39,7 +70,9 @@ def run(origin, key, printer, sumatra, once, mock=False):
     backoff = 3
     while True:
         try:
-            job = json.loads(request("claim", {}))["job"]
+            if manager:
+                manager.tick(request)       # scan requests, inventory and printer status; slow work runs in the background
+            job = json.loads(request("claim", manager.heartbeat() if manager else {}))["job"]
         except OSError:
             if once:
                 raise
@@ -75,9 +108,7 @@ def run(origin, key, printer, sumatra, once, mock=False):
                 target = job.get("printer") or printer
                 if not target:
                     raise ValueError("No printer is set. Add a printer in the warehouse Printers page or start the agent with --printer.")
-                command = print_command(job["item"], file, target, sumatra)
-                if not mock:        # mock printer: everything but the spooler call runs, so jobs complete end to end
-                    subprocess.run(command, check=True, timeout=120, capture_output=True)
+                print_job(target, job["item"], file, sumatra, mock, manager)
             result = {"state": "done"}
         except subprocess.TimeoutExpired:
             raise SystemExit(f"Print job {job['id']} may have reached the printer. Check the spooler before recovering it.")
@@ -105,7 +136,22 @@ if __name__ == "__main__":
                         help="Run the real job loop against the server but do not call the printer (demo and tests).")
     parser.add_argument("--sumatra", help="Path to SumatraPDF.exe on Windows")
     parser.add_argument("--once", action="store_true")
+    parser.add_argument("--list-printers", action="store_true",
+                        help="Scan for printers, print what was found and exit. Needs no server or key: use it to check this PC can see your printers.")
+    parser.add_argument("--add-ip", action="append", default=[], metavar="ADDRESS", help="With --list-printers: also ask this IP address or hostname.")
+    parser.add_argument("--mock-discovery", action="store_true", default=os.environ.get("PRINTBEE_MOCK_PRINTERS") == "1",
+                        help="Report four made-up printers instead of scanning (demo and tests). Also set by PRINTBEE_MOCK_PRINTERS=1.")
+    parser.add_argument("--no-discovery", action="store_true", help="Do not scan for printers; print only to the --printer name, as before.")
     args = parser.parse_args()
+    if args.list_printers:
+        result = {"printers": mock_printers(), "errors": []} if args.mock_discovery else scan_inventory(manual=args.add_ip)
+        for p in result["printers"]:
+            c = p["capabilities"]
+            print(f"{p['model']}  [{p['connection']}]  {p['state']}  {p['host'] or ''}  colour={c['colour']} duplex={c['duplex']} paper={','.join(c['paperSizes'])} pdf-over-ipp={c['pdf']}")
+        for message in result["errors"]:
+            print("Note:", message)
+        print(f"{len(result['printers'])} printer(s) found.")
+        raise SystemExit(0)
     if args.dry_run:
         from document_pages import count_pages
         try:
@@ -124,4 +170,5 @@ if __name__ == "__main__":
     key = os.environ.get("PRINTBEE_PRINT_AGENT_KEY")
     if not key:
         parser.error("Set PRINTBEE_PRINT_AGENT_KEY.")
-    run(args.origin.rstrip("/"), key, args.printer or ("Mock printer" if args.mock_printer else None), args.sumatra, args.once, args.mock_printer)
+    manager = None if args.no_discovery or args.once else PrinterManager(mock=args.mock_discovery)
+    run(args.origin.rstrip("/"), key, args.printer or ("Mock printer" if args.mock_printer else None), args.sumatra, args.once, args.mock_printer, manager)
