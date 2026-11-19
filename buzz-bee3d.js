@@ -12,7 +12,7 @@ import * as THREE from '/vendor/three/three.module.js';
 import {GLTFLoader} from '/vendor/three/GLTFLoader.js';
 import {RoomEnvironment} from '/vendor/three/RoomEnvironment.js';
 
-const MODEL = '/bee_hq.glb?v=3';                     // the improved model: smooth seam normals, four parts (body, eyes, wings, bubble), 2048 px WebP textures
+const MODEL = '/bee_hq.glb?v=4';                     // the improved model: smooth seam normals, four parts (body, eyes, wings, bubble), 2048 px WebP textures
 const FALLBACK_MODEL = '/buzz-bee.glb?v=1';           // the original, used if the improved one cannot be loaded (it is never changed)
 const CLAY_TEXTURE = '/buzz-bee-clay.webp?v=3';       // the original model's colour picture (only used with the fallback model)
 
@@ -65,7 +65,7 @@ const FLOAT_RATE = (2 * Math.PI) / 3;  // one slow float up and down every 3 sec
 // options: reducedMotion (draw one still picture), onFrame(lift) (called every drawn frame with how high the bee is, -0.3 to 1, so the
 // shadow under it can squash and fade in time), and, only when making the still pictures: exact (the canvas IS the bee's box), pixelRatio
 // and scale (make the bee a little smaller so no pose touches the edge of its picture).
-export async function createBee(canvas, {reducedMotion = false, exact = false, pixelRatio = null, onFrame = null, scale = 1} = {}) {
+export async function createBee(canvas, {reducedMotion = false, exact = false, pixelRatio = null, onFrame = null, scale = 1, model: modelUrl = MODEL} = {}) {
   const renderer = new THREE.WebGLRenderer({canvas, alpha: true, antialias: true, powerPreference: 'default'});
   renderer.setClearColor(0x000000, 0);
   renderer.setPixelRatio(pixelRatio || Math.min(Math.max((window.devicePixelRatio || 1) * 1.5, 2), 3));   // drawn 1.5x bigger than the screen needs, then shrunk by the browser: smooth, sharp edges
@@ -92,7 +92,7 @@ export async function createBee(canvas, {reducedMotion = false, exact = false, p
   camera.lookAt(0, 0, 0);
 
   let gltf, clay = null, hq = true;
-  try { gltf = await new GLTFLoader().loadAsync(MODEL); }
+  try { gltf = await new GLTFLoader().loadAsync(modelUrl); }
   catch {                                                      // no improved model: the original, with the clay colour picture
     hq = false;
     [gltf, clay] = await Promise.all([new GLTFLoader().loadAsync(FALLBACK_MODEL), new THREE.TextureLoader().loadAsync(CLAY_TEXTURE).catch(() => null)]);

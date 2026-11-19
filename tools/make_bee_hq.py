@@ -195,6 +195,79 @@ def solid_colours(img, classes):
     return Image.fromarray(np.clip(out * 255 + 0.5, 0, 255).astype(np.uint8))
 
 
+def bake_from_source(position, normal, uv, index, source_path, size=TEXTURE_SIZE, neighbours=10):
+    """Colour picture from the high-resolution original (1.9 million triangles, 4096 px picture; same shape and place as this model).
+    For every texel of THIS model's picture: find where that texel sits on the surface, find the nearest points of the original (that face the
+    same way, so a wing never borrows the body behind it) and take their colour. The result is the original's own clean, painted colours
+    at this model's 19k triangles, with no guessing and no recolouring."""
+    from scipy.spatial import cKDTree
+    doc, binary = g.read_glb(source_path)
+    attrs = doc["meshes"][0]["primitives"][0]["attributes"]
+    spos = g.accessor(doc, binary, attrs["POSITION"]).astype(np.float64)
+    snor = g.accessor(doc, binary, attrs["NORMAL"]).astype(np.float64)
+    suv = g.accessor(doc, binary, attrs["TEXCOORD_0"]).astype(np.float64)
+    picture = np.asarray(g.image(doc, binary, doc["materials"][0]["pbrMetallicRoughness"]["baseColorTexture"]["index"]).convert("RGB"))
+    h, w = picture.shape[:2]
+    # the colour of every vertex of the original, read from its picture (bilinear)
+    fx, fy = suv[:, 0] * (w - 1), suv[:, 1] * (h - 1)
+    x0, y0 = np.clip(np.floor(fx).astype(int), 0, w - 2), np.clip(np.floor(fy).astype(int), 0, h - 2)
+    tx, ty = (fx - x0)[:, None], (fy - y0)[:, None]
+    pic = picture.astype(np.float32)
+    vertex_colour = ((pic[y0, x0] * (1 - tx) + pic[y0, x0 + 1] * tx) * (1 - ty) + (pic[y0 + 1, x0] * (1 - tx) + pic[y0 + 1, x0 + 1] * tx) * ty)
+    tree = cKDTree(spos)
+
+    # where every texel of this model's picture sits on the surface (position and normal, by barycentric weights)
+    xs, ys, tri_of = [], [], []
+    wa, wb, wc = [], [], []
+    pix = uv * (size - 1)
+    for k in range(len(index)):
+        p = pix[index[k]]
+        x0, y0 = np.floor(p.min(axis=0)).astype(int) - 1
+        x1, y1 = np.ceil(p.max(axis=0)).astype(int) + 1
+        gx, gy = np.meshgrid(np.arange(max(x0, 0), min(x1, size - 1) + 1), np.arange(max(y0, 0), min(y1, size - 1) + 1))
+        gx, gy = gx.ravel(), gy.ravel()
+        d = (p[1, 1] - p[2, 1]) * (p[0, 0] - p[2, 0]) + (p[2, 0] - p[1, 0]) * (p[0, 1] - p[2, 1])
+        if abs(d) < 1e-9:
+            continue
+        a_ = ((p[1, 1] - p[2, 1]) * (gx - p[2, 0]) + (p[2, 0] - p[1, 0]) * (gy - p[2, 1])) / d
+        b_ = ((p[2, 1] - p[0, 1]) * (gx - p[2, 0]) + (p[0, 0] - p[2, 0]) * (gy - p[2, 1])) / d
+        c_ = 1 - a_ - b_
+        inside = (a_ >= -0.02) & (b_ >= -0.02) & (c_ >= -0.02)
+        xs.append(gx[inside]); ys.append(gy[inside]); tri_of.append(np.full(inside.sum(), k))
+        wa.append(a_[inside]); wb.append(b_[inside]); wc.append(c_[inside])
+    xs, ys, tri_of = np.concatenate(xs), np.concatenate(ys), np.concatenate(tri_of)
+    wa, wb, wc = np.concatenate(wa)[:, None], np.concatenate(wb)[:, None], np.concatenate(wc)[:, None]
+    corners = index[tri_of]
+    point = wa * position[corners[:, 0]] + wb * position[corners[:, 1]] + wc * position[corners[:, 2]]
+    facing = wa * normal[corners[:, 0]] + wb * normal[corners[:, 1]] + wc * normal[corners[:, 2]]
+    facing /= np.maximum(np.linalg.norm(facing, axis=1, keepdims=True), 1e-9)
+
+    colour = np.zeros((len(point), 3), np.float32)
+    for start in range(0, len(point), 400000):
+        chunk = slice(start, start + 400000)
+        dist, near = tree.query(point[chunk], k=neighbours)
+        same_way = np.einsum("nkj,nj->nk", snor[near], facing[chunk]) > 0.35
+        rank = np.where(same_way, dist, np.inf)                      # nearest neighbour that faces the same way (else just the nearest)
+        pick = np.where(np.isfinite(rank.min(axis=1)), rank.argmin(axis=1), 0)
+        chosen = near[np.arange(len(near)), pick]
+        close = np.take_along_axis(dist, pick[:, None], 1)[:, 0]
+        weight = 1 / (1 + (dist / np.maximum(close[:, None], 1e-6) - 1) * 6)       # blend in near-equal neighbours so the colour is smooth, not blocky
+        weight = np.where(same_way | ~same_way.any(axis=1, keepdims=True), weight, 0)
+        colour[chunk] = (vertex_colour[near] * weight[..., None]).sum(axis=1) / np.maximum(weight.sum(axis=1, keepdims=True), 1e-9)
+    out = np.zeros((size, size, 3), np.float32)
+    covered = np.zeros((size, size), bool)
+    out[ys, xs] = colour
+    covered[ys, xs] = True
+    # a few pixels of the same colours past every chart's edge, so mip-mapping and filtering never pull in grey
+    _, nearest = cv2.distanceTransformWithLabels((~covered).astype(np.uint8), cv2.DIST_L2, 5, labelType=cv2.DIST_LABEL_PIXEL)
+    fy, fx = np.nonzero(covered)
+    lookup_y = np.zeros(nearest.max() + 1, int); lookup_x = np.zeros(nearest.max() + 1, int)
+    lookup_y[nearest[fy, fx]] = fy; lookup_x[nearest[fy, fx]] = fx
+    out = out[lookup_y[nearest], lookup_x[nearest]]
+    print(f"baked colours from {source_path}: {len(point):,} texels from {len(spos):,} source vertices")
+    return Image.fromarray(np.clip(out + 0.5, 0, 255).astype(np.uint8))
+
+
 def enlarge_normal(img, size=TEXTURE_SIZE):
     n = np.asarray(img.convert("RGB")).astype(np.float32) / 255 * 2 - 1
     big = cv2.resize(n, (size, size), interpolation=cv2.INTER_CUBIC)
@@ -210,7 +283,7 @@ def webp(img, quality):
 
 # ---- writing -----------------------------------------------------------------------------------------------------
 
-def build(source, clay_path, target):
+def build(source, clay_path, target, original=None):
     doc, binary = g.read_glb(source)
     m = g.mesh_arrays(doc, binary)
     position, normal, uv, index = m["position"], m["normal"], m["uv"], m["index"]
@@ -221,8 +294,11 @@ def build(source, clay_path, target):
     cls = classify(position, uv, index, base_for_classes)
     material_index = {name: i for i, name in enumerate(PIECES)}
 
-    colour = enlarge_colour(Image.open(clay_path))
-    colour = solid_colours(colour, uv_classes(uv, index, cls, TEXTURE_SIZE))
+    if original:                                            # the high-resolution original is there: bake its clean painted colours
+        colour = bake_from_source(position, normal, uv, index, original)
+    else:                                                   # otherwise: the enlarged old picture, repainted as flat palette colours
+        colour = enlarge_colour(Image.open(clay_path))
+        colour = solid_colours(colour, uv_classes(uv, index, cls, TEXTURE_SIZE))
     original = {i: g.image(doc, binary, i) for i in range(len(doc["images"]))}
     normal_source = doc["textures"][doc["materials"][0]["normalTexture"]["index"]]["source"]
     normal_map = enlarge_normal(original[normal_source])
@@ -275,5 +351,6 @@ def build(source, clay_path, target):
 
 if __name__ == "__main__":
     root = Path(__file__).parent.parent
-    args = sys.argv[1:]
-    build(args[0] if args else root / "buzz-bee.glb", args[1] if len(args) > 1 else root / "buzz-bee-clay.webp", args[2] if len(args) > 2 else root / "bee_hq.glb")
+    args = [a for a in sys.argv[1:] if not a.startswith("--source=")]
+    original = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--source=")), None)
+    build(args[0] if args else root / "buzz-bee.glb", args[1] if len(args) > 1 else root / "buzz-bee-clay.webp", args[2] if len(args) > 2 else root / "bee_hq.glb", original)

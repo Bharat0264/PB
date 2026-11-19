@@ -55,18 +55,18 @@ class BeeHq(unittest.TestCase):
         self.assertGreater(np.linalg.norm(n, axis=2).mean(), 0.97)                   # still unit vectors after enlarging
         self.assertGreater(n[..., 2].mean(), 0.9)                                     # and still mostly pointing out
 
-    def test_colours_are_the_flat_palette(self):
-        """Honey yellow, ink and the other palette colours fill their parts evenly: no baked highlights, no grey blotches."""
-        pic = np.asarray(g.image(self.new_doc, self.new_bin, 0).convert("RGB").resize((512, 512))).astype(float)
-        def share(colour, tolerance=14):
-            return float((np.abs(pic - np.array(colour)).max(axis=2) < tolerance).mean())
-        self.assertGreater(share((245, 197, 66)), 0.08)              # honey yellow
-        self.assertGreater(share((42, 33, 18)), 0.03)                # ink
-        self.assertGreater(share((245, 160, 75)), 0.0005)            # cheeks and tongue
-        self.assertGreater(share((255, 248, 232)), 0.02)             # wings
-        used = np.abs(pic - pic.mean(axis=2, keepdims=True)).max(axis=2)
-        palette = sum(share(c) for c in ((245, 197, 66), (42, 33, 18), (245, 160, 75), (255, 248, 232), (255, 255, 255)))
-        self.assertGreater(palette, 0.45)                            # most of the picture is flat palette colour
+    def test_colours_are_clean_honey_and_chocolate_with_no_grey_blotches(self):
+        """The picture is baked from the high-resolution original's own painted colours: honey yellow, dark brown, cream, cheeks. No grey in between."""
+        import cv2
+        pic = np.asarray(g.image(self.new_doc, self.new_bin, 0).convert("RGB").resize((512, 512)))
+        hsv = cv2.cvtColor(pic, cv2.COLOR_RGB2HSV_FULL).astype(float) / 255
+        hue, sat, val = hsv[..., 0] * 360, hsv[..., 1], hsv[..., 2]
+        honey = ((hue > 28) & (hue < 55) & (sat > 0.55) & (val > 0.7)).mean()
+        dark = (val < 0.3).mean()
+        grey = ((sat < 0.12) & (val > 0.25) & (val < 0.7)).mean()
+        self.assertGreater(honey, 0.10)
+        self.assertGreater(dark, 0.02)
+        self.assertLess(grey, 0.03)
 
     def test_the_original_model_is_untouched(self):
         committed = subprocess.run(["git", "show", "HEAD:buzz-bee.glb"], cwd=root, capture_output=True)
