@@ -16,6 +16,7 @@ function the customer form uses. There is no second tickets table.
 import json
 import re
 import time
+from posixpath import basename
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS support_tickets (
@@ -42,6 +43,32 @@ CREATE TABLE IF NOT EXISTS support_messages (
     body TEXT NOT NULL,
     created INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS support_attachments (
+    id INTEGER PRIMARY KEY,
+    ticket_id INTEGER NOT NULL,
+    message_id INTEGER NOT NULL,
+    filename TEXT NOT NULL,
+    content_type TEXT NOT NULL,
+    size INTEGER NOT NULL,
+    object_key TEXT,
+    content BLOB,
+    uploaded_by TEXT NOT NULL,
+    created INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS support_rate (
+    bucket TEXT NOT NULL,
+    key TEXT NOT NULL,
+    ts INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS support_idempotency (
+    scope TEXT NOT NULL,
+    key TEXT NOT NULL,
+    response TEXT NOT NULL,
+    created INTEGER NOT NULL,
+    PRIMARY KEY (scope, key)
+);
+CREATE INDEX IF NOT EXISTS support_attachments_ticket ON support_attachments(ticket_id, message_id);
+CREATE INDEX IF NOT EXISTS support_rate_lookup ON support_rate(bucket, key, ts);
 CREATE INDEX IF NOT EXISTS support_tickets_customer ON support_tickets(customer_email, updated);
 CREATE INDEX IF NOT EXISTS support_tickets_status ON support_tickets(status, updated);
 CREATE INDEX IF NOT EXISTS support_tickets_assignee ON support_tickets(assignee, status);
@@ -57,7 +84,16 @@ CATEGORIES = {
     "account": ("Account or sign-in", False),
     "other": ("Something else", False),
 }
-STATUSES = ("open", "pending", "resolved", "closed")      # pending = waiting for the customer
+# open -> in_progress -> pending (waiting for the customer) -> resolved -> closed
+STATUSES = ("open", "in_progress", "pending", "resolved", "closed")
+TRANSITIONS = {
+    "open": {"in_progress", "pending", "resolved", "closed"},
+    "in_progress": {"open", "pending", "resolved", "closed"},
+    "pending": {"open", "in_progress", "resolved", "closed"},
+    "resolved": {"open", "in_progress", "closed"},       # reopen, or finish
+    "closed": {"open"},                                  # only a reopen
+}
+ACTIVE = ("open", "in_progress", "pending")
 PRIORITIES = ("low", "normal", "high", "urgent")
 SOURCES = ("customer", "buzz", "admin")
 CUSTOMER_VISIBLE = ("customer", "agent")
@@ -71,6 +107,53 @@ class SupportError(ValueError):
 
 class NotFound(SupportError):
     pass
+
+
+class RateLimited(SupportError):
+    pass
+
+
+# ---- rate limits and idempotency ----------------------------------------------------------------------
+
+# action -> ((count, seconds) per user, (count, seconds) per IP address)
+LIMITS = {
+    "ticket": ((5, 3600), (10, 3600)),
+    "message": ((20, 600), (40, 600)),
+    "upload": ((30, 600), (60, 600)),
+}
+KEY_PATTERN = re.compile(r"[A-Za-z0-9_-]{16,64}")
+
+
+def check_rate(db, action, user, ip, now=None):
+    """Raise RateLimited when this user or IP address did `action` too often recently. Call record_rate on success."""
+    now = now or _now()
+    db.execute("DELETE FROM support_rate WHERE ts<?", (now - 86400,))
+    for kind, key, (limit, window) in (("user", user, LIMITS[action][0]), ("ip", ip, LIMITS[action][1])):
+        if key and db.execute("SELECT count(*) FROM support_rate WHERE bucket=? AND key=? AND ts>?",
+                              (f"{action}:{kind}", key, now - window)).fetchone()[0] >= limit:
+            raise RateLimited("You are doing that too often. Please wait a few minutes and try again.")
+
+
+def record_rate(db, action, user, ip, now=None):
+    now = now or _now()
+    for kind, key in (("user", user), ("ip", ip)):
+        if key:
+            db.execute("INSERT INTO support_rate(bucket, key, ts) VALUES (?,?,?)", (f"{action}:{kind}", key, now))
+
+
+def idempotent(db, scope, key, run):
+    """Run `run()` once per (scope, key). A repeat of the same key (a double click, a retry) returns the first response
+    instead of creating a second ticket or message. No key means no protection, the request just runs."""
+    if not key or not KEY_PATTERN.fullmatch(key):
+        return run()
+    now = _now()
+    db.execute("DELETE FROM support_idempotency WHERE created<?", (now - 86400,))
+    saved = db.execute("SELECT response FROM support_idempotency WHERE scope=? AND key=?", (scope, key)).fetchone()
+    if saved:
+        return json.loads(saved["response"])
+    result = run()
+    db.execute("INSERT INTO support_idempotency(scope, key, response, created) VALUES (?,?,?,?)", (scope, key, json.dumps(result), now))
+    return result
 
 
 def _text(value, label, limit, minimum=1):
@@ -137,7 +220,7 @@ def create_ticket(db, *, email, category, subject, message, order_id=None, sourc
             raise SupportError("Choose one of your own orders.")
     elif needs_order:
         raise SupportError(f"Choose the order this is about. “{label}” tickets are linked to an order.")
-    open_now = db.execute("SELECT count(*) FROM support_tickets WHERE customer_email=? AND status IN ('open','pending')",
+    open_now = db.execute("SELECT count(*) FROM support_tickets WHERE customer_email=? AND status IN ('open','in_progress','pending')",
                           (email,)).fetchone()[0]
     if source == "customer" and open_now >= MAX_OPEN_PER_CUSTOMER:
         raise SupportError("You already have several open tickets. Please wait for a reply or close one first.")
@@ -179,7 +262,12 @@ def customer_reply(db, ticket_id, email, message):
     if ticket["status"] == "closed":
         raise SupportError("This ticket is closed. Please open a new ticket.")
     _add_message(db, ticket_id, "customer", email, _text(message, "message", 4000))
-    _touch(db, ticket_id, "open" if ticket["status"] in ("pending", "resolved") else None)
+    if ticket["status"] == "pending":       # the customer answered: back to the team (to the same agent if assigned)
+        _touch(db, ticket_id, "in_progress" if ticket["assignee"] else "open")
+    elif ticket["status"] == "resolved":
+        _touch(db, ticket_id, "open")
+    else:
+        _touch(db, ticket_id)
 
 
 def customer_resolve(db, ticket_id, email):
@@ -217,11 +305,92 @@ def customer_ticket(db, ticket_id, email):
         raise NotFound("That ticket was not found.")
     ticket = _public_ticket(db, row)
     # Only customer and agent messages. Internal notes and event lines never leave the server.
+    files = _attachments(db, ticket_id)
     ticket["messages"] = [
-        {"id": m["id"], "from": "you" if m["kind"] == "customer" else "support", "body": m["body"], "created": m["created"]}
+        {"id": m["id"], "from": "you" if m["kind"] == "customer" else "support", "body": m["body"], "created": m["created"],
+         "attachments": files.get(m["id"], [])}
         for m in db.execute("SELECT * FROM support_messages WHERE ticket_id=? AND kind IN ('customer','agent') ORDER BY id",
                             (ticket_id,))]
     return ticket
+
+
+# ---- attachments ---------------------------------------------------------------------------------------
+
+MAX_FILES_PER_MESSAGE = 5
+MAX_FILES_PER_TICKET = 20
+MAX_FILE_BYTES = 10 * 1024 * 1024
+# The type is decided by the file's own first bytes, never by its name or the browser's claim.
+SIGNATURES = ((b"%PDF-", "application/pdf", "pdf"), (b"\xff\xd8\xff", "image/jpeg", "jpg"),
+              (b"\x89PNG\r\n\x1a\n", "image/png", "png"))
+
+
+def sniff(body):
+    for magic, content_type, extension in SIGNATURES:
+        if body.startswith(magic):
+            return content_type, extension
+    raise SupportError("Only PDF, JPG and PNG files can be attached.")
+
+
+def safe_filename(name, extension):
+    """A harmless display / download name: no path, no odd characters, and an extension that matches the real type."""
+    name = basename(str(name or "").replace("\\", "/"))
+    stem = name.rsplit(".", 1)[0] if "." in name else name
+    stem = re.sub(r"[^A-Za-z0-9 ._()-]+", "", stem)
+    stem = re.sub(r"\s+", " ", stem).strip(" .-_")[:60]
+    return f"{stem or 'attachment'}.{extension}"
+
+
+def _attachments(db, ticket_id):
+    grouped = {}
+    for row in db.execute("SELECT id, message_id, filename, content_type, size FROM support_attachments WHERE ticket_id=? ORDER BY id",
+                          (ticket_id,)):
+        grouped.setdefault(row["message_id"], []).append(
+            {"id": row["id"], "name": row["filename"], "type": row["content_type"], "size": row["size"]})
+    return grouped
+
+
+def add_attachment(db, ticket_id, message_id, uploader, filename, body, storage=None):
+    """Store one file on a message the uploader wrote. `storage` is the existing private file store (S3) or None
+    (then the bytes live in the database like order files). Returns the attachment's public description."""
+    ticket = _ticket(db, ticket_id)
+    message = db.execute("SELECT kind, author FROM support_messages WHERE id=? AND ticket_id=?", (message_id, ticket_id)).fetchone()
+    if not message or message["kind"] not in ("customer", "agent") or message["author"] != uploader:
+        raise SupportError("Attach files to a message you wrote.")
+    if ticket["status"] == "closed":
+        raise SupportError("This ticket is closed.")
+    if not isinstance(body, (bytes, bytearray)) or not 0 < len(body) <= MAX_FILE_BYTES:
+        raise SupportError("Each file must be between 1 byte and 10 MB.")
+    content_type, extension = sniff(bytes(body[:16]))
+    if db.execute("SELECT count(*) FROM support_attachments WHERE message_id=?", (message_id,)).fetchone()[0] >= MAX_FILES_PER_MESSAGE:
+        raise SupportError(f"You can attach up to {MAX_FILES_PER_MESSAGE} files per message.")
+    if db.execute("SELECT count(*) FROM support_attachments WHERE ticket_id=?", (ticket_id,)).fetchone()[0] >= MAX_FILES_PER_TICKET:
+        raise SupportError("This ticket has reached its file limit.")
+    name = safe_filename(filename, extension)
+    ident = db.execute("INSERT INTO support_attachments(ticket_id, message_id, filename, content_type, size, uploaded_by, created) "
+                       "VALUES (?,?,?,?,?,?,?)", (ticket_id, message_id, name, content_type, len(body), uploader, _now())).lastrowid
+    if storage:
+        key = storage.put_support(ticket_id, ident, bytes(body))
+        db.execute("UPDATE support_attachments SET object_key=? WHERE id=?", (key, ident))
+    else:
+        db.execute("UPDATE support_attachments SET content=? WHERE id=?", (bytes(body), ident))
+    _touch(db, ticket_id)
+    return {"id": ident, "name": name, "type": content_type, "size": len(body)}
+
+
+def attachment_for_customer(db, attachment_id, email):
+    """The attachment row, only if the ticket belongs to this customer."""
+    row = db.execute("SELECT a.*, t.customer_email FROM support_attachments a JOIN support_tickets t ON t.id=a.ticket_id "
+                     "WHERE a.id=?", (attachment_id,)).fetchone() if isinstance(attachment_id, int) else None
+    if not row or row["customer_email"] != email:
+        raise NotFound("That file was not found.")
+    return row
+
+
+def attachment_for_staff(db, attachment_id):
+    row = db.execute("SELECT * FROM support_attachments WHERE id=?", (attachment_id,)).fetchone() if isinstance(attachment_id, int) else None
+    if not row:
+        raise NotFound("That file was not found.")
+    return row
 
 
 # ---- staff side ----------------------------------------------------------------------------------------
@@ -234,7 +403,7 @@ def staff_reply(db, ticket_id, actor, message, internal=False):
     if internal:
         _touch(db, ticket_id)
     else:   # a reply now waits on the customer
-        _touch(db, ticket_id, "pending" if ticket["status"] == "open" else None)
+        _touch(db, ticket_id, "pending" if ticket["status"] in ("open", "in_progress") else None)
 
 
 def set_status(db, ticket_id, actor, status):
@@ -243,6 +412,8 @@ def set_status(db, ticket_id, actor, status):
     ticket = _ticket(db, ticket_id)
     if ticket["status"] == status:
         return
+    if status not in TRANSITIONS[ticket["status"]]:
+        raise SupportError(f"A {ticket['status'].replace('_', ' ')} ticket cannot go to {status.replace('_', ' ')}.")
     _add_message(db, ticket_id, "event", actor, f"Status changed from {ticket['status']} to {status}")
     _touch(db, ticket_id, status)
 
@@ -271,7 +442,11 @@ def assign(db, ticket_id, actor, assignee, allowed):
         return
     _add_message(db, ticket_id, "event", actor, f"Assigned to {assignee}" if assignee else "Unassigned")
     db.execute("UPDATE support_tickets SET assignee=? WHERE id=?", (assignee, ticket_id))
-    _touch(db, ticket_id)
+    if assignee and ticket["status"] == "open":       # someone owns it now, so work has started
+        _add_message(db, ticket_id, "event", actor, "Status changed from open to in_progress")
+        _touch(db, ticket_id, "in_progress")
+    else:
+        _touch(db, ticket_id)
 
 
 def staff_tickets(db, *, status=None, priority=None, assignee=None, category=None, query=None, limit=50, offset=0):
@@ -279,7 +454,7 @@ def staff_tickets(db, *, status=None, priority=None, assignee=None, category=Non
     if status in STATUSES:
         where.append("t.status=?"); params.append(status)
     elif status == "active":
-        where.append("t.status IN ('open','pending')")
+        where.append("t.status IN ('open','in_progress','pending')")
     if priority in PRIORITIES:
         where.append("t.priority=?"); params.append(priority)
     if category in CATEGORIES:
@@ -316,8 +491,10 @@ def staff_ticket(db, ticket_id):
     row = _ticket(db, ticket_id)
     number = db.execute("SELECT order_number FROM order_owners WHERE order_id=?", (row["order_id"],)).fetchone() if row["order_id"] else None
     ticket = _staff_summary(_with_number(row, number))
+    files = _attachments(db, ticket_id)
     ticket.update({"orderId": row["order_id"], "aiSummary": row["ai_summary"],
-                   "messages": [{"id": m["id"], "kind": m["kind"], "author": m["author"], "body": m["body"], "created": m["created"]}
+                   "messages": [{"id": m["id"], "kind": m["kind"], "author": m["author"], "body": m["body"], "created": m["created"],
+                                 "attachments": files.get(m["id"], [])}
                                 for m in db.execute("SELECT * FROM support_messages WHERE ticket_id=? ORDER BY id", (ticket_id,))]})
     ticket["order"] = order_context(db, row["order_id"]) if row["order_id"] else None
     return ticket

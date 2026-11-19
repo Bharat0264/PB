@@ -83,3 +83,5 @@ if __name__ == "__main__":
         if os.environ.get("PRINTBEE_SMTP_USER"):
             smtp.login(os.environ["PRINTBEE_SMTP_USER"], os.environ["PRINTBEE_SMTP_PASSWORD"])
         print(f"Sent {send_batch(smtp, os.environ['PRINTBEE_SMTP_FROM'], origin)} order updates.")
+        import support_notify
+        print(f"Sent {support_notify.send_batch(smtp, os.environ['PRINTBEE_SMTP_FROM'], origin)} support emails.")

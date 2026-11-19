@@ -12,7 +12,7 @@ from contextlib import closing
 from datetime import datetime, timedelta, timezone
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 from http.cookies import CookieError, SimpleCookie
 from threading import BoundedSemaphore
 
@@ -1139,6 +1139,44 @@ class PrintBee(SimpleHTTPRequestHandler):
             queued = sum(ops.queue_job(db, order_id, position, role, printer_id) for position in positions)
         return self.json_response(200, {"queued": queued})
 
+    def client_ip(self):
+        """The caller's address. Behind the HTTPS proxy (Render) the last X-Forwarded-For entry is the one the proxy
+        itself added; the earlier ones can be forged by the caller."""
+        forwarded = self.headers.get("X-Forwarded-For", "")
+        if forwarded and (auth.public_origin() or "").startswith("https"):
+            return forwarded.split(",")[-1].strip()[:64]
+        return self.client_address[0]
+
+    def read_support_attachment(self, row):
+        """(body, type, disposition) for a download. Always an attachment (never rendered in the page), with the type
+        that was verified from the file's content when it was uploaded."""
+        if row["object_key"]:
+            storage = self.server.files
+            if not storage:
+                raise support.SupportError("File storage is unavailable. Please try again later.")
+            try:
+                body = storage.read(row["object_key"])
+            except storage.errors:
+                raise support.SupportError("Could not retrieve the file. Please retry.")
+        else:
+            body = row["content"]
+        return (body, row["content_type"], f'attachment; filename="{row["filename"]}"')
+
+    def support_upload(self, db, ticket_id, message_id, uploader):
+        length = int(self.headers.get("Content-Length", "0") or 0)
+        if not 0 < length <= support.MAX_FILE_BYTES:
+            self.close_connection = True
+            return self.json_response(400, {"error": "Each file must be between 1 byte and 10 MB."})
+        body = self.rfile.read(length)
+        if len(body) != length:
+            raise support.SupportError("The upload was interrupted. Please try again.")
+        name = unquote(self.headers.get("X-Filename", ""))[:200]
+        ip = self.client_ip()
+        support.check_rate(db, "upload", uploader, ip)
+        saved = support.add_attachment(db, ticket_id, message_id, uploader, name, body, self.server.files)
+        support.record_rate(db, "upload", uploader, ip)
+        return {"attachment": saved}
+
     def support_api(self, path):
         """Support tickets. Customers use /api/support/..., admins /api/admin/support/... All updates are POST."""
         admin_area = path.startswith("/api/admin/")
@@ -1155,6 +1193,21 @@ class PrintBee(SimpleHTTPRequestHandler):
                 if self.command == "POST" and not self.same_origin():
                     return self.json_response(403, {"error": "Open PrintBee directly and try again."})
                 actor = email
+        upload = re.fullmatch(r"/api/support/tickets/(\d+)/messages/(\d+)/attachments", path)
+        if upload and self.command == "POST" and not admin_area:
+            try:
+                with closing(connect()) as db, db:
+                    db.execute("BEGIN IMMEDIATE")
+                    result = self.support_upload(db, int(upload[1]), int(upload[2]), actor)
+            except support.NotFound as error:
+                return self.json_response(404, {"error": str(error)})
+            except support.RateLimited as error:
+                return self.json_response(429, {"error": str(error)})
+            except support.SupportError as error:
+                return self.json_response(400, {"error": str(error)})
+            except (self.server.files.errors if self.server.files else ()):
+                return self.json_response(502, {"error": "Could not store the file. Please retry."})
+            return self.json_response(200, result) if isinstance(result, dict) else result
         data = {}
         if self.command == "POST":
             length = int(self.headers.get("Content-Length", "0") or 0)
@@ -1169,9 +1222,16 @@ class PrintBee(SimpleHTTPRequestHandler):
             with closing(connect()) as db, db:
                 if self.command == "POST":
                     db.execute("BEGIN IMMEDIATE")
-                result = self.support_route(db, path, query, data, admin_area, actor, email)
+                run = lambda: self.support_route(db, path, query, data, admin_area, actor, email)
+                if self.command == "POST":
+                    # A double click or retry carries the same Idempotency-Key and gets the first answer back.
+                    result = support.idempotent(db, f"{actor}|{path}", self.headers.get("Idempotency-Key"), run)
+                else:
+                    result = run()
         except support.NotFound as error:
             return self.json_response(404, {"error": str(error)})
+        except support.RateLimited as error:
+            return self.json_response(429, {"error": str(error)})
         except support.SupportError as error:
             return self.json_response(400, {"error": str(error)})
         if isinstance(result, tuple):       # a download: (body, type, disposition)
@@ -1180,14 +1240,21 @@ class PrintBee(SimpleHTTPRequestHandler):
 
     def support_route(self, db, path, query, data, admin_area, actor, email):
         post = self.command == "POST"
+        ip = self.client_ip()
+        file = re.fullmatch(r"/api/(?:admin/)?support/attachments/(\d+)", path)
+        if file and not post:
+            row = support.attachment_for_staff(db, int(file[1])) if admin_area else support.attachment_for_customer(db, int(file[1]), email)
+            return self.read_support_attachment(row)
         if not admin_area:
             if path == "/api/support/categories" and not post:
                 return {"categories": support.categories()}
             if path == "/api/support/tickets":
                 if not post:
                     return {"tickets": support.customer_tickets(db, email)}
+                support.check_rate(db, "ticket", email, ip)
                 ident = support.create_ticket(db, email=email, category=data.get("category"), subject=data.get("subject"),
                                               message=data.get("message"), order_id=data.get("orderId") or None)
+                support.record_rate(db, "ticket", email, ip)
                 return {"ticket": support.customer_ticket(db, ident, email)}
             match = re.fullmatch(r"/api/support/tickets/(\d+)(?:/(reply|resolve))?", path)
             if match:
@@ -1195,7 +1262,9 @@ class PrintBee(SimpleHTTPRequestHandler):
                 if not post and not action:
                     return {"ticket": support.customer_ticket(db, ident, email)}
                 if post and action == "reply":
+                    support.check_rate(db, "message", email, ip)
                     support.customer_reply(db, ident, email, data.get("message"))
+                    support.record_rate(db, "message", email, ip)
                 elif post and action == "resolve":
                     support.customer_resolve(db, ident, email)
                 else:
@@ -1236,10 +1305,10 @@ class PrintBee(SimpleHTTPRequestHandler):
             if action:
                 raise support.NotFound("Unknown support request.")
             return {"ticket": support.staff_ticket(db, ident)}
-        if action == "reply":
-            support.staff_reply(db, ident, actor, data.get("message"))
-        elif action == "note":
-            support.staff_reply(db, ident, actor, data.get("message"), internal=True)
+        if action in ("reply", "note"):
+            support.check_rate(db, "message", actor, ip)
+            support.staff_reply(db, ident, actor, data.get("message"), internal=action == "note")
+            support.record_rate(db, "message", actor, ip)
         elif action == "status":
             support.set_status(db, ident, actor, data.get("status"))
         elif action == "priority":

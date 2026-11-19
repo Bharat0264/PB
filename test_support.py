@@ -106,6 +106,90 @@ class SupportModule(unittest.TestCase):
         self.assertEqual(support.staff_tickets(self.db, category="delivery")["tickets"], [])
 
 
+class SupportRules(SupportModule):
+    """Same fixture, more rules: the status flow, rate limits, idempotency and attachments."""
+
+    def test_valid_and_invalid_status_transitions(self):
+        ident = self.make()
+        move = lambda status: support.set_status(self.db, ident, "admin@example.test", status)
+        status = lambda: support.staff_ticket(self.db, ident)["status"]
+        move("in_progress"); self.assertEqual(status(), "in_progress")
+        move("pending"); self.assertEqual(status(), "pending")
+        move("resolved"); self.assertEqual(status(), "resolved")
+        with self.assertRaises(support.SupportError):
+            move("pending")                          # a resolved ticket can't wait on the customer again
+        move("closed"); self.assertEqual(status(), "closed")
+        for blocked in ("resolved", "pending", "in_progress"):
+            with self.assertRaises(support.SupportError):
+                move(blocked)                        # closed tickets can only be reopened
+        move("open"); self.assertEqual(status(), "open")
+
+    def test_assigning_starts_work_and_customer_reply_goes_back_to_the_agent(self):
+        ident = self.make()
+        support.assign(self.db, ident, "admin@example.test", "boss@example.test", {"boss@example.test"})
+        self.assertEqual(support.staff_ticket(self.db, ident)["status"], "in_progress")
+        support.staff_reply(self.db, ident, "boss@example.test", "Can you send a photo?")
+        self.assertEqual(support.staff_ticket(self.db, ident)["status"], "pending")
+        support.customer_reply(self.db, ident, "me@example.test", "Here it is.")
+        self.assertEqual(support.staff_ticket(self.db, ident)["status"], "in_progress")
+
+    def test_rate_limits_per_user_and_per_ip(self):
+        for _ in range(5):
+            support.check_rate(self.db, "ticket", "me@example.test", "1.1.1.1", now=1000)
+            support.record_rate(self.db, "ticket", "me@example.test", "1.1.1.1", now=1000)
+        with self.assertRaises(support.RateLimited):
+            support.check_rate(self.db, "ticket", "me@example.test", "9.9.9.9", now=1500)     # same user, other address
+        support.check_rate(self.db, "ticket", "other@example.test", "9.9.9.9", now=1500)       # a different person is fine
+        for number in range(5):                                                               # many people behind one IP
+            support.record_rate(self.db, "ticket", f"user{number}@example.test", "1.1.1.1", now=1000)
+        with self.assertRaises(support.RateLimited):
+            support.check_rate(self.db, "ticket", "fresh@example.test", "1.1.1.1", now=1500)
+        support.check_rate(self.db, "ticket", "me@example.test", "1.1.1.1", now=1000 + 3601)   # the window has passed
+
+    def test_idempotency_key_stops_a_double_submit(self):
+        made = []
+        run = lambda: made.append(self.make()) or {"ticket": made[-1]}
+        first = support.idempotent(self.db, "me|/tickets", "0123456789abcdef-key", run)
+        second = support.idempotent(self.db, "me|/tickets", "0123456789abcdef-key", run)
+        self.assertEqual((first, second, len(made)), ({"ticket": made[0]}, {"ticket": made[0]}, 1))
+        self.assertEqual(self.db.execute("SELECT count(*) FROM support_tickets").fetchone()[0], 1)
+        support.idempotent(self.db, "me|/tickets", "a-different-key-0123456", run)         # a new key is a new request
+        self.assertEqual(len(made), 2)
+        support.idempotent(self.db, "me|/tickets", None, run); support.idempotent(self.db, "me|/tickets", "short", run)
+        self.assertEqual(len(made), 4)                                                    # no/invalid key: no protection
+
+    def test_attachments_are_checked_by_content_and_named_safely(self):
+        ident = self.make()
+        message = support.customer_ticket(self.db, ident, "me@example.test")["messages"][0]["id"]
+        add = lambda name, body, who="me@example.test": support.add_attachment(self.db, ident, message, who, name, body)
+        backslash, newline = chr(92), chr(10).encode()
+        pdf = b"%PDF-1.4" + newline + b"x" * 100
+        jpeg = bytes([0xFF, 0xD8, 0xFF, 0xE0]) + b"0" * 50
+        png = bytes([0x89]) + b"PNG" + bytes([13, 10, 26, 10]) + b"0" * 50
+        windows_exe = b"MZ" + bytes([0x90, 0]) + b"0" * 50
+        saved = add(backslash * 2 + ".." + backslash + "my <b>file</b>.exe", pdf)      # a lying name: the content says PDF
+        self.assertEqual(saved["type"], "application/pdf")
+        self.assertTrue(saved["name"].endswith(".pdf") and not set(saved["name"]) & set("/<>" + backslash), saved["name"])
+        self.assertEqual(support.safe_filename("Class notes (week 3).JPG", "jpg"), "Class notes (week 3).jpg")
+        self.assertEqual(add("photo.pdf", jpeg)["type"], "image/jpeg")
+        self.assertEqual(add("shot.jpg", png)["name"], "shot.png")
+        for bad in (b"<html><script>alert(1)</script></html>", windows_exe, b"GIF89a" + b"0" * 50, b""):
+            with self.assertRaises(support.SupportError):
+                add("evil.pdf", bad)
+        with self.assertRaises(support.SupportError):
+            add("big.pdf", b"%PDF-" + b"0" * support.MAX_FILE_BYTES)             # over 10 MB
+        with self.assertRaises(support.SupportError):
+            add("a.pdf", pdf, who="intruder@example.test")                       # not your message
+        add("four.pdf", pdf); add("five.pdf", pdf)                                  # five in total now
+        with self.assertRaises(support.SupportError):
+            add("six.pdf", pdf)
+        shown = support.customer_ticket(self.db, ident, "me@example.test")["messages"][0]["attachments"]
+        self.assertEqual(len(shown), 5)
+        with self.assertRaises(support.NotFound):
+            support.attachment_for_customer(self.db, shown[0]["id"], "intruder@example.test")
+        self.assertEqual(support.attachment_for_customer(self.db, shown[0]["id"], "me@example.test")["content_type"], "application/pdf")
+
+
 class SupportApi(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -154,12 +238,60 @@ class SupportApi(unittest.TestCase):
         self.assertNotIn("toner", str(seen))
         self.assertEqual([m["from"] for m in seen["messages"]], ["you", "support"])
         status, replied, _ = ann.post(f"/api/support/tickets/{ticket['id']}/reply", {"message": "Thank you!"})
-        self.assertEqual((status, replied["ticket"]["status"]), (200, "open"))
+        self.assertEqual((status, replied["ticket"]["status"]), (200, "in_progress"))   # assigned, so it goes back to its agent
         status, done, _ = ann.post(f"/api/support/tickets/{ticket['id']}/resolve")
         self.assertEqual((status, done["ticket"]["status"]), (200, "resolved"))
         status, final, _ = self.server.request("GET", base, headers=self.admin)
         self.assertEqual((final["ticket"]["priority"], final["ticket"]["assignee"]), ("high", BOSS))
         self.assertTrue(any(m["kind"] == "internal" for m in final["ticket"]["messages"]))
+
+    def test_http_idempotency_attachments_and_rate_limit(self):
+        cat = Customer(self.server, "cat@example.test")
+        dog = Customer(self.server, "dog@example.test")
+        body = {"category": "account", "subject": "Cannot sign in", "message": "The link never arrives."}
+        key = {"Idempotency-Key": "double-click-key-0001"}
+        first = cat.post("/api/support/tickets", body, **key)
+        again = cat.post("/api/support/tickets", body, **key)         # the double click
+        self.assertEqual((first[0], again[0]), (200, 200))
+        self.assertEqual(first[1]["ticket"]["id"], again[1]["ticket"]["id"])
+        self.assertEqual(len(cat.get("/api/support/tickets")[1]["tickets"]), 1)
+        ticket = first[1]["ticket"]
+        message = ticket["messages"][0]["id"]
+        upload = f"/api/support/tickets/{ticket['id']}/messages/{message}/attachments"
+        pdf = b"%PDF-1.4" + bytes([10]) + b"x" * 200
+        status, saved, _ = cat.post(upload, pdf, **{"X-Filename": "My%20receipt.PDF", "Content-Type": "application/pdf"})
+        self.assertEqual((status, saved["attachment"]["name"], saved["attachment"]["type"]), (200, "My receipt.pdf", "application/pdf"))
+        # a file that only pretends to be a PDF is refused, and so is a stranger uploading to this message
+        self.assertEqual(cat.post(upload, b"<html>hi</html>", **{"X-Filename": "x.pdf", "Content-Type": "application/pdf"})[0], 400)
+        self.assertEqual(dog.post(upload, pdf, **{"X-Filename": "x.pdf", "Content-Type": "application/pdf"})[0], 400)
+        listed = cat.get(f"/api/support/tickets/{ticket['id']}")[1]["ticket"]["messages"][0]["attachments"]
+        self.assertEqual(len(listed), 1)
+        # downloads: owner and admin only, always as an attachment with the verified type
+        status, content, headers = cat.get(f"/api/support/attachments/{listed[0]['id']}")
+        sent = {name.lower(): value for name, value in headers}
+        self.assertEqual((status, content[:5]), (200, b"%PDF-"))
+        self.assertEqual(sent["content-type"], "application/pdf")
+        self.assertTrue(sent["content-disposition"].startswith("attachment;"))
+        self.assertEqual(sent["x-content-type-options"], "nosniff")
+        self.assertEqual(dog.get(f"/api/support/attachments/{listed[0]['id']}")[0], 404)
+        self.assertEqual(self.server.request("GET", f"/api/support/attachments/{listed[0]['id']}")[0], 401)
+        self.assertEqual(self.server.request("GET", f"/api/admin/support/attachments/{listed[0]['id']}", headers=self.admin, raw=True)[0], 200)
+        self.assertEqual(dog.get(f"/api/admin/support/attachments/{listed[0]['id']}")[0], 403)
+        # too many messages in a few minutes
+        reply = f"/api/support/tickets/{ticket['id']}/reply"
+        codes = [cat.post(reply, {"message": f"Hello number {n}"})[0] for n in range(23)]
+        self.assertEqual(codes[:20], [200] * 20)
+        self.assertEqual(set(codes[20:]), {429})
+
+
+class SupportEmail(unittest.TestCase):
+    def test_email_says_there_is_a_reply_but_never_includes_it(self):
+        import support_notify
+        subject, text = support_notify.build_message({"id": 7, "ticket_number": "SP-00007", "subject": "Faded pages"},
+                                                     "https://printbee.example")
+        self.assertIn("SP-00007", subject)
+        self.assertIn("https://printbee.example/help.html#/ticket/7", text)
+        self.assertIn("not included", text)
 
 
 if __name__ == "__main__":

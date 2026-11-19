@@ -21,6 +21,13 @@ class PrivateFiles:
         self.client.put_object(Bucket=self.bucket, Key=key, Body=body, ContentType="application/octet-stream")
         return key
 
+    def put_support(self, ticket_id, attachment_id, body):
+        """Support ticket attachments live under their own prefix in the same private bucket."""
+        digest = hashlib.sha256(body).hexdigest()
+        key = f"printbee/support/{ticket_id}/{attachment_id}/{digest}"
+        self.client.put_object(Bucket=self.bucket, Key=key, Body=body, ContentType="application/octet-stream")
+        return key
+
     def signed_download(self, key):
         return self.client.generate_presigned_url("get_object", Params={
             "Bucket": self.bucket, "Key": key, "ResponseContentType": "application/octet-stream",
