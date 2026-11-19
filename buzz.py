@@ -785,7 +785,7 @@ def chat(caller, body, provider=None):
             failed = not reply
             reply = reply or FALLBACK
     except Exception as error:      # busy, rate-limited, down, bad key: never show details, never lose the customer
-        print(f"buzz: {getattr(active, 'name', 'mock')} call failed: {type(error).__name__}", flush=True)
+        print(f"buzz: {getattr(active, 'name', 'mock')} call failed: {type(error).__name__}: {str(error)[:60]}", flush=True)   # e.g. 'http 404' = wrong model name, 'http 403' = bad key, 'http 429' = quota
         failed, reply = True, FALLBACK
     reply = tidy_reply(reply, hide)
     message_id = _log(db, session["id"], "assistant", redact(reply))

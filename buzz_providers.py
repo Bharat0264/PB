@@ -13,6 +13,7 @@ header or a key, so nothing secret can reach a log or the browser.
 """
 
 import json
+import time
 import urllib.error
 import urllib.request
 
@@ -47,13 +48,20 @@ GEMINI_BLOCKED = ("SAFETY", "BLOCKLIST", "PROHIBITED_CONTENT", "SPII", "RECITATI
 def http_post(url, headers, body, timeout=25):
     """POST JSON, return the parsed answer. Any failure becomes ProviderError with a status number or error type only."""
     request = urllib.request.Request(url, data=json.dumps(body).encode(), headers=headers, method="POST")
-    try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
-            return json.loads(response.read())
-    except urllib.error.HTTPError as error:
-        raise ProviderError(f"http {error.code}") from None
-    except (urllib.error.URLError, OSError, ValueError) as error:
-        raise ProviderError(type(error).__name__) from None
+    for attempt in (1, 2):                      # one quick retry for a busy moment (429, 5xx, timeout); never for a bad key or model
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                return json.loads(response.read())
+        except urllib.error.HTTPError as error:
+            if attempt == 1 and error.code in (429, 500, 502, 503, 504):
+                time.sleep(1.2)
+                continue
+            raise ProviderError(f"http {error.code}") from None
+        except (urllib.error.URLError, OSError, ValueError) as error:
+            if attempt == 1 and not isinstance(error, ValueError):
+                time.sleep(1.2)
+                continue
+            raise ProviderError(type(error).__name__) from None
 
 
 def _gemini_schema(node):
