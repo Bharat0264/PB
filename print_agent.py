@@ -30,6 +30,26 @@ def print_command(item, file, printer, sumatra=None):
             "-o", "print-color-mode=" + ("color" if item["colour"] else "monochrome"), "--", str(file)]
 
 
+def make_test_pdf(printer_name):
+    """A one-page A4 PDF made here (a test page needs nothing from the server): the printer's name, the time, and a line to check the page is straight."""
+    def esc(text):
+        return "".join(c if 32 <= ord(c) < 127 else "?" for c in text).replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+    lines = [("PrintBee test page", 28, 780), ("Printer: " + printer_name[:60], 14, 740), (time.strftime("%d %b %Y, %H:%M"), 12, 718),
+             ("If you can read this, the printer is set up for PrintBee.", 12, 680)]
+    stream = "0.5 w 40 40 515 762 re S\n" + "".join(f"BT /F1 {size} Tf 60 {y} Td ({esc(text)}) Tj ET\n" for text, size, y in lines)
+    objects = ["<< /Type /Catalog /Pages 2 0 R >>", "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+               "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>",
+               f"<< /Length {len(stream)} >>\nstream\n{stream}endstream", "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"]
+    out, offsets = "%PDF-1.4\n", []
+    for number, body in enumerate(objects, 1):
+        offsets.append(len(out))
+        out += f"{number} 0 obj\n{body}\nendobj\n"
+    start = len(out)
+    out += f"xref\n0 {len(objects) + 1}\n0000000000 65535 f \n" + "".join(f"{o:010d} 00000 n \n" for o in offsets)
+    out += f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{start}\n%%EOF\n"
+    return out.encode("latin-1")
+
+
 def print_job(target, item, file, sumatra=None, mock=False, manager=None, ipp_send=None, runner=subprocess.run):
     """Print one job on `target`: a printer id the server approved, or (older servers) a plain printer name.
     A printer that takes PDF over IPP gets the job directly with every setting as an IPP attribute; anything else goes through the
@@ -85,9 +105,9 @@ def run(origin, key, printer, sumatra, once, mock=False, manager=None):
                 return
             time.sleep(3)
             continue
-        path = f"jobs/{job['id']}"
+        path = f"{'tests' if job.get('test') else 'jobs'}/{job['id']}"
         try:
-            body = request(path + "/file", claim=job["claim"])
+            body = make_test_pdf(job.get("name") or "Printer") if job.get("test") else request(path + "/file", claim=job["claim"])
             if not body.startswith(b"%PDF-"):
                 suffix = Path(job["item"]["name"]).suffix.lower()
                 if suffix == ".docx":

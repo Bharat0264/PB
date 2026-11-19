@@ -13,11 +13,27 @@ CREATE TABLE IF NOT EXISTS print_jobs (
 );
 CREATE TABLE IF NOT EXISTS printers (
     id INTEGER PRIMARY KEY, name TEXT NOT NULL, system_name TEXT NOT NULL,
-    is_default INTEGER NOT NULL DEFAULT 0, created INTEGER NOT NULL
+    is_default INTEGER NOT NULL DEFAULT 0, created INTEGER NOT NULL,
+    device_id TEXT, model TEXT, connection TEXT, host TEXT, capabilities TEXT,
+    default_mono INTEGER NOT NULL DEFAULT 0, default_colour INTEGER NOT NULL DEFAULT 0,
+    enabled INTEGER NOT NULL DEFAULT 1, created_by TEXT, created_at INTEGER
 );
 CREATE TABLE IF NOT EXISTS print_job_printer (
     order_id TEXT NOT NULL, position INTEGER NOT NULL, printer_id INTEGER NOT NULL,
+    finished INTEGER,
     PRIMARY KEY(order_id, position)
+);
+CREATE TABLE IF NOT EXISTS printer_inventory (
+    id INTEGER PRIMARY KEY, data TEXT NOT NULL DEFAULT '[]', errors TEXT NOT NULL DEFAULT '[]',
+    scanned_at INTEGER, scan_requested INTEGER, scan_manual TEXT NOT NULL DEFAULT '[]'
+);
+CREATE TABLE IF NOT EXISTS printer_status (
+    printer_id INTEGER PRIMARY KEY, state TEXT NOT NULL, reasons TEXT NOT NULL DEFAULT '[]',
+    supplies TEXT NOT NULL DEFAULT '[]', updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS printer_tests (
+    id INTEGER PRIMARY KEY, printer_id INTEGER NOT NULL, state TEXT NOT NULL DEFAULT 'queued',
+    worker TEXT, error TEXT, requested_by TEXT, created INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS deliveries (
     order_id TEXT PRIMARY KEY, partner TEXT NOT NULL, nonce TEXT,
@@ -54,6 +70,23 @@ CREATE TABLE IF NOT EXISTS notification_reads (
 
 class Conflict(ValueError):
     pass
+
+
+NEW_PRINTER_COLUMNS = (("device_id", "TEXT"), ("model", "TEXT"), ("connection", "TEXT"), ("host", "TEXT"), ("capabilities", "TEXT"),
+                       ("default_mono", "INTEGER NOT NULL DEFAULT 0"), ("default_colour", "INTEGER NOT NULL DEFAULT 0"),
+                       ("enabled", "INTEGER NOT NULL DEFAULT 1"), ("created_by", "TEXT"), ("created_at", "INTEGER"))
+
+
+def migrate(db):
+    """Bring a database made before printer discovery up to date (the CREATE TABLE statements above only cover new databases).
+    print_jobs is left alone on purpose: its columns are written positionally elsewhere, so the chosen printer lives in print_job_printer."""
+    have = {column["name"] for column in db.execute("PRAGMA table_info(printers)")}
+    for name, kind in NEW_PRINTER_COLUMNS:
+        if name not in have:
+            db.execute(f"ALTER TABLE printers ADD COLUMN {name} {kind}")
+    if "finished" not in {column["name"] for column in db.execute("PRAGMA table_info(print_job_printer)")}:
+        db.execute("ALTER TABLE print_job_printer ADD COLUMN finished INTEGER")
+    db.execute("CREATE UNIQUE INDEX IF NOT EXISTS printers_device ON printers(device_id)")
 
 
 def audit(db, actor, action, order_id=None):
@@ -134,13 +167,13 @@ def remove_printer(db, ident, actor="warehouse"):
 
 
 def job_printer(db, job):
-    """The system printer name a job should go to: the one picked in the warehouse, else the default, else None
-    (the agent then uses its own --printer)."""
-    row = db.execute("SELECT printers.system_name FROM print_job_printer JOIN printers ON printers.id=print_job_printer.printer_id "
+    """Where a job should go: the printer picked in the warehouse, else the default, else None (the agent then uses its own --printer).
+    A printer found by the agent is named by its device id (which the agent matches to what it found); an older one by its system name."""
+    row = db.execute("SELECT printers.system_name, printers.device_id FROM print_job_printer JOIN printers ON printers.id=print_job_printer.printer_id "
                      "WHERE order_id=? AND position=?", (job["order_id"], job["position"])).fetchone()
     if not row:
-        row = db.execute("SELECT system_name FROM printers WHERE is_default=1").fetchone()
-    return row["system_name"] if row else None
+        row = db.execute("SELECT system_name, device_id FROM printers WHERE is_default=1").fetchone()
+    return (row["device_id"] or row["system_name"]) if row else None
 
 
 def queue_job(db, order_id, position, actor="warehouse", printer_id=None):
@@ -163,11 +196,22 @@ def queue_job(db, order_id, position, actor="warehouse", printer_id=None):
     return True
 
 
-def claim_job(db, worker):
+STATUS_FRESH = 120          # seconds: the agent reports every ~20, so a status older than this means the printer (or the agent) has gone quiet
+HOLD_STATES = ("offline", "paper-out", "error")
+
+
+def claim_job(db, worker, now=None):
+    """The next job the agent can actually print. A job whose chosen printer is paused, offline, out of paper, in error or silent is skipped
+    (it stays queued, shown as 'Waiting for printer'), so one dead printer never blocks the others."""
+    now = int(time.time()) if now is None else now
     return db.execute(
         "UPDATE print_jobs SET state='printing', worker=? "
         "WHERE id=(SELECT print_jobs.id FROM print_jobs JOIN orders ON orders.id=print_jobs.order_id "
-        "WHERE state='queued' AND orders.status='printing' ORDER BY print_jobs.id LIMIT 1) RETURNING *", (worker,)
+        "LEFT JOIN print_job_printer AS pjp ON pjp.order_id=print_jobs.order_id AND pjp.position=print_jobs.position "
+        "LEFT JOIN printers AS pr ON pr.id=pjp.printer_id LEFT JOIN printer_status AS ps ON ps.printer_id=pr.id "
+        "WHERE print_jobs.state='queued' AND orders.status='printing' AND (pr.id IS NULL OR (pr.enabled=1 AND "
+        "(ps.printer_id IS NULL OR (ps.state NOT IN ('offline','paper-out','error') AND ps.updated_at>=?)))) "
+        "ORDER BY print_jobs.id LIMIT 1) RETURNING *", (worker, now - STATUS_FRESH)
     ).fetchone()
 
 
@@ -178,6 +222,9 @@ def finish_job(db, job, worker, state, error):
     ).fetchone()
     if row:
         audit(db, "print-agent", "print_" + state, row["order_id"])
+        if state == "done":
+            db.execute("UPDATE print_job_printer SET finished=? WHERE (order_id, position) IN "
+                       "(SELECT order_id, position FROM print_jobs WHERE id=?)", (int(time.time()), job))
         return row["order_id"]
     saved = db.execute("SELECT order_id FROM print_jobs WHERE id=? AND worker=? AND state=?",
                        (job, worker, state)).fetchone()
