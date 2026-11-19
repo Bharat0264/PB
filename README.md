@@ -294,7 +294,7 @@ support tickets (`support.create_buzz_ticket`, `buzz_find_tickets`, `buzz_get_ti
 - The chat button is an animated 3D bee (`buzz-bee3d.js`, Three.js r187 copied into `vendor/three/` with its MIT licence, no build step).
   The model is `buzz-bee.glb`, made from the original `Bee.glb` (58 MB, 1.9 million triangles) with `gltf-transform simplify --ratio 0.01
   --error 0.02` and `resize --width 512 --height 512`: 0.8 MB and about 19,000 triangles. It is loaded only when the page is idle, not on
-  data-saving or 2g connections, and if 3D is not possible the flat clay bee (`buzz-bee.webp`) is shown instead. The loop runs at 30 frames a
+  data-saving or 2g connections, and if 3D is not possible the still bee (`buzz-bee-idle-1x/2x/3x.webp`, with `wave` and `typing` poses, made by `tools/make_bee_pictures.py`) is shown instead. The still bee also shows while the 3D one loads, in exactly the same place, so nothing jumps. The launcher is a round clay badge with the bee floating above it and a soft contact shadow that squashes with the 3 second float. The loop runs at 30 frames a
   second while the bee floats, speeds up only for a hover, a hop or a click, stops while the tab is hidden, and with "reduce motion" the bee is
   drawn once and does not move. The model is a single solid mesh with no animation, so the wings do not flap on their own.
   Its surface is `buzz-bee-clay.webp`, the model's colour texture retouched into the soft clay style of the PrintBee logo mascot

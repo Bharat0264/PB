@@ -29,7 +29,7 @@
   style.textContent = `
   /* ---- tokens: cream #FFF8E8, white, honey #F5C542, deep honey #B9831A, ink #2A2112, muted #7A6A4A ---- */
   .buzz-root { --bz-cream: #FFF8E8; --bz-white: #FFFFFF; --bz-honey: #F5C542; --bz-deep: #B9831A; --bz-link: #7A5208; --bz-ink: #2A2112; --bz-muted: #7A6A4A; --bz-on-honey: #2A2112;
-    --bz-sunken: #FBEFCF; --bz-bubble-you: linear-gradient(145deg, #FFE394 0%, #F5C542 58%, #EBB32C 100%); --bz-lift: 0px; --bz-fab: 104px;
+    --bz-sunken: #FBEFCF; --bz-bubble-you: linear-gradient(145deg, #FFE394 0%, #F5C542 58%, #EBB32C 100%); --bz-lift: 0px; --bz-fab: 108px; --bz-pad: 68px;
     --bz-s3: 0 12px 28px rgba(185,131,26,.22), -6px -6px 14px #FFFFFF, inset 0 -4px 8px rgba(185,131,26,.08), inset 3px 3px 6px rgba(255,255,255,.9);
     --bz-s2: 0 7px 16px rgba(185,131,26,.17), -4px -4px 10px rgba(255,255,255,.95), inset 0 -3px 6px rgba(185,131,26,.08), inset 2px 2px 5px rgba(255,255,255,.9);
     --bz-s1: 0 4px 10px rgba(185,131,26,.18), -3px -3px 7px rgba(255,255,255,.95), inset 0 -2px 4px rgba(185,131,26,.10), inset 2px 2px 4px rgba(255,255,255,.9);
@@ -45,33 +45,56 @@
     --bz-sink: inset 3px 3px 7px rgba(0,0,0,.45), inset -2px -2px 6px rgba(255,226,150,.04);
     --bz-ring: 0 0 0 3px rgba(245,197,66,.5); }
 
-  /* ---- the bee (no button box; a faint honey glow; a flat clay bee if 3D is not possible) ---- */
+  /* ---- the launcher: a round clay badge with the bee floating above it and a soft contact shadow on the badge ----
+     Layers, bottom to top: glow, badge, shadow, the still bee (shown while the 3D bee loads, or instead of it when 3D is not possible), the 3D bee.
+     The still pictures and the 3D bee share one box and one anchor, so swapping between them never jumps. */
   .buzz-fab { position: fixed; z-index: 80; right: max(16px, env(safe-area-inset-right)); bottom: calc(var(--bz-lift) + max(18px, env(safe-area-inset-bottom)));
-    width: var(--bz-fab); height: var(--bz-fab); padding: 0; border: 0; border-radius: 50%; display: block; cursor: pointer; background: transparent;
-    -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
-  .buzz-glow { position: absolute; inset: 0; border-radius: 50%; pointer-events: none; opacity: 0; transition: opacity .6s ease, filter .3s ease;
-    background: radial-gradient(circle, rgba(255,190,50,.40) 0%, rgba(255,196,70,.18) 40%, rgba(255,200,80,0) 68%); }
-  [data-theme="dark"] .buzz-glow { background: radial-gradient(circle, rgba(255,176,40,.32) 0%, rgba(255,176,40,.14) 40%, rgba(255,176,40,0) 68%); }
-  .buzz-fab[data-state="ready"] .buzz-glow { opacity: 1; animation: buzz-glow 3.8s ease-in-out infinite; }
-  .buzz-fab:hover .buzz-glow { filter: brightness(1.1); }
-  .buzz-canvas { position: absolute; top: -40px; left: -14px; width: calc(100% + 28px); height: calc(100% + 52px); display: block; pointer-events: none; opacity: 0; transition: opacity .5s ease; }
-  .buzz-fab[data-state="ready"] .buzz-canvas { opacity: 1; }
-  .buzz-still { position: absolute; left: 50%; top: 50%; width: calc(var(--bz-fab) * .74); height: calc(var(--bz-fab) * .74); margin: calc(var(--bz-fab) * -.37) 0 0 calc(var(--bz-fab) * -.37);
-    border-radius: 50%; object-fit: cover; pointer-events: none; opacity: 0; transition: opacity .5s ease, transform .2s ease;
-    box-shadow: 0 10px 16px -4px rgba(150,100,10,.34), 0 3px 6px rgba(150,100,10,.16), inset 0 3px 3px rgba(255,255,255,.85), inset 0 -5px 8px rgba(190,120,10,.34); }
-  .buzz-fab[data-state="fallback"] .buzz-still { opacity: 1; animation: buzz-bob 3.2s ease-in-out infinite; }
-  .buzz-fab[data-state="fallback"]:hover .buzz-still { transform: scale(1.06); }
-  .buzz-fab:focus-visible { outline: 3px solid var(--bz-deep); outline-offset: -4px; }
+    width: var(--bz-fab); height: var(--bz-fab); min-width: 56px; min-height: 56px; padding: 0; border: 0; border-radius: 50%; display: block; cursor: pointer; background: transparent; outline: none;
+    transition: transform .2s cubic-bezier(.34,1.5,.64,1); -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+  .buzz-fab:hover { transform: translateY(-3px); }
+  .buzz-fab:active { transform: scale(.96); transition-duration: .08s; }
+  .buzz-glow { position: absolute; left: 50%; bottom: -6px; width: 130%; height: 78%; margin-left: -65%; border-radius: 50%; pointer-events: none; opacity: .75; transition: opacity .3s ease;
+    background: radial-gradient(ellipse at center, rgba(255,190,50,.30) 0%, rgba(255,196,70,.13) 45%, rgba(255,200,80,0) 72%); }
+  [data-theme="dark"] .buzz-glow { background: radial-gradient(ellipse at center, rgba(255,176,40,.24) 0%, rgba(255,176,40,.10) 45%, rgba(255,176,40,0) 72%); }
+  .buzz-fab:hover .buzz-glow { opacity: 1; }
+  .buzz-pad { position: absolute; left: 50%; bottom: 4px; width: var(--bz-pad); height: var(--bz-pad); margin-left: calc(var(--bz-pad) / -2); border-radius: 50%; pointer-events: none;
+    background: radial-gradient(circle at 34% 26%, #FFF3C2 0%, #FFDF86 46%, #F2BD3E 100%);
+    box-shadow: 0 9px 16px -4px rgba(185,131,26,.34), 0 3px 6px rgba(185,131,26,.18), -3px -3px 8px rgba(255,255,255,.9), inset 3px 3px 6px rgba(255,255,255,.9), inset -3px -5px 9px rgba(185,131,26,.22);
+    transition: box-shadow .2s ease; }
+  [data-theme="dark"] .buzz-pad { background: radial-gradient(circle at 34% 26%, #8A6522 0%, #634617 52%, #47330F 100%);
+    box-shadow: 0 9px 16px -4px rgba(0,0,0,.6), 0 3px 6px rgba(0,0,0,.35), -2px -2px 6px rgba(255,226,150,.05), inset 2px 2px 5px rgba(255,226,150,.16), inset -3px -5px 9px rgba(0,0,0,.4); }
+  .buzz-fab:hover .buzz-pad { box-shadow: 0 13px 20px -4px rgba(185,131,26,.38), 0 4px 8px rgba(185,131,26,.2), -3px -3px 8px rgba(255,255,255,.9), inset 3px 3px 6px rgba(255,255,255,.9), inset -3px -5px 9px rgba(185,131,26,.22); }
+  [data-theme="dark"] .buzz-fab:hover .buzz-pad { box-shadow: 0 13px 20px -4px rgba(0,0,0,.65), 0 4px 8px rgba(0,0,0,.4), inset 2px 2px 5px rgba(255,226,150,.2), inset -3px -5px 9px rgba(0,0,0,.4); }
+  .buzz-fab:active .buzz-pad { box-shadow: 0 4px 8px -3px rgba(185,131,26,.3), inset 0 3px 8px rgba(185,131,26,.3), inset 0 -2px 4px rgba(255,255,255,.7); }
+  .buzz-fab:focus-visible .buzz-pad { box-shadow: 0 0 0 3px var(--bz-white), 0 0 0 6px var(--bz-deep), 0 9px 16px -4px rgba(185,131,26,.34); }
+  /* the contact shadow: it squashes and fades a little as the bee floats up (the 3D bee sets --lift every frame, the still bee uses the same 3 second loop) */
+  .buzz-shadow { position: absolute; left: 50%; bottom: 9px; width: calc(var(--bz-pad) * .74); height: 13px; margin-left: calc(var(--bz-pad) * -.37); border-radius: 50%; pointer-events: none;
+    background: radial-gradient(ellipse at center, rgba(120,80,10,.28) 0%, rgba(120,80,10,.16) 46%, rgba(120,80,10,0) 74%); filter: blur(1.5px);
+    transform: scale(calc(1 - var(--lift, 0) * .16), calc(1 - var(--lift, 0) * .2)); opacity: calc(1 - var(--lift, 0) * .3); }
+  [data-theme="dark"] .buzz-shadow { background: radial-gradient(ellipse at center, rgba(0,0,0,.5) 0%, rgba(0,0,0,.28) 46%, rgba(0,0,0,0) 74%); }
+  .buzz-still { position: absolute; inset: 0; pointer-events: none; transition: opacity .12s ease; }
+  .buzz-pose { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; transition: opacity .18s ease; filter: drop-shadow(0 2px 2px rgba(120,80,10,.24)); }
+  .buzz-pose.wave { opacity: 0; }
+  .buzz-fab:hover .buzz-still .idle, .buzz-fab:focus-visible .buzz-still .idle { opacity: 0; }
+  .buzz-fab:hover .buzz-still .wave, .buzz-fab:focus-visible .buzz-still .wave { opacity: 1; }
+  .buzz-canvas { position: absolute; top: -40px; left: -14px; width: calc(100% + 28px); height: calc(100% + 52px); display: block; pointer-events: none; opacity: 0; filter: drop-shadow(0 2px 2px rgba(120,80,10,.24)); }
+  .buzz-fab[data-state="ready"] .buzz-canvas { opacity: 1; }          /* no fade: a half-see-through bee looks like a smudge */
+  .buzz-fab[data-state="ready"] .buzz-still { opacity: 0; }
+  .buzz-fab[data-state="ready"] .buzz-shadow { transition: none; }
+  .buzz-fab[data-state="fallback"] .buzz-still { animation: buzz-bob 3s ease-in-out infinite; }
+  .buzz-fab[data-state="fallback"] .buzz-shadow { animation: buzz-shadow 3s ease-in-out infinite; }
   .buzz-fab[hidden] { display: none; }
 
-  /* ---- tooltip: stays inside the screen, has a tail, hides by itself ---- */
-  .buzz-tip { position: fixed; z-index: 81; right: calc(max(16px, env(safe-area-inset-right)) + var(--bz-fab) + 4px); bottom: calc(var(--bz-lift) + max(18px, env(safe-area-inset-bottom)) + var(--bz-fab) * .34);
-    max-width: calc(100vw - var(--bz-fab) - 44px); padding: 9px 15px; border-radius: 18px; font: 800 13.5px/1.25 Manrope, system-ui, sans-serif; text-align: center; pointer-events: none;
-    opacity: 0; transform: translateX(8px) scale(.95); transform-origin: right center; transition: opacity .2s ease, transform .22s cubic-bezier(.34,1.4,.64,1);
-    background: var(--bz-white); color: var(--bz-ink); box-shadow: var(--bz-s2); }
-  .buzz-tip::after { content: ""; position: absolute; right: -6px; top: 50%; width: 14px; height: 14px; margin-top: -7px; transform: rotate(45deg); border-radius: 4px; background: var(--bz-white);
-    box-shadow: 3px -3px 5px rgba(185,131,26,.10); }
-  [data-theme="dark"] .buzz-tip::after { box-shadow: 3px -3px 5px rgba(0,0,0,.25); }
+  /* ---- tooltip: a white clay bubble centred on the bee's face, one tail, always on screen ---- */
+  .buzz-tip { position: fixed; z-index: 81; right: calc(max(16px, env(safe-area-inset-right)) + var(--bz-fab) * .82); bottom: calc(var(--bz-lift) + max(18px, env(safe-area-inset-bottom)) + var(--bz-fab) * .59);
+    translate: 0 50%; width: max-content; max-width: calc(100vw - 120px); box-sizing: border-box; padding: 12px 18px; border-radius: 22px; background: var(--bz-white); color: var(--bz-ink);
+    font: 700 15px/1.2 Manrope, system-ui, sans-serif; text-align: center; pointer-events: none;
+    box-shadow: 0 10px 22px rgba(185,131,26,.22), inset 3px 3px 6px rgba(255,255,255,.95), inset -3px -4px 8px rgba(185,131,26,.10);
+    opacity: 0; transform: translateX(10px) scale(.9); transform-origin: right center; transition: opacity .15s ease, transform .22s cubic-bezier(.34,1.56,.64,1); }
+  .buzz-tip::after { content: ""; position: absolute; right: -7px; top: 50%; width: 16px; height: 16px; background: var(--bz-white); border-radius: 4px; transform: translateY(-50%) rotate(45deg);
+    box-shadow: 4px -4px 8px rgba(185,131,26,.10); }
+  [data-theme="dark"] .buzz-tip { box-shadow: 0 10px 22px rgba(0,0,0,.5), inset 2px 2px 5px rgba(255,226,150,.08), inset -3px -4px 8px rgba(0,0,0,.3); }
+  [data-theme="dark"] .buzz-tip::after { box-shadow: 4px -4px 8px rgba(0,0,0,.25); }
   .buzz-tip.is-on { opacity: 1; transform: none; }
 
   /* ---- the sheet: 380px card anchored to the bee on desktop, full screen on phones ---- */
@@ -82,7 +105,7 @@
   .buzz-sheet.is-open { opacity: 1; transform: none; }
   .buzz-sheet[hidden] { display: none; }
   @media (max-width: 600px) {
-    .buzz-root { --bz-fab: 88px; }
+    .buzz-root { --bz-fab: 96px; --bz-pad: 64px; }
     .buzz-sheet { left: 0; right: 0; bottom: auto; top: var(--buzz-vt, 0px); width: auto; height: var(--buzz-vh, 100dvh); border-radius: 0; box-shadow: none; transform: translateY(24px); transform-origin: bottom center;
       padding-bottom: env(safe-area-inset-bottom); }
     .buzz-sheet.kb-open { padding-bottom: 0; }
@@ -90,8 +113,13 @@
   }
 
   .buzz-head { flex: none; display: flex; align-items: center; gap: 12px; padding: calc(12px + env(safe-area-inset-top)) 12px 12px 16px; }
-  .buzz-avatar { flex: none; width: 44px; height: 44px; border-radius: 50%; padding: 3px; box-sizing: border-box; background: var(--bz-honey); box-shadow: var(--bz-s2); }
-  .buzz-avatar img { width: 100%; height: 100%; display: block; border-radius: 50%; object-fit: cover; }
+  /* the header badge: the same clay badge as the launcher; the bee on it leans in toward the chat while Buzz is typing (same box, same anchor) */
+  .buzz-avatar { position: relative; flex: none; width: 44px; height: 44px; border-radius: 50%; background: radial-gradient(circle at 34% 26%, #FFF3C2 0%, #FFDF86 46%, #F2BD3E 100%); box-shadow: var(--bz-s2); }
+  [data-theme="dark"] .buzz-avatar { background: radial-gradient(circle at 34% 26%, #8A6522 0%, #634617 52%, #47330F 100%); }
+  .buzz-avatar img { position: absolute; left: -7px; top: -9px; width: 58px; height: 58px; object-fit: contain; display: block; transition: opacity .18s ease; filter: drop-shadow(0 1px 1px rgba(120,80,10,.28)); }
+  .buzz-avatar .typing { opacity: 0; }
+  .buzz-sheet.is-typing .buzz-avatar .idle { opacity: 0; }
+  .buzz-sheet.is-typing .buzz-avatar .typing { opacity: 1; }
   .buzz-headtext { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
   .buzz-head h2 { margin: 0; font-size: 16px; line-height: 1.2; font-weight: 800; letter-spacing: -.005em; }
   .buzz-ai { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 999px; font: 800 11px/1.5 Manrope, system-ui, sans-serif; color: var(--bz-ink); background: var(--bz-sunken); box-shadow: var(--bz-sink); }
@@ -175,12 +203,14 @@
   .buzz-close:focus-visible, .buzz-chip:focus-visible, .buzz-send:focus-visible, .buzz-btn:focus-visible, .buzz-thumb:focus-visible, .buzz-context button:focus-visible { outline: 3px solid var(--bz-deep); outline-offset: 3px; }
   html.buzz-open { overflow: hidden; }
   @keyframes buzz-bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -3px; } }
-  @keyframes buzz-glow { 0%, 100% { transform: scale(.94); opacity: .7; } 50% { transform: scale(1.06); opacity: 1; } }
+  @keyframes buzz-shadow { 0%, 100% { transform: scale(1, 1); opacity: 1; } 50% { transform: scale(.84, .8); opacity: .7; } }
   @keyframes buzz-flap { from { transform: scaleY(.25); } to { transform: scaleY(1); } }
   @keyframes buzz-dot { 0%, 60%, 100% { transform: translateY(0); opacity: .55; } 30% { transform: translateY(-4px); opacity: 1; } }
   @media (prefers-reduced-motion: reduce) {
-    .buzz-glow, .buzz-wing, .buzz-still, .buzz-dots i { animation: none !important; }
-    .buzz-sheet, .buzz-tip, .buzz-canvas, .buzz-still, .buzz-close, .buzz-chip, .buzz-btn, .buzz-thumb, .buzz-send { transition: none; }
+    .buzz-wing, .buzz-still, .buzz-shadow, .buzz-dots i { animation: none !important; }
+    .buzz-sheet, .buzz-canvas, .buzz-still, .buzz-pose, .buzz-fab, .buzz-pad, .buzz-close, .buzz-chip, .buzz-btn, .buzz-thumb, .buzz-send { transition: none; }
+    .buzz-tip { transition: opacity .15s ease; transform: none; }            /* no spring and no slide: it just fades in and out */
+    .buzz-fab:hover { transform: none; }
     .buzz-sheet { transform: none; }
   }`;
   document.head.append(style);
@@ -204,11 +234,15 @@
   };
 
   const root = el('div', {className: 'buzz-root'});
+  // The still bee pictures (idle, wave, typing): one transparent picture per pose, each made at 108, 216 and 324 px (1x, 2x, 3x), all the same canvas.
+  const picture = (kind, className, size) => el('img', {className, alt: '', width: size, height: size, decoding: 'async', src: `/buzz-bee-${kind}-1x.webp`,
+    srcset: `/buzz-bee-${kind}-1x.webp 1x, /buzz-bee-${kind}-2x.webp 2x, /buzz-bee-${kind}-3x.webp 3x`});
   const canvas = el('canvas', {className: 'buzz-canvas', 'aria-hidden': 'true'});
   const fab = el('button', {type: 'button', className: 'buzz-fab', 'aria-label': 'Chat with Buzz, PrintBee support', 'aria-haspopup': 'dialog', 'aria-expanded': 'false',
     'aria-describedby': 'buzz-tip'},
-    el('span', {className: 'buzz-glow', 'aria-hidden': 'true'}), canvas, el('img', {className: 'buzz-still', src: '/buzz-bee.webp', alt: '', width: 76, height: 76}));
-  fab.dataset.state = 'loading';          // loading -> ready (the 3D bee) or fallback (the flat clay bee when 3D is not possible)
+    el('span', {className: 'buzz-glow', 'aria-hidden': 'true'}), el('span', {className: 'buzz-pad', 'aria-hidden': 'true'}), el('span', {className: 'buzz-shadow', 'aria-hidden': 'true'}),
+    el('span', {className: 'buzz-still', 'aria-hidden': 'true'}, picture('idle', 'buzz-pose idle', 108), picture('wave', 'buzz-pose wave', 108)), canvas);
+  fab.dataset.state = 'loading';          // loading (the still bee) -> ready (the 3D bee, in exactly the same place) or fallback (the still bee, floating)
   const tip = el('div', {className: 'buzz-tip', id: 'buzz-tip', role: 'tooltip', text: 'Need help? Buzz me!'});
   const title = el('h2', {id: 'buzz-title', text: 'Buzz - PrintBee support'});
   const close = el('button', {type: 'button', className: 'buzz-close', 'aria-label': 'Close chat', text: '×'});
@@ -223,7 +257,7 @@
   const form = el('form', {className: 'buzz-form'}, input, send);
   const sheet = el('section', {className: 'buzz-sheet', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'buzz-title', hidden: true},
     el('header', {className: 'buzz-head'},
-      el('span', {className: 'buzz-avatar'}, el('img', {src: '/buzz-bee.webp', alt: '', width: 38, height: 38})),
+      el('span', {className: 'buzz-avatar', 'aria-hidden': 'true'}, picture('idle', 'idle', 58), picture('typing', 'typing', 58)),
       el('div', {className: 'buzz-headtext'}, title, el('span', {className: 'buzz-ai', text: 'AI assistant'})), close),
     notice, context, log, chips, form);
   root.append(fab, tip, sheet);
@@ -330,6 +364,7 @@
     scroll();
   }
   function typing(on) {
+    sheet.classList.toggle('is-typing', on);                 // the bee in the header leans in while Buzz is typing
     const existing = log.querySelector('.buzz-typing');
     if (!on) { if (existing) existing.remove(); return; }
     if (existing) return;
@@ -439,10 +474,15 @@
     placeSoon();
   }
 
-  // ---- the bee: tooltip (a few seconds, or until the first interaction), hover look, click fly ----
-  let tipTimer = 0, introActive = false;
-  function showTip(ms = 4200) { clearTimeout(tipTimer); if (!fab.hidden && sheet.hidden) { tip.classList.add('is-on'); tipTimer = setTimeout(hideTip, ms); } }
-  function hideTip() { clearTimeout(tipTimer); tip.classList.remove('is-on'); introActive = false; }
+  // ---- the bee: tooltip, hover look, click fly ----
+  // The hello bubble pops in once per visit: 3 seconds after the bee is on screen. It goes away after 6 seconds or at the first interaction
+  // (a tap, a key press, a scroll), and once it has gone it is not shown again in this session. Hovering the bee, or tabbing to it, still shows it.
+  const TIP_KEY = 'buzz-tip-dismissed';
+  let tipTimer = 0, introTimer = 0, introActive = false;
+  const tipDismissed = () => { try { return sessionStorage.getItem(TIP_KEY) === '1'; } catch { return false; } };
+  const dismissTip = () => { try { sessionStorage.setItem(TIP_KEY, '1'); } catch { /* private window: it simply may show again */ } };
+  function showTip(ms = 6000) { clearTimeout(tipTimer); if (!fab.hidden && sheet.hidden) { tip.classList.add('is-on'); tipTimer = setTimeout(hideTip, ms); } }
+  function hideTip() { clearTimeout(tipTimer); tip.classList.remove('is-on'); if (introActive) { introActive = false; dismissTip(); } }
   let flying = false;
   fab.addEventListener('click', () => {
     if (flying) return;
@@ -462,17 +502,20 @@
   fab.addEventListener('focus', () => { if (fab.matches(':focus-visible')) showTip(); });
   fab.addEventListener('blur', hideTip);
   document.addEventListener('keydown', event => { if (event.key === 'Escape' && tip.classList.contains('is-on')) hideTip(); });
-  for (const type of ['pointerdown', 'wheel', 'touchstart', 'scroll']) {         // the first interaction puts the hello away
-    addEventListener(type, () => { if (introActive) hideTip(); }, {passive: true, capture: true});
+  for (const type of ['pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll']) {         // the first interaction puts the hello away, or stops it from ever popping up
+    addEventListener(type, () => {
+      if (introActive) hideTip();
+      else if (type !== 'scroll' && introTimer) { clearTimeout(introTimer); introTimer = 0; dismissTip(); }
+    }, {passive: true, capture: true});
   }
 
   // ---- loading the 3D bee only when the page is idle (and not on a slow or data-saving connection) ----
   function loadBee() {
     const link = navigator.connection;
-    if (link && (link.saveData || /(^|-)2g$/.test(link.effectiveType || ''))) { fab.dataset.state = 'fallback'; return; }
-    const giveUp = setTimeout(() => { if (fab.dataset.state === 'loading') fab.dataset.state = 'fallback'; }, 7000);
-    import('/buzz-bee3d.js?v=4')
-      .then(module => module.createBee(canvas, {reducedMotion: REDUCED}))
+    if (link && (link.saveData || /(^|-)2g$/.test(link.effectiveType || ''))) { fab.dataset.state = 'fallback'; introTip(); return; }
+    const giveUp = setTimeout(() => { if (fab.dataset.state === 'loading') { fab.dataset.state = 'fallback'; introTip(); } }, 7000);
+    import('/buzz-bee3d.js?v=9')
+      .then(module => module.createBee(canvas, {reducedMotion: REDUCED, scale: 0.86, onFrame: lift => fab.style.setProperty('--lift', lift.toFixed(3))}))
       .then(created => {
         clearTimeout(giveUp);
         bee = created;
@@ -480,14 +523,14 @@
         created.show(!fab.hidden);
         introTip();
       })
-      .catch(() => { clearTimeout(giveUp); if (fab.dataset.state !== 'ready') fab.dataset.state = 'fallback'; });   // no WebGL, or the files could not load
+      .catch(() => { clearTimeout(giveUp); if (fab.dataset.state !== 'ready') { fab.dataset.state = 'fallback'; introTip(); } });   // no WebGL, or the files could not load
   }
-  function introTip() {                      // once per visit, say hello for a few seconds
-    if (REDUCED) return;
-    let seen = false;
-    try { seen = sessionStorage.getItem('buzz-intro') === '1'; sessionStorage.setItem('buzz-intro', '1'); } catch { /* private window: fine */ }
-    if (seen) return;
-    setTimeout(() => { if (sheet.hidden && !fab.hidden) { showTip(3800); introActive = true; if (bee) bee.greet(); } }, 1200);
+  function introTip() {                      // pops in 3 seconds after the bee is on screen, unless it was dismissed earlier in this session
+    if (tipDismissed() || introTimer) return;
+    introTimer = setTimeout(() => {
+      introTimer = 0;
+      if (sheet.hidden && !fab.hidden && !tipDismissed()) { introActive = true; showTip(6000); if (bee && !REDUCED) bee.greet(); }
+    }, 3000);
   }
   const startLoading = () => (window.requestIdleCallback ? requestIdleCallback(loadBee, {timeout: 3000}) : setTimeout(loadBee, 1200));
   if (document.readyState === 'complete') startLoading(); else addEventListener('load', startLoading, {once: true});

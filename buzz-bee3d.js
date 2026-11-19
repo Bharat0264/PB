@@ -21,10 +21,15 @@ const BASE_DISTANCE = 4.3;             // how far the camera sits when the canva
 const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
 const ease = t => 1 - Math.pow(1 - t, 3);
 
-export async function createBee(canvas, {reducedMotion = false} = {}) {
+const FLOAT_RATE = (2 * Math.PI) / 3;  // one slow float up and down every 3 seconds
+
+// options: reducedMotion (draw one still picture), onFrame(lift) (called every drawn frame with how high the bee is, -0.3 to 1, so the
+// shadow under it can squash and fade in time), and, only when making the still pictures: exact (the canvas IS the bee's box), pixelRatio
+// and scale (make the bee a little smaller so no pose touches the edge of its picture).
+export async function createBee(canvas, {reducedMotion = false, exact = false, pixelRatio = null, onFrame = null, scale = 1} = {}) {
   const renderer = new THREE.WebGLRenderer({canvas, alpha: true, antialias: true, powerPreference: 'low-power'});
   renderer.setClearColor(0x000000, 0);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setPixelRatio(pixelRatio || Math.min(window.devicePixelRatio || 1, 2));
 
   const scene = new THREE.Scene();
   const pmrem = new THREE.PMREMGenerator(renderer);
@@ -65,7 +70,7 @@ export async function createBee(canvas, {reducedMotion = false} = {}) {
   const size = box.getSize(new THREE.Vector3());
   const centre = box.getCenter(new THREE.Vector3());
   model.position.sub(centre);
-  const fit = FIT / Math.max(size.x, size.y, size.z);
+  const fit = (FIT * scale) / Math.max(size.x, size.y, size.z);
   const pivot = new THREE.Group();                      // everything that moves (float, tilt, squash) moves this
   const holder = new THREE.Group();                     // and this one turns the bee to face the camera
   holder.rotation.y = FACE_YAW;
@@ -83,6 +88,7 @@ export async function createBee(canvas, {reducedMotion = false} = {}) {
     width = w; height = h;
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
+    if (exact) { camera.position.z = BASE_DISTANCE; baseY = 0; camera.updateProjectionMatrix(); return; }
     // The canvas is bigger than the bee's box, with the most room above it (a hop or a flying loop goes up) and some at the sides. Pull the
     // camera back by the same ratio, and move the bee down by half the difference between the top and bottom room, so the bee stays exactly
     // the size and place it was designed to have inside its box, and nothing is ever cut off at an edge of the canvas.
@@ -106,7 +112,7 @@ export async function createBee(canvas, {reducedMotion = false} = {}) {
     state.smoothY += (state.lookY - state.smoothY) * damp;
     state.grow += ((state.hover ? 1.13 : 1) - state.grow) * damp;
 
-    let y = Math.sin(t * 1.7) * 0.05;                               // float
+    let y = Math.sin(t * FLOAT_RATE) * 0.05;                         // float (a 3 second loop)
     let roll = Math.sin(t * 0.85) * 0.12;                            // left-right tilt
     let yaw = Math.sin(t * 0.55) * 0.16;
     const wobble = Math.sin(t * 3.4) * 0.018;                        // tiny squash and stretch
@@ -153,6 +159,7 @@ export async function createBee(canvas, {reducedMotion = false} = {}) {
     pivot.rotation.set(-state.smoothY * 0.38, yaw + state.smoothX * 0.55 + spin, roll - state.smoothX * 0.12 + buzz, 'YXZ');
     const grow = state.grow * baseScale;
     pivot.scale.set(grow * (1 - (stretch - 1) * 0.5), grow * stretch, grow * (1 - (stretch - 1) * 0.5));
+    if (onFrame) onFrame(clamp(y / 0.22, -0.3, 1));
   }
 
   // ---- the loop: slow when idle, stops when hidden ----
@@ -201,6 +208,21 @@ export async function createBee(canvas, {reducedMotion = false} = {}) {
     look(x, y) { if (!reducedMotion) { state.lookX = clamp(x, -1, 1); state.lookY = clamp(y, -1, 1); } },
     poke() { if (!reducedMotion) state.fly = 0; },
     greet() { if (!reducedMotion) state.hop = 0; },
+    // For making the still pictures (see tools/): draws one fixed pose at the canvas size. idle = the resting frame, wave = the hover
+    // hello, typing = leaning in toward the chat. All three use the same camera and anchor, so swapping between them never jumps or clips.
+    exportPose(kind) {
+      const rest = {t: 0.6, hover: false, lookX: 0, lookY: 0, smoothX: 0, smoothY: 0, grow: 1, hop: -1, fly: -1, wave: -1};
+      const poses = {
+        idle: rest,
+        wave: {...rest, hover: true, grow: 1.08, lookX: 0.4, lookY: -0.2, smoothX: 0.4, smoothY: -0.2, wave: 0.13 - 0.016 / 0.95},
+        typing: {...rest, grow: 1, lookX: 0.3, lookY: 0.3, smoothX: 0.3, smoothY: 0.3},
+      };
+      Object.assign(state, poses[kind] || rest);
+      resize();
+      pose(0.016);
+      renderer.render(scene, camera);
+      return kind;
+    },
     // A self-check: draws the bee in its most extreme poses (looking every way, the top of each hop, every moment of a wave and of a flying
     // loop, with and without the hover growth) and reports the strongest picture found on the canvas edge. 0 means nothing is ever cut off.
     probeEdges() {

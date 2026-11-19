@@ -601,6 +601,64 @@ class AnimatedBee(unittest.TestCase):
         self.assertIn("calc(100% + 52px)", chat)
         self.assertIn("baseY", bee)                                 # the bee is re-centred in its box when the canvas has uneven room
 
+    def test_the_still_bee_pictures_are_clean_transparent_and_share_one_canvas(self):
+        from PIL import Image
+        import numpy as np
+        for pose in ("idle", "wave", "typing"):
+            for label, size in (("1x", 108), ("2x", 216), ("3x", 324)):
+                path = self.root / f"buzz-bee-{pose}-{label}.webp"
+                picture = Image.open(path)
+                self.assertEqual(picture.size, (size, size), path.name)               # every pose and every density: the same square canvas
+                self.assertEqual(picture.mode, "RGBA", path.name)
+                alpha = np.array(picture)[..., 3]
+                self.assertEqual(int(alpha[0, 0]), 0)                                  # transparent corners
+                self.assertLessEqual(int(max(alpha[:2].max(), alpha[-2:].max(), alpha[:, :2].max(), alpha[:, -2:].max())), 12, path.name)   # nothing touches the edge (4 of 255 is invisible compression noise)
+                self.assertLess(path.stat().st_size, 40_000, path.name)
+        self.assertGreaterEqual(324, 320)                                              # the 3x picture is at least 320 px for a bee shown 96-110 px wide
+        self.assertFalse((self.root / "buzz-bee.webp").exists())                       # the old flat clay disc is gone
+        # no dark fringe: the soft edge pixels are never darker than the solid colour next to them by much
+        solid = np.array(Image.open(self.root / "buzz-bee-idle-3x.webp").convert("RGBA")).astype(int)
+        edge = (solid[..., 3] > 0) & (solid[..., 3] < 250)
+        inside = solid[..., 3] >= 250
+        self.assertGreater(int(edge.sum()), 100)
+        self.assertGreater(solid[edge][:, :3].mean(), 0.6 * solid[inside][:, :3].mean())
+        for page in self.read("buzz-chat.js").split("srcset:")[1:2]:
+            self.assertIn("1x.webp 1x", page)
+            self.assertIn("2x.webp 2x", page)
+            self.assertIn("3x.webp 3x", page)
+        for tool in ("make_bee_pictures.py", "make_clay_bee_texture.py"):
+            self.assertTrue((self.root / "tools" / tool).exists())
+
+    def test_the_launcher_has_a_clay_badge_a_contact_shadow_and_a_three_second_float(self):
+        chat, bee = self.read("buzz-chat.js"), self.read("buzz-bee3d.js")
+        for needle in ("--bz-fab: 108px", "--bz-fab: 96px", "--bz-pad: 68px", "--bz-pad: 64px", "min-width: 56px", "min-height: 56px"):
+            self.assertIn(needle, chat)
+        self.assertIn("rgba(120,80,10,.28)", chat)                                      # the contact shadow colour
+        self.assertIn("blur(1.5px)", chat)
+        self.assertIn("--lift", chat)                                                   # the 3D bee tells the shadow how high it floats
+        self.assertIn("buzz-shadow 3s", chat)                                           # and the still bee uses the same 3 second loop
+        self.assertIn("(2 * Math.PI) / 3", bee)                                         # one float up and down every 3 seconds
+        self.assertIn("onFrame", bee)
+        self.assertIn(".buzz-fab:active { transform: scale(.96)", chat)                 # press squishes
+        self.assertIn(".buzz-fab:hover { transform: translateY(-3px)", chat)            # hover lifts
+        self.assertIn(".buzz-fab:focus-visible .buzz-pad", chat)                        # keyboard focus gets its own clear ring
+        self.assertIn("safe-area-inset-bottom", chat)
+        self.assertIn("safe-area-inset-right", chat)
+        self.assertIn("no fade", chat)                                                  # the bee appears solid, never as a see-through smudge
+
+    def test_the_tooltip_is_one_clean_clay_bubble_with_the_right_timing(self):
+        chat = self.read("buzz-chat.js")
+        for needle in ("padding: 12px 18px", "border-radius: 22px", "font: 700 15px/1.2 Manrope", "max-width: calc(100vw - 120px)", "width: 16px; height: 16px",
+                       "right: -7px", "transform: translateY(-50%) rotate(45deg)", "box-shadow: 4px -4px 8px rgba(185,131,26,.10)",
+                       "0 10px 22px rgba(185,131,26,.22), inset 3px 3px 6px rgba(255,255,255,.95), inset -3px -4px 8px rgba(185,131,26,.10)",
+                       "cubic-bezier(.34,1.56,.64,1)", "translate: 0 50%", "Need help? Buzz me!"):
+            self.assertIn(needle, chat)
+        self.assertIn("}, 3000)", chat)                                                 # pops in 3 seconds after the bee is on screen
+        self.assertIn("showTip(6000)", chat)                                            # and goes away after 6 seconds
+        self.assertIn("buzz-tip-dismissed", chat)                                       # or at the first interaction, and then not again this session
+        self.assertIn("'keydown'", chat)
+        self.assertIn(".buzz-tip { transition: opacity .15s ease; transform: none; }", chat)   # reduced motion: a fade, no spring
+
     def test_the_bee_keeps_its_promises_in_code(self):
         chat, bee = self.read("buzz-chat.js"), self.read("buzz-bee3d.js")
         for script in (chat, bee):
@@ -614,7 +672,7 @@ class AnimatedBee(unittest.TestCase):
         self.assertIn("visibilitychange", bee)                        # stops while the tab is hidden
         self.assertIn("IDLE_FPS", bee)                                # a slow loop when the bee is only floating
         self.assertIn("dispose", bee)
-        self.assertIn("buzz-bee.webp", chat)                          # the flat clay bee is the fallback when 3D is not possible
+        self.assertIn("buzz-bee-${kind}-1x.webp", chat)               # the still bee (idle, wave, typing) is shown while 3D loads and when 3D is not possible
         self.assertIn(".checkout-bar", chat)                          # keeps clear of the checkout and address Save bars
         self.assertIn("is-open", chat)                                # the chat panel opens and closes with a transition
         for page in ("index", "orders", "cart", "navigation"):
