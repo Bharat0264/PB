@@ -811,6 +811,11 @@ button.wh-mbrand { border: 0; cursor: pointer; -webkit-tap-highlight-color: tran
 .wh-set-list .wh-setting small { font-size: 13px !important; margin-top: 1px; }
 @media (min-width: 1101px) { .wh-set-list { margin-inline: 0; } }
 @media (max-width: 560px) { .wh-set-list { padding: 14px !important; } }
+/* Settings fits the screen: the card is as wide as the page, the options flow into as many columns as fit (one on a phone),
+   and each section heading spans the whole row. */
+.wh-set-list { width: 100%; max-width: none; margin-inline: 0; grid-template-columns: repeat(auto-fill, minmax(min(100%, 440px), 1fr)); gap: 10px 14px !important; align-items: stretch; box-sizing: border-box; }
+.wh-set-list .wh-set-label { grid-column: 1 / -1; }
+.wh-set-list .wh-setting, .wh-set-list .wh-set-link { box-sizing: border-box; height: 100%; }
 
 /* Support (tickets assigned to you or about print quality) */
 .wh-sup { display: grid; gap: 12px; max-width: 860px; }
