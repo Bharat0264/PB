@@ -425,7 +425,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                        "/pricing.html", "/terms.html", "/queue.html", "/cart.html", "/orders.html", "/profile.html", "/profile.js", "/address.html", "/address-book.js", "/address-book.css", "/customer-login.js", "/account-home.js", "/session-sync.js",
                        "/preloader.js", "/preloader.css", "/gsap-3.13.0.min.js", "/live.js", "/status-model.js", "/status-model.css", "/portal-switch.js", "/demo-login.js", "/backend-check.js",
                        "/navigation.html", "/navigation.css", "/bottom-nav.js", "/nav-tokens.js", "/embedded-tab.js",
-                       "/order-tracking.js", "/order-tracking.css", "/help.html", "/help.js", "/help.css"}
+                       "/order-tracking.js", "/order-tracking.css", "/help.html", "/help.js", "/help.css", "/admin-support.js", "/admin-support.css"}
             if path in allowed:
                 return super().do_GET()
             if re.fullmatch(r"/[a-z0-9.-]+\.(png|webp|woff2)", path):
@@ -1284,13 +1284,14 @@ class PrintBee(SimpleHTTPRequestHandler):
             return (body, "application/pdf", f'attachment; filename="{number}.pdf"')
         if path == "/api/admin/support/agents" and not post:
             agents = sorted(set(self.server.google_access["admin"]) | set(self.server.google_access["warehouse"]))
-            return {"agents": agents, "categories": support.categories(),
+            return {"me": actor, "agents": agents, "categories": support.categories(),
                     "statuses": list(support.STATUSES), "priorities": list(support.PRIORITIES)}
         if path == "/api/admin/support/tickets":
             if not post:
                 return support.staff_tickets(db, status=query.get("status"), priority=query.get("priority"),
                                              assignee=query.get("assignee"), category=query.get("category"),
-                                             query=query.get("q"), limit=query.get("limit", 50), offset=query.get("offset", 0))
+                                             query=query.get("q"), sort=query.get("sort") or "updated",
+                                             limit=query.get("limit", 25), offset=query.get("offset", 0))
             # an admin opens a ticket for a customer (also the shape Buzz will use with source="buzz")
             ident = support.create_ticket(db, email=data.get("email"), category=data.get("category"),
                                           subject=data.get("subject"), message=data.get("message"),

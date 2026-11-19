@@ -452,7 +452,15 @@ def assign(db, ticket_id, actor, assignee, allowed):
         _touch(db, ticket_id)
 
 
-def staff_tickets(db, *, status=None, priority=None, assignee=None, category=None, query=None, limit=50, offset=0):
+SORTS = {
+    "updated": "t.updated DESC, t.id DESC",                      # latest activity first (the default)
+    "newest": "t.created DESC, t.id DESC",
+    "oldest": "t.created ASC, t.id ASC",
+    "priority": "CASE t.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END, t.updated DESC, t.id DESC",
+}
+
+
+def staff_tickets(db, *, status=None, priority=None, assignee=None, category=None, query=None, sort="updated", limit=25, offset=0):
     where, params = [], []
     if status in STATUSES:
         where.append("t.status=?"); params.append(status)
@@ -474,12 +482,16 @@ def staff_tickets(db, *, status=None, priority=None, assignee=None, category=Non
     clause = ("WHERE " + " AND ".join(where)) if where else ""
     limit = max(1, min(int(limit), 100))
     offset = max(0, int(offset))
+    base = "FROM support_tickets t LEFT JOIN order_owners o ON o.order_id=t.order_id " + clause
+    total = db.execute("SELECT count(*) " + base, params).fetchone()[0]
     rows = db.execute(
-        "SELECT t.*, o.order_number FROM support_tickets t LEFT JOIN order_owners o ON o.order_id=t.order_id "
-        f"{clause} ORDER BY CASE t.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END, "
-        "t.updated DESC, t.id DESC LIMIT ? OFFSET ?", (*params, limit, offset)).fetchall()
+        "SELECT t.*, o.order_number, (SELECT body FROM support_messages m WHERE m.ticket_id=t.id AND m.kind IN ('customer','agent') "
+        "ORDER BY m.id DESC LIMIT 1) AS preview " + base + " ORDER BY " + SORTS.get(sort, SORTS["updated"]) + " LIMIT ? OFFSET ?",
+        (*params, limit, offset)).fetchall()
     counts = {row["status"]: row["n"] for row in db.execute("SELECT status, count(*) AS n FROM support_tickets GROUP BY status")}
-    return {"tickets": [_staff_summary(row) for row in rows], "counts": {s: counts.get(s, 0) for s in STATUSES}}
+    new = db.execute("SELECT count(*) FROM support_tickets WHERE status='open' AND assignee IS NULL").fetchone()[0]
+    return {"tickets": [_staff_summary(row) for row in rows], "total": total, "limit": limit, "offset": offset,
+            "counts": {s: counts.get(s, 0) for s in STATUSES}, "new": new}
 
 
 def _staff_summary(row):
@@ -487,6 +499,7 @@ def _staff_summary(row):
             "categoryLabel": CATEGORIES.get(row["category"], (row["category"],))[0], "subject": row["subject"],
             "status": row["status"], "priority": row["priority"], "assignee": row["assignee"], "source": row["source"],
             "orderNumber": row["order_number"] if "order_number" in row.keys() else None,
+            "preview": " ".join(str(row["preview"]).split())[:140] if "preview" in row.keys() and row["preview"] else "",
             "created": row["created"], "updated": row["updated"]}
 
 
@@ -500,6 +513,7 @@ def staff_ticket(db, ticket_id):
                                  "attachments": files.get(m["id"], [])}
                                 for m in db.execute("SELECT * FROM support_messages WHERE ticket_id=? ORDER BY id", (ticket_id,))]})
     ticket["order"] = order_context(db, row["order_id"]) if row["order_id"] else None
+    ticket["nextStatuses"] = [s for s in STATUSES if s in TRANSITIONS[row["status"]]]
     return ticket
 
 

@@ -191,6 +191,49 @@ class SupportRules(SupportModule):
         self.assertEqual(support.attachment_for_customer(self.db, shown[0]["id"], "me@example.test")["content_type"], "application/pdf")
 
 
+class SupportInbox(SupportModule):
+    """What the admin inbox needs: counts, new badge, sorting, pagination, previews and allowed next statuses."""
+
+    def fill(self, count):
+        ids = []
+        for number in range(count):
+            email = f"user{number}@example.test"
+            ids.append(support.create_ticket(self.db, email=email, category="account", subject=f"Question number {number:02d}",
+                                             message=f"Please help with item {number}."))
+        return ids
+
+    def test_new_badge_counts_open_unassigned_tickets_only(self):
+        ids = self.fill(4)
+        self.assertEqual(support.staff_tickets(self.db)["new"], 4)
+        support.assign(self.db, ids[0], "admin@example.test", "boss@example.test", {"boss@example.test"})   # picked up
+        support.set_status(self.db, ids[1], "admin@example.test", "pending")
+        listing = support.staff_tickets(self.db, status="closed")
+        self.assertEqual((listing["new"], listing["total"]), (2, 0))     # the badge ignores the current filter
+        self.assertEqual(support.staff_tickets(self.db)["counts"], {"open": 2, "in_progress": 1, "pending": 1, "resolved": 0, "closed": 0})
+
+    def test_pagination_sorting_and_totals(self):
+        ids = self.fill(7)
+        first = support.staff_tickets(self.db, limit=3, offset=0, sort="oldest")
+        second = support.staff_tickets(self.db, limit=3, offset=3, sort="oldest")
+        last = support.staff_tickets(self.db, limit=3, offset=6, sort="oldest")
+        self.assertEqual((first["total"], len(first["tickets"]), len(second["tickets"]), len(last["tickets"])), (7, 3, 3, 1))
+        self.assertEqual([t["id"] for t in first["tickets"] + second["tickets"] + last["tickets"]], ids)
+        self.assertEqual([t["id"] for t in support.staff_tickets(self.db, limit=2, sort="newest")["tickets"]], [ids[-1], ids[-2]])
+        support.set_priority(self.db, ids[2], "admin@example.test", "urgent")
+        self.assertEqual(support.staff_tickets(self.db, sort="priority")["tickets"][0]["id"], ids[2])
+        self.assertEqual(support.staff_tickets(self.db, query="number 05")["total"], 1)
+        self.assertEqual(support.staff_tickets(self.db, query="user3@")["tickets"][0]["customer"], "user3@example.test")
+        self.assertEqual(support.staff_tickets(self.db, sort="nonsense", limit=500)["limit"], 100)    # bad input is tamed
+
+    def test_preview_and_next_statuses(self):
+        ident = self.fill(1)[0]
+        support.staff_reply(self.db, ident, "admin@example.test", "Internal only text.", internal=True)
+        self.assertEqual(support.staff_tickets(self.db)["tickets"][0]["preview"], "Please help with item 0.")   # never an internal note
+        self.assertEqual(support.staff_ticket(self.db, ident)["nextStatuses"], ["in_progress", "pending", "resolved", "closed"])
+        support.set_status(self.db, ident, "admin@example.test", "closed")
+        self.assertEqual(support.staff_ticket(self.db, ident)["nextStatuses"], ["open"])
+
+
 class SupportStorage(SupportModule):
     class FakeStorage:
         """Stands in for the S3 private bucket: same put_support / read interface as order_documents.PrivateFiles."""
@@ -312,6 +355,25 @@ class SupportApi(unittest.TestCase):
         self.assertEqual(codes[:20], [200] * 20)
         self.assertEqual(set(codes[20:]), {429})
 
+
+    def test_admin_inbox_listing_over_http(self):
+        people = [Customer(self.server, f"inbox{n}@example.test") for n in range(3)]
+        for number, person in enumerate(people):
+            status, made, _ = person.post("/api/support/tickets", {"category": "other", "subject": f"Inbox ticket {number}", "message": "Hello there."})
+            self.assertEqual(status, 200, made)
+        status, agents, _ = self.server.request("GET", "/api/admin/support/agents", headers=self.admin)
+        self.assertEqual(status, 200)
+        self.assertIn(BOSS, agents["agents"])
+        self.assertEqual(set(agents["statuses"]), {"open", "in_progress", "pending", "resolved", "closed"})
+        status, page, _ = self.server.request("GET", "/api/admin/support/tickets?sort=newest&limit=2&q=inbox%20ticket", headers=self.admin)
+        self.assertEqual((status, page["limit"], len(page["tickets"])), (200, 2, 2))
+        self.assertEqual(page["total"], 3)
+        self.assertGreaterEqual(page["new"], 3)
+        self.assertEqual(page["tickets"][0]["subject"], "Inbox ticket 2")
+        self.assertEqual(page["tickets"][0]["preview"], "Hello there.")
+        status, second, _ = self.server.request("GET", "/api/admin/support/tickets?sort=newest&limit=2&offset=2&q=inbox%20ticket", headers=self.admin)
+        self.assertEqual([t["subject"] for t in second["tickets"]], ["Inbox ticket 0"])
+        self.assertEqual(people[0].get("/api/admin/support/agents")[0], 403)
 
     def test_customer_b_cannot_reach_customer_a_by_changing_ids(self):
         ann = Customer(self.server, "ann2@example.test")

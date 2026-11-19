@@ -6,6 +6,7 @@ const {orders, products, activity, traffic, targets, today} = source;
 import {addOfflineOrderFields, pickupMapUrl} from './admin-records.js';
 
 import {buildLedger} from './admin-ledger.js?v=mobile-layout';
+import {mountSupport, supportBadge} from './admin-support.js?v=1';
 import {buildPricingForm} from './admin-pricing.js';
 import {previewPricingUrl, readPreviewPricing, savePreviewPricing} from './pricing-preview.js';
 
@@ -17,6 +18,7 @@ const colors = ['accent','lavender','mint','peach','sky','pink','track'].map(nam
 const sections = {
   dashboard: ['Dashboard', 'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z'],
   orders: ['Orders', 'M4 7h16v14H4z M8 7V5h8v2 M9 12h6'],
+  support: ['Support', 'M4 5h16v11H9l-5 4z M8 9.5h8 M8 12.5h5'],
   customers: ['Customers', 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z M22 21v-2a4 4 0 0 0-3-4 M17 3a4 4 0 0 1 0 8'],
   analytics: ['Analytics', 'M3 3v18h18 M7 15l4-5 4 2 5-7'],
   pricing: ['Pricing', 'M6 3h12 M6 8h12 M14 21l-8-8h3a5 5 0 0 0 0-10'],
@@ -26,6 +28,7 @@ const sections = {
   warehouses: ['Warehouses', 'M3 21V8l9-5 9 5v13z M7 21V11h10v10 M7 15h10 M7 18h10'],
 };
 if (live) sections.inventory[0] = 'Print services';
+if (!live) delete sections.support;          // the sample dashboard has no tickets: never show mock numbers
 const oldSections = {reports:'orders', products:'inventory', revenue:'analytics'};
 const icon = path => `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${path}"/></svg>`;
 const escape = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[char]);
@@ -292,7 +295,7 @@ async function refresh() {
 async function softRefresh() {
   if (document.hidden || $('editor').open || (root.contains(document.activeElement) && document.activeElement !== root)) return;
   try { await source.load(); } catch { return; }
-  if (!['pricing', 'ledger', 'warehouses'].includes(location.hash.slice(1))) render();
+  if (!['pricing', 'ledger', 'warehouses'].includes(location.hash.slice(1)) && !location.hash.startsWith('#support')) render();
   refreshFeed();
 }
 
@@ -445,8 +448,11 @@ function previewLedger(page, filter) {
   return {totals,page,pages,entries:matching.slice((page - 1) * 25,page * 25)};
 }
 
+let supportCleanup = null;
 function render(animate = false) {
-  const slug = location.hash.slice(1);
+  supportCleanup?.();
+  supportCleanup = null;
+  const [slug, subRoute = ''] = location.hash.slice(1).split('/');
   const route = Object.hasOwn(sections, slug) ? slug : Object.hasOwn(oldSections, slug) ? oldSections[slug] : 'dashboard';
   if (slug && slug !== route) history.replaceState(history.state, '', '#' + route);
   const items = selectedOrders(), paid = sales(items), values = metrics(items,orderWindowDays);
@@ -458,6 +464,7 @@ function render(animate = false) {
     case 'ledger': widgets = card('Transactions', '<div id="preview-ledger" class="ledger-panel"></div>', 'full'); break;
     case 'pricing': widgets = card('Checkout rates', '<div id="pricing-form"></div>', 'full'); break;
     case 'orders': widgets = orderTable(); break;
+    case 'support': widgets = '<section class="card full sp-shell"><div id="support-host"></div></section>'; break;
     case 'customers': widgets = growth(items) + bars('Top 5 customers',customersRank,money) + bars('Delivery regions',regionRank); break;
     case 'inventory': widgets = live ? productList() : productList() + stock(); break;
     case 'analytics':
@@ -484,6 +491,7 @@ function render(animate = false) {
     else link.removeAttribute('aria-current');
   });
   root.innerHTML = `<div class="grid${animate ? ' arrive' : ''}">${widgets}</div>`;
+  if (live && route === 'support') supportCleanup = mountSupport($('support-host'), subRoute);
   if (route === 'ledger') {
     if (live) buildLedger($('preview-ledger'), (page, kind) => source.api('/api/admin/ledger?' + new URLSearchParams({page, kind})))();
     else buildLedger($('preview-ledger'), previewLedger, {demo:true})();
@@ -554,7 +562,8 @@ function render(animate = false) {
 
 function navLink(route) {
   const [label, glyph] = sections[route];
-  return `<a class="nav-link" data-nav="${route}" href="#${route}" aria-label="${label}" title="${label}">${icon(glyph)}<span>${label}</span></a>`;
+  const badge = route === 'support' ? '<i class="nav-badge" id="support-badge" hidden></i>' : '';
+  return `<a class="nav-link" data-nav="${route}" href="#${route}" aria-label="${label}" title="${label}">${icon(glyph)}<span>${label}</span>${badge}</a>`;
 }
 
 const routes = Object.keys(sections);
@@ -797,6 +806,8 @@ if (live) {
     document.querySelector('.live-gate').hidden = true;
     refreshFeed();
     render(true);
+    supportBadge();
+    setInterval(supportBadge, 45000);
     // Orders and statuses update the moment they change; the timer is only a safety net.
     feedConnection = window.PrintBeeLive?.start({as: 'admin', onSync: softRefresh});
     setInterval(softRefresh, 45000);
