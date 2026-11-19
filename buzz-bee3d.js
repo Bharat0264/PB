@@ -21,21 +21,21 @@ const CLAY_TEXTURE = '/buzz-bee-clay.webp?v=3';       // the original model's co
 export const BEE_LOOK = {
   render: {
     toneMapping: 'ACESFilmic',              // 'ACESFilmic' | 'AgX' | 'Neutral' | 'None'
-    exposure: 0.92,                         // ACES darkens and shifts colour a little: this, the light, and each material's mapGlow keep the bee's colours as they were
+    exposure: 1.04,                         // ACES darkens and shifts colour a little: this, the light, and each material's mapGlow keep the bee's colours as they were
     environment: 'studio',                  // the soft studio room that ships with three.js (RoomEnvironment), blurred like a studio HDRI
     environmentBlur: 0.04,
     environmentIntensity: 0.5,
     anisotropy: 'max',                      // 'max' or a number: keeps the texture sharp when the bee turns
     keyLight: {color: 0xfff1d6, intensity: 1.0, position: [1.6, 2.4, 2.6]},
     rimLight: {color: 0xffe3a8, intensity: 0.45, position: [-2.2, 1.2, -2]},
-    fill: {sky: 0xfffaf0, ground: 0xffdca0, intensity: 0.55},
+    fill: {sky: 0xfffaf0, ground: 0xffdca0, intensity: 0.68},
     normalScale: 0.6,
   },
   fallback: {roughness: 0.78, clearcoat: 0, sheen: 0.6, transmission: 0},     // the matte clay look used only if bee_hq.glb cannot load and the original model is shown
   materials: {
     body: {                                  // head, headphones, body, arms, stripes, antennae
       roughness: 0.35, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.22,
-      sheen: 0.12, sheenRoughness: 0.5, sheenColor: 0xffc23a, envMapIntensity: 1.0, mapGlow: 0.2,
+      sheen: 0.12, sheenRoughness: 0.5, sheenColor: 0xffc23a, envMapIntensity: 1.0, mapGlow: 0.3,
     },
     eyes: {                                  // glossy black with crisp white highlights
       roughness: 0.12, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.03,
@@ -66,9 +66,9 @@ const FLOAT_RATE = (2 * Math.PI) / 3;  // one slow float up and down every 3 sec
 // shadow under it can squash and fade in time), and, only when making the still pictures: exact (the canvas IS the bee's box), pixelRatio
 // and scale (make the bee a little smaller so no pose touches the edge of its picture).
 export async function createBee(canvas, {reducedMotion = false, exact = false, pixelRatio = null, onFrame = null, scale = 1} = {}) {
-  const renderer = new THREE.WebGLRenderer({canvas, alpha: true, antialias: true, powerPreference: 'low-power'});
+  const renderer = new THREE.WebGLRenderer({canvas, alpha: true, antialias: true, powerPreference: 'default'});
   renderer.setClearColor(0x000000, 0);
-  renderer.setPixelRatio(pixelRatio || Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setPixelRatio(pixelRatio || Math.min(Math.max((window.devicePixelRatio || 1) * 1.5, 2), 3));   // drawn 1.5x bigger than the screen needs, then shrunk by the browser: smooth, sharp edges
   renderer.toneMapping = TONE_MAPPING[BEE_LOOK.render.toneMapping] ?? THREE.NoToneMapping;
   renderer.toneMappingExposure = BEE_LOOK.render.exposure;
   renderer.outputColorSpace = THREE.SRGBColorSpace;

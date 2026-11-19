@@ -41,8 +41,9 @@ def border_alpha(rgba, band=12):
 
 def main(render_dir, out_dir):
     for pose in POSES:
-        source = np.array(Image.open(Path(render_dir) / f"pose-{pose}-648.png").convert("RGBA"))
-        edge = border_alpha(source)
+        found = sorted(Path(render_dir).glob(f"pose-{pose}-*.png"))      # pose-idle-1296.png (or -648): the bigger the render, the cleaner the shrunk edges
+        source = np.array(Image.open(found[-1]).convert("RGBA"))
+        edge = border_alpha(source, band=max(12, source.shape[1] // 54))
         ys, xs = np.nonzero(source[..., 3] > 8)
         print(f"{pose}: edge alpha {edge}, bee spans x {xs.min()}-{xs.max()} y {ys.min()}-{ys.max()} of {source.shape[1]}")
         if edge:

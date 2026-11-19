@@ -623,9 +623,9 @@ class AnimatedBee(unittest.TestCase):
         self.assertGreater(int(edge.sum()), 100)
         self.assertGreater(solid[edge][:, :3].mean(), 0.6 * solid[inside][:, :3].mean())
         for page in self.read("buzz-chat.js").split("srcset:")[1:2]:
-            self.assertIn("1x.webp?v=3 1x", page)
-            self.assertIn("2x.webp?v=3 2x", page)
-            self.assertIn("3x.webp?v=3 3x", page)
+            self.assertIn("1x.webp?v=4 1x", page)
+            self.assertIn("2x.webp?v=4 2x", page)
+            self.assertIn("3x.webp?v=4 3x", page)
         for tool in ("make_bee_pictures.py", "make_clay_bee_texture.py"):
             self.assertTrue((self.root / "tools" / tool).exists())
 
