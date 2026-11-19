@@ -265,6 +265,21 @@ and uses a stable receipt reference. Configure the HTTPS Razorpay webhook to
 also receive `refund.processed` and `refund.failed`. A pending request can be
 reconciled from the dashboard if the initial API response is lost.
 
+### Buzz, the support chatbot (backend)
+
+Buzz answers FAQs, prices, upload help and order questions, and drafts support tickets. It uses the existing
+support tickets (`support.create_buzz_ticket`, `buzz_find_tickets`, `buzz_get_ticket`); there is no separate tickets table.
+
+- Routes: `POST /api/support/chat` (a message, or `action: "confirm"` / `"human"`) and `POST /api/support/chat/feedback`.
+- Settings (all optional, see `.env.example`): `ANTHROPIC_API_KEY` (server only, never sent to the browser),
+  `PRINTBEE_SUPPORT_MODEL` (default `claude-haiku-5-5`), `PRINTBEE_CHAT_DAILY_CAP_USD` (default 5),
+  `PRINTBEE_CHAT_RETENTION_DAYS` (default 30), `PRINTBEE_BUZZ_MOCK=1` to force offline mode.
+- With no API key Buzz runs in offline mode: canned answers built from the same live pricing, FAQ and order data.
+- Edit what Buzz knows in `kb/faq.md`. Any section with a `TODO:` line is treated as unconfirmed and Buzz says
+  "I'm not sure" about it. Buzz's rules live in `buzz_prompt.md`.
+- The model can only draft a ticket. The customer presses Confirm, which creates exactly one ticket per draft.
+- Chats are stored redacted (emails, phone and card-like numbers, codes) in `chat_sessions` / `chat_messages` and deleted after the retention period.
+
 ## Connected portals
 
 One order travels through the customer, warehouse, partner and admin portals with live status. See

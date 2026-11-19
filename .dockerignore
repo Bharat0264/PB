@@ -11,3 +11,5 @@ test_*.py
 !/*.webp
 !/*.png
 !docker-entrypoint.sh
+!buzz_prompt.md
+!kb/*.md

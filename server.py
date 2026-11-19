@@ -1,5 +1,6 @@
 import argparse
 import hashlib
+import buzz
 import support
 import hmac
 import json
@@ -801,6 +802,8 @@ class PrintBee(SimpleHTTPRequestHandler):
                 return self.customer_notifications(mark_read=True)
             if path in ("/api/partner/auth/send", "/api/partner/auth/check", "/api/partner/auth/logout"):
                 return self.verify_partner_phone(path.rsplit("/", 1)[1])
+            if path in ("/api/support/chat", "/api/support/chat/feedback"):
+                return self.chat_api(path)
             if path.startswith(("/api/support/", "/api/admin/support/")):
                 return self.support_api(path)
             if path.startswith(("/api/print-agent/", "/api/partner/", "/api/admin/")):
@@ -1247,6 +1250,61 @@ class PrintBee(SimpleHTTPRequestHandler):
             self.kick_escalations()
         if isinstance(result, tuple):       # a download: (body, type, disposition)
             return self.send_download(*result)
+        return self.json_response(200, result)
+
+    def buzz_eta(self, db, order_id, status):
+        """Minutes until delivery for an order on its way, when the Bee Runner is sharing a live location."""
+        if status != "out_for_delivery":
+            return None
+        return (self.customer_delivery(db, order_id, status) or {}).get("etaMinutes")
+
+    def buzz_codes(self, db, email):
+        """The customer's live delivery codes. Used only to scrub chat text; the code is never given to Buzz."""
+        codes = []
+        for row in db.execute("SELECT orders.id FROM orders JOIN order_owners ON orders.id=order_owners.order_id "
+                              "WHERE order_owners.email=? AND orders.status='out_for_delivery'", (email,)):
+            code = (self.customer_delivery(db, row["id"], "out_for_delivery") or {}).get("code")
+            if code:
+                codes.append(code)
+        return codes
+
+    def chat_api(self, path):
+        """Buzz, the support chatbot. Guests may ask general questions; orders and tickets need the customer's own session."""
+        if not self.same_origin():
+            return self.json_response(403, {"error": "Open PrintBee directly and try again."})
+        length = int(self.headers.get("Content-Length", "0") or 0)
+        if not 0 < length <= 4096:
+            self.close_connection = True
+            return self.json_response(400, {"error": "That message is too long."})
+        try:
+            data = json.loads(self.rfile.read(length))
+        except ValueError:
+            return self.json_response(400, {"error": "Invalid request."})
+        if not isinstance(data, dict):
+            return self.json_response(400, {"error": "Invalid request."})
+        ip = self.client_ip()
+        try:
+            with closing(connect()) as db, db:
+                email = auth.session_email(db, self.headers)
+                caller = buzz.Caller(db, email, ip, lambda: self.checkout_terms(db), eta=self.buzz_eta, codes=self.buzz_codes)
+                if path.endswith("/feedback"):
+                    result = buzz.feedback(db, buzz.owner_key(email, ip), data.get("sessionId"), data.get("messageId"), data.get("rating"))
+                elif data.get("action") == "confirm":
+                    db.execute("BEGIN IMMEDIATE")
+                    result = support.idempotent(db, f"{email}|buzz-confirm|{data.get('draftId')}", self.headers.get("Idempotency-Key"),
+                                                lambda: buzz.confirm_ticket(caller, data.get("sessionId"), data.get("draftId")))
+                elif data.get("action") == "human":
+                    result = buzz.human_draft(caller, data.get("sessionId"), data.get("orderNumber") if isinstance(data.get("orderNumber"), str) else None)
+                else:
+                    result = buzz.chat(caller, data)
+        except support.NotFound as error:
+            return self.json_response(404, {"error": str(error)})
+        except support.RateLimited as error:
+            return self.json_response(429, {"error": str(error)})
+        except support.SupportError as error:
+            return self.json_response(400, {"error": str(error)})
+        if data.get("action") == "confirm":
+            self.kick_escalations()
         return self.json_response(200, result)
 
     def kick_escalations(self):
@@ -1938,6 +1996,7 @@ if __name__ == "__main__":
         db.executescript(ops.SCHEMA)
         db.executescript(admin_records.SCHEMA)
         support.install(db)
+        buzz.install(db)
         google_access["partner"].update(admin_records.partner_accounts(db))
         google_access["warehouse"].update({email: "warehouse" for email in admin_records.warehouse_staff(db)})
         db.executescript(partner_auth.SCHEMA)
