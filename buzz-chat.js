@@ -53,6 +53,7 @@
     transition: transform .2s cubic-bezier(.34,1.5,.64,1); -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
   .buzz-fab:hover { transform: translateY(-3px); }
   .buzz-fab:active { transform: scale(.96); transition-duration: .08s; }
+  .buzz-fab .buzz-pad, .buzz-fab .buzz-glow { display: none; }      /* no yellow round behind the bee: just the bee and its soft contact shadow */
   .buzz-glow { position: absolute; left: 50%; bottom: -6px; width: 130%; height: 78%; margin-left: -65%; border-radius: 50%; pointer-events: none; opacity: .75; transition: opacity .3s ease;
     background: radial-gradient(ellipse at center, rgba(255,190,50,.30) 0%, rgba(255,196,70,.13) 45%, rgba(255,200,80,0) 72%); }
   [data-theme="dark"] .buzz-glow { background: radial-gradient(ellipse at center, rgba(255,176,40,.24) 0%, rgba(255,176,40,.10) 45%, rgba(255,176,40,0) 72%); }
@@ -235,8 +236,8 @@
 
   const root = el('div', {className: 'buzz-root'});
   // The still bee pictures (idle, wave, typing): one transparent picture per pose, each made at 108, 216 and 324 px (1x, 2x, 3x), all the same canvas.
-  const picture = (kind, className, size) => el('img', {className, alt: '', width: size, height: size, decoding: 'async', src: `/buzz-bee-${kind}-1x.webp`,
-    srcset: `/buzz-bee-${kind}-1x.webp 1x, /buzz-bee-${kind}-2x.webp 2x, /buzz-bee-${kind}-3x.webp 3x`});
+  const picture = (kind, className, size) => el('img', {className, alt: '', width: size, height: size, decoding: 'async', src: `/buzz-bee-${kind}-1x.webp?v=2`,
+    srcset: `/buzz-bee-${kind}-1x.webp?v=2 1x, /buzz-bee-${kind}-2x.webp?v=2 2x, /buzz-bee-${kind}-3x.webp?v=2 3x`});
   const canvas = el('canvas', {className: 'buzz-canvas', 'aria-hidden': 'true'});
   const fab = el('button', {type: 'button', className: 'buzz-fab', 'aria-label': 'Chat with Buzz, PrintBee support', 'aria-haspopup': 'dialog', 'aria-expanded': 'false',
     'aria-describedby': 'buzz-tip'},

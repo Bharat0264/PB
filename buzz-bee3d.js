@@ -13,7 +13,7 @@ import {GLTFLoader} from '/vendor/three/GLTFLoader.js';
 import {RoomEnvironment} from '/vendor/three/RoomEnvironment.js';
 
 const MODEL = '/buzz-bee.glb?v=1';
-const CLAY_TEXTURE = '/buzz-bee-clay.webp?v=1';
+const CLAY_TEXTURE = '/buzz-bee-clay.webp?v=2';
 const FIT = 1.62;                      // the bee's longest side, in world units (the view is 1.985 units tall for the button's box): leaves room to hop and spin
 const FACE_YAW = 0;                    // turn the model so it looks at the customer (set after checking the model's orientation)
 const IDLE_FPS = 30;
