@@ -11,30 +11,6 @@ CREATE TABLE IF NOT EXISTS print_jobs (
     state TEXT NOT NULL DEFAULT 'queued', worker TEXT, error TEXT,
     UNIQUE(order_id, position)
 );
-CREATE TABLE IF NOT EXISTS printers (
-    id INTEGER PRIMARY KEY, name TEXT NOT NULL, system_name TEXT NOT NULL,
-    is_default INTEGER NOT NULL DEFAULT 0, created INTEGER NOT NULL,
-    device_id TEXT, model TEXT, connection TEXT, host TEXT, capabilities TEXT,
-    default_mono INTEGER NOT NULL DEFAULT 0, default_colour INTEGER NOT NULL DEFAULT 0,
-    enabled INTEGER NOT NULL DEFAULT 1, created_by TEXT, created_at INTEGER
-);
-CREATE TABLE IF NOT EXISTS print_job_printer (
-    order_id TEXT NOT NULL, position INTEGER NOT NULL, printer_id INTEGER NOT NULL,
-    finished INTEGER,
-    PRIMARY KEY(order_id, position)
-);
-CREATE TABLE IF NOT EXISTS printer_inventory (
-    id INTEGER PRIMARY KEY, data TEXT NOT NULL DEFAULT '[]', errors TEXT NOT NULL DEFAULT '[]',
-    scanned_at INTEGER, scan_requested INTEGER, scan_manual TEXT NOT NULL DEFAULT '[]'
-);
-CREATE TABLE IF NOT EXISTS printer_status (
-    printer_id INTEGER PRIMARY KEY, state TEXT NOT NULL, reasons TEXT NOT NULL DEFAULT '[]',
-    supplies TEXT NOT NULL DEFAULT '[]', updated_at INTEGER NOT NULL
-);
-CREATE TABLE IF NOT EXISTS printer_tests (
-    id INTEGER PRIMARY KEY, printer_id INTEGER NOT NULL, state TEXT NOT NULL DEFAULT 'queued',
-    worker TEXT, error TEXT, requested_by TEXT, created INTEGER NOT NULL
-);
 CREATE TABLE IF NOT EXISTS deliveries (
     order_id TEXT PRIMARY KEY, partner TEXT NOT NULL, nonce TEXT,
     expires INTEGER, attempts INTEGER NOT NULL DEFAULT 0,
@@ -72,23 +48,6 @@ class Conflict(ValueError):
     pass
 
 
-NEW_PRINTER_COLUMNS = (("device_id", "TEXT"), ("model", "TEXT"), ("connection", "TEXT"), ("host", "TEXT"), ("capabilities", "TEXT"),
-                       ("default_mono", "INTEGER NOT NULL DEFAULT 0"), ("default_colour", "INTEGER NOT NULL DEFAULT 0"),
-                       ("enabled", "INTEGER NOT NULL DEFAULT 1"), ("created_by", "TEXT"), ("created_at", "INTEGER"))
-
-
-def migrate(db):
-    """Bring a database made before printer discovery up to date (the CREATE TABLE statements above only cover new databases).
-    print_jobs is left alone on purpose: its columns are written positionally elsewhere, so the chosen printer lives in print_job_printer."""
-    have = {column["name"] for column in db.execute("PRAGMA table_info(printers)")}
-    for name, kind in NEW_PRINTER_COLUMNS:
-        if name not in have:
-            db.execute(f"ALTER TABLE printers ADD COLUMN {name} {kind}")
-    if "finished" not in {column["name"] for column in db.execute("PRAGMA table_info(print_job_printer)")}:
-        db.execute("ALTER TABLE print_job_printer ADD COLUMN finished INTEGER")
-    db.execute("CREATE UNIQUE INDEX IF NOT EXISTS printers_device ON printers(device_id)")
-
-
 def audit(db, actor, action, order_id=None):
     """Record an action. For real orders this also writes the central `order_events` row.
 
@@ -109,126 +68,6 @@ def audit(db, actor, action, order_id=None):
                    "VALUES (?,?,?,?,?,?,?)",
                    (cursor.lastrowid, order_id, action, actor, last["to_status"] if last else None,
                     row["status"], now))
-
-
-class PrinterError(ValueError):
-    """A printer request the warehouse can fix; the message is safe to show."""
-
-
-MAX_PRINTERS = 12
-
-
-def list_printers(db):
-    return [{"id": row["id"], "name": row["name"], "systemName": row["system_name"], "isDefault": bool(row["is_default"])}
-            for row in db.execute("SELECT * FROM printers ORDER BY is_default DESC, name COLLATE NOCASE, id")]
-
-
-def _clean(value, label, limit):
-    if not isinstance(value, str) or not value.strip():
-        raise PrinterError(f"Enter the {label}.")
-    value = " ".join(value.split())
-    if len(value) > limit or any(ord(ch) < 32 for ch in value):
-        raise PrinterError(f"The {label} is too long.")
-    return value
-
-
-def save_printer(db, data, actor="warehouse"):
-    """Add a printer, or rename / re-point / make default an existing one."""
-    ident = data.get("id")
-    if ident is not None and (type(ident) is not int or not db.execute("SELECT 1 FROM printers WHERE id=?", (ident,)).fetchone()):
-        raise PrinterError("That printer no longer exists.")
-    name = _clean(data.get("name"), "printer name", 40)
-    system_name = _clean(data.get("systemName"), "system printer name", 120)
-    if ident is None:
-        if db.execute("SELECT count(*) FROM printers").fetchone()[0] >= MAX_PRINTERS:
-            raise PrinterError(f"You can add up to {MAX_PRINTERS} printers.")
-        make_default = bool(data.get("isDefault")) or not db.execute("SELECT 1 FROM printers").fetchone()
-        ident = db.execute("INSERT INTO printers(name, system_name, is_default, created) VALUES (?,?,0,?)",
-                           (name, system_name, int(time.time()))).lastrowid
-        audit(db, actor, "printer_added", str(ident))
-    else:
-        make_default = bool(data.get("isDefault"))
-        db.execute("UPDATE printers SET name=?, system_name=? WHERE id=?", (name, system_name, ident))
-        audit(db, actor, "printer_updated", str(ident))
-    if make_default:
-        db.execute("UPDATE printers SET is_default=(id=?)", (ident,))
-    return ident
-
-
-def remove_printer(db, ident, actor="warehouse"):
-    row = db.execute("SELECT is_default FROM printers WHERE id=?", (ident,)).fetchone()
-    if not row:
-        raise PrinterError("That printer no longer exists.")
-    db.execute("DELETE FROM printers WHERE id=?", (ident,))
-    db.execute("DELETE FROM print_job_printer WHERE printer_id=?", (ident,))
-    if row["is_default"]:
-        db.execute("UPDATE printers SET is_default=1 WHERE id=(SELECT id FROM printers ORDER BY name COLLATE NOCASE, id LIMIT 1)")
-    audit(db, actor, "printer_removed", str(ident))
-
-
-def job_printer(db, job):
-    """Where a job should go: the printer picked in the warehouse, else the default, else None (the agent then uses its own --printer).
-    A printer found by the agent is named by its device id (which the agent matches to what it found); an older one by its system name."""
-    row = db.execute("SELECT printers.system_name, printers.device_id FROM print_job_printer JOIN printers ON printers.id=print_job_printer.printer_id "
-                     "WHERE order_id=? AND position=?", (job["order_id"], job["position"])).fetchone()
-    if not row:
-        row = db.execute("SELECT system_name, device_id FROM printers WHERE is_default=1").fetchone()
-    return (row["device_id"] or row["system_name"]) if row else None
-
-
-def queue_job(db, order_id, position, actor="warehouse", printer_id=None):
-    changed = db.execute(
-        "INSERT INTO print_jobs(order_id, position) "
-        "SELECT files.order_id, files.position FROM files JOIN orders ON orders.id=files.order_id "
-        "WHERE files.order_id=? AND position=? AND orders.status IN ('paid','printing') "
-        "ON CONFLICT(order_id, position) DO UPDATE SET state='queued', worker=NULL, error=NULL "
-        "WHERE print_jobs.state='failed'", (order_id, position)
-    ).rowcount
-    if not changed:
-        return False
-    db.execute("UPDATE orders SET status='printing' WHERE id=? AND status='paid'", (order_id,))
-    if printer_id is None:
-        db.execute("DELETE FROM print_job_printer WHERE order_id=? AND position=?", (order_id, position))
-    else:
-        db.execute("INSERT INTO print_job_printer(order_id, position, printer_id) VALUES (?,?,?) "
-                   "ON CONFLICT(order_id, position) DO UPDATE SET printer_id=excluded.printer_id", (order_id, position, printer_id))
-    audit(db, actor, "print_queued", order_id)
-    return True
-
-
-STATUS_FRESH = 120          # seconds: the agent reports every ~20, so a status older than this means the printer (or the agent) has gone quiet
-HOLD_STATES = ("offline", "paper-out", "error")
-
-
-def claim_job(db, worker, now=None):
-    """The next job the agent can actually print. A job whose chosen printer is paused, offline, out of paper, in error or silent is skipped
-    (it stays queued, shown as 'Waiting for printer'), so one dead printer never blocks the others."""
-    now = int(time.time()) if now is None else now
-    return db.execute(
-        "UPDATE print_jobs SET state='printing', worker=? "
-        "WHERE id=(SELECT print_jobs.id FROM print_jobs JOIN orders ON orders.id=print_jobs.order_id "
-        "LEFT JOIN print_job_printer AS pjp ON pjp.order_id=print_jobs.order_id AND pjp.position=print_jobs.position "
-        "LEFT JOIN printers AS pr ON pr.id=pjp.printer_id LEFT JOIN printer_status AS ps ON ps.printer_id=pr.id "
-        "WHERE print_jobs.state='queued' AND orders.status='printing' AND (pr.id IS NULL OR (pr.enabled=1 AND "
-        "(ps.printer_id IS NULL OR (ps.state NOT IN ('offline','paper-out','error') AND ps.updated_at>=?)))) "
-        "ORDER BY print_jobs.id LIMIT 1) RETURNING *", (worker, now - STATUS_FRESH)
-    ).fetchone()
-
-
-def finish_job(db, job, worker, state, error):
-    row = db.execute(
-        "UPDATE print_jobs SET state=?, error=? WHERE id=? AND state='printing' AND worker=? RETURNING order_id",
-        (state, error, job, worker)
-    ).fetchone()
-    if row:
-        audit(db, "print-agent", "print_" + state, row["order_id"])
-        if state == "done":
-            db.execute("UPDATE print_job_printer SET finished=? WHERE (order_id, position) IN "
-                       "(SELECT order_id, position FROM print_jobs WHERE id=?)", (int(time.time()), job))
-        return row["order_id"]
-    saved = db.execute("SELECT order_id FROM print_jobs WHERE id=? AND worker=? AND state=?",
-                       (job, worker, state)).fetchone()
-    return saved["order_id"] if saved else None
 
 
 def ready_printed_orders(db, actor, order_id=None, eligible_partners=()):

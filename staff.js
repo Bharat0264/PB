@@ -51,7 +51,7 @@ async function loadOrders() {
   const data = await response.json();
   orders.replaceChildren();
   filters.hidden = false;
-  statusLine.textContent = data.orders.length + ' orders · Print agent ' + (data.agentOnline ? 'online' : 'offline');
+  statusLine.textContent = data.orders.length + ' orders';
   for (const order of data.orders) {
     const card = document.createElement('article');
     card.className = 'clay-card';

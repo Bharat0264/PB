@@ -61,13 +61,10 @@ class WarehouseAccessTest(unittest.TestCase):
                     (order, "printing", "{}"), (manual, "paid", "{}"), (empty, "printing", "{}"),
                 ])
                 db.executemany("INSERT INTO files VALUES (?, ?)", [(order, 0), (order, 1), (manual, 0)])
-                db.executemany("INSERT INTO print_jobs VALUES (?, ?, ?, ?, ?, NULL)", [
-                    (1, order, 0, "printing", "first"), (2, order, 1, "printing", "second"),
-                ])
                 db.execute("INSERT INTO partner_availability VALUES ('rider', 1, ?)", (int(time.time()),))
 
             with ThreadingHTTPServer(("127.0.0.1", 0), app.PrintBee) as server:
-                server.keys = {"print-agent": "test-agent", "warehouse": "test-warehouse"}
+                server.keys = {"warehouse": "test-warehouse"}
                 server.partners = {"rider": "test-rider"}
                 server.partner_phones = {}
                 server.google_access = {"partner": {}}
@@ -86,17 +83,12 @@ class WarehouseAccessTest(unittest.TestCase):
                     return db.execute("SELECT status FROM orders WHERE id=?", (order_id,)).fetchone()["status"]
 
                 try:
-                    post("/api/print-agent/jobs/1/result", "test-agent", "first", "done")
-                    post("/api/print-agent/jobs/2/result", "test-agent", "second", "failed")
+                    post(f"/api/staff/orders/{order}/printed/0", "test-warehouse")
                     with closing(app.connect()) as db:
                         self.assertEqual(order_status(db, order), "printing")
                         self.assertIsNone(db.execute("SELECT partner FROM deliveries").fetchone())
 
-                    post(f"/api/staff/orders/{order}/print/1", "test-warehouse")
-                    with closing(app.connect()) as db, db:
-                        retry = app.ops.claim_job(db, "retry")
-                    post(f"/api/print-agent/jobs/{retry['id']}/result", "test-agent", "retry", "done")
-                    post("/api/print-agent/jobs/1/result", "test-agent", "first", "done")
+                    post(f"/api/staff/orders/{order}/printed/1", "test-warehouse")
                     post(f"/api/staff/orders/{manual}/printed/0", "test-warehouse")
                     with closing(app.connect()) as db:
                         self.assertEqual(order_status(db, order), "packed")

@@ -41,7 +41,7 @@ STATUSES = {
 TRANSITIONS = {
     "pending": {"paid": {"razorpay", "checkout"}, "cancelled": {"system"}},
     "paid": {"printing": {"warehouse", "admin", "system"}, "cancelled": {"admin"}, "refund_pending": {"admin"}},
-    "printing": {"packed": {"warehouse", "admin", "print-agent", "system"}},
+    "printing": {"packed": {"warehouse", "admin", "system"}},
     "packed": {"out_for_delivery": {"partner"}},
     "out_for_delivery": {"delivered": {"partner"}, "undeliverable": {"partner", "admin"}},
     "undeliverable": {"packed": {"admin"}, "refund_pending": {"admin"}},
@@ -62,7 +62,7 @@ EVENT_LABELS = {
     "refund.failed": "Refund needs assistance", "print_job_recovered": "Print job recovered",
 }
 
-ROLES = ("customer", "warehouse", "print-agent", "partner", "admin", "system", "razorpay", "checkout")
+ROLES = ("customer", "warehouse", "partner", "admin", "system", "razorpay", "checkout")
 
 
 def allowed(old, new):

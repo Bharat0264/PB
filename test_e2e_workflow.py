@@ -3,7 +3,7 @@
 Starts server.py on a free port with a temporary database, test payments and a mock printer, then
 plays each role through the HTTP API exactly as the portals do:
 
-  customer -> test payment -> warehouse prints (print agent, mock printer) -> ready
+  customer -> test payment -> warehouse prints by hand and marks it printed -> ready
   -> partner accepts -> pickup -> OTP -> deliver -> admin revenue / profit / earnings
 
 Also: wrong OTP x3 and renewal, refund, cancel, two partners accepting at once, a price change after
@@ -29,7 +29,6 @@ from io import BytesIO
 from pathlib import Path
 
 import customer_auth as auth
-import print_agent
 
 ROOT = Path(__file__).resolve().parent
 TERMS = {"packing": 500, "platform": 300, "delivery": 1500, "taxBasisPoints": 500, "partnerPayout": 4000,
@@ -224,7 +223,6 @@ class WorkflowTests(unittest.TestCase):
         k = cls.server.keys
         cls.warehouse = {"X-Staff-Key": k["warehouse"]}
         cls.admin = {"X-Staff-Key": k["admin"]}
-        cls.agent_key = k["print-agent"]
         cls.rider = {name: {"X-Staff-Key": key} for name, key in RIDER_KEYS.items()}
 
     @classmethod
@@ -236,13 +234,9 @@ class WorkflowTests(unittest.TestCase):
         return self.server.request(method, path, body, headers)
 
     def print_order(self, order):
-        status, result, _ = self.api("POST", f"/api/staff/orders/{order['id']}/print/all", {}, self.warehouse)
-        self.assertEqual((status, result["queued"]), (200, 1), result)
-        for _ in range(6):
-            print_agent.run(self.server.origin, self.agent_key, "Mock printer", None, once=True, mock=True)
-            if self.status_of(order) == "packed":
-                return
-        self.fail("print agent never completed the job: " + self.status_of(order))
+        status, result, _ = self.api("POST", f"/api/staff/orders/{order['id']}/printed/0", {}, self.warehouse)
+        self.assertEqual((status, result), (200, {"saved": True}))
+        self.assertEqual(self.status_of(order), "packed")
 
     def status_of(self, order):
         with closing_db(self.server) as db:
@@ -303,7 +297,7 @@ class WorkflowTests(unittest.TestCase):
         listing = self.api("GET", "/api/staff/orders", headers=self.warehouse)[1]
         self.assertIn(order["id"], [o["id"] for o in listing["orders"]])
 
-        # Warehouse prints; the print agent (mock printer) reports each file; the order becomes READY.
+        # Warehouse prints by hand and marks the file printed; the order becomes READY.
         self.print_order(order)
         self.assertIsNotNone(mine.wait_for(lambda e: e["order"] == order["id"] and e["to"] == "packed"))
 
@@ -356,7 +350,7 @@ class WorkflowTests(unittest.TestCase):
 
         # One timeline, same events everywhere: customer sees the whole story.
         events = [e["event"] for e in self.customer.view(order)["timeline"]]
-        wanted = ["order_created", "paid", "print_queued", "print_done", "packed", "delivery_accepted",
+        wanted = ["order_created", "paid", "printed_manually", "packed", "delivery_accepted",
                   "delivery_picked_up", "delivery_completed"]
         position = -1
         for name in wanted:
@@ -408,12 +402,12 @@ class WorkflowTests(unittest.TestCase):
 
         printing = self.customer.order()
         self.customer.pay(printing)
-        self.api("POST", f"/api/staff/orders/{printing['id']}/print/all", {}, self.warehouse)
+        with closing_db(self.server) as db, db:
+            db.execute("UPDATE orders SET status='printing' WHERE id=?", (printing["id"],))
         status, result, _ = self.api("POST", f"/api/admin/orders/{printing['id']}/cancel", {}, self.admin)
         self.assertEqual(status, 409)                                                     # too late to cancel
         self.assertEqual(self.api("POST", f"/api/admin/orders/{printing['id']}/refund", {}, self.admin)[0], 409)
-        for _ in range(3):
-            print_agent.run(self.server.origin, self.agent_key, "Mock printer", None, once=True, mock=True)
+        self.print_order(printing)
         self.deliver_fully("rider-a", printing)                                           # leave nothing half-done
 
     # ---- 4. two partners accept at the same moment

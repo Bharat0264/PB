@@ -18,7 +18,7 @@ const floorStages = [
 ];
 const conveyorStage = order => buckets.includes(stage(order))?stage(order):'Handed over';
 const buckets = ['New', 'Printing', 'Ready'];
-const sections = [['Home','home'],['Print Queue','printer'],['Printers','monitor'],['History','history'],['Support','support'],['Settings','settings']];
+const sections = [['Home','home'],['Print Queue','printer'],['History','history'],['Support','support'],['Settings','settings']];
 const glyphs = {
   home:'<path d="m3 10 9-7 9 7v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 21v-7h6v7"/>',
   printer:'<path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6zM6 12h.01"/>',
@@ -62,13 +62,12 @@ function icon(name) {
   return span;
 }
 const demoOrders = preview ? makeSamples() : [];
-const preferences = Object.fromEntries(['sound','skipConfirm','takeover','large','contrast'].map(key => [key,readSetting(key)]));
+const preferences = Object.fromEntries(['sound','takeover','large','contrast'].map(key => [key,readSetting(key)]));
 const money = new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR'}).format;
-let orders = [], known, newBadges = new Set(), online = preview, connected = true, paused = false;
+let orders = [], known, newBadges = new Set(), connected = true;
 let view = 'Home', tab = 'New', active, sheet = false, restoreFocus;
 let printAction, printPending = false, previewUrl, previewRequest = 0, arrivalOrder;
 let staffDock, floorFilter, arrivalTimer, historyPreset='';
-let printers = [], editingPrinter = null, pickedPrinter = null;
 let lastStages=new Map(), newlyReady=new Set(), renderedOrderSnapshot;
 let polling, liveFeed, busyRefresh = false, refreshVersion = 0, toastTimer, audio;
 const filters = {colour:'', paper:'', date:'', priority:'', partner:'', from:'', to:''};
@@ -149,8 +148,8 @@ function today(epoch) { return epoch && new Date(epoch*1000).toDateString()===ne
 function paper(item) { return item.paper || 'A4'; }
 function colour(item) { return item.colourPages?.length?'Mixed colour':item.colour?'Colour':'B&W'; }
 function binding(item) { return item.binding && item.binding!=='none'?item.binding.charAt(0).toUpperCase()+item.binding.slice(1):''; }
-function statusStyle(value) { return ['Done','Ready','Delivered','Paid'].includes(value)?'wh-good':value==='Failed'?'wh-bad':value==='New'?'wh-attention':''; }
-function jobLabel(state) { return {queued:'Queued',printing:'Printing',done:'Done',failed:'Failed'}[state] || 'Waiting'; }
+function statusStyle(value) { return ['Done','Printed','Ready','Delivered','Paid'].includes(value)?'wh-good':value==='Failed'?'wh-bad':value==='New'?'wh-attention':''; }
+function jobLabel(state) { return {queued:'Queued',printing:'Printing',done:'Printed',failed:'Failed'}[state] || 'To print'; }
 function findOrder(id=active) { return orders.find(order=>order.id===id); }
 async function request(path,options) {
   let response;
@@ -187,7 +186,7 @@ function go(section, selectedTab, keepSearch=false) {
   floorFilter=null;
   if (!keepSearch) byId('warehouse-search').value='';
   tab=selectedTab || 'New';
-  if (['Printers','Settings','Inventory','History','Support'].includes(section)) {
+  if (['Settings','Inventory','History','Support'].includes(section)) {
     active=null;
     closeSheet(false);
   }
@@ -242,9 +241,9 @@ function render(refreshStation=true,focusDate=false) {
     if (control.dataset.section===view) control.setAttribute('aria-current','page');
     else control.removeAttribute('aria-current');
   }
-  const tools=['Printers','Settings','Inventory'].includes(view);
+  const tools=['Settings','Inventory'].includes(view);
   const columns=byId('warehouse-columns');
-  columns.classList.toggle('wh-context-layout',view==='Printers' || view==='Inventory' || view==='History');
+  columns.classList.toggle('wh-context-layout',view==='Inventory' || view==='History');
   columns.classList.toggle('wh-settings-layout',view==='Settings');
   if (tools) renderTools();
   else if (view==='Support') renderSupport();
@@ -631,10 +630,6 @@ function settingRow(key,label,description,glyph) {
 }
 function renderTools() {
   const panel=node('section',null,'clay-card wh-tool');
-  if (view==='Printers') {
-    renderPrinters();
-    return;
-  }
   if (view==='Inventory') {
     panel.append(node('h2','Inventory'),node('p',preview?'A4 · 490 sheets     A3 · 38 sheets     Spiral coils · 12 remaining':'Stock counts are managed at the print room.'));
     board.append(panel);
@@ -656,8 +651,7 @@ function renderTools() {
     if ('Notification' in window) card.append(linkRow('bell','Browser notifications',async()=>{
       announce((await Notification.requestPermission())==='granted'?'Notifications enabled.':'Notifications are off. Check browser permissions.');
     }));
-    card.append(label('Printing'),
-      settingRow('skipConfirm','Skip print confirmation','Send files to the printer in one press.','forward'),
+    card.append(
       label('Display'),
       settingRow('large','Large text','Bigger type across the print floor.','textsize'),
       settingRow('contrast','High contrast','Stronger colours for labels and controls.','contrast'));
@@ -682,7 +676,7 @@ function download(link, filename) {
 function syncSheet() {
   const open=mobile.matches && sheet;
   station.classList.toggle('wh-sheet',open);
-  station.classList.toggle('wh-context-station',['Printers','History','Inventory'].includes(view) && !active);
+  station.classList.toggle('wh-context-station',['History','Inventory'].includes(view) && !active);
   byId('station-close').hidden=!open;
   document.body.classList.toggle('wh-has-sheet',open);
   for (const target of [station.previousElementSibling,document.querySelector('.wh-rail'),document.querySelector('.wh-top')]) target.inert=open;
@@ -725,11 +719,11 @@ function renderStation(order=findOrder()) {
   body.replaceChildren();
   dock.replaceChildren();
   dock.hidden=true;
-  const idle=!order && !['Printers','History','Inventory'].includes(view);
+  const idle=!order && !['History','Inventory'].includes(view);
   station.hidden=view==='Settings' || idle;
   byId('warehouse-columns').classList.toggle('wh-settings-layout',view==='Settings' || idle);
   if (station.hidden) return;
-  station.classList.toggle('wh-context-station',['Printers','History','Inventory'].includes(view) && !order);
+  station.classList.toggle('wh-context-station',['History','Inventory'].includes(view) && !order);
   byId('floor-detail-context').textContent='Order station';
   byId('detail-title').textContent=order?labelOrder(order):'Next up';
   if (!order) {
@@ -771,13 +765,6 @@ function orderTracker(bucket) {
 }
 function renderStationContext(body,dock) {
   const title=byId('detail-title');
-  if (view==='Printers') {
-    title.textContent='Set up printing';
-    const steps=node('ol',null,'wh-pair-steps');
-    ['Switch on the print-room computer and the printers.','Start the PrintBee agent on it. This page shows Online when it is running.','Press Add printer, pick the printer it finds and give it a name.','Press Print in the queue and choose where each file prints.'].forEach(text=>steps.append(node('li',text)));
-    body.append(steps);
-    return;
-  }
   if (view==='Inventory') {title.textContent='Stock overview';body.append(node('p','Check stock before starting a print run.','wh-muted'));return;}
   if (view==='History') {
     title.textContent='Recent handovers';
@@ -817,7 +804,6 @@ function fileRow(order,item,index) {
   thumb.append(node('small',item.pages+' p'));
   info.append(title,chip(jobLabel(state),statusStyle(jobLabel(state))));
   const job=order.jobs.find(entry=>entry.position===index);
-  for (const extra of jobPrinterChips(job)) info.append(extra);
   const specs=node('div',null,'wh-chips');
   [
     colour(item),item.duplex?'Duplex':'Single-sided',paper(item),item.orientation,
@@ -826,10 +812,6 @@ function fileRow(order,item,index) {
     binding(item)?binding(item)+' binding':'',
   ].filter(Boolean).forEach(text=>specs.append(chip(text)));
   row.append(thumb,info,specs);
-  if (state==='failed') {
-    const hint=item.colourPages?.length?'Mixed-colour files may need manual printing.':'Check the printer and paper, then retry.';
-    specs.append(node('p',hint,'wh-muted'));
-  }
   if (!['paid','printing','packed'].includes(order.status)) return row;
 
   const actions=node('div',null,'wh-file-actions');
@@ -842,21 +824,10 @@ function fileRow(order,item,index) {
   const more=node('details'), menu=node('div',null,'wh-file-actions');
   more.append(node('summary','More'),menu);
   if (!preview) menu.append(button('Download',()=>downloadAsset('/api/staff/files/'+order.id+'/'+index,item.name)));
-  if (['paid','printing'].includes(order.status) && (!state || state==='failed')) {
-    const print=button(state==='failed'?'Retry file':'Print file',()=>confirmPrint(order,index));
-    print.disabled=!connected || !online || paused;
-    menu.append(print);
-  }
-  if (state==='queued' && printers.length>1) {
-    const move=button('Send to another printer',()=>openReroute(order,index));
-    (job?.waiting?actions:menu).append(move);
-  }
-  if (['paid','printing'].includes(order.status) && (!state || state==='failed')) {
-    if (!preview) menu.append(button('Confirm manually printed',async()=>{
-      if (!window.confirm('Confirm this file has already been printed?')) return;
-      await request('/api/staff/orders/'+order.id+'/printed/'+index,{method:'POST'});
-      await refreshAfterAction('File marked as printed.');
-    }));
+  if (['paid','printing'].includes(order.status) && state!=='done') {
+    const mark=button('Mark printed',()=>confirmPrint(order,index),'clay-button wh-primary');
+    mark.disabled=!connected || printPending;
+    actions.append(mark);
   }
   if (menu.childElementCount) actions.append(more);
   if (actions.childElementCount) row.append(actions);
@@ -870,32 +841,15 @@ function mainAction(label,action,kind) {
 }
 function renderPrintAction(order,dock,selectFirst=false) {
   dock.hidden=false;
-  const labels=order.items.map((_,index)=>jobState(order,index));
-  const printing=labels.some(state=>state==='queued'||state==='printing');
-  const failures=labels.filter(state=>state==='failed').length;
-  if (printing) {
-    const progress=node('div',null,'wh-progress');
-    const caption=node('div',null,'wh-meta');
-    const done=labels.filter(state=>state==='done').length;
-    const sentSheets=order.items.reduce((sum,item,index)=>sum+(labels[index]==='done'?sheets(item):0),0);
-    const totalSheets=order.items.reduce((sum,item)=>sum+sheets(item),0);
-    caption.append(node('strong',done+' of '+labels.length+' files printed'));
-    const bar=node('progress');bar.max=Math.max(1,totalSheets);bar.value=sentSheets;
-    bar.setAttribute('aria-label','Sheets in completed files');
-    const device=printerIllustration();
-    device.classList.add('wh-device-printing');
-    progress.append(device,caption,bar,node('small',sentSheets+' / '+totalSheets+' sheets in completed files','wh-muted'));
-    dock.append(progress);
-    return;
-  }
-  const control=mainAction(failures?'Retry print':order.items.length===1?'Print':'Print all',()=>{
+  const left=order.items.filter((_,index)=>jobState(order,index)!=='done').length;
+  const control=mainAction(order.items.length===1||left===1?'Mark printed':'Mark all printed',()=>{
     if (selectFirst) openOrder(order.id);
     return confirmPrint(order,'all');
   },'print');
   control.prepend(icon('printer'));
-  control.disabled=printPending || !order.items.length || !online || !connected || paused;
+  control.disabled=printPending || !left || !connected;
   dock.append(control);
-  if (!online || !connected || paused) dock.append(node('small','Print is available when the printer is online.','wh-muted'));
+  dock.append(node('small','Print the files yourself (use Preview or Download), then press Mark printed.','wh-muted'));
 }
 function renderHandover(order,body,dock) {
   const details=node('section',null,'wh-notes wh-pickup');
@@ -1008,23 +962,19 @@ function confirmPrint(order,index) {
   if (printPending || confirmation.open) return;
   const current=findOrder(order.id);
   if (!current) throw new Error('This order is no longer in the queue.');
-  const selected=(index==='all'?current.items.map((_,i)=>i):[index]).filter(i=>[undefined,'failed'].includes(jobState(current,i)));
-  if (!selected.length) throw new Error('These files are already queued or printed.');
-  if (!connected || !online || paused) throw new Error('Print is available when the printer is online.');
-  const plan=printPlanFor(current,selected);
-  printAction=()=>sendPrint(current,index,selected,plan);
-  if (preferences.skipConfirm) { if (plan.blocked()) throw new Error(plan.blocked()); return runPrint(); }
+  const selected=(index==='all'?current.items.map((_,i)=>i):[index]).filter(i=>jobState(current,i)!=='done');
+  if (!selected.length) throw new Error('These files are already marked as printed.');
+  if (!connected) throw new Error('Connection lost. Try again when the queue reconnects.');
+  printAction=()=>markPrinted(current,selected);
   const total=selected.reduce((sum,i)=>sum+sheets(current.items[i]),0);
-  const modes=[...new Set(selected.map(i=>colour(current.items[i])))].join(' / ');
-  byId('confirm-title').textContent=plan.none?'Confirm print':'Print to';
+  byId('confirm-title').textContent='Mark as printed';
   byId('confirm-body').replaceChildren(
     node('h3',labelOrder(current)),
-    plan.picker,
-    node('p',selected.length+(selected.length===1?' file':' files')+' · '+total+(total===1?' sheet':' sheets')+' · '+modes)
+    node('p',selected.length+(selected.length===1?' file':' files')+' · '+total+(total===1?' sheet':' sheets')),
+    node('p','Confirm that '+(selected.length===1?'this file has':'these files have')+' been printed.','wh-muted')
   );
   confirmation.returnValue='cancel';
   confirmation.showModal();
-  plan.changed();
   byId('floor-print-slide').focus();
 }
 async function runPrint() {
@@ -1036,22 +986,20 @@ async function runPrint() {
   catch (error) {announce(error.message,true);}
   finally {printPending=false;renderStation();}
 }
-async function sendPrint(order,index,selected,plan) {
-  const blocked=plan.blocked();
-  if (blocked) throw new Error(blocked);
+async function markPrinted(order,selected) {
   if (preview) {
     order.status='printing';
-    addEvent(order,'print_queued');
+    addEvent(order,'printed_manually');
     order.jobs=order.jobs.filter(job=>!selected.includes(job.position));
-    order.jobs.push(...selected.map(position=>({position,state:'queued',printerId:plan.ids[position]??null,printerName:printerName(plan.ids[position])})));
-    setTimeout(()=>updateMockJobs(order,selected,'printing'),350);
-    setTimeout(()=>updateMockJobs(order,selected,'done'),1350);
+    order.jobs.push(...selected.map(position=>({position,state:'done'})));
+    if (order.items.every((_,index)=>jobState(order,index)==='done')) {
+      order.status='packed';
+      addEvent(order,'packed');
+    }
   } else {
-    const queued=await queueSelected(order,index,selected,plan);
-    if (!queued) throw new Error('No files were queued. Check for existing jobs, then try again.');
+    for (const position of selected) await request('/api/staff/orders/'+order.id+'/printed/'+position,{method:'POST'});
   }
-  plan.remember();
-  await refreshAfterAction('Sent to the printer.');
+  await refreshAfterAction(selected.length===1?'File marked as printed.':'Files marked as printed.');
 }
 function addEvent(order,action) {order.timeline.push({action,created:Math.floor(Date.now()/1000)});}
 function updateMockJobs(order,selected,state) {
@@ -1073,11 +1021,9 @@ async function refreshAfterAction(message) {
 }
 function updateTop() {
   const badge=byId('agent-status');
-  badge.textContent=!connected?'Connection lost':paused?'Printer paused':online?'Printer online':'Printer offline';
-  badge.classList.toggle('wh-good',connected && online && !paused);
-  badge.classList.toggle('wh-attention',connected && paused);
-  badge.classList.toggle('wh-bad',!connected || (!online && !paused));
-  updatePrinterAlert();
+  badge.textContent=connected?'Connected':'Connection lost';
+  badge.classList.toggle('wh-good',connected);
+  badge.classList.toggle('wh-bad',!connected);
   const paidToday=orders.filter(order=>today(order.paidAt));
   const todayBadge=byId('today-count');
   const handedOver=paidToday.filter(order=>conveyorStage(order)==='Handed over').length;
@@ -1088,8 +1034,7 @@ function updateTop() {
   todayBadge.title=handedOver+' handed over today';
   const banner=byId('floor-connection');
   banner.hidden=connected;
-  byId('floor-connection-copy').textContent=!connected?'Connection lost. The queue reconnects automatically.':
-    paused?'Printer paused. Resume it in Printers.':'Printer offline. Check the warehouse workstation before printing.';
+  byId('floor-connection-copy').textContent='Connection lost. The queue reconnects automatically.';
   byId('floor-retry').hidden=connected;
 }
 function openArrival(id) {
@@ -1146,15 +1091,12 @@ function playChime(first,second) {
 }
 async function refresh(force=false) {
   const version=++refreshVersion;
-  const current=preview?{orders:demoOrders,agentOnline:true}:await (await request('/api/staff/orders')).json();
+  const current=preview?{orders:demoOrders}:await (await request('/api/staff/orders')).json();
   if (version!==refreshVersion) return;
   const previous=JSON.stringify(findOrder());
   newlyReady=new Set(current.orders.filter(order=>order.status==='packed' && lastStages.get(order.id)==='printing').map(order=>order.id));
   lastStages=new Map(current.orders.map(order=>[order.id,order.status]));
-  const wasAvailable=connected && online && !paused;
   orders=current.orders;
-  online=current.agentOnline;
-  void refreshFleet();
   connected=true;
   updateTop();
   const fresh=known?orders.filter(order=>order.status==='paid' && !known.has(order.id)):[];
@@ -1188,7 +1130,7 @@ async function refresh(force=false) {
   }
   const selected=findOrder();
   if (!selected && active) {active=null;closeSheet();}
-  if (force || previous!==JSON.stringify(selected) || wasAvailable!==(connected && online && !paused) ||
+  if (force || previous!==JSON.stringify(selected) || 
       (ordersChanged && safeToRender && !station.contains(document.activeElement) && !selected)) renderStation();
   else if (selected) {
     const timer=station.querySelector('.wh-sla');
@@ -1294,7 +1236,7 @@ async function start() {
   initFloorControls();
   const search=byId('warehouse-search');
   search.addEventListener('input',()=>{
-    if (search.value.trim() && ['Printers','Settings','Inventory'].includes(view)) go('Print Queue','New',true);
+    if (search.value.trim() && ['Settings','Inventory'].includes(view)) go('Print Queue','New',true);
     else render();
   });
   for (const [title,glyph] of sections) {
@@ -1308,7 +1250,6 @@ async function start() {
   }
   syncPreferences();
   renderStation();
-  await loadPrinters();
   if (preview) window.PBLoader?.done();
   try {await refresh(true);}
   catch {

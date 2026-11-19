@@ -675,16 +675,10 @@ class SupportLifecycle(unittest.TestCase):
     def active_delivery(self, customer):
         """A paid, printed, packed order that rider-a has picked up. Returns (order, the real delivery code)."""
         import fulfillment as ops
-        import print_agent
         from test_e2e_workflow import closing_db
         order = customer.order()
         customer.pay(order)
-        self.assertEqual(self.server.request("POST", f"/api/staff/orders/{order['id']}/print/all", {}, self.warehouse)[0], 200)
-        for _ in range(6):
-            print_agent.run(self.server.origin, self.server.keys["print-agent"], "Mock printer", None, once=True, mock=True)
-            with closing_db(self.server) as db:
-                if db.execute("SELECT status FROM orders WHERE id=?", (order["id"],)).fetchone()[0] == "packed":
-                    break
+        self.assertEqual(self.server.request("POST", f"/api/staff/orders/{order['id']}/printed/0", {}, self.warehouse)[0], 200)
         self.assertEqual(self.server.request("POST", "/api/partner/availability", {"available": True}, self.rider["rider-a"])[0], 200)
         self.assertEqual(self.server.request("POST", f"/api/partner/orders/{order['id']}/accept", {}, self.rider["rider-a"])[0], 200)
         self.assertEqual(self.server.request("POST", f"/api/partner/orders/{order['id']}/pickup", {}, self.rider["rider-a"])[0], 200)

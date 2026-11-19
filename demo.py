@@ -1,6 +1,6 @@
 """Run PrintBee locally with one-click demo identities for every portal.
 
-    python demo.py            start the server (test payments), a mock print agent and demo data
+    python demo.py            start the server (test payments) and demo data
     python demo.py --reset    wipe the demo database first
     python demo.py --port 4200
 
@@ -76,7 +76,6 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--port", type=int, default=4188)
     parser.add_argument("--reset", action="store_true", help="delete the demo database first")
-    parser.add_argument("--no-agent", action="store_true", help="do not start the mock print agent")
     args = parser.parse_args()
     data = ROOT / ".demo-data"
     if args.reset and data.exists():
@@ -86,22 +85,18 @@ def main():
     env = {**os.environ, "PRINTBEE_DEMO": "1", "PRINTBEE_PAYMENT_MODE": "test", "PRINTBEE_ORIGIN": origin,
            "PRINTBEE_DATA_DIR": str(data), "PRINTBEE_CHECKOUT_TERMS": json.dumps(TERMS)}
     server = subprocess.Popen([sys.executable, str(ROOT / "server.py"), "--port", str(args.port)], env=env, cwd=ROOT)
-    agent = None
+
     try:
         if not wait_for(origin + "/api/status-model"):
             raise SystemExit("The server did not start. Is port %d already in use?" % args.port)
         seed(data)
-        if not args.no_agent:
-            keys = json.loads((data / "staff-keys.json").read_text(encoding="utf-8"))
-            agent = subprocess.Popen([sys.executable, str(ROOT / "print_agent.py"), "--origin", origin, "--mock-printer"],
-                                     env={**env, "PRINTBEE_PRINT_AGENT_KEY": keys["print-agent"]}, cwd=ROOT)
         print(f"""
 PrintBee demo is running at {origin}/
 
   1. Open {origin}/ and click a "Local demo: sign in as" button
      (Customer, Warehouse, Delivery partner 1 and 2, Admin, or All roles).
   2. Customer: upload a PDF, review, pay with the test payment.
-  3. Warehouse: the order appears instantly. Press Print (the mock printer completes it).
+  3. Warehouse: the order appears instantly. Print the files yourself, then press Mark printed.
   4. Partner: go online, accept the order, confirm pickup.
   5. Customer: open Orders to see the delivery code; partner enters it to deliver.
   6. Admin: revenue, profit and partner earnings update.
@@ -112,7 +107,7 @@ Press Ctrl+C to stop.""")
     except KeyboardInterrupt:
         pass
     finally:
-        for process in (agent, server):
+        for process in (server,):
             if process and process.poll() is None:
                 process.terminate()
 

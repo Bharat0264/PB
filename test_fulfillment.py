@@ -17,19 +17,6 @@ class FulfillmentTest(unittest.TestCase):
             INSERT INTO files VALUES ('sample',0);
         """)
 
-    def test_print_claim_and_retry(self):
-        self.assertTrue(ops.queue_job(self.db, "sample", 0))
-        self.assertFalse(ops.queue_job(self.db, "sample", 0))
-        job = ops.claim_job(self.db, "claim-one")
-        self.assertIsNone(ops.claim_job(self.db, "claim-two"))
-        self.assertFalse(ops.finish_job(self.db, job["id"], "claim-two", "done", None))
-        self.assertTrue(ops.finish_job(self.db, job["id"], "claim-one", "failed", "paper jam"))
-        self.assertTrue(ops.queue_job(self.db, "sample", 0))
-        retry = ops.claim_job(self.db, "retry")
-        self.assertEqual(retry["id"], job["id"])
-        self.assertFalse(ops.finish_job(self.db, retry["id"], "claim-one", "done", None))
-        self.assertTrue(ops.finish_job(self.db, retry["id"], "retry", "done", None))
-
     def test_dispatch_selects_an_enrolled_available_partner(self):
         self.db.execute("UPDATE orders SET status='packed'")
         now = int(time.time())

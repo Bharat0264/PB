@@ -146,23 +146,13 @@ mapping Google email addresses to partner IDs) are still read if set. To preserv
 history, use the existing partner ID, including `delivery` for the default
 operator. Customer sign-in sessions do not grant portal access.
 
-Run `python server.py --show-staff-keys` to obtain the Print-agent credential
+Run `python server.py --show-staff-keys` to obtain the staff credentials
 for the warehouse workstation. Existing API credentials continue to work.
 
-The warehouse can queue individual files or print all, retry failed
-jobs, or confirm a manually printed file. Once every file is confirmed, the
-order moves straight to Ready for pickup. A downloadable PDF label is optional.
-Start the agent with `PRINTBEE_PRINT_AGENT_KEY` set to the agent
-credential and run `python print_agent.py --printer "Printer name"`. On
-Windows also pass `--sumatra "C:\path\to\SumatraPDF.exe"`. Linux and macOS
-use the CUPS `lp` command. DOCX conversion needs LibreOffice on the agent,
-and images use Pillow. Use `--origin` for a deployed HTTPS endpoint and
-`--once` for one queued job. Several printers can be connected to the same
-print-room computer: add each one on the warehouse Printers page (a friendly name
-plus the exact Windows printer name), then pick the printer when pressing Print.
-The agent prints each job on the chosen printer; `--printer` is only the fallback. Successful submission reports completion
-at the spooler. If a job is interrupted, inspect the real spooler before using
-`POST /api/admin/print-jobs/<id>/recover` with the admin key and retrying.
+Printing is manual. The warehouse opens each file (Preview or Download), prints it on the print-room
+printer, and presses **Mark printed** for that file or for all of them. Once every file is
+marked, the order moves straight to Ready for pickup. A downloadable PDF label is optional.
+There is no print agent and no printer software to install.
 
 Set `PRINTBEE_PARTNER_KEYS` to a JSON object mapping partner IDs to unique
 random tokens for individual assignments. The original delivery key remains

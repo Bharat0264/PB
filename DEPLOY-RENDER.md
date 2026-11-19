@@ -29,9 +29,7 @@ hours, switch the plan from Starter to Standard (about $25) in the Render dashbo
    * Set up S3 or Cloudflare R2 (`PRINTBEE_S3_BUCKET`, see the README) so uploaded print files do not fill the
      1 GB disk. Until then, raise the disk size.
    * Keep payments on `disabled` or `test` until you add the Razorpay keys, then set `PRINTBEE_PAYMENT_MODE=razorpay`.
-6. **Print room PC**: get the print-agent key from Render → *Shell*: `python server.py --show-staff-keys`, then run
-   `python print_agent.py --origin https://YOUR-DOMAIN --printer "<printer name>" --sumatra "<SumatraPDF.exe path>"`
-   with `PRINTBEE_PRINT_AGENT_KEY` set.
+6. **Print room**: nothing to install. Staff sign in to the warehouse page, print each file themselves and press *Mark printed*.
 
 ## Speed
 
