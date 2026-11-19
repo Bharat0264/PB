@@ -532,5 +532,74 @@ class BuzzOverHttp(unittest.TestCase):
         self.assertEqual(status, 200)
 
 
+class AnimatedBee(unittest.TestCase):
+    """The 3D bee button: the files ship, are small, and are served; the script keeps its promises."""
+
+    @classmethod
+    def setUpClass(cls):
+        from pathlib import Path
+        cls.root = Path(__file__).resolve().parent
+        cls.server = Server()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.server.stop()
+
+    def read(self, name):
+        return (self.root / name).read_text(encoding="utf-8")
+
+    def test_the_model_is_small_and_valid(self):
+        import struct
+        data = (self.root / "buzz-bee.glb").read_bytes()
+        magic, version, length = struct.unpack("<4sII", data[:12])
+        self.assertEqual((magic, version, length), (b"glTF", 2, len(data)))
+        self.assertLess(len(data), 1_200_000)                      # the original Bee.glb was 58 MB
+        size, kind = struct.unpack("<I4s", data[12:20])
+        document = json.loads(data[20:20 + size])
+        self.assertEqual(len(document["meshes"]), 1)
+        triangles = sum(document["accessors"][p["indices"]]["count"] for p in document["meshes"][0]["primitives"]) // 3
+        self.assertLess(triangles, 40_000)
+        self.assertEqual(len(document["images"]), 3)               # colour, roughness/metal and normal textures are kept
+
+    def test_every_3d_file_is_served_and_the_vendored_three_js_loads_by_relative_path(self):
+        for path in ("/buzz-bee3d.js", "/buzz-bee.glb", "/vendor/three/three.module.js", "/vendor/three/three.core.js", "/vendor/three/GLTFLoader.js",
+                     "/vendor/three/BufferGeometryUtils.js", "/vendor/three/SkeletonUtils.js", "/vendor/three/RoomEnvironment.js", "/vendor/three/LICENSE"):
+            status, body, _ = self.server.request("GET", path, raw=True)
+            self.assertEqual(status, 200, path)
+            self.assertGreater(len(body), 100, path)
+        for name in ("GLTFLoader.js", "BufferGeometryUtils.js", "SkeletonUtils.js", "RoomEnvironment.js"):
+            text = self.read(f"vendor/three/{name}")
+            self.assertNotIn("from 'three'", text, name)          # a bare "three" import needs an import map; these use plain paths
+            self.assertNotIn("from '../", text, name)
+        self.assertIn("MIT License", self.read("vendor/three/LICENSE"))
+        self.assertEqual(self.server.request("GET", "/vendor/three/not-listed.js")[0], 404)
+
+    def test_the_files_ship_in_the_docker_image(self):
+        self.assertIn("*.glb", self.read("Dockerfile"))
+        self.assertIn("COPY vendor ./vendor", self.read("Dockerfile"))
+        ignore = self.read(".dockerignore")
+        self.assertIn("!/*.glb", ignore)
+        self.assertIn("!vendor/three/*", ignore)
+
+    def test_the_bee_keeps_its_promises_in_code(self):
+        chat, bee = self.read("buzz-chat.js"), self.read("buzz-bee3d.js")
+        for script in (chat, bee):
+            self.assertNotIn("innerHTML", script)
+        self.assertIn("Need help? Buzz me!", chat)
+        self.assertIn("import('/buzz-bee3d.js", chat)                 # the 3D part is loaded on demand, not with the page
+        self.assertIn("requestIdleCallback", chat)
+        self.assertIn("saveData", chat)                              # not on data-saving or 2g connections
+        self.assertIn("prefers-reduced-motion", chat)
+        self.assertIn("reducedMotion", bee)
+        self.assertIn("visibilitychange", bee)                        # stops while the tab is hidden
+        self.assertIn("IDLE_FPS", bee)                                # a slow loop when the bee is only floating
+        self.assertIn("dispose", bee)
+        self.assertIn("buzz-bee.webp", chat)                          # the flat clay bee is the fallback when 3D is not possible
+        self.assertIn(".checkout-bar", chat)                          # keeps clear of the checkout and address Save bars
+        self.assertIn("is-open", chat)                                # the chat panel opens and closes with a transition
+        for page in ("index", "orders", "cart", "navigation"):
+            self.assertNotIn("three", self.read(f"{page}.html").lower().replace("three.js", ""), page)   # no 3D library in the page itself
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -8,9 +8,10 @@ RUN pip install --no-cache-dir -r requirements.txt \
     && useradd --uid 10001 --user-group --no-create-home printbee \
     && install -d -o printbee -g printbee /var/lib/printbee
 
-COPY *.py *.html *.js *.css *.webmanifest *.woff2 *.webp *.png ./
+COPY *.py *.html *.js *.css *.webmanifest *.woff2 *.webp *.png *.glb ./
 COPY buzz_prompt.md ./
 COPY kb ./kb
+COPY vendor ./vendor
 
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh && chmod +x /usr/local/bin/docker-entrypoint.sh

@@ -291,6 +291,12 @@ support tickets (`support.create_buzz_ticket`, `buzz_find_tickets`, `buzz_get_ti
 - If the provider is rate-limited or down, Buzz shows a friendly message and offers "Create a ticket" instead of failing.
 - Edit what Buzz knows in `kb/faq.md`. Any section with a `TODO:` line is treated as unconfirmed and Buzz says
   "I'm not sure" about it. Buzz's rules live in `buzz_prompt.md`.
+- The chat button is an animated 3D bee (`buzz-bee3d.js`, Three.js r187 copied into `vendor/three/` with its MIT licence, no build step).
+  The model is `buzz-bee.glb`, made from the original `Bee.glb` (58 MB, 1.9 million triangles) with `gltf-transform simplify --ratio 0.01
+  --error 0.02` and `resize --width 512 --height 512`: 0.8 MB and about 19,000 triangles. It is loaded only when the page is idle, not on
+  data-saving or 2g connections, and if 3D is not possible the flat clay bee (`buzz-bee.webp`) is shown instead. The loop runs at 30 frames a
+  second while the bee floats, speeds up only for a hover, a hop or a click, stops while the tab is hidden, and with "reduce motion" the bee is
+  drawn once and does not move. The model is a single solid mesh with no animation, so the wings do not flap on their own.
 - The model can only draft a ticket. The customer presses Confirm, which creates exactly one ticket per draft.
 - Chats are stored redacted (emails, phone and card-like numbers, codes) in `chat_sessions` / `chat_messages` and deleted after the retention period.
 

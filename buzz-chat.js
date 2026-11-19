@@ -25,22 +25,35 @@
   const style = document.createElement('style');
   style.textContent = `
   .buzz-root { --buzz-lift: 0px; font-family: Manrope, system-ui, sans-serif; color: var(--hv-ink, #2a2112); }
-  .buzz-fab { position: fixed; z-index: 80; right: 18px; bottom: calc(var(--buzz-lift) + 18px + env(safe-area-inset-bottom, 0px)); width: 76px; height: 76px; padding: 6px; border: 0; border-radius: 50%;
-    display: block; cursor: pointer; animation: buzz-bob 3.2s ease-in-out infinite; transition: transform .18s ease, box-shadow .18s ease;
-    background: var(--hv-honey-grad, linear-gradient(180deg, #ffe495, #f5c542 70%, #edb52f));
+  /* The bee: no button box, just the 3D bee (or, if 3D is not possible, the flat clay bee) with a faint honey glow behind it. */
+  .buzz-fab { position: fixed; z-index: 80; right: 14px; bottom: calc(var(--buzz-lift) + 12px + env(safe-area-inset-bottom, 0px)); width: 104px; height: 104px; padding: 0; border: 0; border-radius: 50%;
+    display: block; cursor: pointer; background: transparent; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+  .buzz-glow { position: absolute; inset: 4px; border-radius: 50%; pointer-events: none; opacity: 0; transition: opacity .6s ease;
+    background: radial-gradient(circle, rgba(255,190,50,.42) 0%, rgba(255,196,70,.2) 42%, rgba(255,200,80,0) 70%); }
+  .buzz-fab[data-state="ready"] .buzz-glow { opacity: 1; animation: buzz-glow 3.8s ease-in-out infinite; }
+  [data-theme="dark"] .buzz-glow { background: radial-gradient(circle, rgba(255,176,40,.5) 0%, rgba(255,176,40,.22) 42%, rgba(255,176,40,0) 70%); }
+  .buzz-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; opacity: 0; transition: opacity .5s ease; }
+  .buzz-fab[data-state="ready"] .buzz-canvas { opacity: 1; }
+  .buzz-fab[data-state="ready"]:hover .buzz-glow { opacity: 1; filter: brightness(1.12); }
+  .buzz-still { position: absolute; inset: 14px; width: 76px; height: 76px; border-radius: 50%; object-fit: cover; display: none; pointer-events: none;
     box-shadow: 0 10px 16px -4px rgba(150,100,10,.34), 0 3px 6px rgba(150,100,10,.16), inset 0 3px 3px rgba(255,255,255,.85), inset 0 -5px 8px rgba(190,120,10,.34); }
-  .buzz-fab::after { content: ""; position: absolute; inset: 6px; border-radius: 50%; pointer-events: none;
-    box-shadow: inset 0 5px 7px rgba(255,255,255,.5), inset 0 -9px 13px rgba(190,115,0,.28), inset 0 0 0 1px rgba(190,120,10,.12); }
-  .buzz-fab:hover { transform: scale(1.05); }
-  .buzz-fab:active { transform: scale(.96); box-shadow: 0 5px 9px -3px rgba(150,100,10,.34), inset 0 3px 3px rgba(255,255,255,.7), inset 0 -3px 6px rgba(190,120,10,.34); }
-  .buzz-fab img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; pointer-events: none; }
-  [data-theme="dark"] .buzz-fab { box-shadow: 0 10px 18px -4px rgba(0,0,0,.55), 0 0 24px rgba(255,170,40,.10), inset 0 2px 2px rgba(255,236,170,.55), inset 0 -5px 8px rgba(160,95,0,.45); }
+  .buzz-fab[data-state="fallback"] .buzz-still { display: block; animation: buzz-bob 3.2s ease-in-out infinite; }
+  .buzz-fab[data-state="fallback"]:hover .buzz-still { transform: scale(1.06); }
+  .buzz-tip { position: fixed; z-index: 81; right: 112px; bottom: calc(var(--buzz-lift) + 12px + env(safe-area-inset-bottom, 0px) + 36px); padding: 8px 14px; border-radius: 16px; font: 800 13px/1.2 Manrope, system-ui, sans-serif;
+    white-space: nowrap; pointer-events: none; opacity: 0; transform: translateX(6px) scale(.96); transform-origin: right center; transition: opacity .18s ease, transform .18s ease;
+    background: var(--hv-surface, #fff); color: var(--hv-ink, #2a2112); box-shadow: var(--hv-sh-2, 0 6px 16px rgba(110,80,28,.25)); }
+  .buzz-tip::after { content: ""; position: absolute; right: -5px; top: 50%; width: 10px; height: 10px; margin-top: -5px; transform: rotate(45deg); background: inherit; border-radius: 2px; }
+  .buzz-tip.is-on { opacity: 1; transform: none; }
+  .buzz-tip[hidden] { display: none; }
+  @media (max-width: 600px) { .buzz-fab { width: 88px; height: 88px; right: 8px; } .buzz-still { inset: 11px; width: 66px; height: 66px; } .buzz-tip { right: 94px; bottom: calc(var(--buzz-lift) + 12px + env(safe-area-inset-bottom, 0px) + 28px); } }
   .buzz-fab:focus-visible, .buzz-chip:focus-visible, .buzz-send:focus-visible, .buzz-close:focus-visible, .buzz-btn:focus-visible, .buzz-thumb:focus-visible, .buzz-input:focus-visible { outline: 3px solid var(--hv-honey-700, #b9831a); outline-offset: 2px; }
   .buzz-fab[hidden] { display: none; }
   .buzz-sheet { position: fixed; z-index: 85; right: 24px; bottom: 24px; width: min(400px, calc(100vw - 32px)); height: min(640px, calc(100dvh - 48px)); display: flex; flex-direction: column; overflow: hidden;
-    border-radius: 28px; background: var(--hv-surface, #fff); color: var(--hv-ink, #2a2112); box-shadow: var(--hv-sh-3, 0 12px 40px rgba(60,45,15,.25)); }
+    border-radius: 28px; background: var(--hv-surface, #fff); color: var(--hv-ink, #2a2112); box-shadow: var(--hv-sh-3, 0 12px 40px rgba(60,45,15,.25));
+    opacity: 0; transform: translateY(14px) scale(.96); transform-origin: bottom right; transition: opacity .2s ease, transform .24s cubic-bezier(.2,.9,.3,1); }
+  .buzz-sheet.is-open { opacity: 1; transform: none; }
   .buzz-sheet[hidden] { display: none; }
-  @media (max-width: 600px) { .buzz-sheet { inset: 0; width: auto; height: 100dvh; border-radius: 0; padding-bottom: env(safe-area-inset-bottom, 0px); } }
+  @media (max-width: 600px) { .buzz-sheet { inset: 0; width: auto; height: 100dvh; border-radius: 0; padding-bottom: env(safe-area-inset-bottom, 0px); transform: translateY(22px); transform-origin: bottom center; } }
   .buzz-head { flex: none; display: flex; align-items: center; gap: 10px; padding: 12px 14px 12px 16px; background: var(--hv-surface-2, #fff6dd); padding-top: calc(12px + env(safe-area-inset-top, 0px)); }
   .buzz-head img { width: 44px; height: 44px; padding: 3px; box-sizing: border-box; object-fit: cover; flex: none; border-radius: 50%;
     background: var(--hv-honey-grad, #f5c542); box-shadow: 0 3px 6px rgba(150,100,10,.22), inset 0 2px 2px rgba(255,255,255,.8), inset 0 -3px 4px rgba(190,120,10,.3); }
@@ -91,8 +104,9 @@
   .buzz-send svg { width: 20px; height: 20px; }
   html.buzz-open { overflow: hidden; }
   @keyframes buzz-bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -3px; } }
+  @keyframes buzz-glow { 0%, 100% { transform: scale(.94); opacity: .7; } 50% { transform: scale(1.06); opacity: 1; } }
   @keyframes buzz-flap { from { transform: scaleY(.25); } to { transform: scaleY(1); } }
-  @media (prefers-reduced-motion: reduce) { .buzz-fab, .buzz-wing { animation: none; } }`;
+  @media (prefers-reduced-motion: reduce) { .buzz-glow, .buzz-wing, .buzz-still { animation: none !important; } .buzz-sheet, .buzz-tip, .buzz-canvas { transition: none; } .buzz-sheet { transform: none; } }`;
   document.head.append(style);
 
   const ns = 'http://www.w3.org/2000/svg';
@@ -114,8 +128,12 @@
   };
 
   const root = el('div', {className: 'buzz-root'});
-  const fab = el('button', {type: 'button', className: 'buzz-fab', 'aria-label': 'Chat with Buzz, PrintBee support', 'aria-haspopup': 'dialog', 'aria-expanded': 'false'},
-    el('img', {src: '/buzz-bee.webp', alt: '', width: 72, height: 72}));
+  const canvas = el('canvas', {className: 'buzz-canvas', 'aria-hidden': 'true'});
+  const fab = el('button', {type: 'button', className: 'buzz-fab', 'aria-label': 'Chat with Buzz, PrintBee support', 'aria-haspopup': 'dialog', 'aria-expanded': 'false',
+    'aria-describedby': 'buzz-tip'},
+    el('span', {className: 'buzz-glow', 'aria-hidden': 'true'}), canvas, el('img', {className: 'buzz-still', src: '/buzz-bee.webp', alt: '', width: 76, height: 76}));
+  fab.dataset.state = 'loading';          // loading -> ready (the 3D bee) or fallback (the flat clay bee when 3D is not possible)
+  const tip = el('div', {className: 'buzz-tip', id: 'buzz-tip', role: 'tooltip', text: 'Need help? Buzz me!'});
   const title = el('h2', {id: 'buzz-title', text: 'Buzz - PrintBee support'});
   const close = el('button', {type: 'button', className: 'buzz-close', 'aria-label': 'Close chat', text: '×'});
   const contextText = el('span');
@@ -128,18 +146,37 @@
   const form = el('form', {className: 'buzz-form'}, input, send);
   const sheet = el('section', {className: 'buzz-sheet', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'buzz-title', hidden: true},
     el('header', {className: 'buzz-head'}, el('img', {src: '/buzz-bee.webp', alt: '', width: 38, height: 38}), title, close), context, log, chips, form);
-  root.append(fab, sheet);
+  root.append(fab, tip, sheet);
+  const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let bee = null;                         // the 3D bee controller, once it has loaded
 
-  // ---- placing the button above the phone dock ----
-  function place() {
-    const nav = document.querySelector('.bottom-nav');
-    let lift = 0;
-    if (nav) {
-      const box = nav.getBoundingClientRect();
-      if (box.height > 0 && getComputedStyle(nav).display !== 'none') lift = Math.max(0, innerHeight - box.top);
+  // ---- keeping the bee clear of the phone dock, the checkout bar and the address Save bar ----
+  const AVOID = '.bottom-nav, .checkout-bar, .address-save';
+  function bottomBars() {
+    const found = [];
+    const scan = (doc, dx, dy) => {
+      for (const node of doc.querySelectorAll(AVOID)) {
+        const box = node.getBoundingClientRect();
+        const style = (doc.defaultView || window).getComputedStyle(node);
+        if (box.height > 0 && style.display !== 'none' && style.visibility !== 'hidden') found.push({top: box.top + dy, bottom: box.bottom + dy, left: box.left + dx});
+      }
+    };
+    scan(document, 0, 0);
+    for (const frame of document.querySelectorAll('iframe')) {            // the phone tab shell shows each page inside an iframe
+      try {
+        const box = frame.getBoundingClientRect();
+        if (box.width > 0 && box.height > 0 && frame.contentDocument) scan(frame.contentDocument, box.left, box.top);
+      } catch { /* a frame from another site: nothing to look at */ }
     }
+    return found;
+  }
+  function place() {
+    let lift = 0;
+    for (const bar of bottomBars()) if (bar.top < innerHeight && bar.bottom > innerHeight - 6) lift = Math.max(lift, innerHeight - bar.top);
     root.style.setProperty('--buzz-lift', Math.round(lift) + 'px');
   }
+  let placing = 0;
+  const placeSoon = () => { if (!placing) placing = requestAnimationFrame(() => { placing = 0; place(); }); };
 
   // ---- messages ----
   const scroll = () => { log.scrollTop = log.scrollHeight; };
@@ -266,8 +303,13 @@
   function focusables() { return [...sheet.querySelectorAll('button, a[href], input')].filter(node => !node.disabled && node.offsetParent !== null); }
   function open(options = {}) {
     if (typeof options.orderNumber === 'string' && /^[A-Za-z0-9-]{3,40}$/.test(options.orderNumber)) setOrder(options.orderNumber.toUpperCase());
+    clearTimeout(closeTimer);
     sheet.hidden = false;
+    void sheet.offsetWidth;                 // so the opening transition starts from the hidden look
+    sheet.classList.add('is-open');
     fab.hidden = true;
+    hideTip();
+    if (bee) bee.show(false);
     fab.setAttribute('aria-expanded', 'true');
     document.documentElement.classList.add('buzz-open');
     input.focus();
@@ -278,14 +320,67 @@
     }
     return true;
   }
+  let closeTimer = 0;
   function shut() {
-    sheet.hidden = true;
+    sheet.classList.remove('is-open');      // fades and slides away, then is taken out of the page
+    closeTimer = setTimeout(() => { sheet.hidden = true; }, REDUCED ? 0 : 240);
     fab.hidden = false;
     fab.setAttribute('aria-expanded', 'false');
     document.documentElement.classList.remove('buzz-open');
-    fab.focus();
+    fab.focus({preventScroll: true});
+    if (bee) { bee.show(true); bee.greet(); }
+    placeSoon();
   }
-  fab.addEventListener('click', () => open());
+
+  // ---- the bee: tooltip, hover look, click fly ----
+  let tipTimer = 0;
+  function showTip() { clearTimeout(tipTimer); if (!fab.hidden && sheet.hidden) tip.classList.add('is-on'); }
+  function hideTip() { clearTimeout(tipTimer); tip.classList.remove('is-on'); }
+  let flying = false;
+  fab.addEventListener('click', () => {
+    if (flying) return;
+    if (!bee || REDUCED) { open(); return; }
+    flying = true;
+    hideTip();
+    bee.poke();                              // a quick flying loop, then the chat opens
+    setTimeout(() => { flying = false; open(); }, 380);
+  });
+  fab.addEventListener('pointerenter', event => { if (event.pointerType === 'mouse') { showTip(); if (bee) bee.hover(true); } });
+  fab.addEventListener('pointerleave', () => { hideTip(); if (bee) bee.hover(false); });
+  fab.addEventListener('pointermove', event => {
+    if (!bee || event.pointerType !== 'mouse') return;
+    const box = fab.getBoundingClientRect();
+    bee.look((event.clientX - box.left - box.width / 2) / (box.width / 2), (event.clientY - box.top - box.height / 2) / (box.height / 2));
+  });
+  fab.addEventListener('focus', () => { if (fab.matches(':focus-visible')) showTip(); });
+  fab.addEventListener('blur', hideTip);
+  document.addEventListener('keydown', event => { if (event.key === 'Escape' && tip.classList.contains('is-on')) hideTip(); });
+
+  // ---- loading the 3D bee only when the page is idle (and not on a slow or data-saving connection) ----
+  function loadBee() {
+    const link = navigator.connection;
+    if (link && (link.saveData || /(^|-)2g$/.test(link.effectiveType || ''))) { fab.dataset.state = 'fallback'; return; }
+    const giveUp = setTimeout(() => { if (fab.dataset.state === 'loading') fab.dataset.state = 'fallback'; }, 7000);
+    import('/buzz-bee3d.js?v=2')
+      .then(module => module.createBee(canvas, {reducedMotion: REDUCED}))
+      .then(created => {
+        clearTimeout(giveUp);
+        bee = created;
+        fab.dataset.state = 'ready';
+        created.show(!fab.hidden);
+        introTip();
+      })
+      .catch(() => { clearTimeout(giveUp); if (fab.dataset.state !== 'ready') fab.dataset.state = 'fallback'; });   // no WebGL, or the files could not load
+  }
+  function introTip() {                      // once per visit, say hello for a few seconds
+    if (REDUCED) return;
+    let seen = false;
+    try { seen = sessionStorage.getItem('buzz-intro') === '1'; sessionStorage.setItem('buzz-intro', '1'); } catch { /* private window: fine */ }
+    if (seen) return;
+    setTimeout(() => { if (sheet.hidden && !fab.hidden) { showTip(); if (bee) bee.greet(); tipTimer = setTimeout(hideTip, 3800); } }, 1200);
+  }
+  const startLoading = () => (window.requestIdleCallback ? requestIdleCallback(loadBee, {timeout: 3000}) : setTimeout(loadBee, 1200));
+  if (document.readyState === 'complete') startLoading(); else addEventListener('load', startLoading, {once: true});
   close.addEventListener('click', shut);
   contextClear.addEventListener('click', () => { setOrder(null); input.focus(); });
   sheet.addEventListener('keydown', event => {
@@ -318,6 +413,7 @@
     place();
     // The phone dock is created by another script after this one, so look again as the page settles and when it resizes.
     for (const event of ['load', 'resize', 'orientationchange', 'pageshow']) addEventListener(event, place);
+    addEventListener('scroll', placeSoon, {passive: true});                // a sticky bar can slide under the bee as the page scrolls
     setInterval(() => { if (!document.hidden && sheet.hidden) place(); }, 1500);
   };
   window.PrintBeeBuzz = {open};

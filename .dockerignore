@@ -13,3 +13,5 @@ test_*.py
 !docker-entrypoint.sh
 !buzz_prompt.md
 !kb/*.md
+!/*.glb
+!vendor/three/*
