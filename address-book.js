@@ -13,7 +13,7 @@
   let entries = (profile.addresses || (profile.address ? [{address: profile.address, delivery: profile.delivery}] : []))
     .map(entry => ({...entry,type:entry.type === 'campus' ? 'campus' : 'standard'}));
   let defaultIndex = entries[profile.defaultAddressIndex] ? profile.defaultAddressIndex : 0;
-  let selected = entries[profile.selectedAddressIndex] ? profile.selectedAddressIndex : defaultIndex;
+  let selected = defaultIndex;                 // the starred address is the one used (and highlighted) everywhere
   let editing = -1, showAll = false, pin = '', campuses = [], postalEdit, manualBuilding, suggestion, dismissed, request = 0;
   let previewAnimated;
   let focusSource;
@@ -345,7 +345,8 @@
     const save = form.querySelector('[type="submit"]');
     save.disabled = true;
     try {
-      persist(next,fields.makeDefault.checked || next.length===1 ? index : defaultIndex,index);
+      const preferred = fields.makeDefault.checked || next.length===1 ? index : defaultIndex;
+      persist(next,preferred,preferred);          // saving another address never moves the highlight off the starred one
       if (index>=5) showAll=true;
       setOpen(false);
       renderAddresses(index);
