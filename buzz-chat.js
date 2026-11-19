@@ -54,7 +54,7 @@
   [data-theme="dark"] .buzz-glow { background: radial-gradient(circle, rgba(255,176,40,.32) 0%, rgba(255,176,40,.14) 40%, rgba(255,176,40,0) 68%); }
   .buzz-fab[data-state="ready"] .buzz-glow { opacity: 1; animation: buzz-glow 3.8s ease-in-out infinite; }
   .buzz-fab:hover .buzz-glow { filter: brightness(1.1); }
-  .buzz-canvas { position: absolute; inset: -16px; width: calc(100% + 32px); height: calc(100% + 32px); display: block; pointer-events: none; opacity: 0; transition: opacity .5s ease; }
+  .buzz-canvas { position: absolute; top: -40px; left: -14px; width: calc(100% + 28px); height: calc(100% + 52px); display: block; pointer-events: none; opacity: 0; transition: opacity .5s ease; }
   .buzz-fab[data-state="ready"] .buzz-canvas { opacity: 1; }
   .buzz-still { position: absolute; left: 50%; top: 50%; width: calc(var(--bz-fab) * .74); height: calc(var(--bz-fab) * .74); margin: calc(var(--bz-fab) * -.37) 0 0 calc(var(--bz-fab) * -.37);
     border-radius: 50%; object-fit: cover; pointer-events: none; opacity: 0; transition: opacity .5s ease, transform .2s ease;
@@ -471,7 +471,7 @@
     const link = navigator.connection;
     if (link && (link.saveData || /(^|-)2g$/.test(link.effectiveType || ''))) { fab.dataset.state = 'fallback'; return; }
     const giveUp = setTimeout(() => { if (fab.dataset.state === 'loading') fab.dataset.state = 'fallback'; }, 7000);
-    import('/buzz-bee3d.js?v=3')
+    import('/buzz-bee3d.js?v=4')
       .then(module => module.createBee(canvas, {reducedMotion: REDUCED}))
       .then(created => {
         clearTimeout(giveUp);

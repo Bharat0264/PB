@@ -1,6 +1,8 @@
 /* The 3D bee for the Buzz support button. Loaded on demand by buzz-chat.js (never on the portals for staff).
  *
  * The model is /buzz-bee.glb: your Bee.glb, simplified for the web (about 19,000 triangles and 512 px textures, 0.8 MB instead of 58 MB).
+ * Its surface is /buzz-bee-clay.webp, a retouched copy of the original colour texture in the soft clay style of the PrintBee logo mascot
+ * (lemon-yellow, cream wings, warm near-black stripes, the lighting that was baked into the picture eased), drawn with a matte clay material.
  * It is one solid mesh without a skeleton or animation clips, so the wings cannot flap on their own. Everything you see move is done
  * here: a float, a left-right tilt, a tiny squash and stretch, an occasional attention hop, a look-at-the-cursor on hover and a
  * fly-around when it is clicked. The loop runs at 30 frames a second when the bee is just floating and only goes faster during a hop,
@@ -11,6 +13,8 @@ import {GLTFLoader} from '/vendor/three/GLTFLoader.js';
 import {RoomEnvironment} from '/vendor/three/RoomEnvironment.js';
 
 const MODEL = '/buzz-bee.glb?v=1';
+const CLAY_TEXTURE = '/buzz-bee-clay.webp?v=1';
+const FIT = 1.62;                      // the bee's longest side, in world units (the view is 1.985 units tall for the button's box): leaves room to hop and spin
 const FACE_YAW = 0;                    // turn the model so it looks at the customer (set after checking the model's orientation)
 const IDLE_FPS = 30;
 const BASE_DISTANCE = 4.3;             // how far the camera sits when the canvas is exactly the size of the bee's box
@@ -26,23 +30,42 @@ export async function createBee(canvas, {reducedMotion = false} = {}) {
   const pmrem = new THREE.PMREMGenerator(renderer);
   const room = new RoomEnvironment();
   scene.environment = pmrem.fromScene(room, 0.04).texture;
-  scene.environmentIntensity = 0.75;
+  scene.environmentIntensity = 0.6;
   room.dispose();
-  const key = new THREE.DirectionalLight(0xfff3dc, 1.35);
+  // soft, even light like a clay render: a gentle warm key, a strong sky/ground fill and a faint rim from behind
+  const key = new THREE.DirectionalLight(0xfff1d6, 1.05);
   key.position.set(1.6, 2.4, 2.6);
-  scene.add(key, new THREE.HemisphereLight(0xffffff, 0xffe2a0, 0.55));
+  const rim = new THREE.DirectionalLight(0xffe3a8, 0.45);
+  rim.position.set(-2.2, 1.2, -2);
+  scene.add(key, rim, new THREE.HemisphereLight(0xfffaf0, 0xffdca0, 0.85));
 
   const camera = new THREE.PerspectiveCamera(26, 1, 0.1, 20);
   camera.position.set(0, 0.05, BASE_DISTANCE);
   camera.lookAt(0, 0, 0);
 
-  const gltf = await new GLTFLoader().loadAsync(MODEL);
+  const [gltf, clay] = await Promise.all([
+    new GLTFLoader().loadAsync(MODEL),
+    new THREE.TextureLoader().loadAsync(CLAY_TEXTURE).catch(() => null),      // if the clay picture is missing the original texture is used
+  ]);
   const model = gltf.scene;
+  if (clay) { clay.flipY = false; clay.colorSpace = THREE.SRGBColorSpace; clay.anisotropy = 4; }
+  model.traverse(node => {
+    if (!node.isMesh) return;
+    const original = node.material;
+    // matte clay: no metal, a high roughness, a soft velvet sheen at the edges, and the baked-in bumps turned down so the surface looks smooth
+    node.material = new THREE.MeshPhysicalMaterial({
+      map: clay || original.map, normalMap: original.normalMap, normalScale: new THREE.Vector2(0.5, 0.5),
+      roughness: 0.78, metalness: 0, sheen: 0.6, sheenRoughness: 0.55, sheenColor: new THREE.Color(0xfff0c8), envMapIntensity: 0.8,
+    });
+    if (clay && original.map) original.map.dispose();
+    for (const key of ['roughnessMap', 'metalnessMap', 'aoMap']) if (original[key]) original[key].dispose();
+    original.dispose();
+  });
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
   const centre = box.getCenter(new THREE.Vector3());
   model.position.sub(centre);
-  const fit = 1.78 / Math.max(size.x, size.y, size.z);
+  const fit = FIT / Math.max(size.x, size.y, size.z);
   const pivot = new THREE.Group();                      // everything that moves (float, tilt, squash) moves this
   const holder = new THREE.Group();                     // and this one turns the bee to face the camera
   holder.rotation.y = FACE_YAW;
@@ -52,16 +75,23 @@ export async function createBee(canvas, {reducedMotion = false} = {}) {
   scene.add(pivot);
   model.traverse(node => { if (node.isMesh) { node.frustumCulled = false; } });
 
-  let width = 0, height = 0;
+  let width = 0, height = 0, baseY = 0;
+  const VIEW_HEIGHT = 2 * BASE_DISTANCE * Math.tan(THREE.MathUtils.degToRad(13));        // world height seen across the button's box
   function resize() {
     const w = canvas.clientWidth || 96, h = canvas.clientHeight || 96;
     if (w === width && h === height) return;
     width = w; height = h;
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
-    // The canvas is 32 px bigger than the bee's box (16 px of room on every side), so a hop or a flying loop is never cut off at the edge.
-    // Pull the camera back by the same ratio and the bee stays exactly the size it was.
-    camera.position.z = BASE_DISTANCE * h / Math.max(60, h - 32);
+    // The canvas is bigger than the bee's box, with the most room above it (a hop or a flying loop goes up) and some at the sides. Pull the
+    // camera back by the same ratio, and move the bee down by half the difference between the top and bottom room, so the bee stays exactly
+    // the size and place it was designed to have inside its box, and nothing is ever cut off at an edge of the canvas.
+    const box = canvas.parentElement ? canvas.parentElement.getBoundingClientRect() : null;
+    const area = canvas.getBoundingClientRect();
+    const boxH = box && box.height > 40 && box.height < h ? box.height : Math.max(60, h - 52);
+    const roomTop = box && box.height > 40 ? Math.max(0, box.top - area.top) : 26, roomBottom = box && box.height > 40 ? Math.max(0, area.bottom - box.bottom) : 26;
+    camera.position.z = BASE_DISTANCE * h / boxH;
+    baseY = -((roomTop - roomBottom) / 2) * (VIEW_HEIGHT / boxH);
     camera.updateProjectionMatrix();
   }
 
@@ -119,7 +149,7 @@ export async function createBee(canvas, {reducedMotion = false} = {}) {
     }
 
     const buzz = jitter ? Math.sin(t * 90) * 0.012 * jitter : 0;     // a little vibration while it flaps about
-    pivot.position.y = y;
+    pivot.position.y = baseY + y;
     pivot.rotation.set(-state.smoothY * 0.38, yaw + state.smoothX * 0.55 + spin, roll - state.smoothX * 0.12 + buzz, 'YXZ');
     const grow = state.grow * baseScale;
     pivot.scale.set(grow * (1 - (stretch - 1) * 0.5), grow * stretch, grow * (1 - (stretch - 1) * 0.5));
@@ -171,6 +201,43 @@ export async function createBee(canvas, {reducedMotion = false} = {}) {
     look(x, y) { if (!reducedMotion) { state.lookX = clamp(x, -1, 1); state.lookY = clamp(y, -1, 1); } },
     poke() { if (!reducedMotion) state.fly = 0; },
     greet() { if (!reducedMotion) state.hop = 0; },
+    // A self-check: draws the bee in its most extreme poses (looking every way, the top of each hop, every moment of a wave and of a flying
+    // loop, with and without the hover growth) and reports the strongest picture found on the canvas edge. 0 means nothing is ever cut off.
+    probeEdges() {
+      const gl = renderer.getContext();
+      const saved = {...state};
+      resize();
+      const w = gl.drawingBufferWidth, h = gl.drawingBufferHeight, pixels = new Uint8Array(w * h * 4);
+      const worst = {alpha: 0, pose: 'none', poses: 0};
+      const draw = name => {
+        pose(0.016);
+        renderer.render(scene, camera);
+        gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+        let top = 0;
+        for (let band = 0; band < 2; band++) {
+          for (let x = 0; x < w; x++) top = Math.max(top, pixels[(band * w + x) * 4 + 3], pixels[((h - 1 - band) * w + x) * 4 + 3]);
+          for (let y = 0; y < h; y++) top = Math.max(top, pixels[(y * w + band) * 4 + 3], pixels[(y * w + (w - 1 - band)) * 4 + 3]);
+        }
+        worst.poses++;
+        if (top > worst.alpha) { worst.alpha = top; worst.pose = name; }
+      };
+      const looks = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]];
+      const phases = Array.from({length: 21}, (_, i) => i / 20);
+      for (const hover of [false, true]) {
+        for (const [lx, ly] of looks) {
+          const base = {hover, lookX: lx, lookY: ly, smoothX: lx, smoothY: ly, grow: hover ? 1.13 : 1, hop: -1, fly: -1, wave: -1};
+          for (const t of [0, 0.9, 1.9, 2.8, 3.7, 4.6]) { Object.assign(state, base, {t}); draw(`rest hover=${hover} look=${lx},${ly} t=${t}`); }
+          for (const p of phases) {
+            Object.assign(state, base, {t: p * 6, hop: p - 0.016 / 0.95}); draw(`hop ${p} hover=${hover} look=${lx},${ly}`);
+            Object.assign(state, base, {t: p * 6, wave: p - 0.016 / 0.95}); draw(`wave ${p} hover=${hover} look=${lx},${ly}`);
+            Object.assign(state, base, {t: p * 6, fly: p - 0.016 / 0.62}); draw(`fly ${p} hover=${hover} look=${lx},${ly}`);
+          }
+        }
+      }
+      Object.assign(state, saved);
+      drawOnce();
+      return worst;
+    },
     dispose() {
       stop();
       document.removeEventListener('visibilitychange', onVisibility);

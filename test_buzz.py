@@ -581,6 +581,26 @@ class AnimatedBee(unittest.TestCase):
         self.assertIn("!/*.glb", ignore)
         self.assertIn("!vendor/three/*", ignore)
 
+    def test_the_clay_texture_ships_and_is_used_with_a_matte_material(self):
+        from PIL import Image
+        picture = Image.open(self.root / "buzz-bee-clay.webp")
+        self.assertEqual(picture.size, (512, 512))                  # same layout as the model's own colour texture, so it still fits
+        self.assertLess((self.root / "buzz-bee-clay.webp").stat().st_size, 200_000)
+        self.assertEqual(self.server.request("GET", "/buzz-bee-clay.webp")[0], 200)
+        bee = self.read("buzz-bee3d.js")
+        self.assertIn("buzz-bee-clay.webp", bee)
+        self.assertIn("MeshPhysicalMaterial", bee)                  # matte clay: rough, no metal, a soft sheen
+        self.assertIn("metalness: 0", bee)
+        self.assertIn(".catch(() => null)", bee)                    # a missing texture falls back to the model's own
+        self.assertTrue((self.root / "tools" / "make_clay_bee_texture.py").exists())
+
+    def test_the_bee_has_headroom_so_nothing_is_cut_off_in_the_animation(self):
+        bee, chat = self.read("buzz-bee3d.js"), self.read("buzz-chat.js")
+        self.assertIn("probeEdges", bee)                            # the self-check that draws every extreme pose and looks at the canvas edge
+        self.assertIn("top: -40px", chat)                           # the most room is above the bee, where hops and flying loops go
+        self.assertIn("calc(100% + 52px)", chat)
+        self.assertIn("baseY", bee)                                 # the bee is re-centred in its box when the canvas has uneven room
+
     def test_the_bee_keeps_its_promises_in_code(self):
         chat, bee = self.read("buzz-chat.js"), self.read("buzz-bee3d.js")
         for script in (chat, bee):

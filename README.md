@@ -297,6 +297,9 @@ support tickets (`support.create_buzz_ticket`, `buzz_find_tickets`, `buzz_get_ti
   data-saving or 2g connections, and if 3D is not possible the flat clay bee (`buzz-bee.webp`) is shown instead. The loop runs at 30 frames a
   second while the bee floats, speeds up only for a hover, a hop or a click, stops while the tab is hidden, and with "reduce motion" the bee is
   drawn once and does not move. The model is a single solid mesh with no animation, so the wings do not flap on their own.
+  Its surface is `buzz-bee-clay.webp`, the model's colour texture retouched into the soft clay style of the PrintBee logo mascot
+  (`python tools/make_clay_bee_texture.py ORIGINAL.jpg` makes it) and drawn with a matte clay material. The canvas has extra room above and
+  beside the bee, and `probeEdges()` in `buzz-bee3d.js` draws every extreme pose to prove nothing touches the edge.
 - The model can only draft a ticket. The customer presses Confirm, which creates exactly one ticket per draft.
 - Chats are stored redacted (emails, phone and card-like numbers, codes) in `chat_sessions` / `chat_messages` and deleted after the retention period.
 
