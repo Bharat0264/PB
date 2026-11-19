@@ -1435,3 +1435,9 @@ body {
 /* A saved address already fills the label above, so the name, phone and address boxes (and the map search) are tucked away */
 .checkout-add-address { grid-column:1/-1; justify-self:start; text-decoration:none; font-weight:800; margin-bottom:6px; }
 #checkout-delivery.has-saved > label:has([name="customer"]),#checkout-delivery.has-saved > label:has([name="phone"]),#checkout-delivery.has-saved > label:has([name="address"]),#checkout-delivery.has-saved > div.checkout-address:not(.checkout-label) { display:none; }
+
+/* Checkout: the Back / Pay bar fills the bottom edge of the sheet; the bill scrolls under it and no row peeks out below it */
+#checkout { --pad: clamp(16px,4vw,28px); padding: 0; }
+#checkout > form { padding: var(--pad) var(--pad) 0; }
+#checkout .checkout-bar { bottom: 0; z-index: 3; margin: 12px calc(-1 * var(--pad)) 0; padding: 14px var(--pad) calc(14px + env(safe-area-inset-bottom)); background: var(--base);
+  border-top: 1px solid var(--line); box-shadow: 0 -10px 18px -12px #6e50282e; }
