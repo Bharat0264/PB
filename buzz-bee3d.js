@@ -21,10 +21,10 @@ const CLAY_TEXTURE = '/buzz-bee-clay.webp?v=3';       // the original model's co
 export const BEE_LOOK = {
   render: {
     toneMapping: 'ACESFilmic',              // 'ACESFilmic' | 'AgX' | 'Neutral' | 'None'
-    exposure: 1.04,                         // ACES darkens and shifts colour a little: this, the light, and each material's mapGlow keep the bee's colours as they were
+    exposure: 0.98,                         // ACES darkens and shifts colour a little: this, the light, and each material's mapGlow keep the bee's colours as they were
     environment: 'studio',                  // the soft studio room that ships with three.js (RoomEnvironment), blurred like a studio HDRI
     environmentBlur: 0.04,
-    environmentIntensity: 0.5,
+    environmentIntensity: 0.3,
     anisotropy: 'max',                      // 'max' or a number: keeps the texture sharp when the bee turns
     keyLight: {color: 0xfff1d6, intensity: 1.0, position: [1.6, 2.4, 2.6]},
     rimLight: {color: 0xffe3a8, intensity: 0.45, position: [-2.2, 1.2, -2]},
@@ -34,12 +34,12 @@ export const BEE_LOOK = {
   fallback: {roughness: 0.78, clearcoat: 0, sheen: 0.6, transmission: 0},     // the matte clay look used only if bee_hq.glb cannot load and the original model is shown
   materials: {
     body: {                                  // head, headphones, body, arms, stripes, antennae
-      roughness: 0.35, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.22,
-      sheen: 0.12, sheenRoughness: 0.5, sheenColor: 0xffc23a, envMapIntensity: 1.0, mapGlow: 0.3,
+      roughness: 0.35, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.45,
+      sheen: 0.12, sheenRoughness: 0.5, sheenColor: 0xffc23a, envMapIntensity: 0.6, mapGlow: 0.3,
     },
     eyes: {                                  // glossy black with crisp white highlights
       roughness: 0.12, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.03,
-      specularIntensity: 1, envMapIntensity: 1.6, mapGlow: 0,
+      specularIntensity: 1, envMapIntensity: 1.2, mapGlow: 0,
     },
     wings: {                                 // see-through, a little thick, glassy
       roughness: 0.22, metalness: 0, clearcoat: 0.6, clearcoatRoughness: 0.15,
