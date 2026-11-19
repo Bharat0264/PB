@@ -13,6 +13,7 @@ import {RoomEnvironment} from '/vendor/three/RoomEnvironment.js';
 const MODEL = '/buzz-bee.glb?v=1';
 const FACE_YAW = 0;                    // turn the model so it looks at the customer (set after checking the model's orientation)
 const IDLE_FPS = 30;
+const BASE_DISTANCE = 4.3;             // how far the camera sits when the canvas is exactly the size of the bee's box
 const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
 const ease = t => 1 - Math.pow(1 - t, 3);
 
@@ -32,7 +33,7 @@ export async function createBee(canvas, {reducedMotion = false} = {}) {
   scene.add(key, new THREE.HemisphereLight(0xffffff, 0xffe2a0, 0.55));
 
   const camera = new THREE.PerspectiveCamera(26, 1, 0.1, 20);
-  camera.position.set(0, 0.05, 4.3);
+  camera.position.set(0, 0.05, BASE_DISTANCE);
   camera.lookAt(0, 0, 0);
 
   const gltf = await new GLTFLoader().loadAsync(MODEL);
@@ -58,11 +59,14 @@ export async function createBee(canvas, {reducedMotion = false} = {}) {
     width = w; height = h;
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
+    // The canvas is 32 px bigger than the bee's box (16 px of room on every side), so a hop or a flying loop is never cut off at the edge.
+    // Pull the camera back by the same ratio and the bee stays exactly the size it was.
+    camera.position.z = BASE_DISTANCE * h / Math.max(60, h - 32);
     camera.updateProjectionMatrix();
   }
 
   // ---- motion state ----
-  const state = {t: 0, hover: false, lookX: 0, lookY: 0, smoothX: 0, smoothY: 0, grow: 1, hop: -1, nextHop: 6 + Math.random() * 3, fly: -1, jitter: 0};
+  const state = {t: 0, hover: false, lookX: 0, lookY: 0, smoothX: 0, smoothY: 0, grow: 1, hop: -1, nextHop: 6 + Math.random() * 3, fly: -1, wave: -1};
   const baseScale = fit;
 
   function pose(dt) {
@@ -92,6 +96,17 @@ export async function createBee(canvas, {reducedMotion = false} = {}) {
         jitter = 0.5 * (1 - p);
       }
     }
+    if (state.wave >= 0) {                                           // hovered: a gentle wave hello (a few quick tilts that settle)
+      state.wave += dt / 0.95;
+      const p = state.wave;
+      if (p >= 1) state.wave = -1;
+      else {
+        const fade = 1 - p;
+        roll += Math.sin(p * Math.PI * 5) * 0.2 * fade;
+        yaw += Math.sin(p * Math.PI * 2.5) * 0.12 * fade;
+        y += Math.sin(p * Math.PI) * 0.03;
+      }
+    }
     if (state.fly >= 0) {                                            // clicked: a quick flying loop
       state.fly += dt / 0.62;
       const p = Math.min(state.fly, 1);
@@ -116,7 +131,7 @@ export async function createBee(canvas, {reducedMotion = false} = {}) {
     raf = 0;
     if (!running) return;
     const elapsed = (now - last) / 1000;
-    const busy = state.hover || state.hop >= 0 || state.fly >= 0 || Math.abs(state.lookX - state.smoothX) > 0.01 || Math.abs(state.grow - (state.hover ? 1.13 : 1)) > 0.003;
+    const busy = state.hover || state.hop >= 0 || state.fly >= 0 || state.wave >= 0 || Math.abs(state.lookX - state.smoothX) > 0.01 || Math.abs(state.grow - (state.hover ? 1.13 : 1)) > 0.003;
     if (elapsed >= (busy ? 1 / 58 : 1 / IDLE_FPS) - 0.002) {
       const dt = Math.min(elapsed, 0.1);
       last = now;
@@ -152,7 +167,7 @@ export async function createBee(canvas, {reducedMotion = false} = {}) {
   return {
     start, stop,
     show(on) { shown = on; if (on) start(); else stop(); },
-    hover(on) { state.hover = on; if (!on) { state.lookX = state.lookY = 0; } if (reducedMotion) drawOnce(); },
+    hover(on) { state.hover = on; if (on && !reducedMotion && state.fly < 0) state.wave = 0; if (!on) { state.lookX = state.lookY = 0; } if (reducedMotion) drawOnce(); },
     look(x, y) { if (!reducedMotion) { state.lookX = clamp(x, -1, 1); state.lookY = clamp(y, -1, 1); } },
     poke() { if (!reducedMotion) state.fly = 0; },
     greet() { if (!reducedMotion) state.hop = 0; },

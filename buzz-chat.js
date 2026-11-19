@@ -1,8 +1,11 @@
-/* Buzz, the PrintBee support bee: a floating chat button and sheet for the customer site only.
+/* Buzz, the PrintBee support bee: a floating animated bee and a chat sheet for the customer site only.
  *
  * Added to the customer pages and the phone tab shell (never to the admin, warehouse or Bee Runner portals). The widget lives
  * once, in the top document; pages shown inside the tab shell only expose PrintBeeBuzz.open(), which asks the top document.
  * Every piece of text, from the customer or from Buzz, is set with textContent, never as HTML.
+ *
+ * Look: claymorphism. Three elevations only: the sheet (3), bubbles, cards and the header chip (2), chips and buttons (1). Each is the
+ * same four layers: a warm outer shadow, a white top-left highlight, a soft inner shadow and an inner highlight.
  */
 (() => {
   'use strict';
@@ -24,89 +27,162 @@
 
   const style = document.createElement('style');
   style.textContent = `
-  .buzz-root { --buzz-lift: 0px; font-family: Manrope, system-ui, sans-serif; color: var(--hv-ink, #2a2112); }
-  /* The bee: no button box, just the 3D bee (or, if 3D is not possible, the flat clay bee) with a faint honey glow behind it. */
-  .buzz-fab { position: fixed; z-index: 80; right: 14px; bottom: calc(var(--buzz-lift) + 12px + env(safe-area-inset-bottom, 0px)); width: 104px; height: 104px; padding: 0; border: 0; border-radius: 50%;
-    display: block; cursor: pointer; background: transparent; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
-  .buzz-glow { position: absolute; inset: 4px; border-radius: 50%; pointer-events: none; opacity: 0; transition: opacity .6s ease;
-    background: radial-gradient(circle, rgba(255,190,50,.42) 0%, rgba(255,196,70,.2) 42%, rgba(255,200,80,0) 70%); }
+  /* ---- tokens: cream #FFF8E8, white, honey #F5C542, deep honey #B9831A, ink #2A2112, muted #7A6A4A ---- */
+  .buzz-root { --bz-cream: #FFF8E8; --bz-white: #FFFFFF; --bz-honey: #F5C542; --bz-deep: #B9831A; --bz-link: #7A5208; --bz-ink: #2A2112; --bz-muted: #7A6A4A; --bz-on-honey: #2A2112;
+    --bz-sunken: #FBEFCF; --bz-bubble-you: linear-gradient(145deg, #FFE394 0%, #F5C542 58%, #EBB32C 100%); --bz-lift: 0px; --bz-fab: 104px;
+    --bz-s3: 0 12px 28px rgba(185,131,26,.22), -6px -6px 14px #FFFFFF, inset 0 -4px 8px rgba(185,131,26,.08), inset 3px 3px 6px rgba(255,255,255,.9);
+    --bz-s2: 0 7px 16px rgba(185,131,26,.17), -4px -4px 10px rgba(255,255,255,.95), inset 0 -3px 6px rgba(185,131,26,.08), inset 2px 2px 5px rgba(255,255,255,.9);
+    --bz-s1: 0 4px 10px rgba(185,131,26,.18), -3px -3px 7px rgba(255,255,255,.95), inset 0 -2px 4px rgba(185,131,26,.10), inset 2px 2px 4px rgba(255,255,255,.9);
+    --bz-press: inset 0 3px 8px rgba(185,131,26,.32), inset 0 -2px 4px rgba(255,255,255,.7);
+    --bz-sink: inset 3px 3px 7px rgba(185,131,26,.16), inset -3px -3px 7px rgba(255,255,255,.9);
+    --bz-ring: 0 0 0 3px rgba(245,197,66,.6);
+    font-family: Manrope, system-ui, sans-serif; color: var(--bz-ink); }
+  [data-theme="dark"] .buzz-root { --bz-cream: #211A0E; --bz-white: #2E2414; --bz-honey: #F5C542; --bz-deep: #FFCB5C; --bz-link: #FFCB5C; --bz-ink: #FFF3D6; --bz-muted: #D3BE93; --bz-sunken: #19130A;
+    --bz-s3: 0 14px 30px rgba(0,0,0,.55), -4px -4px 12px rgba(255,226,150,.04), inset 0 -4px 8px rgba(0,0,0,.28), inset 2px 2px 6px rgba(255,226,150,.07);
+    --bz-s2: 0 8px 18px rgba(0,0,0,.45), -3px -3px 9px rgba(255,226,150,.04), inset 0 -3px 6px rgba(0,0,0,.25), inset 2px 2px 5px rgba(255,226,150,.07);
+    --bz-s1: 0 5px 11px rgba(0,0,0,.45), -2px -2px 6px rgba(255,226,150,.04), inset 0 -2px 4px rgba(0,0,0,.25), inset 2px 2px 4px rgba(255,226,150,.08);
+    --bz-press: inset 0 3px 8px rgba(0,0,0,.5), inset 0 -2px 4px rgba(255,226,150,.05);
+    --bz-sink: inset 3px 3px 7px rgba(0,0,0,.45), inset -2px -2px 6px rgba(255,226,150,.04);
+    --bz-ring: 0 0 0 3px rgba(245,197,66,.5); }
+
+  /* ---- the bee (no button box; a faint honey glow; a flat clay bee if 3D is not possible) ---- */
+  .buzz-fab { position: fixed; z-index: 80; right: max(16px, env(safe-area-inset-right)); bottom: calc(var(--bz-lift) + max(18px, env(safe-area-inset-bottom)));
+    width: var(--bz-fab); height: var(--bz-fab); padding: 0; border: 0; border-radius: 50%; display: block; cursor: pointer; background: transparent;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+  .buzz-glow { position: absolute; inset: 0; border-radius: 50%; pointer-events: none; opacity: 0; transition: opacity .6s ease, filter .3s ease;
+    background: radial-gradient(circle, rgba(255,190,50,.40) 0%, rgba(255,196,70,.18) 40%, rgba(255,200,80,0) 68%); }
+  [data-theme="dark"] .buzz-glow { background: radial-gradient(circle, rgba(255,176,40,.32) 0%, rgba(255,176,40,.14) 40%, rgba(255,176,40,0) 68%); }
   .buzz-fab[data-state="ready"] .buzz-glow { opacity: 1; animation: buzz-glow 3.8s ease-in-out infinite; }
-  [data-theme="dark"] .buzz-glow { background: radial-gradient(circle, rgba(255,176,40,.5) 0%, rgba(255,176,40,.22) 42%, rgba(255,176,40,0) 70%); }
-  .buzz-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; opacity: 0; transition: opacity .5s ease; }
+  .buzz-fab:hover .buzz-glow { filter: brightness(1.1); }
+  .buzz-canvas { position: absolute; inset: -16px; width: calc(100% + 32px); height: calc(100% + 32px); display: block; pointer-events: none; opacity: 0; transition: opacity .5s ease; }
   .buzz-fab[data-state="ready"] .buzz-canvas { opacity: 1; }
-  .buzz-fab[data-state="ready"]:hover .buzz-glow { opacity: 1; filter: brightness(1.12); }
-  .buzz-still { position: absolute; inset: 14px; width: 76px; height: 76px; border-radius: 50%; object-fit: cover; display: none; pointer-events: none;
+  .buzz-still { position: absolute; left: 50%; top: 50%; width: calc(var(--bz-fab) * .74); height: calc(var(--bz-fab) * .74); margin: calc(var(--bz-fab) * -.37) 0 0 calc(var(--bz-fab) * -.37);
+    border-radius: 50%; object-fit: cover; pointer-events: none; opacity: 0; transition: opacity .5s ease, transform .2s ease;
     box-shadow: 0 10px 16px -4px rgba(150,100,10,.34), 0 3px 6px rgba(150,100,10,.16), inset 0 3px 3px rgba(255,255,255,.85), inset 0 -5px 8px rgba(190,120,10,.34); }
-  .buzz-fab[data-state="fallback"] .buzz-still { display: block; animation: buzz-bob 3.2s ease-in-out infinite; }
+  .buzz-fab[data-state="fallback"] .buzz-still { opacity: 1; animation: buzz-bob 3.2s ease-in-out infinite; }
   .buzz-fab[data-state="fallback"]:hover .buzz-still { transform: scale(1.06); }
-  .buzz-tip { position: fixed; z-index: 81; right: 112px; bottom: calc(var(--buzz-lift) + 12px + env(safe-area-inset-bottom, 0px) + 36px); padding: 8px 14px; border-radius: 16px; font: 800 13px/1.2 Manrope, system-ui, sans-serif;
-    white-space: nowrap; pointer-events: none; opacity: 0; transform: translateX(6px) scale(.96); transform-origin: right center; transition: opacity .18s ease, transform .18s ease;
-    background: var(--hv-surface, #fff); color: var(--hv-ink, #2a2112); box-shadow: var(--hv-sh-2, 0 6px 16px rgba(110,80,28,.25)); }
-  .buzz-tip::after { content: ""; position: absolute; right: -5px; top: 50%; width: 10px; height: 10px; margin-top: -5px; transform: rotate(45deg); background: inherit; border-radius: 2px; }
-  .buzz-tip.is-on { opacity: 1; transform: none; }
-  .buzz-tip[hidden] { display: none; }
-  @media (max-width: 600px) { .buzz-fab { width: 88px; height: 88px; right: 8px; } .buzz-still { inset: 11px; width: 66px; height: 66px; } .buzz-tip { right: 94px; bottom: calc(var(--buzz-lift) + 12px + env(safe-area-inset-bottom, 0px) + 28px); } }
-  .buzz-fab:focus-visible, .buzz-chip:focus-visible, .buzz-send:focus-visible, .buzz-close:focus-visible, .buzz-btn:focus-visible, .buzz-thumb:focus-visible, .buzz-input:focus-visible { outline: 3px solid var(--hv-honey-700, #b9831a); outline-offset: 2px; }
+  .buzz-fab:focus-visible { outline: 3px solid var(--bz-deep); outline-offset: -4px; }
   .buzz-fab[hidden] { display: none; }
-  .buzz-sheet { position: fixed; z-index: 85; right: 24px; bottom: 24px; width: min(400px, calc(100vw - 32px)); height: min(640px, calc(100dvh - 48px)); display: flex; flex-direction: column; overflow: hidden;
-    border-radius: 28px; background: var(--hv-surface, #fff); color: var(--hv-ink, #2a2112); box-shadow: var(--hv-sh-3, 0 12px 40px rgba(60,45,15,.25));
-    opacity: 0; transform: translateY(14px) scale(.96); transform-origin: bottom right; transition: opacity .2s ease, transform .24s cubic-bezier(.2,.9,.3,1); }
+
+  /* ---- tooltip: stays inside the screen, has a tail, hides by itself ---- */
+  .buzz-tip { position: fixed; z-index: 81; right: calc(max(16px, env(safe-area-inset-right)) + var(--bz-fab) + 4px); bottom: calc(var(--bz-lift) + max(18px, env(safe-area-inset-bottom)) + var(--bz-fab) * .34);
+    max-width: calc(100vw - var(--bz-fab) - 44px); padding: 9px 15px; border-radius: 18px; font: 800 13.5px/1.25 Manrope, system-ui, sans-serif; text-align: center; pointer-events: none;
+    opacity: 0; transform: translateX(8px) scale(.95); transform-origin: right center; transition: opacity .2s ease, transform .22s cubic-bezier(.34,1.4,.64,1);
+    background: var(--bz-white); color: var(--bz-ink); box-shadow: var(--bz-s2); }
+  .buzz-tip::after { content: ""; position: absolute; right: -6px; top: 50%; width: 14px; height: 14px; margin-top: -7px; transform: rotate(45deg); border-radius: 4px; background: var(--bz-white);
+    box-shadow: 3px -3px 5px rgba(185,131,26,.10); }
+  [data-theme="dark"] .buzz-tip::after { box-shadow: 3px -3px 5px rgba(0,0,0,.25); }
+  .buzz-tip.is-on { opacity: 1; transform: none; }
+
+  /* ---- the sheet: 380px card anchored to the bee on desktop, full screen on phones ---- */
+  .buzz-sheet { position: fixed; z-index: 85; right: max(16px, env(safe-area-inset-right)); bottom: calc(var(--bz-lift) + max(16px, env(safe-area-inset-bottom)));
+    width: min(380px, calc(100vw - 32px)); height: min(660px, calc(100dvh - var(--bz-lift) - 40px)); display: flex; flex-direction: column; overflow: hidden;
+    border-radius: 28px; background: var(--bz-cream); color: var(--bz-ink); box-shadow: var(--bz-s3);
+    opacity: 0; transform: translateY(18px) scale(.96); transform-origin: bottom right; transition: opacity .22s ease, transform .22s cubic-bezier(.34,1.45,.64,1); }
   .buzz-sheet.is-open { opacity: 1; transform: none; }
   .buzz-sheet[hidden] { display: none; }
-  @media (max-width: 600px) { .buzz-sheet { inset: 0; width: auto; height: 100dvh; border-radius: 0; padding-bottom: env(safe-area-inset-bottom, 0px); transform: translateY(22px); transform-origin: bottom center; } }
-  .buzz-head { flex: none; display: flex; align-items: center; gap: 10px; padding: 12px 14px 12px 16px; background: var(--hv-surface-2, #fff6dd); padding-top: calc(12px + env(safe-area-inset-top, 0px)); }
-  .buzz-head img { width: 44px; height: 44px; padding: 3px; box-sizing: border-box; object-fit: cover; flex: none; border-radius: 50%;
-    background: var(--hv-honey-grad, #f5c542); box-shadow: 0 3px 6px rgba(150,100,10,.22), inset 0 2px 2px rgba(255,255,255,.8), inset 0 -3px 4px rgba(190,120,10,.3); }
-  .buzz-head h2 { flex: 1; margin: 0; font-size: 16px; line-height: 1.2; font-weight: 800; }
-  .buzz-close { flex: none; width: 40px; height: 40px; border: 0; border-radius: 50%; cursor: pointer; font-size: 22px; line-height: 1; background: var(--hv-surface, #fff); color: inherit; }
-  .buzz-context { flex: none; display: flex; align-items: center; gap: 8px; margin: 10px 14px 0; padding: 6px 6px 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 700; background: var(--hv-surface-3, #ffefc7); }
+  @media (max-width: 600px) {
+    .buzz-root { --bz-fab: 88px; }
+    .buzz-sheet { left: 0; right: 0; bottom: auto; top: var(--buzz-vt, 0px); width: auto; height: var(--buzz-vh, 100dvh); border-radius: 0; box-shadow: none; transform: translateY(24px); transform-origin: bottom center;
+      padding-bottom: env(safe-area-inset-bottom); }
+    .buzz-sheet.kb-open { padding-bottom: 0; }
+    .buzz-sheet.kb-open .buzz-chips { display: none; }
+  }
+
+  .buzz-head { flex: none; display: flex; align-items: center; gap: 12px; padding: calc(12px + env(safe-area-inset-top)) 12px 12px 16px; }
+  .buzz-avatar { flex: none; width: 44px; height: 44px; border-radius: 50%; padding: 3px; box-sizing: border-box; background: var(--bz-honey); box-shadow: var(--bz-s2); }
+  .buzz-avatar img { width: 100%; height: 100%; display: block; border-radius: 50%; object-fit: cover; }
+  .buzz-headtext { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+  .buzz-head h2 { margin: 0; font-size: 16px; line-height: 1.2; font-weight: 800; letter-spacing: -.005em; }
+  .buzz-ai { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 999px; font: 800 11px/1.5 Manrope, system-ui, sans-serif; color: var(--bz-ink); background: var(--bz-sunken); box-shadow: var(--bz-sink); }
+  .buzz-ai::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--bz-honey); box-shadow: 0 0 0 2px rgba(245,197,66,.28); }
+  .buzz-close { flex: none; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; display: grid; place-items: center; font-size: 24px; line-height: 1; color: var(--bz-ink);
+    background: var(--bz-white); box-shadow: var(--bz-s1); transition: transform .12s ease, box-shadow .12s ease; }
+  .buzz-close:active, .buzz-chip:active, .buzz-btn:active, .buzz-thumb:active { transform: scale(.97); box-shadow: var(--bz-press); }
+  .buzz-notice { flex: none; margin: 0 16px; padding: 8px 14px; border-radius: 999px; font: 600 12px/1.35 Manrope, system-ui, sans-serif; text-align: center; color: var(--bz-muted);
+    background: var(--bz-sunken); box-shadow: var(--bz-sink); }
+  .buzz-context { flex: none; display: flex; align-items: center; gap: 8px; margin: 10px 16px 0; padding: 4px 4px 4px 14px; border-radius: 999px; font-size: 13px; font-weight: 700; background: var(--bz-white); box-shadow: var(--bz-s1); }
   .buzz-context[hidden] { display: none; }
   .buzz-context span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .buzz-context button { flex: none; width: 28px; height: 28px; border: 0; border-radius: 50%; cursor: pointer; background: var(--hv-surface, #fff); color: inherit; font-size: 16px; line-height: 1; }
-  .buzz-log { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; overscroll-behavior: contain; }
-  .buzz-notice { align-self: center; max-width: 92%; margin: 0; padding: 6px 12px; border-radius: 999px; font-size: 12px; text-align: center; color: var(--hv-muted, #6e5e3e); background: var(--hv-surface-2, #fff6dd); }
-  .buzz-msg { max-width: 88%; display: flex; flex-direction: column; gap: 6px; }
-  .buzz-msg p { margin: 0; padding: 10px 14px; border-radius: 20px; font-size: 14.5px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .buzz-context button { flex: none; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; background: var(--bz-sunken); color: inherit; font-size: 18px; line-height: 1; box-shadow: var(--bz-sink); }
+
+  /* ---- the conversation: a thin honey scrollbar whose space is always kept, so nothing jumps ---- */
+  .buzz-log { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 16px 12px 12px 16px; display: flex; flex-direction: column; overscroll-behavior: contain;
+    scrollbar-width: thin; scrollbar-color: var(--bz-honey) transparent; scrollbar-gutter: stable; }
+  .buzz-log::-webkit-scrollbar { width: 8px; }
+  .buzz-log::-webkit-scrollbar-track { background: transparent; margin: 8px 0; }
+  .buzz-log::-webkit-scrollbar-thumb { background: var(--bz-honey); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+  .buzz-log::-webkit-scrollbar-thumb:hover { background: var(--bz-deep); background-clip: padding-box; border: 2px solid transparent; }
+  .buzz-msg { max-width: 82%; margin-top: 16px; display: flex; flex-direction: column; gap: 6px; }
+  .buzz-msg:first-child { margin-top: 0; }
+  .buzz-msg.grouped { margin-top: 8px; }
+  .buzz-msg p { margin: 0; padding: 11px 15px; border-radius: 20px; font-size: 15px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; cursor: default; }
   .buzz-msg.bee { align-self: flex-start; }
-  .buzz-msg.bee p { background: var(--hv-surface-2, #fff6dd); border-bottom-left-radius: 8px; }
-  .buzz-msg.you { align-self: flex-end; }
-  .buzz-msg.you p { background: var(--hv-honey-grad, #f5c542); color: #2a2112; border-bottom-right-radius: 8px; font-weight: 600; }
-  .buzz-msg.problem p { background: color-mix(in srgb, #d64545 14%, var(--hv-surface, #fff)); }
-  .buzz-thumbs { display: flex; gap: 6px; }
-  .buzz-thumb { width: 34px; height: 34px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; display: grid; place-items: center; background: var(--hv-surface-2, #fff6dd); color: var(--hv-muted, #6e5e3e); }
+  .buzz-msg.bee p { background: var(--bz-white); color: var(--bz-ink); border-bottom-left-radius: 7px; box-shadow: var(--bz-s2); }
+  .buzz-msg.you { align-self: flex-end; align-items: flex-end; }
+  .buzz-msg.you p { background: var(--bz-bubble-you); color: var(--bz-on-honey); font-weight: 600; border-bottom-right-radius: 7px; box-shadow: var(--bz-s2); }
+  .buzz-msg.problem p { background: color-mix(in srgb, #D64545 14%, var(--bz-white)); }
+  .buzz-meta { display: none; padding: 0 6px; font: 600 12px/1.2 Manrope, system-ui, sans-serif; color: var(--bz-muted); }
+  .buzz-msg.show-time .buzz-meta { display: block; }
+  .buzz-thumbs { display: flex; gap: 8px; padding-left: 4px; }
+  .buzz-thumb { width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; display: grid; place-items: center; color: var(--bz-muted); background: var(--bz-white); box-shadow: var(--bz-s1); transition: transform .12s ease, box-shadow .12s ease; }
   .buzz-thumb svg { width: 17px; height: 17px; }
-  .buzz-thumb[aria-pressed="true"] { background: var(--hv-honey-grad, #f5c542); color: #2a2112; }
-  .buzz-card { align-self: stretch; padding: 14px; border-radius: 22px; display: grid; gap: 8px; background: var(--hv-surface, #fff); box-shadow: var(--hv-sh-1, 0 0 0 1px #f0e3be); }
+  .buzz-thumb[aria-pressed="true"] { background: var(--bz-bubble-you); color: var(--bz-on-honey); }
+  .buzz-card { align-self: stretch; margin-top: 8px; padding: 16px; border-radius: 24px; display: grid; gap: 10px; background: var(--bz-white); box-shadow: var(--bz-s2); }
   .buzz-card h3 { margin: 0; font-size: 15px; display: flex; justify-content: space-between; gap: 8px; align-items: center; }
-  .buzz-pill { padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; background: var(--hv-honey-grad, #f5c542); color: #2a2112; white-space: nowrap; }
-  .buzz-pill.urgent { background: #d64545; color: #fff; }
-  .buzz-card p { margin: 0; font-size: 13.5px; line-height: 1.4; color: var(--hv-muted, #6e5e3e); overflow-wrap: anywhere; }
-  .buzz-card .quote { color: inherit; padding: 8px 10px; border-radius: 14px; background: var(--hv-surface-2, #fff6dd); }
-  .buzz-card ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 12.5px; color: var(--hv-muted, #6e5e3e); }
-  .buzz-card li::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 8px; border-radius: 50%; background: var(--hv-honey-600, #e0a91e); }
+  .buzz-pill { padding: 3px 11px; border-radius: 999px; font-size: 12px; font-weight: 800; background: var(--bz-bubble-you); color: var(--bz-on-honey); white-space: nowrap; box-shadow: var(--bz-s1); }
+  .buzz-pill.urgent { background: #D64545; color: #fff; }
+  .buzz-card p { margin: 0; font-size: 14px; line-height: 1.4; color: var(--bz-muted); overflow-wrap: anywhere; }
+  .buzz-card .quote { color: var(--bz-ink); padding: 10px 12px; border-radius: 16px; background: var(--bz-sunken); box-shadow: var(--bz-sink); }
+  .buzz-card ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 5px; font-size: 13px; color: var(--bz-muted); }
+  .buzz-card li::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 8px; border-radius: 50%; background: var(--bz-honey); }
   .buzz-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-  .buzz-btn { min-height: 40px; padding: 8px 16px; border: 0; border-radius: 999px; cursor: pointer; font: 800 13.5px Manrope, system-ui, sans-serif; text-decoration: none; display: inline-flex; align-items: center;
-    background: var(--hv-surface-2, #fff6dd); color: var(--hv-honey-ink, #7a5208); }
-  .buzz-btn.primary { background: var(--hv-honey-grad, #f5c542); color: #2a2112; }
-  .buzz-btn:disabled { opacity: .55; cursor: default; }
-  .buzz-typing { align-self: flex-start; display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 20px; font-size: 13px; color: var(--hv-muted, #6e5e3e); background: var(--hv-surface-2, #fff6dd); }
-  .buzz-typing svg { width: 32px; height: 22px; }
+  .buzz-btn { min-height: 44px; padding: 0 18px; border: 0; border-radius: 999px; cursor: pointer; font: 800 14px Manrope, system-ui, sans-serif; text-decoration: none; display: inline-flex; align-items: center;
+    background: var(--bz-white); color: var(--bz-link); box-shadow: var(--bz-s1); transition: transform .12s ease, box-shadow .12s ease; }
+  .buzz-btn.primary { background: var(--bz-bubble-you); color: var(--bz-on-honey); }
+  .buzz-btn:disabled { opacity: .55; cursor: default; box-shadow: var(--bz-sink); }
+
+  /* ---- typing: wing-flap dots ---- */
+  .buzz-typing { align-self: flex-start; margin-top: 16px; display: flex; align-items: center; gap: 9px; padding: 9px 16px 9px 12px; border-radius: 20px; border-bottom-left-radius: 7px; background: var(--bz-white); box-shadow: var(--bz-s2); }
+  .buzz-typing svg { width: 30px; height: 21px; flex: none; }
   .buzz-wing { transform-box: fill-box; transform-origin: 50% 100%; animation: buzz-flap .22s ease-in-out infinite alternate; }
   .buzz-wing.b { animation-delay: .11s; }
-  .buzz-chips { flex: none; display: flex; gap: 8px; padding: 6px 14px 4px; overflow-x: auto; scrollbar-width: none; }
-  .buzz-chips::-webkit-scrollbar { display: none; }
-  .buzz-chip { flex: none; min-height: 38px; padding: 6px 14px; border: 0; border-radius: 999px; cursor: pointer; font: 700 13px Manrope, system-ui, sans-serif; background: var(--hv-surface-2, #fff6dd); color: var(--hv-honey-ink, #7a5208); box-shadow: 0 0 0 1px var(--hv-border, #f0e3be); }
+  .buzz-dots { display: inline-flex; gap: 5px; align-items: center; }
+  .buzz-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--bz-honey); box-shadow: inset 0 -1px 2px rgba(185,131,26,.45); animation: buzz-dot 1s ease-in-out infinite; }
+  .buzz-dots i:nth-child(2) { animation-delay: .15s; }
+  .buzz-dots i:nth-child(3) { animation-delay: .3s; }
+  .buzz-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+  /* ---- quick replies: wrap onto rows, 16px from each edge, never cut off ---- */
+  .buzz-chips { flex: none; display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 16px 6px; }
+  .buzz-chip { min-height: 40px; padding: 0 13px; border: 0; border-radius: 999px; cursor: pointer; font: 700 13px Manrope, system-ui, sans-serif; color: var(--bz-link); background: var(--bz-white);
+    box-shadow: var(--bz-s1); transition: transform .12s ease, box-shadow .12s ease; }
   .buzz-chip:disabled { opacity: .55; cursor: default; }
-  .buzz-form { flex: none; display: flex; gap: 8px; padding: 8px 14px 14px; }
-  .buzz-input { flex: 1; min-width: 0; height: 46px; padding: 0 16px; border: 0; border-radius: 999px; font: 600 15px Manrope, system-ui, sans-serif; color: inherit; background: var(--hv-surface-2, #fff6dd); box-shadow: inset 0 0 0 1px var(--hv-border, #f0e3be); }
-  .buzz-send { flex: none; width: 46px; height: 46px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; display: grid; place-items: center; background: var(--hv-honey-grad, #f5c542); color: #2a2112; }
-  .buzz-send:disabled { opacity: .55; cursor: default; }
-  .buzz-send svg { width: 20px; height: 20px; }
+
+  /* ---- the input row: 48px input and a 48px round send button with an even 12px gap ---- */
+  .buzz-form { flex: none; display: flex; align-items: center; gap: 12px; padding: 10px 16px 16px; }
+  .buzz-input { flex: 1; min-width: 0; height: 48px; padding: 0 18px; border: 0; border-radius: 999px; font: 600 16px Manrope, system-ui, sans-serif; color: var(--bz-ink); background: var(--bz-sunken); box-shadow: var(--bz-sink);
+    outline: none; transition: box-shadow .15s ease; }
+  .buzz-input::placeholder { color: var(--bz-muted); opacity: 1; }
+  .buzz-input:focus-visible, .buzz-input:focus { outline: none; }
+  .buzz-input:focus-visible { box-shadow: var(--bz-sink), var(--bz-ring); }
+  .buzz-send { flex: none; width: 48px; height: 48px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; display: grid; place-items: center; color: var(--bz-on-honey); background: var(--bz-bubble-you);
+    box-shadow: var(--bz-s1); transition: transform .14s cubic-bezier(.34,1.5,.64,1), box-shadow .14s ease, opacity .15s ease; }
+  .buzz-send:active:not(:disabled) { transform: scale(.92); box-shadow: var(--bz-press); }
+  .buzz-send:disabled { opacity: .5; cursor: default; box-shadow: var(--bz-sink); }
+  .buzz-send svg { width: 21px; height: 21px; }
+
+  .buzz-close:focus-visible, .buzz-chip:focus-visible, .buzz-send:focus-visible, .buzz-btn:focus-visible, .buzz-thumb:focus-visible, .buzz-context button:focus-visible { outline: 3px solid var(--bz-deep); outline-offset: 3px; }
   html.buzz-open { overflow: hidden; }
   @keyframes buzz-bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -3px; } }
   @keyframes buzz-glow { 0%, 100% { transform: scale(.94); opacity: .7; } 50% { transform: scale(1.06); opacity: 1; } }
   @keyframes buzz-flap { from { transform: scaleY(.25); } to { transform: scaleY(1); } }
-  @media (prefers-reduced-motion: reduce) { .buzz-glow, .buzz-wing, .buzz-still { animation: none !important; } .buzz-sheet, .buzz-tip, .buzz-canvas { transition: none; } .buzz-sheet { transform: none; } }`;
+  @keyframes buzz-dot { 0%, 60%, 100% { transform: translateY(0); opacity: .55; } 30% { transform: translateY(-4px); opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) {
+    .buzz-glow, .buzz-wing, .buzz-still, .buzz-dots i { animation: none !important; }
+    .buzz-sheet, .buzz-tip, .buzz-canvas, .buzz-still, .buzz-close, .buzz-chip, .buzz-btn, .buzz-thumb, .buzz-send { transition: none; }
+    .buzz-sheet { transform: none; }
+  }`;
   document.head.append(style);
 
   const ns = 'http://www.w3.org/2000/svg';
@@ -136,16 +212,20 @@
   const tip = el('div', {className: 'buzz-tip', id: 'buzz-tip', role: 'tooltip', text: 'Need help? Buzz me!'});
   const title = el('h2', {id: 'buzz-title', text: 'Buzz - PrintBee support'});
   const close = el('button', {type: 'button', className: 'buzz-close', 'aria-label': 'Close chat', text: '×'});
+  const notice = el('p', {className: 'buzz-notice', 'aria-label': "AI assistant. Please don't share personal or payment details.", text: "Please don't share personal or payment details."});
   const contextText = el('span');
   const contextClear = el('button', {type: 'button', 'aria-label': 'Stop talking about this order', text: '×'});
   const context = el('div', {className: 'buzz-context', hidden: true}, contextText, contextClear);
   const log = el('div', {className: 'buzz-log', role: 'log', 'aria-live': 'polite', 'aria-relevant': 'additions', 'aria-label': 'Conversation with Buzz'});
   const chips = el('div', {className: 'buzz-chips', role: 'group', 'aria-label': 'Quick questions'});
-  const input = el('input', {type: 'text', className: 'buzz-input', maxLength: 800, autocomplete: 'off', enterKeyHint: 'send', placeholder: 'Ask Buzz anything about PrintBee', 'aria-label': 'Message Buzz'});
-  const send = el('button', {type: 'submit', className: 'buzz-send', 'aria-label': 'Send message'}, svg(['M4 12l16-8-6 16-3-6z']));
+  const input = el('input', {type: 'text', className: 'buzz-input', maxLength: 800, autocomplete: 'off', enterKeyHint: 'send', placeholder: 'Ask Buzz about PrintBee', 'aria-label': 'Message Buzz'});
+  const send = el('button', {type: 'submit', className: 'buzz-send', 'aria-label': 'Send message', disabled: true}, svg(['M4 12l16-8-6 16-3-6z']));
   const form = el('form', {className: 'buzz-form'}, input, send);
   const sheet = el('section', {className: 'buzz-sheet', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'buzz-title', hidden: true},
-    el('header', {className: 'buzz-head'}, el('img', {src: '/buzz-bee.webp', alt: '', width: 38, height: 38}), title, close), context, log, chips, form);
+    el('header', {className: 'buzz-head'},
+      el('span', {className: 'buzz-avatar'}, el('img', {src: '/buzz-bee.webp', alt: '', width: 38, height: 38})),
+      el('div', {className: 'buzz-headtext'}, title, el('span', {className: 'buzz-ai', text: 'AI assistant'})), close),
+    notice, context, log, chips, form);
   root.append(fab, tip, sheet);
   const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
   let bee = null;                         // the 3D bee controller, once it has loaded
@@ -173,15 +253,20 @@
   function place() {
     let lift = 0;
     for (const bar of bottomBars()) if (bar.top < innerHeight && bar.bottom > innerHeight - 6) lift = Math.max(lift, innerHeight - bar.top);
-    root.style.setProperty('--buzz-lift', Math.round(lift) + 'px');
+    root.style.setProperty('--bz-lift', Math.round(lift) + 'px');
   }
   let placing = 0;
   const placeSoon = () => { if (!placing) placing = requestAnimationFrame(() => { placing = 0; place(); }); };
 
-  // ---- messages ----
+  // ---- messages: grouped by sender (8px inside a group, 16px between groups), time on tap ----
   const scroll = () => { log.scrollTop = log.scrollHeight; };
+  const clock = () => new Date().toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'});
   function bubble(who, text, extra = '') {
-    const wrap = el('div', {className: `buzz-msg ${who} ${extra}`.trim()}, el('p', {text}));
+    const previous = log.lastElementChild;
+    const grouped = previous && previous.classList.contains('buzz-msg') && previous.classList.contains(who) && !previous.classList.contains('problem');
+    const words = el('p', {text, title: 'Tap to show the time'});
+    const wrap = el('div', {className: `buzz-msg ${who} ${extra} ${grouped ? 'grouped' : ''}`.replace(/\s+/g, ' ').trim()}, words, el('small', {className: 'buzz-meta', text: clock()}));
+    words.addEventListener('click', () => wrap.classList.toggle('show-time'));
     log.append(wrap);
     scroll();
     return wrap;
@@ -252,9 +337,9 @@
     wings.setAttribute('viewBox', '0 0 32 22');
     wings.setAttribute('aria-hidden', 'true');
     const make = (name, attrs) => { const node = document.createElementNS(ns, name); for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v); return node; };
-    wings.append(make('ellipse', {class: 'buzz-wing', cx: 11, cy: 8, rx: 5, ry: 7, fill: '#bfe3ff', opacity: '.85'}), make('ellipse', {class: 'buzz-wing b', cx: 19, cy: 8, rx: 5, ry: 7, fill: '#bfe3ff', opacity: '.85'}),
+    wings.append(make('ellipse', {class: 'buzz-wing', cx: 11, cy: 8, rx: 5, ry: 7, fill: '#bfe3ff', opacity: '.9'}), make('ellipse', {class: 'buzz-wing b', cx: 19, cy: 8, rx: 5, ry: 7, fill: '#bfe3ff', opacity: '.9'}),
       make('ellipse', {cx: 15, cy: 15, rx: 9, ry: 5.5, fill: '#f5c542'}), make('path', {d: 'M11 10.5v9M15 10v10M19 10.5v9', stroke: '#2a2112', 'stroke-width': 1.8, 'stroke-linecap': 'round'}));
-    log.append(el('div', {className: 'buzz-typing', role: 'status'}, wings, el('span', {text: 'Buzz is typing'})));
+    log.append(el('div', {className: 'buzz-typing', role: 'status'}, wings, el('span', {className: 'buzz-dots', 'aria-hidden': 'true'}, el('i'), el('i'), el('i')), el('span', {className: 'buzz-sr', text: 'Buzz is typing'})));
     scroll();
   }
 
@@ -269,10 +354,12 @@
     if (!response.ok) throw new Error(data.error || 'Something went wrong. Please try again.');
     return data;
   }
+  const syncSend = () => { send.disabled = state.busy || !input.value.trim(); };
   function busy(on) {
     state.busy = on;
-    input.disabled = send.disabled = on;
+    input.disabled = on;
     for (const chip of chips.children) chip.disabled = on;
+    syncSend();
   }
   function show(result) {
     state.sessionId = result.sessionId || state.sessionId;
@@ -294,6 +381,25 @@
   const ask = text => run(() => call('/api/support/chat', {message: text, sessionId: state.sessionId, orderNumber: state.orderNumber}), text);
   const humanTicket = () => run(() => call('/api/support/chat', {action: 'human', sessionId: state.sessionId, orderNumber: state.orderNumber}), 'I would like to talk to a person.');
 
+  // ---- on phones the sheet follows the visible screen, so the input stays above the on-screen keyboard ----
+  const phone = matchMedia('(max-width: 600px)');
+  function fitViewport() {
+    const vv = window.visualViewport;
+    if (sheet.hidden || !vv) return;
+    if (phone.matches) {
+      const keyboard = innerHeight - vv.height > 120;
+      sheet.style.setProperty('--buzz-vh', Math.round(vv.height) + 'px');
+      sheet.style.setProperty('--buzz-vt', Math.round(vv.offsetTop) + 'px');
+      sheet.classList.toggle('kb-open', keyboard);
+      if (keyboard) scroll();
+    } else {
+      sheet.style.removeProperty('--buzz-vh');
+      sheet.style.removeProperty('--buzz-vt');
+      sheet.classList.remove('kb-open');
+    }
+  }
+  if (window.visualViewport) { visualViewport.addEventListener('resize', fitViewport); visualViewport.addEventListener('scroll', fitViewport); }
+
   // ---- opening, closing, focus ----
   function setOrder(number) {
     state.orderNumber = number || null;
@@ -305,6 +411,7 @@
     if (typeof options.orderNumber === 'string' && /^[A-Za-z0-9-]{3,40}$/.test(options.orderNumber)) setOrder(options.orderNumber.toUpperCase());
     clearTimeout(closeTimer);
     sheet.hidden = false;
+    fitViewport();
     void sheet.offsetWidth;                 // so the opening transition starts from the hidden look
     sheet.classList.add('is-open');
     fab.hidden = true;
@@ -312,7 +419,7 @@
     if (bee) bee.show(false);
     fab.setAttribute('aria-expanded', 'true');
     document.documentElement.classList.add('buzz-open');
-    input.focus();
+    input.focus({preventScroll: true});
     if (options.orderNumber && !log.querySelector('.buzz-asked-' + state.orderNumber)) {
       const marker = el('span', {className: 'buzz-asked-' + state.orderNumber, hidden: true});
       log.append(marker);
@@ -323,7 +430,7 @@
   let closeTimer = 0;
   function shut() {
     sheet.classList.remove('is-open');      // fades and slides away, then is taken out of the page
-    closeTimer = setTimeout(() => { sheet.hidden = true; }, REDUCED ? 0 : 240);
+    closeTimer = setTimeout(() => { sheet.hidden = true; sheet.classList.remove('kb-open'); }, REDUCED ? 0 : 240);
     fab.hidden = false;
     fab.setAttribute('aria-expanded', 'false');
     document.documentElement.classList.remove('buzz-open');
@@ -332,10 +439,10 @@
     placeSoon();
   }
 
-  // ---- the bee: tooltip, hover look, click fly ----
-  let tipTimer = 0;
-  function showTip() { clearTimeout(tipTimer); if (!fab.hidden && sheet.hidden) tip.classList.add('is-on'); }
-  function hideTip() { clearTimeout(tipTimer); tip.classList.remove('is-on'); }
+  // ---- the bee: tooltip (a few seconds, or until the first interaction), hover look, click fly ----
+  let tipTimer = 0, introActive = false;
+  function showTip(ms = 4200) { clearTimeout(tipTimer); if (!fab.hidden && sheet.hidden) { tip.classList.add('is-on'); tipTimer = setTimeout(hideTip, ms); } }
+  function hideTip() { clearTimeout(tipTimer); tip.classList.remove('is-on'); introActive = false; }
   let flying = false;
   fab.addEventListener('click', () => {
     if (flying) return;
@@ -355,13 +462,16 @@
   fab.addEventListener('focus', () => { if (fab.matches(':focus-visible')) showTip(); });
   fab.addEventListener('blur', hideTip);
   document.addEventListener('keydown', event => { if (event.key === 'Escape' && tip.classList.contains('is-on')) hideTip(); });
+  for (const type of ['pointerdown', 'wheel', 'touchstart', 'scroll']) {         // the first interaction puts the hello away
+    addEventListener(type, () => { if (introActive) hideTip(); }, {passive: true, capture: true});
+  }
 
   // ---- loading the 3D bee only when the page is idle (and not on a slow or data-saving connection) ----
   function loadBee() {
     const link = navigator.connection;
     if (link && (link.saveData || /(^|-)2g$/.test(link.effectiveType || ''))) { fab.dataset.state = 'fallback'; return; }
     const giveUp = setTimeout(() => { if (fab.dataset.state === 'loading') fab.dataset.state = 'fallback'; }, 7000);
-    import('/buzz-bee3d.js?v=2')
+    import('/buzz-bee3d.js?v=3')
       .then(module => module.createBee(canvas, {reducedMotion: REDUCED}))
       .then(created => {
         clearTimeout(giveUp);
@@ -377,7 +487,7 @@
     let seen = false;
     try { seen = sessionStorage.getItem('buzz-intro') === '1'; sessionStorage.setItem('buzz-intro', '1'); } catch { /* private window: fine */ }
     if (seen) return;
-    setTimeout(() => { if (sheet.hidden && !fab.hidden) { showTip(); if (bee) bee.greet(); tipTimer = setTimeout(hideTip, 3800); } }, 1200);
+    setTimeout(() => { if (sheet.hidden && !fab.hidden) { showTip(3800); introActive = true; if (bee) bee.greet(); } }, 1200);
   }
   const startLoading = () => (window.requestIdleCallback ? requestIdleCallback(loadBee, {timeout: 3000}) : setTimeout(loadBee, 1200));
   if (document.readyState === 'complete') startLoading(); else addEventListener('load', startLoading, {once: true});
@@ -392,11 +502,13 @@
     if (event.shiftKey && (document.activeElement === first || !sheet.contains(document.activeElement))) { event.preventDefault(); last.focus(); }
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
   });
+  input.addEventListener('input', syncSend);
   form.addEventListener('submit', event => {
     event.preventDefault();
     const text = input.value.trim();
     if (!text || state.busy) return;
     input.value = '';
+    syncSend();
     ask(text);
   });
   for (const chip of CHIPS) {
@@ -405,7 +517,6 @@
     chips.append(button);
   }
 
-  log.append(el('p', {className: 'buzz-notice', text: "AI assistant. Please don't share personal or payment details."}));
   bubble('bee', 'Hi, I am Buzz, PrintBee’s helper bee. Ask me about prices, uploads or your orders, or tap a quick question below.');
 
   const mount = () => {
@@ -413,6 +524,7 @@
     place();
     // The phone dock is created by another script after this one, so look again as the page settles and when it resizes.
     for (const event of ['load', 'resize', 'orientationchange', 'pageshow']) addEventListener(event, place);
+    addEventListener('resize', fitViewport);
     addEventListener('scroll', placeSoon, {passive: true});                // a sticky bar can slide under the bee as the page scrolls
     setInterval(() => { if (!document.hidden && sheet.hidden) place(); }, 1500);
   };
