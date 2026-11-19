@@ -312,7 +312,7 @@ function drawSupportList() {
 }
 function drawSupportTicket() {
   const ticket=supportOpen, wrap=node('div',null,'wh-sup');
-  wrap.append(button('← All tickets',()=>{ supportOpen=null; redrawSupport(); },'wh-sup-back'));
+  wrap.append(button('← All tickets',()=>{ supportOpen=null; redrawSupport(); },'clay-button wh-sup-back'));
   const head=node('section',null,'clay-card wh-sup-head');
   const title=node('div',null,'wh-meta');
   title.append(node('h2',ticket.subject),chip(supportStatus[ticket.status] || ticket.status));
@@ -320,7 +320,7 @@ function drawSupportTicket() {
   wrap.append(head);
   if (ticket.order) {
     const order=node('section',null,'clay-card wh-sup-order');
-    order.append(node('h3','Order '+ticket.order.number),chip(ticket.order.status));
+    order.append(node('h3','Order '+ticket.order.number),chip(window.PrintBeeStatus?.model?PrintBeeStatus.label(ticket.order.status):ticket.order.status.replace(/_/g,' ').replace(/^./,letter=>letter.toUpperCase())));
     const files=node('ul',null,'wh-sup-files');
     for (const file of ticket.order.files) {
       const row=node('li'), options=[file.pages!=null?file.pages+' pages':'',file.copies!=null?file.copies+(file.copies===1?' copy':' copies'):'',

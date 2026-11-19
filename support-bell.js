@@ -30,6 +30,7 @@
   .support-bell-item .dot svg { width: 18px; height: 18px; }
   .support-bell-item small { display: block; font-weight: 600; color: var(--hv-muted, #6e5e3e); }
   .support-bell-empty { margin: 8px 6px 14px; color: var(--hv-muted, #6e5e3e); }
+  @media (max-width: 560px) { .support-bell-panel { position: fixed; left: 12px; right: 12px; top: 76px; width: auto; max-height: calc(100vh - 160px); } }
   .support-bell-foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 10px; }
   .support-bell-foot a, .support-bell-foot button { border: 0; background: none; padding: 8px 10px; border-radius: 999px; cursor: pointer; font: 800 13px Manrope, system-ui, sans-serif; color: var(--hv-honey-ink, #7a5208); text-decoration: none; }
   .support-bell-foot button:disabled { opacity: .45; cursor: default; }`;

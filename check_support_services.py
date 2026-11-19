@@ -77,5 +77,7 @@ def check_email(address):
 
 
 if __name__ == "__main__":
+    print("OWNER ALERTS: " + ("PRINTBEE_OWNER_EMAIL is set, urgent / escalated / overdue tickets are emailed there."
+                              if os.environ.get("PRINTBEE_OWNER_EMAIL") else "PRINTBEE_OWNER_EMAIL is not set, so no owner alert emails are sent."))
     results = [check_storage(), check_email(sys.argv[1] if len(sys.argv) > 1 else None)]
     raise SystemExit(1 if False in results else 0)

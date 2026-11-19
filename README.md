@@ -230,6 +230,35 @@ broken page. The email never contains the reply itself; customers sign in and
 read it on the site. To check mail and storage settings before relying on them,
 run `python check_support_services.py you@example.com`.
 
+### Owner alerts for support tickets
+
+Set `PRINTBEE_OWNER_EMAIL` to the address that should hear about problems. With SMTP and
+`PRINTBEE_ORIGIN` configured, the owner is emailed straight away when a ticket is **urgent**
+(including every Bee Runner safety report) or when **Buzz escalates** a ticket, and by the
+scheduled worker when a ticket has had **no staff reply** for longer than the limit (default
+4 hours; change it in Admin > Support > Saved replies and response alerts). The email names the
+ticket and the reason and links to it; it never quotes the conversation. Each ticket triggers
+each kind of alert once. Without `PRINTBEE_OWNER_EMAIL` nothing is sent, but the in-app bell in
+the admin portal still shows new, urgent and replied tickets.
+
+### Support, who sees what
+
+- **Customers** see their own tickets, replies from "PrintBee Support" and a bell with unread
+  updates. Notifications only say what happened to a ticket number.
+- **Admins** see every ticket (and internal notes, which customers never see), the order panel
+  (status, Bee Runner, invoice, delivery code state but never the code), saved replies and the
+  first-response time of each ticket.
+- **Warehouse staff** see only tickets assigned to them and print quality tickets, with the
+  order's print options and a reply box. No phone numbers, customer emails, addresses or
+  internal notes.
+- **Bee Runners** can report a problem on their own active delivery (customer not answering,
+  wrong address, pickup problem, safety issue). It becomes an admin ticket with a Runner badge;
+  safety reports are urgent automatically. Customers never see runner reports.
+- **Buzz** (the chatbot, not built yet) uses `support.create_buzz_ticket(...)`,
+  `support.buzz_find_tickets(db, customer_email)` and `support.buzz_get_ticket(db, customer_email, id)`.
+  The email must come from the signed-in customer's session, never from chat text; these functions
+  can only return that customer's own tickets and never internal notes.
+
 The admin may cancel an unprinted local test order or request a full refund
 on an unprinted captured Razorpay order. A refund request pauses fulfilment
 and uses a stable receipt reference. Configure the HTTPS Razorpay webhook to
