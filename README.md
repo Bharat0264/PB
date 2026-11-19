@@ -271,17 +271,17 @@ Buzz answers FAQs, prices, upload help and order questions, and drafts support t
 support tickets (`support.create_buzz_ticket`, `buzz_find_tickets`, `buzz_get_ticket`); there is no separate tickets table.
 
 - Routes: `POST /api/support/chat` (a message, or `action: "confirm"` / `"human"`) and `POST /api/support/chat/feedback`.
-- Provider switch: `PRINTBEE_SUPPORT_PROVIDER` = `mock` (the default) | `gemini` | `anthropic`. All model calls go through one
-  small adapter (`buzz_providers.py`), so the tools, guardrails and tests are the same on both providers.
-  - Gemini: `GEMINI_API_KEY` and `PRINTBEE_GEMINI_MODEL` (default `gemini-2.5-flash-lite`). Optional
-    `PRINTBEE_GEMINI_PRICE_INPUT` / `PRINTBEE_GEMINI_PRICE_OUTPUT` (US dollars per million tokens) for the daily cost cap.
-  - Claude: `ANTHROPIC_API_KEY` and `PRINTBEE_SUPPORT_MODEL` (default `claude-haiku-5-5`).
-  - Keys are read only from the environment on the server. They are never logged and never sent to the browser. A provider
-    without its key (or an unknown name) falls back to `mock`.
-- Other settings: `PRINTBEE_CHAT_DAILY_CAP_USD` (default 5), `PRINTBEE_CHAT_RETENTION_DAYS` (default 30),
-  `PRINTBEE_BUZZ_MOCK=1` to force `mock` whatever the provider setting says.
+- Environment (the provider settings are only these three):
+  - `PRINTBEE_SUPPORT_PROVIDER` = `mock` (the default) or `gemini`. `gemini` without `GEMINI_API_KEY`, or any other value
+    (for example the removed `anthropic`), falls back to `mock` and writes one warning to the log.
+  - `GEMINI_API_KEY`: your Google AI Studio key. Read only from the environment on the server, never logged, never sent to the browser.
+  - `PRINTBEE_GEMINI_MODEL`: the model name (default `gemini-3.5-flash-lite`). Check which names your key can use in Google AI Studio
+    (https://aistudio.google.com) or on https://ai.google.dev/gemini-api/docs/models.
+  - All model calls go through one small adapter (`buzz_providers.py`), so the tools and guardrails live in our own code.
+- Limits (not provider settings): `PRINTBEE_CHAT_DAILY_CAP_USD` (default 5), `PRINTBEE_CHAT_RETENTION_DAYS` (default 30),
+  and `PRINTBEE_BUZZ_MOCK=1` to force `mock` whatever the provider setting says.
 - `mock` mode: canned answers built from the same live pricing, FAQ and order data, no model and no outside call.
-- Data minimisation (every provider, and essential on Gemini's free tier, which may use what it is sent): the model only
+- Data minimisation (essential on Gemini's free tier, which may use what it is sent): the model only
   sees order numbers, statuses, timelines, ETAs and ticket numbers. It never sees names, emails, phone numbers, addresses,
   payment ids, file names, amounts or order keys. What a customer types is redacted (emails, UPI ids, phone and card-like
   numbers, payment ids, file names, order keys, delivery codes) before the model call and before it is stored. Tickets are

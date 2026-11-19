@@ -1,14 +1,14 @@
-"""Tests for Buzz, the support chatbot backend (buzz.py). No real model is ever called: a scripted fake stands in for Claude."""
+"""Tests for Buzz, the support chatbot backend (buzz.py). No real model is ever called: a scripted fake provider stands in for Gemini."""
 
 import json
 import os
 import sqlite3
 import time
 import unittest
-from types import SimpleNamespace
 from unittest import mock
 
 import buzz
+import buzz_providers
 import support
 from checkout_terms import bill_for, validate_terms
 from order_rules import quote_items
@@ -25,34 +25,38 @@ def terms(**extra):
 
 
 def text_block(text):
-    return SimpleNamespace(type="text", text=text)
+    return ("text", text)
 
 
 def tool_block(name, args, ident="tool_1"):
-    return SimpleNamespace(type="tool_use", name=name, input=args, id=ident)
+    return ("tool", name, args, ident)
 
 
 def reply(*blocks, stop="end_turn", tokens=(100, 40)):
-    return SimpleNamespace(stop_reason=stop, content=list(blocks), usage=SimpleNamespace(input_tokens=tokens[0], output_tokens=tokens[1]))
+    """One scripted model answer: some text and/or tool calls, and the tokens it 'used'."""
+    return buzz_providers.Turn(text=" ".join(block[1] for block in blocks if block[0] == "text"),
+                               calls=[{"id": block[3], "name": block[1], "args": block[2]} for block in blocks if block[0] == "tool"],
+                               input_tokens=tokens[0], output_tokens=tokens[1])
 
 
-class FakeModel:
-    """Plays back scripted responses and records what the server sent."""
+class FakeModel(buzz_providers.Provider):
+    """A provider that plays back scripted answers and records exactly what Buzz sent it."""
+    name = "fake"
+    price_input, price_output = 0.10, 0.50          # US dollars per million tokens (so the cost-cap sums are easy to follow)
 
     def __init__(self, *responses):
         self.responses = list(responses)
         self.calls = []
-        self.messages = self
 
-    def create(self, **kwargs):
-        self.calls.append(kwargs)
+    def generate(self, system, messages, tools, max_tokens):
+        self.calls.append({"system": system, "messages": json.loads(json.dumps(messages, default=str)), "tools": tools})
         return self.responses.pop(0)
 
 
 class Base(unittest.TestCase):
     def setUp(self):
-        self.env = mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key-not-real", "PRINTBEE_BUZZ_MOCK": "", "PRINTBEE_SUPPORT_PROVIDER": "anthropic",
-                                                "GEMINI_API_KEY": "", "PRINTBEE_CHAT_DAILY_CAP_USD": "5"})
+        self.env = mock.patch.dict(os.environ, {"GEMINI_API_KEY": "test-key-not-real", "PRINTBEE_BUZZ_MOCK": "", "PRINTBEE_SUPPORT_PROVIDER": "gemini",
+                                                "PRINTBEE_CHAT_DAILY_CAP_USD": "5"})
         self.env.start()
         self.addCleanup(self.env.stop)
         self.db = sqlite3.connect(":memory:")
@@ -84,7 +88,7 @@ class Base(unittest.TestCase):
         """Chat through a scripted fake model. In offline (mock) mode, with nothing scripted, Buzz answers from its own tools."""
         if model is None and buzz.mock_mode():
             return buzz.chat(caller, {"message": text, **extra})
-        return buzz.chat(caller, {"message": text, **extra}, client=model or FakeModel(reply(text_block("Hi from Buzz!"))))
+        return buzz.chat(caller, {"message": text, **extra}, provider=model or FakeModel(reply(text_block("Hi from Buzz!"))))
 
 
 class DataBoundaries(Base):
@@ -111,7 +115,7 @@ class DataBoundaries(Base):
             reply(tool_block("get_my_ticket", {"ticket_number": f"SP-{self.b_ticket:05d}"}), stop="tool_use"),
             reply(text_block("I could not find that ticket on your account.")))
         out = self.say(self.caller(), "what is the status of SP-00001?", script)
-        sent = json.dumps(script.calls[1]["messages"][-1]["content"], default=str)
+        sent = json.dumps(script.calls[1]["messages"][-1], default=str)
         self.assertNotIn("Bob private issue", sent)
         self.assertNotIn("Bob private issue", json.dumps(out))
 
@@ -191,7 +195,7 @@ class Pricing(Base):
         self.assertIn("error", buzz.estimate_price(self.terms, pages=5, copies=1, colour=False, duplex=False, paper="A9", binding="none"))
 
     def test_the_offline_answer_uses_the_same_numbers(self):
-        with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": ""}):
+        with mock.patch.dict(os.environ, {"GEMINI_API_KEY": ""}):
             out = self.say(self.caller(), "how much for 10 pages black and white")
         expected = buzz.estimate_price(self.terms, 10, 1, False, False, "A4", "none")["estimated_total"]
         self.assertIn(f"Rs {expected:g}", out["reply"])
@@ -235,7 +239,7 @@ class Guardrails(Base):
         self.assertEqual(script.calls[0]["messages"][0]["role"], "user")
 
     def test_per_user_and_per_ip_rate_limits(self):
-        with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": ""}):
+        with mock.patch.dict(os.environ, {"GEMINI_API_KEY": ""}):
             caller = self.caller()
             for _ in range(support.LIMITS["chat"][0][0]):
                 self.say(caller, "hello")
@@ -260,17 +264,16 @@ class Guardrails(Base):
             self.assertGreaterEqual(buzz._spent(self.db), 100)
 
     def test_a_failing_model_never_shows_details_or_crashes(self):
-        class Broken:
-            messages = None
+        class Broken(buzz_providers.Provider):
+            name = "broken"
 
-            def create(self, **kwargs):
-                raise RuntimeError("secret internal stack trace sk-ant-xyz")
+            def generate(self, system, messages, tools, max_tokens):
+                raise RuntimeError("secret internal stack trace AIza-xyz")
 
-        broken = Broken()
-        broken.messages = broken
-        out = self.say(self.caller(), "hello", broken)
+        out = self.say(self.caller(), "hello", Broken())
         self.assertEqual(out["reply"], buzz.FALLBACK)
-        self.assertNotIn("sk-ant", json.dumps(out))
+        self.assertTrue(out["offerTicket"])
+        self.assertNotIn("AIza", json.dumps(out))
 
     def test_chats_are_deleted_after_the_retention_period(self):
         out = self.say(self.caller(), "hello")
@@ -377,7 +380,7 @@ class Tickets(Base):
 
 class OfflineMode(Base):
     def test_works_without_an_api_key_and_never_pretends_to_know_unconfirmed_facts(self):
-        with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": ""}):
+        with mock.patch.dict(os.environ, {"GEMINI_API_KEY": ""}):
             self.assertTrue(buzz.mock_mode())
             out = self.say(self.caller(), "how long does delivery take on campus?")
             self.assertIn("not sure", out["reply"].lower())
@@ -414,7 +417,7 @@ class OfflineMode(Base):
         self.assertIn("9347541419", contact["text"])
         self.assertNotIn("TODO", contact["text"])
         self.assertIn("Support hours", contact["not_confirmed"])
-        with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": ""}):
+        with mock.patch.dict(os.environ, {"GEMINI_API_KEY": ""}):
             for question, phrase in (("how long does delivery take on campus?", "not sure"), ("what are your support hours?", "not sure"),
                                      ("how do i join as a bee runner", "not sure")):
                 self.assertIn(phrase, self.say(self.caller(), question)["reply"].lower(), question)
@@ -429,7 +432,7 @@ class OfflineMode(Base):
 class BuzzOverHttp(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.server = Server(extra={"ANTHROPIC_API_KEY": ""})
+        cls.server = Server(extra={"GEMINI_API_KEY": ""})
 
     @classmethod
     def tearDownClass(cls):

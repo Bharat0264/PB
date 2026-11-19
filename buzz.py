@@ -9,9 +9,11 @@ Safety model (read this before changing anything):
   * The model never creates a ticket. It can only write a DRAFT. The customer presses Confirm, which calls confirm_ticket.
     A confirmed draft is consumed, so a double click returns the same ticket instead of creating two.
   * Delivery codes are never given to the model, and every reply is scrubbed of the customer's active codes as well.
-  * What people type is redacted (emails, phone and card-like numbers, codes) before it is sent to the model or stored.
+  * What people type is redacted (emails, phone and card-like numbers, payment ids, file names, codes) before it is sent to
+    the model or stored, and the model only ever sees order numbers, statuses, timelines, ETAs and ticket numbers.
   * Limits: per user and per IP rate limit, message and reply length caps, 10 turns of history, a daily cost cap.
-With no ANTHROPIC_API_KEY (or PRINTBEE_BUZZ_MOCK=1) Buzz answers from the same tools with canned wording, so the UI works offline.
+PRINTBEE_SUPPORT_PROVIDER is mock (the default) or gemini. In mock mode (or with PRINTBEE_BUZZ_MOCK=1, or Gemini without its key)
+Buzz answers from the same tools with canned wording, so the UI works offline.
 """
 
 import hashlib
@@ -65,9 +67,6 @@ MAX_HISTORY_MESSAGES = 20          # about 10 turns
 MAX_SESSION_MESSAGES = 80
 MAX_TOOL_ROUNDS = 4
 MAX_OUTPUT_TOKENS = 500
-DEFAULT_MODEL = "claude-haiku-5-5"
-# Claude Haiku 5.5: $0.10 per million input tokens, $0.50 per million output tokens (one micro-dollar per token per $1/M).
-PRICE_INPUT, PRICE_OUTPUT = 0.10, 0.50
 DEFAULT_DAILY_CAP_USD = 5.0
 DEFAULT_RETENTION_DAYS = 30
 
@@ -78,37 +77,40 @@ class BuzzError(support.SupportError):
 
 # ---- settings ---------------------------------------------------------------------------------------------
 
-def api_key():
-    return os.environ.get("ANTHROPIC_API_KEY", "").strip()
-
-
 def gemini_key():
     return os.environ.get("GEMINI_API_KEY", "").strip()
 
 
-PROVIDERS = ("mock", "gemini", "anthropic")
-DEFAULT_GEMINI_MODEL = "gemini-2.5-flash-lite"
+PROVIDERS = ("mock", "gemini")
+# Check the current model names in Google AI Studio (https://aistudio.google.com) or https://ai.google.dev/gemini-api/docs/models
+DEFAULT_GEMINI_MODEL = "gemini-3.5-flash-lite"
+_WARNED = set()
+
+
+def _warn_once(message):
+    """One clear line in the log per problem (never a secret: it only names the setting and the provider value)."""
+    if message not in _WARNED:
+        _WARNED.add(message)
+        print("buzz: " + message, flush=True)
 
 
 def provider_name():
-    """Which provider answers: PRINTBEE_SUPPORT_PROVIDER = mock | gemini | anthropic (default mock). A provider without its key,
-    or an unknown name, falls back to mock so the chat still works; PRINTBEE_BUZZ_MOCK=1 forces mock."""
+    """Which provider answers: PRINTBEE_SUPPORT_PROVIDER = mock | gemini (default mock). Gemini without GEMINI_API_KEY, or any
+    other value, falls back to mock with one warning in the log, so the chat still works. PRINTBEE_BUZZ_MOCK=1 forces mock."""
     if os.environ.get("PRINTBEE_BUZZ_MOCK") == "1":
         return "mock"
-    chosen = os.environ.get("PRINTBEE_SUPPORT_PROVIDER", "mock").strip().lower()
-    if chosen == "anthropic" and api_key():
-        return "anthropic"
-    if chosen == "gemini" and gemini_key():
-        return "gemini"
+    chosen = os.environ.get("PRINTBEE_SUPPORT_PROVIDER", "").strip().lower() or "mock"
+    if chosen == "gemini":
+        if gemini_key():
+            return "gemini"
+        _warn_once("PRINTBEE_SUPPORT_PROVIDER is gemini but GEMINI_API_KEY is not set, so Buzz is using mock mode.")
+    elif chosen != "mock":
+        _warn_once(f"PRINTBEE_SUPPORT_PROVIDER is {chosen[:30]!r}, which is not supported (use mock or gemini), so Buzz is using mock mode.")
     return "mock"
 
 
 def mock_mode():
     return provider_name() == "mock"
-
-
-def model_name():
-    return os.environ.get("PRINTBEE_SUPPORT_MODEL", "").strip() or DEFAULT_MODEL
 
 
 def gemini_model():
@@ -117,13 +119,8 @@ def gemini_model():
 
 def make_provider():
     """The configured provider, or None for mock mode (canned answers, no model)."""
-    name = provider_name()
-    if name == "anthropic":
-        return buzz_providers.AnthropicProvider(model_name(), api_key=api_key())
-    if name == "gemini":
-        return buzz_providers.GeminiProvider(gemini_model(), gemini_key(),
-                                             price_input=_number("PRINTBEE_GEMINI_PRICE_INPUT", buzz_providers.GeminiProvider.price_input, 0, 1000),
-                                             price_output=_number("PRINTBEE_GEMINI_PRICE_OUTPUT", buzz_providers.GeminiProvider.price_output, 0, 1000))
+    if provider_name() == "gemini":
+        return buzz_providers.GeminiProvider(gemini_model(), gemini_key())
     return None
 
 
@@ -446,30 +443,30 @@ def public_draft(draft):
 TOOLS = [
     {"name": "search_faq", "description": "Look up PrintBee help topics (how it works, files, delivery, refunds, OTP, contact). Returns topics, some may be unconfirmed.",
      "input_schema": {"type": "object", "properties": {"query": {"type": "string", "description": "What the customer asked, in a few English keywords"}},
-                      "required": ["query"], "additionalProperties": False}, "strict": True},
+                      "required": ["query"]}},
     {"name": "get_pricing", "description": "Live PrintBee prices per page, binding and fees. Never quote prices without calling this or estimate_price.",
-     "input_schema": {"type": "object", "properties": {}, "additionalProperties": False}, "strict": True},
+     "input_schema": {"type": "object", "properties": {}}},
     {"name": "estimate_price", "description": "Estimate the cost of printing a document with the live pricing.",
      "input_schema": {"type": "object", "properties": {
          "pages": {"type": "integer", "description": "Pages in the document, 1-10000"}, "copies": {"type": "integer", "description": "Copies, 1-100"},
          "colour": {"type": "boolean"}, "duplex": {"type": "boolean", "description": "Double sided"},
          "paper": {"type": "string", "description": "A4, A3 or A5"}, "binding": {"type": "string", "description": "none or a binding name from get_pricing"}},
-         "required": ["pages", "copies", "colour", "duplex", "paper", "binding"], "additionalProperties": False}, "strict": True},
+         "required": ["pages", "copies", "colour", "duplex", "paper", "binding"]}},
     {"name": "get_my_orders", "description": "The signed-in customer's own recent orders with status, timeline and ETA. Read only.",
-     "input_schema": {"type": "object", "properties": {}, "additionalProperties": False}, "strict": True},
+     "input_schema": {"type": "object", "properties": {}}},
     {"name": "get_my_tickets", "description": "The signed-in customer's own support tickets (status only).",
      "input_schema": {"type": "object", "properties": {"query": {"type": "string", "description": "Optional word from the subject, or a ticket number"},
                                                        "status": {"type": "string", "description": "active, open, in_progress, pending, resolved, closed, or empty for all"}},
-                      "required": [], "additionalProperties": False}, "strict": True},
+                      "required": []}},
     {"name": "get_my_ticket", "description": "One of the signed-in customer's own tickets by number, with the last few messages.",
-     "input_schema": {"type": "object", "properties": {"ticket_number": {"type": "string"}}, "required": ["ticket_number"], "additionalProperties": False}, "strict": True},
+     "input_schema": {"type": "object", "properties": {"ticket_number": {"type": "string"}}, "required": ["ticket_number"]}},
     {"name": "draft_ticket", "description": "Write a support ticket DRAFT for the customer to confirm. This does not create the ticket.",
      "input_schema": {"type": "object", "properties": {
          "category": {"type": "string", "description": "order (payment/refund/account of an order), delivery (Bee Runner or late order), print_quality, account, other"},
          "order_number": {"type": "string", "description": "The customer's order number, if the issue is about an order"},
          "subject": {"type": "string"}, "message": {"type": "string", "description": "In the customer's voice, first person, facts only"},
          "summary": {"type": "string", "description": "One neutral line for staff"}, "escalate": {"type": "boolean", "description": "True only if urgent or a safety matter"}},
-         "required": ["category", "subject", "message", "summary", "escalate"], "additionalProperties": False}, "strict": True},
+         "required": ["category", "subject", "message", "summary", "escalate"]}},
 ]
 
 
@@ -574,7 +571,7 @@ def _spent(db):
     return row["micro_usd"] if row else 0
 
 
-def _add_usage(db, input_tokens, output_tokens, price_input=PRICE_INPUT, price_output=PRICE_OUTPUT):
+def _add_usage(db, input_tokens, output_tokens, price_input, price_output):
     micro = int(input_tokens * price_input + output_tokens * price_output + 0.999)
     day = time.strftime("%Y-%m-%d", time.gmtime())
     db.execute("INSERT OR IGNORE INTO chat_usage(day, micro_usd, calls) VALUES (?,0,0)", (day,))
@@ -583,7 +580,7 @@ def _add_usage(db, input_tokens, output_tokens, price_input=PRICE_INPUT, price_o
 
 def tidy_reply(text, hide=()):
     """Last gate on every reply: no leaked prompt, no delivery code, no markdown noise, a hard length cap."""
-    if "[[buzz-internal]]" in text or "strict: true" in text:
+    if "[[buzz-internal]]" in text:
         return REFUSAL
     text = re.sub(r"[*_`#]{1,3}", "", text).strip()
     for code in hide:
@@ -749,9 +746,9 @@ def guest_order_check(caller, raw_text):
             "note": f"The app checked the guest's order: {order['order_number']} is {order['status_label']}. {order['what_it_means']}"}
 
 
-def chat(caller, body, client=None, provider=None):
+def chat(caller, body, provider=None):
     """One customer message in, one reply out. `body` is the parsed JSON from the browser.
-    `provider` (or an Anthropic-style `client`) is only passed in by tests; the server uses PRINTBEE_SUPPORT_PROVIDER."""
+    `provider` is only passed in by tests; the server uses PRINTBEE_SUPPORT_PROVIDER."""
     db = caller.db
     if not isinstance(body, dict):
         raise BuzzError("Type a message for Buzz.")
@@ -762,8 +759,8 @@ def chat(caller, body, client=None, provider=None):
     caller.session_id = session["id"]
     if db.execute("SELECT count(*) FROM chat_messages WHERE session_id=?", (session["id"],)).fetchone()[0] >= MAX_SESSION_MESSAGES:
         raise BuzzError("This chat has gotten long. Please start a new one, or use Talk to a human.")
-    active = provider or (buzz_providers.AnthropicProvider(model_name(), client=client) if client else make_provider())
-    hide = caller.active_codes() + [key for key in (api_key(), gemini_key()) if key]      # delivery codes, and our own API keys
+    active = provider or make_provider()
+    hide = caller.active_codes() + [key for key in (gemini_key(),) if key]                # delivery codes, and our own API key
     safe = redact(text, hide)
     guest = guest_order_check(caller, text)
     number, hint = _order_hint(caller, body.get("orderNumber") if isinstance(body.get("orderNumber"), str) else None)

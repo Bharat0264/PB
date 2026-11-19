@@ -1,4 +1,4 @@
-"""Buzz provider switch: mock | gemini | anthropic behind one adapter, and what each provider is (and is not) allowed to see.
+"""Buzz provider switch: mock | gemini behind one adapter, and what the model is (and is not) allowed to see.
 No real model or network is used: fakes record exactly what would have been sent."""
 
 import contextlib
@@ -240,11 +240,15 @@ class GeminiAdapter(Personal):
 
 class ProviderChoice(tb.Base):
     def with_env(self, **values):
-        base = {"PRINTBEE_SUPPORT_PROVIDER": "", "ANTHROPIC_API_KEY": "", "GEMINI_API_KEY": "", "PRINTBEE_BUZZ_MOCK": ""}
+        base = {"PRINTBEE_SUPPORT_PROVIDER": "", "GEMINI_API_KEY": "", "PRINTBEE_BUZZ_MOCK": ""}
         return mock.patch.dict(os.environ, {**base, **values})
 
+    def setUp(self):
+        super().setUp()
+        buzz._WARNED.clear()            # each test starts with no warning logged yet
+
     def test_the_default_is_mock_even_when_a_key_exists(self):
-        with self.with_env(ANTHROPIC_API_KEY="k", GEMINI_API_KEY="g", PRINTBEE_SUPPORT_PROVIDER=""):
+        with self.with_env(GEMINI_API_KEY="g", PRINTBEE_SUPPORT_PROVIDER=""):
             self.assertEqual(buzz.provider_name(), "mock")
             self.assertIsNone(buzz.make_provider())
             out = buzz.chat(self.caller(), {"message": "how much for 10 pages?"})      # nothing is called: there is no client to call
@@ -254,31 +258,75 @@ class ProviderChoice(tb.Base):
     def test_choosing_a_provider_needs_its_key(self):
         with self.with_env(PRINTBEE_SUPPORT_PROVIDER="gemini"):
             self.assertEqual(buzz.provider_name(), "mock")
-        with self.with_env(PRINTBEE_SUPPORT_PROVIDER="anthropic"):
-            self.assertEqual(buzz.provider_name(), "mock")
-        with self.with_env(PRINTBEE_SUPPORT_PROVIDER="gemini", GEMINI_API_KEY="g", PRINTBEE_GEMINI_MODEL="gemini-x"):
+        with self.with_env(PRINTBEE_SUPPORT_PROVIDER="gemini", GEMINI_API_KEY="g"):
             self.assertEqual(buzz.provider_name(), "gemini")
             provider = buzz.make_provider()
             self.assertIsInstance(provider, buzz_providers.GeminiProvider)
-            self.assertEqual(provider.model, "gemini-x")
-        with self.with_env(PRINTBEE_SUPPORT_PROVIDER=" Anthropic ", ANTHROPIC_API_KEY="k", PRINTBEE_SUPPORT_MODEL="claude-test"):
-            self.assertEqual(buzz.provider_name(), "anthropic")
-            self.assertEqual(buzz.make_provider().model, "claude-test")
-        with self.with_env(PRINTBEE_SUPPORT_PROVIDER="openai", ANTHROPIC_API_KEY="k", GEMINI_API_KEY="g"):
+            self.assertEqual(provider.model, buzz.DEFAULT_GEMINI_MODEL)
+        with self.with_env(PRINTBEE_SUPPORT_PROVIDER=" Gemini ", GEMINI_API_KEY="g", PRINTBEE_GEMINI_MODEL="gemini-x"):
+            self.assertEqual(buzz.make_provider().model, "gemini-x")
+        with self.with_env(PRINTBEE_SUPPORT_PROVIDER="mock", GEMINI_API_KEY="g"):
             self.assertEqual(buzz.provider_name(), "mock")
         with self.with_env(PRINTBEE_SUPPORT_PROVIDER="gemini", GEMINI_API_KEY="g", PRINTBEE_BUZZ_MOCK="1"):
             self.assertEqual(buzz.provider_name(), "mock")
 
-    def test_gemini_prices_can_be_set_in_the_environment(self):
-        with self.with_env(PRINTBEE_SUPPORT_PROVIDER="gemini", GEMINI_API_KEY="g", PRINTBEE_GEMINI_PRICE_INPUT="0.1", PRINTBEE_GEMINI_PRICE_OUTPUT="0.4"):
-            provider = buzz.make_provider()
-            self.assertEqual((provider.price_input, provider.price_output), (0.1, 0.4))
+    def test_the_default_gemini_model_is_a_current_one_not_the_limited_2_5(self):
+        self.assertEqual(buzz.DEFAULT_GEMINI_MODEL, "gemini-3.5-flash-lite")
+        self.assertNotIn("2.5", buzz.DEFAULT_GEMINI_MODEL)
+        from pathlib import Path
+        self.assertIn("PRINTBEE_GEMINI_MODEL=gemini-3.5-flash-lite", (Path(__file__).resolve().parent / ".env.example").read_text(encoding="utf-8"))
+
+    def test_anthropic_or_an_unknown_provider_falls_back_to_mock_with_one_clear_warning(self):
+        for value in ("anthropic", "Anthropic", "openai", "gemni"):
+            buzz._WARNED.clear()
+            log = io.StringIO()
+            with self.with_env(PRINTBEE_SUPPORT_PROVIDER=value, GEMINI_API_KEY="g-secret-value"), contextlib.redirect_stdout(log):
+                for _ in range(3):                                   # asked again and again, it warns once
+                    self.assertEqual(buzz.provider_name(), "mock")
+                    self.assertIsNone(buzz.make_provider())
+                out = buzz.chat(self.caller(), {"message": "how much for 10 pages?"})
+            lines = [line for line in log.getvalue().splitlines() if line.startswith("buzz:")]
+            self.assertEqual(len(lines), 1, (value, lines))
+            self.assertIn("not supported (use mock or gemini)", lines[0])
+            self.assertIn("using mock mode", lines[0])
+            self.assertNotIn("g-secret-value", log.getvalue())
+            self.assertTrue(out["mock"])
+            self.assertIn("Rs", out["reply"])
+        buzz._WARNED.clear()
+        log = io.StringIO()
+        with self.with_env(PRINTBEE_SUPPORT_PROVIDER="gemini"), contextlib.redirect_stdout(log):          # Gemini with no key: also one warning
+            buzz.provider_name()
+            buzz.provider_name()
+        self.assertEqual(log.getvalue().count("GEMINI_API_KEY is not set"), 1)
+        buzz._WARNED.clear()
+        log = io.StringIO()
+        with self.with_env(PRINTBEE_SUPPORT_PROVIDER=""), contextlib.redirect_stdout(log):                  # the plain default is silent
+            buzz.provider_name()
+        self.assertEqual(log.getvalue(), "")
+
+    def test_the_claude_provider_is_gone_from_the_code_and_the_docs(self):
+        from pathlib import Path
+        root = Path(__file__).resolve().parent
+        self.assertFalse(hasattr(buzz_providers, "AnthropicProvider"))
+        for name in ("api_key", "model_name"):
+            self.assertFalse(hasattr(buzz, name), name)
+        self.assertEqual(buzz.PROVIDERS, ("mock", "gemini"))
+        for name in ("buzz.py", "buzz_providers.py", "requirements.txt", ".env.example", "Dockerfile", "buzz-chat.js"):
+            text = (root / name).read_text(encoding="utf-8").lower()
+            for word in ("anthropic_api_key", "printbee_support_model", "claude-", "import anthropic"):
+                self.assertNotIn(word, text, f"{word} in {name}")
+        self.assertNotIn("anthropic", (root / "requirements.txt").read_text(encoding="utf-8").lower())
+        readme = (root / "README.md").read_text(encoding="utf-8")
+        section = readme[readme.index("### Buzz, the support chatbot"):readme.index("## Connected portals")]
+        for word in ("ANTHROPIC_API_KEY", "PRINTBEE_SUPPORT_MODEL", "claude-"):
+            self.assertNotIn(word, section, word)
+        for name in ("PRINTBEE_SUPPORT_PROVIDER", "GEMINI_API_KEY", "PRINTBEE_GEMINI_MODEL"):
+            self.assertIn(name, section)
 
     def test_keys_are_only_read_from_the_environment_and_never_in_a_reply(self):
         import inspect
         source = inspect.getsource(buzz) + inspect.getsource(buzz_providers)
         self.assertEqual(source.count('"GEMINI_API_KEY"'), 1)
-        self.assertEqual(source.count('"ANTHROPIC_API_KEY"'), 1)
         with self.with_env(PRINTBEE_SUPPORT_PROVIDER="gemini", GEMINI_API_KEY=GEMINI_KEY):
             out = buzz.chat(self.caller(), {"message": "hello"}, provider=buzz_providers.GeminiProvider(
                 "m", GEMINI_KEY, post=FakeGemini(gem_text(f"my key is {GEMINI_KEY}"))))
@@ -293,29 +341,29 @@ class ProviderChoice(tb.Base):
         self.assertIn("AI assistant. Please don't share personal or payment details.", script.replace("\\'", "'"))
 
 
-class AnthropicStillWorks(Personal):
-    def test_the_claude_adapter_gets_the_same_minimised_data(self):
-        client = tb.FakeModel(tb.reply(tb.tool_block("get_my_orders", {}), stop="tool_use"), tb.reply(tb.text_block("Out for delivery.")))
-        buzz.chat(self.caller(), {"message": "where is my order?"}, client=client)
-        sent = json.dumps(client.calls, default=str)
+class GeminiMinimisation(Personal):
+    """The whole Gemini request, as it would go over the network, for a customer whose order and tickets hold personal details."""
+
+    def test_nothing_personal_is_in_any_gemini_request(self):
+        fake = FakeGemini(gem_call("get_my_orders", {}), gem_call("get_my_tickets", {}), gem_call("get_my_ticket", {"ticket_number": self.number}),
+                          gem_text("Your order is out for delivery."))
+        provider = buzz_providers.GeminiProvider("gemini-test-model", GEMINI_KEY, post=fake)
+        out = buzz.chat(self.caller(), {"message": "where is my order and my tickets? My mail is ann@example.test, I paid pay_AbCdEf123456 for thesis_final.pdf"},
+                        provider=provider)
+        self.assertEqual(out["reply"], "Your order is out for delivery.")
+        sent = fake.sent()
         for private in PERSONAL_IN_ORDER:
             self.assertNotIn(private, sent, private)
         self.assertIn("PB-1001", sent)
+        for field in ('"total_inr"', '"customer":', '"phone"', '"address"', '"payment"'):
+            self.assertNotIn(field, sent, field)
+        self.assertEqual(len(fake.requests), 4)
+        self.assertTrue(all(request["headers"]["x-goog-api-key"] == GEMINI_KEY for request in fake.requests))
 
-    def test_a_rate_limited_claude_offers_a_ticket(self):
-        class Limited:
-            messages = None
-
-            def create(self, **kwargs):
-                raise RuntimeError("429 rate_limit_error sk-ant-secret")
-
-        limited = Limited()
-        limited.messages = limited
-        log = io.StringIO()
-        with contextlib.redirect_stdout(log):
-            out = buzz.chat(self.caller(), {"message": "hello"}, client=limited)
+    def test_gemini_rate_limit_after_a_tool_call_still_ends_with_a_ticket_offer(self):
+        fake = FakeGemini(gem_call("get_my_orders", {}), buzz_providers.ProviderError("http 429"))
+        out = buzz.chat(self.caller(), {"message": "where is my order?"}, provider=buzz_providers.GeminiProvider("m", GEMINI_KEY, post=fake))
         self.assertEqual((out["reply"], out["offerTicket"], out["providerBusy"]), (buzz.FALLBACK, True, True))
-        self.assertNotIn("sk-ant", log.getvalue() + json.dumps(out))
 
 
 if __name__ == "__main__":

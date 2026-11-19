@@ -1,6 +1,6 @@
-"""The one small adapter between Buzz and the model providers (Claude and Gemini).
+"""The one small adapter between Buzz and its model provider (Gemini). Mock mode has no provider: Buzz answers on its own.
 
-Buzz keeps its conversation in a provider-neutral shape and each provider turns it into its own request:
+Buzz keeps its conversation in a provider-neutral shape and the provider turns it into its own request:
 
     {"role": "user", "text": "...", "note": "optional note from the app"}
     {"role": "assistant", "text": "...", "calls": [{"id", "name", "args"}], "raw": <what the provider sent, replayed as is>}
@@ -38,56 +38,6 @@ class Provider:
         raise NotImplementedError
 
 
-# ---- Claude ----------------------------------------------------------------------------------------------
-
-class AnthropicProvider(Provider):
-    name = "anthropic"
-    price_input, price_output = 0.10, 0.50          # Claude Haiku 5.5
-
-    def __init__(self, model, client=None, api_key=""):
-        self.model, self._client, self._key = model, client, api_key
-
-    def client(self):
-        if self._client is None:
-            import anthropic
-            self._client = anthropic.Anthropic(api_key=self._key, max_retries=1, timeout=25.0)
-        return self._client
-
-    @staticmethod
-    def _messages(messages):
-        out = []
-        for message in messages:
-            if message["role"] == "user":
-                if message.get("note"):
-                    content = [{"type": "text", "text": message["text"]},
-                               {"type": "text", "text": "[from the PrintBee app, not typed by the customer] " + message["note"]}]
-                else:
-                    content = message["text"]
-                out.append({"role": "user", "content": content})
-            elif message["role"] == "assistant":
-                out.append({"role": "assistant", "content": message["raw"] if message.get("raw") is not None else message["text"]})
-            else:
-                out.append({"role": "user", "content": [{"type": "tool_result", "tool_use_id": result["id"], "content": json.dumps(result["output"])}
-                                                        for result in message["results"]]})
-        return out
-
-    def generate(self, system, messages, tools, max_tokens):
-        try:
-            response = self.client().messages.create(model=self.model, max_tokens=max_tokens, system=system, tools=tools,
-                                                     messages=self._messages(messages), output_config={"effort": "low"})
-        except Exception as error:      # rate limit, outage, bad key, SDK missing: the caller only needs to know it failed
-            raise ProviderError(type(error).__name__) from None
-        usage = response.usage
-        turn = Turn(raw=response.content, input_tokens=getattr(usage, "input_tokens", 0), output_tokens=getattr(usage, "output_tokens", 0))
-        if response.stop_reason == "refusal":
-            turn.refused = True
-            return turn
-        turn.text = " ".join(block.text for block in response.content if block.type == "text").strip()
-        if response.stop_reason == "tool_use":
-            turn.calls = [{"id": block.id, "name": block.name, "args": block.input} for block in response.content if block.type == "tool_use"]
-        return turn
-
-
 # ---- Gemini (plain HTTPS, no extra package) ---------------------------------------------------------------
 
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
@@ -107,7 +57,7 @@ def http_post(url, headers, body, timeout=25):
 
 
 def _gemini_schema(node):
-    """Our tool schemas are written for Claude. Gemini takes the same shape minus a few keys."""
+    """Our tool schemas are plain JSON Schema. Gemini accepts the same shape minus a few keys, and no empty "required" list."""
     if isinstance(node, dict):
         return {key: _gemini_schema(value) for key, value in node.items() if key not in ("additionalProperties", "strict")
                 and not (key == "required" and value == [])}
@@ -118,14 +68,12 @@ def _gemini_schema(node):
 
 class GeminiProvider(Provider):
     name = "gemini"
-    price_input, price_output = 0.30, 2.50          # a cautious default; set the real prices in the environment
+    # US dollars per million tokens, for the daily cost cap: the published Gemini 3.5 Flash-Lite price. Free-tier use costs nothing, so the
+    # cap is conservative there; if you change the model, check the price on https://ai.google.dev/gemini-api/docs/pricing
+    price_input, price_output = 0.30, 2.50
 
-    def __init__(self, model, api_key, post=None, price_input=None, price_output=None):
+    def __init__(self, model, api_key, post=None):
         self.model, self._key, self._post = model, api_key, post or http_post
-        if price_input is not None:
-            self.price_input = price_input
-        if price_output is not None:
-            self.price_output = price_output
 
     @staticmethod
     def declarations(tools):
@@ -162,7 +110,7 @@ class GeminiProvider(Provider):
     def body(self, system, messages, tools, max_tokens):
         return {"systemInstruction": {"parts": [{"text": system}]}, "contents": self._contents(messages),
                 "tools": [{"functionDeclarations": self.declarations(tools)}],
-                "generationConfig": {"maxOutputTokens": max_tokens * 2}}      # thinking models spend part of this on thinking
+                "generationConfig": {"maxOutputTokens": max_tokens * 4}}      # thinking models spend part of this on thinking
 
     def generate(self, system, messages, tools, max_tokens):
         url = GEMINI_URL.format(model=self.model)
