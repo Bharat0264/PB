@@ -15,7 +15,7 @@ export const traffic = [];
 export const targets = {revenue: 0, orders: 0, satisfaction: 0};
 export const today = new Date();
 today.setHours(23, 59, 59, 999);
-export const info = {terms: null, paymentMode: 'disabled', pricingVersion: 0, finance: null, counts: {}};
+export const info = {terms: null, paymentMode: 'disabled', pricingVersion: 0, finance: null, counts: {}, attention: []};
 
 export async function api(path, data) {
   const post = data !== undefined;
@@ -80,6 +80,6 @@ export async function load() {
   warehouses.splice(0, warehouses.length, ...data.warehouses);
   payouts.splice(0, payouts.length, ...data.payouts);
   Object.assign(info, {terms: data.terms, paymentMode: data.paymentMode, pricingVersion: data.pricingVersion,
-    finance: data.finance, counts: data.counts, captured: data.captured, today: data.today});
+    finance: data.finance, counts: data.counts, attention: data.attention || [], captured: data.captured, today: data.today});
   return data;
 }

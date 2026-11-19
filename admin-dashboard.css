@@ -144,3 +144,10 @@ dialog::backdrop { background:#21180b7a }
 #editor-fields .offline-row legend { padding: 0 6px; font-weight: 750; }
 #editor-fields .offline-row button { justify-self: start; }
 #editor-fields .offline-row :is(input, select) { width: 100%; min-width: 0; }
+
+/* Needs attention: printers that are out of paper, low on toner or offline */
+.attention-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px }
+.attention-list li { padding: 10px 14px 10px 36px; border-radius: 14px; position: relative; font-weight: 600 }
+.attention-list li::before { content: ""; position: absolute; left: 14px; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 50% }
+.attention-bad { background: #fde7e4; color: #8a1f17 } .attention-bad::before { background: #d64535 }
+.attention-warn { background: #fff0c8; color: #6b4a00 } .attention-warn::before { background: #e6a817 }

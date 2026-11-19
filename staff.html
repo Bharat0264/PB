@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="/clay.css?v=1">
 <link rel="stylesheet" href="/warehouse.css?v=print-to-ready">
 <link rel="stylesheet" href="/hive-theme.css?v=soft-focus">
-<link rel="stylesheet" href="/warehouse-hive.css?v=settings-fit">
+<link rel="stylesheet" href="/warehouse-hive.css?v=fleet2">
 <script src="/hive-theme.js?v=sun-moon"></script>
 <style>
 /* There is one sign-in page (the welcome page). Portals never show their own sign-in card. */
@@ -22,7 +22,8 @@
 <script src="/status-model.js?v=1" defer></script>
 <script src="/live.js?v=1" defer></script>
 <script src="/portal-switch.js?v=1" defer></script>
-<script src="/warehouse.js?v=support2" defer></script>
+<script src="/warehouse-printers.js?v=fleet1" defer></script>
+<script src="/warehouse.js?v=fleet1" defer></script>
 </head>
 <body class="warehouse">
 <a class="wh-skip" href="#warehouse-main">Skip to warehouse</a>
@@ -56,6 +57,7 @@
         <div class="wh-indicators">
           <label class="wh-search"><span id="search-icon" aria-hidden="true"></span><span class="wh-sr">Search orders</span><input id="warehouse-search" type="search" placeholder="Search orders"><kbd aria-hidden="true">/</kbd></label>
           <span class="wh-chip wh-agent" id="agent-status"></span>
+          <button type="button" class="wh-chip wh-printer-alert" id="printer-alert" hidden></button>
           <span class="wh-today" id="today-count"></span>
           <button id="theme" type="button" class="wh-icon-button wh-floor-theme hv-switch" data-hive-toggle aria-label="Moon Hive" aria-pressed="false"></button>
           <button id="sound-toggle" type="button" class="wh-icon-button" aria-label="Order chime" aria-pressed="false"></button>
@@ -97,6 +99,10 @@
     <button type="submit" value="cancel" class="clay-button">Cancel</button>
     <button type="submit" value="print" class="clay-button wh-primary wh-print-slide" id="floor-print-slide" aria-describedby="floor-print-tip"><span aria-hidden="true">→</span> Slide to print</button>
   </form>
+</dialog>
+<dialog class="clay-card wh-dialog wh-psheet" id="warehouse-printer-sheet" aria-labelledby="psheet-title">
+  <div class="wh-psheet-head"><h2 id="psheet-title">Printer</h2><button type="button" class="wh-icon-button" id="psheet-close" aria-label="Close"></button></div>
+  <div id="psheet-body"></div>
 </dialog>
 <dialog class="clay-card wh-dialog wh-preview" id="warehouse-preview" aria-labelledby="preview-title">
   <div class="wh-station-head"><h2 id="preview-title">Preview</h2><form method="dialog"><button class="clay-button">Close</button></form></div>

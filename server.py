@@ -420,7 +420,7 @@ class PrintBee(SimpleHTTPRequestHandler):
             return self.json_response(200, {"mode": self.server.payment_mode, "terms": terms,
                                            "maps": self.server.maps, "pricingVersion": version})
         if not path.startswith("/api/"):
-            allowed = {"/welcome.html", "/welcome.css", "/index.html", "/studio.js", "/studio.css", "/clay.css", "/staff.html", "/staff.js", "/warehouse.css", "/warehouse.js", "/delivery-map.js",
+            allowed = {"/welcome.html", "/welcome.css", "/index.html", "/studio.js", "/studio.css", "/clay.css", "/staff.html", "/staff.js", "/warehouse.css", "/warehouse.js", "/warehouse-printers.js", "/delivery-map.js",
                        "/footer-wave.css", "/footer-wave.js",
                        "/hive-theme.css", "/hive-theme.js", "/customer-theme.css", "/admin-hive.css", "/admin-mobile.css", "/warehouse-hive.css", "/staff-dock.css", "/staff-dock.js",
                        "/partner.html", "/partner.css", "/partner.js", "/partner-sw.js", "/admin.html", "/admin-preview.html", "/admin-dashboard.css", "/admin-tokens.css",
@@ -1726,7 +1726,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                                         "terms": self.checkout_terms(db), "audit": history, "payouts": payouts,
                                         "today": admin_records.today_totals(db),
                                         "finance": finance.summary(db), "paymentMode": self.server.payment_mode,
-                                        "partners": partners,
+                                        "partners": partners, "attention": fleet.attention(db),
                                         "warehouses": admin_records.warehouse_directory(db),
                                         "pricingVersion": db.execute("SELECT COALESCE(max(id),0) FROM pricing_versions").fetchone()[0]})
 

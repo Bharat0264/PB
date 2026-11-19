@@ -110,6 +110,12 @@ function card(title, inner, size = '', extra = '') {
   return `<section class="card ${size}"><div class="card-head"><h2>${title}</h2>${extra}</div>${inner}</section>`;
 }
 
+function attentionCard() {      // printers that are out of paper, low on toner or offline (live data only; escaped like everything here)
+  const list = (live && source.info.attention) || [];
+  if (!list.length) return '';
+  return card('Needs attention', '<ul class="attention-list">' + list.map(item => `<li class="${item.level === 'bad' ? 'attention-bad' : 'attention-warn'}">${escape(item.text)}</li>`).join('') + '</ul>', 'full');
+}
+
 function kpis(items) {
   const values = metrics(items,orderWindowDays);
   const prior = metrics(orders.filter(o => o.date <= day(orderWindowDays) && o.date > day(orderWindowDays * 2)),orderWindowDays);
@@ -479,7 +485,7 @@ function render(animate = false) {
     case 'warehouses': widgets = live ? liveWarehouses() : directory('Warehouse directory', warehouses, warehouse =>
       `<span>${escape(warehouse.location)}</span><small>${escape(warehouse.email)}</small><a href="${escape(pickupMapUrl(warehouse.address))}" target="_blank" rel="noopener">Pickup on Google Maps</a>`); break;
     default:
-      widgets = kpis(items) + revenueChart(items) + breakdown('Orders by status',aggregate(items,'status'));
+      widgets = attentionCard() + kpis(items) + revenueChart(items) + breakdown('Orders by status',aggregate(items,'status'));
   }
   $('page-title').textContent = sections[route][0];
   $('page-description').hidden = route !== 'dashboard';

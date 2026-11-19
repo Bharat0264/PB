@@ -475,5 +475,97 @@ class HttpRoutes(unittest.TestCase):
         self.assertEqual(job["printer"], MONO)
 
 
+class Attention(unittest.TestCase):
+    def setUp(self):
+        self.db = make_db()
+        self.addCleanup(self.db.close)
+        scan(self.db)
+        self.mono = add(self.db, MONO, "Front")
+        self.colour = add(self.db, COLOUR, "Colour")
+        self.db.execute("INSERT INTO workstations VALUES ('print-agent', ?)", (NOW,))
+        report(self.db, **{MONO: "ready", COLOUR: "ready"})
+
+    def test_nothing_needs_attention_when_all_is_well(self):
+        self.assertEqual(fleet.attention(self.db, NOW), [])
+
+    def test_paper_out_toner_low_offline_and_error_are_listed(self):
+        report(self.db, **{MONO: "paper-out", COLOUR: "toner-low"})
+        texts = [a["text"] for a in fleet.attention(self.db, NOW)]
+        self.assertEqual(texts, ["Colour: Toner low", "Front: Out of paper"])
+        self.assertEqual({a["level"] for a in fleet.attention(self.db, NOW)}, {"attention", "bad"})
+        report(self.db, **{MONO: "offline", COLOUR: "error"})
+        self.assertEqual([a["text"] for a in fleet.attention(self.db, NOW)], ["Colour: Printer error", "Front: Printer is offline"])
+
+    def test_a_paused_printer_is_not_an_alert(self):
+        report(self.db, **{MONO: "offline"})
+        fleet.update_printer(self.db, self.mono, {"enabled": False}, "warehouse")
+        self.assertEqual(fleet.attention(self.db, NOW), [])
+
+    def test_a_silent_agent_is_one_alert_not_one_per_printer(self):
+        alerts = fleet.attention(self.db, NOW + 1000)
+        self.assertEqual(len(alerts), 1)
+        self.assertIn("print agent is offline", alerts[0]["text"])
+
+    def test_the_admin_and_the_printers_page_get_the_same_list(self):
+        report(self.db, **{MONO: "paper-out"})
+        self.assertEqual(fleet.fleet(self.db, NOW)["alerts"], fleet.attention(self.db, NOW))
+
+
+class PanelFiles(unittest.TestCase):
+    """The warehouse screens: wired in, served, and free of HTML injection."""
+    root = Path(__file__).parent
+
+    def read(self, name):
+        return (self.root / name).read_text(encoding="utf-8")
+
+    def test_the_new_script_is_wired_served_and_loads_before_warehouse_js(self):
+        html = self.read("staff.html")
+        self.assertLess(html.index("warehouse-printers.js"), html.index("/warehouse.js"))
+        self.assertIn('id="warehouse-printer-sheet"', html)
+        self.assertIn('id="printer-alert"', html)
+        self.assertIn('"/warehouse-printers.js"', self.read("server.py"))
+
+    def test_printer_text_is_never_put_in_as_html(self):
+        script = self.read("warehouse-printers.js")
+        self.assertNotIn("innerHTML", script)
+        self.assertNotIn("insertAdjacentHTML", script)
+        self.assertNotIn("outerHTML", script)
+        self.assertNotIn("document.write", script)
+        for line in self.read("warehouse.js").splitlines():
+            if "innerHTML" in line:
+                self.assertTrue("glyphs[name]" in line or "Export CSV" in line, line)      # the two older uses: fixed icon drawings, no printer text
+
+    def test_accessibility_and_motion_hooks(self):
+        script, css = self.read("warehouse-printers.js"), self.read("warehouse-hive.css")
+        for needle in ("role', 'status'", "role', 'alert'", "aria-label", "aria-current", "radio"):
+            self.assertIn(needle, script)
+        self.assertIn("prefers-reduced-motion", css[css.index("Printers: discovery"):])
+        self.assertIn("max-width: 600px", css[css.index("Printers: discovery"):])
+
+    def test_old_printer_screens_are_gone_from_warehouse_js(self):
+        js = self.read("warehouse.js")
+        for gone in ("function printerForm", "function renderPrinters", "function printerPicker", "demoPrinters"):
+            self.assertNotIn(gone, js)
+        self.assertIn("plan.blocked()", js)
+        self.assertIn("jobPrinterChips(job)", js)
+
+    def test_admin_dashboard_shows_needs_attention_escaped(self):
+        js = self.read("admin-dashboard.js")
+        self.assertIn("escape(item.text)", js)
+        self.assertIn("attention", self.read("admin-live-data.js"))
+
+    def test_javascript_files_parse(self):
+        import shutil
+        import subprocess
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node is not installed")
+        for name in ("warehouse.js", "warehouse-printers.js", "admin-dashboard.js", "admin-live-data.js"):
+            result = subprocess.run([node, "--check", str(self.root / name)], capture_output=True, text=True)
+            if name == "admin-dashboard.js" and result.returncode:        # an ES module: check it as one
+                result = subprocess.run([node, "--input-type=module", "--check"], input=self.read(name), capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, name + result.stderr[:300])
+
+
 if __name__ == "__main__":
     unittest.main()

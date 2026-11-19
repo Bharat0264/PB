@@ -384,6 +384,27 @@ def agent_status(db, now=None):
     return {"online": bool(seen and seen["seen"] > now - AGENT_ONLINE_SECONDS), "lastSeen": seen["seen"] if seen else None}
 
 
+ALERT_STATES = ("offline", "paper-out", "toner-low", "error")
+
+
+def attention(db, now=None):
+    """What needs a person: an approved printer that is out of paper, low on toner, offline or in error, and a print PC that has gone quiet while
+    printers are set up. Plain text only; the Printers page, the top bar chip and the admin 'Needs attention' card all read this one list."""
+    now = int(time.time()) if now is None else now
+    out = []
+    printers = db.execute("SELECT * FROM printers WHERE device_id IS NOT NULL ORDER BY name COLLATE NOCASE").fetchall()
+    if printers and not agent_status(db, now)["online"]:
+        out.append({"level": "bad", "printerId": None, "text": "The print agent is offline. Nothing will print until it is started."})
+    for printer in printers:
+        if not printer["enabled"]:
+            continue
+        state, reasons = effective_state(db, printer, now)
+        if state in ALERT_STATES and not (state == "offline" and reasons == ["agent-silent"] and out and out[0]["printerId"] is None):
+            out.append({"level": "attention" if state == "toner-low" else "bad", "printerId": printer["id"],
+                        "text": f"{printer['name']}: " + (REASON_TEXT.get(reasons[0] if reasons else state) or REASON_TEXT.get(state, "needs attention"))})
+    return out
+
+
 def fleet(db, now=None):
     """Everything the Printers page needs: saved printers (with live state), the latest scan, and the agent."""
     now = int(time.time()) if now is None else now
@@ -414,4 +435,4 @@ def fleet(db, now=None):
             "inventory": {"printers": found, "errors": _loads(inventory["errors"], []) if inventory else [],
                           "scannedAt": inventory["scanned_at"] if inventory else None,
                           "scanning": bool(inventory and inventory["scan_requested"] and now - inventory["scan_requested"] < SCAN_PENDING_SECONDS)},
-            "agent": agent_status(db, now)}
+            "agent": agent_status(db, now), "alerts": attention(db, now)}
