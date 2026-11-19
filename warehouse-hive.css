@@ -991,3 +991,14 @@ button.wh-mbrand { border: 0; cursor: pointer; -webkit-tap-highlight-color: tran
 .wh-pr-name .wh-chip { white-space: nowrap; }
 .wh-pr-tools { flex: 0 1 auto; }
 @media (max-width: 1100px) { .wh-pr-tools { flex: 1 1 100%; max-width: none; justify-content: flex-start; } }
+
+/* Support fits the page: the list and its empty state use the full width, and the empty state is a centred clay card */
+.wh-sup { max-width: none; width: 100%; box-sizing: border-box; }
+.wh-sup > .wh-empty { display: grid; justify-items: center; align-content: center; gap: 8px; min-height: min(46vh, 340px); padding: 32px 20px !important; text-align: center; border-radius: 32px;
+  background: linear-gradient(150deg, #fffdf6, #f7eed8); box-shadow: 10px 12px 26px #6e502826, -8px -8px 20px #fffdf6c0, inset -4px -5px 12px #a7742014, inset 4px 5px 12px #ffffffb3; }
+.wh-sup > .wh-empty svg { box-sizing: content-box; width: 30px; height: 30px; padding: 16px; border-radius: 50%; color: #8a5a00; background: linear-gradient(150deg, #fff6d8, #fbe3a0);
+  box-shadow: 6px 8px 16px #6e502830, -4px -4px 10px #fffdf6c0, inset -3px -4px 8px #a7742026, inset 3px 4px 8px #ffffffa0; }
+.wh-sup > .wh-empty h3 { margin: 10px 0 0; font-size: 21px; }
+.wh-sup > .wh-empty p { margin: 0; max-width: 420px; color: var(--hv-muted); }
+[data-theme="dark"] .wh-sup > .wh-empty { background: var(--hv-surface-2); box-shadow: var(--hv-sh-1); }
+[data-theme="dark"] .wh-sup > .wh-empty svg { background: var(--hv-surface-3); color: var(--hv-honey-500); box-shadow: none; }
