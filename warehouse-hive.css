@@ -817,6 +817,19 @@ button.wh-mbrand { border: 0; cursor: pointer; -webkit-tap-highlight-color: tran
 .wh-set-list .wh-set-label { grid-column: 1 / -1; }
 .wh-set-list .wh-setting, .wh-set-list .wh-set-link { box-sizing: border-box; height: 100%; }
 
+/* Settings, final fit: a tidy centred column (no half-empty rows), even rows, switches lined up on the right edge. */
+.wh-set-list { width: min(760px, 100%); margin-inline: auto; grid-template-columns: minmax(0, 1fr); gap: 10px !important; padding: 26px !important; border-radius: 30px; }
+.wh-set-list .wh-set-label { margin: 18px 6px 2px !important; }
+.wh-set-list .wh-set-label:first-child { margin-top: 0 !important; }
+.wh-set-list .wh-setting, .wh-set-list .wh-set-link { min-height: 68px !important; padding: 10px 18px 10px 14px !important; gap: 14px !important; transition: transform .18s ease, box-shadow .18s ease; }
+.wh-set-list .wh-setting:hover, .wh-set-list .wh-set-link:hover { transform: translateY(-1px); }
+.wh-set-list .wh-setting:focus-within, .wh-set-list .wh-set-link:focus-visible { outline: 3px solid var(--hv-honey-500, #e9a820); outline-offset: 2px; }
+.wh-set-list .wh-set-icon { width: 42px !important; height: 42px !important; }
+.wh-set-list .wh-setting input[type="checkbox"] { margin-inline-start: auto; }
+.wh-set-list .wh-set-chevron { margin-inline-start: auto; color: var(--hv-muted); display: grid; place-items: center; }
+@media (prefers-reduced-motion: reduce) { .wh-set-list .wh-setting, .wh-set-list .wh-set-link { transition: none; } .wh-set-list .wh-setting:hover, .wh-set-list .wh-set-link:hover { transform: none; } }
+@media (max-width: 560px) { .wh-set-list { padding: 14px !important; border-radius: 24px; } .wh-set-list .wh-setting, .wh-set-list .wh-set-link { min-height: 62px !important; } }
+
 /* Support (tickets assigned to you or about print quality) */
 .wh-sup { display: grid; gap: 12px; max-width: 860px; }
 .wh-sup-row { display: flex !important; align-items: center; justify-content: space-between; gap: 14px; width: 100%; padding: 14px 18px !important; border: 0; border-radius: 22px !important; text-align: start; cursor: pointer;
