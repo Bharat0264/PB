@@ -562,6 +562,8 @@ function openCheckout(entries) {
   checkoutForm.reset();
   appliedCoupon = '';
   fillProfile(checkoutForm);
+  const f = checkoutForm.elements;
+  document.querySelector('#checkout-delivery')?.classList.toggle('has-saved', Boolean(f.customer.value.trim() && f.phone.value.trim() && f.address.value.trim()));
   showDeliveryType(checkoutForm.elements.address.value);
   checkoutError.textContent = '';
   pendingOrder = undefined;

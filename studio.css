@@ -1431,3 +1431,7 @@ body {
 [data-theme="dark"] .checkout-label-rest { color:#c9b78f; }
 [data-theme="dark"] .checkout-label img { background:#3a2f20; box-shadow:none; }
 #checkout-delivery-type { display:none; }
+
+/* A saved address already fills the label above, so the name, phone and address boxes (and the map search) are tucked away */
+.checkout-add-address { grid-column:1/-1; justify-self:start; text-decoration:none; font-weight:800; margin-bottom:6px; }
+#checkout-delivery.has-saved > label:has([name="customer"]),#checkout-delivery.has-saved > label:has([name="phone"]),#checkout-delivery.has-saved > label:has([name="address"]),#checkout-delivery.has-saved > div.checkout-address:not(.checkout-label) { display:none; }

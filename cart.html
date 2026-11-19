@@ -10,7 +10,7 @@
 <script src="/session-sync.js?v=1" defer></script>
 <script src="embedded-tab.js?v=customer-tabs" defer></script>
 <script type="module" src="bottom-nav.js?v=cart-tab"></script>
-<link rel="stylesheet" href="studio.css?v=label">
+<link rel="stylesheet" href="studio.css?v=saved">
 <link rel="stylesheet" href="footer-wave.css?v=horizontal-brand">
 <script src="footer-wave.js?v=letter-spacing" defer></script>
 <script src="profile.js?v=delivery-details" defer></script>
@@ -19,7 +19,7 @@
 <link rel="stylesheet" href="/status-model.css?v=2">
 <script src="/status-model.js?v=1" defer></script>
 <script src="/live.js?v=1" defer></script>
-<script src="studio.js?v=label2" defer></script>
+<script src="studio.js?v=saved" defer></script>
 <link rel="stylesheet" href="/hive-theme.css?v=soft-focus">
 <link rel="stylesheet" href="/customer-theme.css?v=how-dark">
 <script src="/hive-theme.js?v=sun-moon"></script>
@@ -80,6 +80,7 @@
     <fieldset class="checkout-fields" id="checkout-delivery" hidden disabled>
       <legend>Delivery details</legend>
       <p class="checkout-address" id="checkout-delivery-type" aria-live="polite"></p>
+      <a class="pill raised checkout-add-address" href="/address.html">+ Add address</a>
       <div class="checkout-label checkout-address" id="checkout-label" aria-label="Delivery label"><div><span class="checkout-label-type"></span><strong class="checkout-label-who"></strong><span class="checkout-label-line"></span><small class="checkout-label-rest"></small></div><div><img src="/printbee-header-bee.webp" width="42" height="42" alt=""><span class="checkout-label-bars" aria-hidden="true"></span></div></div>
       <label>Full name<input name="customer" autocomplete="name" required maxlength="100"></label>
       <label>Phone<input name="phone" type="tel" autocomplete="tel" pattern="[+0-9 \(\)\-]{7,20}" required maxlength="20"></label>
