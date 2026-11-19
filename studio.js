@@ -828,6 +828,17 @@ async function showOrders() {
       invoice.href = '/api/orders/' + order.id + '/invoice';
       invoice.textContent = 'Invoice';
       actions.append(invoice);
+      const help = document.createElement('a');
+      help.className = 'order-help';
+      help.href = '/help.html#/new?order=' + encodeURIComponent(order.id);
+      help.setAttribute('aria-label', 'Need help with ' + displayOrderNumber(order) + '?');
+      const beeIcon = document.createElement('img');
+      beeIcon.src = '/printbee-header-bee.webp';
+      beeIcon.alt = '';
+      beeIcon.width = 22;
+      beeIcon.height = 20;
+      help.append(beeIcon, document.createTextNode('Need help?'));
+      actions.append(help);
     }
     const reorder = queueButton('Reorder', async () => {
       reorder.disabled = true;

@@ -278,3 +278,11 @@ main.inner-page .tracking-top h1 { margin:0; font:800 clamp(18px,2.8vw,25px)/1.2
 #tracking-summary[open] > summary { margin-bottom: 12px; }
 .track-paper.track-journey { padding-bottom: 20px; }
 @media (max-width: 520px) { .track-step-pill { min-height: 64px; } .track-step-icon { width: 42px; height: 42px; } .track-step-icon svg { width: 38px; height: 38px; } }
+
+/* Need help? bee link + the support ticket button in the help sheet */
+.track-help-button, .track-ticket { display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; }
+.track-help-button img, .track-ticket img { width: 26px; height: auto; filter: drop-shadow(0 2px 3px rgba(110, 80, 28, .25)); }
+.track-ticket { background: var(--hv-honey-grad, linear-gradient(180deg, #ffe495, #f5c542)); color: #2a2112; margin-bottom: 8px; }
+#tracking-help-sheet .track-button { margin-top: 6px; }
+.order-actions .order-help { display: inline-flex; align-items: center; gap: 6px; }
+.order-actions .order-help img { width: 22px; height: auto; filter: drop-shadow(0 2px 2px rgba(110, 80, 28, .25)); }

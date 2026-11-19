@@ -16,9 +16,9 @@
 <script src="/status-model.js?v=1" defer></script>
 <script src="/live.js?v=1" defer></script>
 <script src="/delivery-map.js?v=pricing" defer></script>
-<link rel="stylesheet" href="/order-tracking.css?v=journey-fit">
-<script src="/order-tracking.js?v=journey-fit" defer></script>
-<script src="/studio.js?v=orders-message" defer></script>
+<link rel="stylesheet" href="/order-tracking.css?v=help-link">
+<script src="/order-tracking.js?v=help-link" defer></script>
+<script src="/studio.js?v=help-link" defer></script>
 <link rel="stylesheet" href="/hive-theme.css?v=soft-focus">
 <link rel="stylesheet" href="/customer-theme.css?v=orders-clay">
 <script src="/hive-theme.js?v=sun-moon"></script>
@@ -100,13 +100,13 @@
         <button id="tracking-open-delivery" class="track-button" type="button" hidden>Delivery details</button>
         <section id="tracking-live" aria-label="Delivery progress"></section>
         <details id="tracking-summary" class="track-paper" hidden><summary>Order summary</summary><div id="tracking-receipt"></div></details>
-        <div class="track-help"><button id="tracking-help" class="track-button" type="button">Need help?</button></div>
+        <div class="track-help"><button id="tracking-help" class="track-button track-help-button" type="button"><img src="/printbee-header-bee.webp" alt="" width="26" height="23">Need help?</button></div>
       </aside>
     </div>
     <dialog id="tracking-delivery-sheet" class="track-paper" aria-labelledby="tracking-delivery-title">
       <div class="track-sheet-heading"><h2 id="tracking-delivery-title">Delivery details</h2><form method="dialog"><button class="track-button" aria-label="Close delivery details">×</button></form></div>
     </dialog>
-    <dialog id="tracking-help-sheet" class="track-paper"><form method="dialog"><button class="track-button" aria-label="Close help">×</button></form><h2>Need help?</h2><p id="tracking-help-order"></p><a id="tracking-contact" class="track-button" href="https://wa.me/919347541419" target="_blank" rel="noopener noreferrer">Chat with PrintBee</a></dialog>
+    <dialog id="tracking-help-sheet" class="track-paper"><form method="dialog"><button class="track-button" aria-label="Close help">×</button></form><h2>Need help?</h2><p id="tracking-help-order"></p><a id="tracking-ticket" class="track-button track-ticket" href="/help.html#/new"><img src="/printbee-header-bee.webp" alt="" width="26" height="23">Open a support ticket</a> <a id="tracking-contact" class="track-button" href="https://wa.me/919347541419" target="_blank" rel="noopener noreferrer">Chat on WhatsApp</a></dialog>
   </section>
 </main>
 <footer class="frame brand-footer" id="contact">

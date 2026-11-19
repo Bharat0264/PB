@@ -528,6 +528,7 @@
     };
     byId('tracking-help').onclick = () => {
       byId('tracking-help-order').textContent = order.number || '';
+      byId('tracking-ticket').href = '/help.html#/new?order=' + encodeURIComponent(orderId);
       byId('tracking-contact').href = 'https://wa.me/919347541419?' + new URLSearchParams({text:'I need help with my PrintBee order'+(order.number ? ' '+order.number : '')+'.'});
       byId('tracking-help-sheet').showModal();
     };

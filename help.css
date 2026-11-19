@@ -1,0 +1,130 @@
+/* Help centre: white and yellow clay, same tokens as the rest of the customer site (light and dark). */
+.help-page { --hp-card: var(--hv-surface, #fff); max-width: 880px; margin-inline: auto; padding-bottom: 56px; color: var(--hv-ink, #2a2112); }
+.help-page h1 { margin: 0; font-size: clamp(28px, 5vw, 40px); letter-spacing: -.03em; line-height: 1.1; }
+.help-page h2.help-section { margin: 32px 4px 12px; font-size: 13px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--hv-muted, #6e5e3e); }
+#help-app { display: grid; gap: 16px; outline: none; min-width: 0; }
+.help-muted { color: var(--hv-muted, #6e5e3e); margin: 0; }
+.help-loading { margin: 40px 0; text-align: center; color: var(--hv-muted, #6e5e3e); font-weight: 700; }
+.help-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.help-bee { width: 44px; height: auto; flex: none; filter: drop-shadow(0 3px 4px rgba(110, 80, 28, .25)); }
+
+/* cards and buttons */
+.help-card { padding: clamp(18px, 3vw, 28px); border-radius: 28px; background: var(--hv-surface, #fff);
+  box-shadow: 8px 10px 22px rgba(110, 80, 28, .13), -5px -5px 14px rgba(255, 252, 244, .8), inset 0 2px 1px var(--hv-hi, rgba(255,255,255,.95)), 0 0 0 1px var(--hv-border, #f0e3be); }
+.help-center { display: grid; justify-items: center; gap: 12px; text-align: center; padding-block: 40px; }
+.help-center .help-bee { width: 64px; }
+.help-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 0 22px; border: 0; border-radius: 999px; cursor: pointer;
+  background: var(--hv-surface, #fff); color: var(--hv-ink, #2a2112); font: 800 15px/1 Manrope, system-ui, sans-serif; text-decoration: none;
+  box-shadow: 5px 6px 14px rgba(110, 80, 28, .15), -3px -3px 9px rgba(255, 252, 244, .85), inset 0 2px 1px var(--hv-hi, #fff), 0 0 0 1px var(--hv-border, #f0e3be);
+  transition: transform .15s, box-shadow .15s; }
+.help-button:hover { transform: translateY(-1px); }
+.help-button:active { transform: translateY(1px); box-shadow: var(--hv-press, inset 0 3px 8px rgba(110, 80, 28, .2)); }
+.help-button:disabled { opacity: .6; cursor: progress; transform: none; }
+.help-primary { background: var(--hv-honey-grad, linear-gradient(180deg, #ffe495, #f5c542 70%, #edb52f)); color: #2a2112; }
+.help-link { justify-self: start; margin-left: 6px; font-weight: 800; color: var(--hv-honey-ink, #7a5208); }
+.help-back { display: inline-flex; align-items: center; gap: 4px; justify-self: start; font-weight: 800; color: var(--hv-muted, #6e5e3e); text-decoration: none; padding: 4px 8px 4px 0; }
+.help-back:hover { color: var(--hv-ink, #2a2112); }
+.help-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.help-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.help-empty { text-align: center; color: var(--hv-muted, #6e5e3e); }
+.help-notice { margin: 0; padding: 12px 16px; border-radius: 16px; font-weight: 700; background: var(--hv-info-bg, #e3eefc); color: var(--hv-info-ink, #1f4f94); }
+.help-notice.is-error { background: var(--hv-danger-bg, #fce3e0); color: var(--hv-danger-ink, #9a2626); }
+.help-notice[hidden] { display: none; }
+
+/* home */
+.help-hero { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; background: linear-gradient(150deg, #fff7dc, var(--hv-surface, #fff) 60%); }
+.help-hero > div:nth-child(2) { flex: 1 1 220px; display: grid; gap: 6px; }
+.help-hero .help-bee { width: 64px; }
+.help-hero-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.help-topics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.help-topic { display: grid; gap: 4px; align-content: start; padding: 18px; border-radius: 24px; text-decoration: none; color: inherit; background: var(--hv-surface, #fff);
+  box-shadow: 6px 8px 18px rgba(110, 80, 28, .12), -4px -4px 12px rgba(255, 252, 244, .8), inset 0 2px 1px var(--hv-hi, #fff), 0 0 0 1px var(--hv-border, #f0e3be); transition: transform .18s; }
+.help-topic:hover { transform: translateY(-2px); }
+.help-topic strong { font-size: 17px; letter-spacing: -.01em; }
+.help-topic small { color: var(--hv-muted, #6e5e3e); font-size: 13.5px; line-height: 1.35; }
+.help-topic-icon { display: grid; place-items: center; width: 46px; height: 46px; margin-bottom: 8px; border-radius: 50%; color: #6b4a07;
+  background: linear-gradient(150deg, #fff3cf, #fbe09a); box-shadow: 3px 4px 8px rgba(110, 80, 28, .16), inset 2px 2px 5px rgba(255, 255, 255, .85); }
+.help-contact { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-top: 12px; }
+.help-contact > div { display: grid; gap: 4px; }
+
+/* lists */
+.help-list { display: grid; gap: 10px; }
+.help-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 18px; border-radius: 22px; text-decoration: none; color: inherit; background: var(--hv-surface, #fff);
+  box-shadow: 5px 7px 16px rgba(110, 80, 28, .11), -3px -3px 10px rgba(255, 252, 244, .8), inset 0 2px 1px var(--hv-hi, #fff), 0 0 0 1px var(--hv-border, #f0e3be); transition: transform .15s; }
+.help-row:hover { transform: translateY(-1px); }
+.help-row-main { display: grid; gap: 3px; min-width: 0; }
+.help-row-main strong { overflow-wrap: anywhere; font-size: 16px; }
+.help-row-main small, .help-row-side small { color: var(--hv-muted, #6e5e3e); font-size: 13px; }
+.help-row-side { display: grid; justify-items: end; gap: 4px; flex: none; }
+.help-chip { display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 800; white-space: nowrap;
+  background: var(--hv-surface-3, #ffefc7); color: var(--hv-warning-ink, #6e4a05); }
+.help-chip.is-open { background: var(--hv-info-bg, #e3eefc); color: var(--hv-info-ink, #1f4f94); }
+.help-chip.is-progress { background: var(--hv-warning-bg, #fff0c4); color: var(--hv-warning-ink, #6e4a05); }
+.help-chip.is-pending { background: #fde7c8; color: #7a3d00; }
+.help-chip.is-resolved { background: var(--hv-success-bg, #e2f2e7); color: var(--hv-success-ink, #23593a); }
+.help-chip.is-closed { background: var(--hv-surface-2, #fff6dd); color: var(--hv-muted, #6e5e3e); box-shadow: inset 0 0 0 1px var(--hv-border, #f0e3be); }
+.help-tabs { display: inline-flex; gap: 4px; padding: 4px; border-radius: 999px; background: color-mix(in srgb, var(--hv-ink, #2a2112) 7%, transparent); justify-self: start; }
+.help-tab { min-height: 38px; padding: 0 18px; border: 0; border-radius: 999px; background: transparent; color: var(--hv-muted, #6e5e3e); font: 700 14px Manrope, system-ui, sans-serif; cursor: pointer; }
+.help-tab[aria-pressed="true"] { background: var(--hv-surface, #fff); color: var(--hv-ink, #2a2112); font-weight: 800; box-shadow: 0 1px 2px rgba(60, 45, 15, .14), 0 4px 10px rgba(60, 45, 15, .08); }
+
+/* forms */
+.help-form, .help-reply { display: grid; gap: 18px; }
+.help-field { display: grid; gap: 8px; }
+.help-field > span { font-weight: 800; font-size: 14px; }
+.help-input { width: 100%; box-sizing: border-box; min-height: 52px; padding: 12px 16px; border: 0; border-radius: 18px; background: var(--hv-surface-2, #fff6dd); color: var(--hv-ink, #2a2112);
+  font: 500 16px/1.4 Manrope, system-ui, sans-serif; box-shadow: var(--hv-field, inset 0 2px 5px rgba(110, 80, 28, .15), 0 0 0 1px #f0e3be); }
+textarea.help-input { resize: vertical; min-height: 120px; }
+.help-input:focus-visible { outline: none; box-shadow: var(--hv-field), var(--hv-focus, 0 0 0 3px rgba(245, 197, 66, .55)); }
+.help-count { justify-self: end; }
+.help-cats { display: flex; flex-wrap: wrap; gap: 8px; }
+.help-cat { min-height: 42px; padding: 0 16px; border: 0; border-radius: 999px; cursor: pointer; background: var(--hv-surface, #fff); color: var(--hv-ink, #2a2112);
+  font: 700 14px Manrope, system-ui, sans-serif; box-shadow: 0 0 0 1.5px var(--hv-border, #f0e3be); transition: box-shadow .15s, background .15s; }
+.help-cat[aria-checked="true"] { background: color-mix(in srgb, var(--hv-honey-300, #fbe08a) 45%, var(--hv-surface, #fff)); box-shadow: 0 0 0 2px var(--hv-honey-500, #f5c542); font-weight: 800; }
+.help-attach { display: inline-flex; align-items: center; gap: 8px; justify-self: start; min-height: 44px; padding: 0 18px; border-radius: 999px; cursor: pointer; font-weight: 800; font-size: 14px;
+  background: var(--hv-surface, #fff); box-shadow: 0 0 0 1.5px var(--hv-border, #f0e3be); }
+.help-attach:focus-within { box-shadow: 0 0 0 2px var(--hv-honey-500, #f5c542); }
+.help-attachments { display: grid; gap: 8px; }
+.help-hint { margin: 0; min-height: 0; font-size: 13px; font-weight: 700; color: var(--hv-danger-ink, #9a2626); }
+.help-hint:empty { display: none; }
+.help-files { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.help-files li { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 14px; background: var(--hv-surface-2, #fff6dd); }
+.help-file-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; font-size: 14px; }
+.help-files small, .help-file-link small { color: var(--hv-muted, #6e5e3e); }
+.help-x { display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--hv-muted, #6e5e3e); cursor: pointer; }
+.help-x:hover { background: var(--hv-danger-bg, #fce3e0); color: var(--hv-danger-ink, #9a2626); }
+
+/* conversation */
+.help-ticket-head { display: grid; gap: 8px; }
+.help-ticket-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.help-ticket-top h1 { font-size: clamp(22px, 4vw, 30px); overflow-wrap: anywhere; }
+.help-meta { font-size: 14px; }
+.help-order-link { display: inline-flex; align-items: center; gap: 10px; justify-self: start; margin-top: 4px; padding: 8px 16px; border-radius: 999px; text-decoration: none; font-weight: 800; font-size: 14px;
+  color: var(--hv-honey-ink, #7a5208); background: var(--hv-surface-3, #ffefc7); }
+.help-order-link small { font-weight: 700; opacity: .8; }
+.help-thread { display: grid; gap: 12px; }
+.help-bubble { display: grid; gap: 6px; max-width: min(620px, 92%); padding: 14px 18px; border-radius: 24px; }
+.help-bubble header { display: flex; align-items: baseline; gap: 10px; }
+.help-bubble header small { color: var(--hv-muted, #6e5e3e); font-size: 12.5px; }
+.help-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; }
+.help-bubble.is-support { justify-self: start; background: var(--hv-surface, #fff); border-bottom-left-radius: 8px;
+  box-shadow: 5px 7px 16px rgba(110, 80, 28, .11), inset 0 2px 1px var(--hv-hi, #fff), 0 0 0 1px var(--hv-border, #f0e3be); }
+.help-bubble.is-you { justify-self: end; background: linear-gradient(150deg, #fff0bf, #fbd96a); color: #2a2112; border-bottom-right-radius: 8px;
+  box-shadow: 5px 7px 16px rgba(214, 160, 30, .22), inset 0 2px 1px rgba(255, 255, 255, .7); }
+.help-bubble.is-you header small { color: #6b4a07; }
+.help-bubble-files { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.help-file-link { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; padding: 6px 12px; border-radius: 999px; text-decoration: none; font-weight: 700; font-size: 13.5px;
+  color: inherit; background: rgba(255, 255, 255, .6); box-shadow: 0 0 0 1px rgba(110, 80, 28, .15); }
+.help-file-link span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.help-reply { margin-top: 6px; }
+
+@media (max-width: 640px) {
+  .help-topics { grid-template-columns: 1fr; gap: 10px; }
+  .help-topic { grid-template-columns: auto 1fr; align-items: center; column-gap: 14px; padding: 14px 16px; }
+  .help-topic-icon { grid-row: span 2; margin: 0; }
+  .help-row { align-items: flex-start; flex-direction: column; gap: 8px; }
+  .help-row-side { justify-items: start; grid-auto-flow: column; align-items: center; gap: 10px; }
+  .help-bubble { max-width: 100%; }
+  .help-hero-actions, .help-hero-actions .help-button, .help-actions .help-button { width: 100%; }
+  .help-page { padding-bottom: 110px; }
+}
+@media (prefers-reduced-motion: reduce) { .help-button, .help-topic, .help-row { transition: none; } }
