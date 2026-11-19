@@ -25,10 +25,16 @@
   const style = document.createElement('style');
   style.textContent = `
   .buzz-root { --buzz-lift: 0px; font-family: Manrope, system-ui, sans-serif; color: var(--hv-ink, #2a2112); }
-  .buzz-fab { position: fixed; z-index: 80; right: 18px; bottom: calc(var(--buzz-lift) + 18px + env(safe-area-inset-bottom, 0px)); width: 72px; height: 72px; padding: 0; border: 0; border-radius: 50%;
-    display: block; cursor: pointer; background: transparent; filter: drop-shadow(0 6px 10px rgba(150,100,10,.28)); animation: buzz-bob 3.2s ease-in-out infinite; transition: transform .15s ease; }
-  .buzz-fab:hover { transform: scale(1.06); }
-  .buzz-fab img { width: 100%; height: 100%; object-fit: contain; display: block; pointer-events: none; }
+  .buzz-fab { position: fixed; z-index: 80; right: 18px; bottom: calc(var(--buzz-lift) + 18px + env(safe-area-inset-bottom, 0px)); width: 76px; height: 76px; padding: 6px; border: 0; border-radius: 50%;
+    display: block; cursor: pointer; animation: buzz-bob 3.2s ease-in-out infinite; transition: transform .18s ease, box-shadow .18s ease;
+    background: var(--hv-honey-grad, linear-gradient(180deg, #ffe495, #f5c542 70%, #edb52f));
+    box-shadow: 0 10px 16px -4px rgba(150,100,10,.34), 0 3px 6px rgba(150,100,10,.16), inset 0 3px 3px rgba(255,255,255,.85), inset 0 -5px 8px rgba(190,120,10,.34); }
+  .buzz-fab::after { content: ""; position: absolute; inset: 6px; border-radius: 50%; pointer-events: none;
+    box-shadow: inset 0 5px 7px rgba(255,255,255,.5), inset 0 -9px 13px rgba(190,115,0,.28), inset 0 0 0 1px rgba(190,120,10,.12); }
+  .buzz-fab:hover { transform: scale(1.05); }
+  .buzz-fab:active { transform: scale(.96); box-shadow: 0 5px 9px -3px rgba(150,100,10,.34), inset 0 3px 3px rgba(255,255,255,.7), inset 0 -3px 6px rgba(190,120,10,.34); }
+  .buzz-fab img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; pointer-events: none; }
+  [data-theme="dark"] .buzz-fab { box-shadow: 0 10px 18px -4px rgba(0,0,0,.55), 0 0 24px rgba(255,170,40,.10), inset 0 2px 2px rgba(255,236,170,.55), inset 0 -5px 8px rgba(160,95,0,.45); }
   .buzz-fab:focus-visible, .buzz-chip:focus-visible, .buzz-send:focus-visible, .buzz-close:focus-visible, .buzz-btn:focus-visible, .buzz-thumb:focus-visible, .buzz-input:focus-visible { outline: 3px solid var(--hv-honey-700, #b9831a); outline-offset: 2px; }
   .buzz-fab[hidden] { display: none; }
   .buzz-sheet { position: fixed; z-index: 85; right: 24px; bottom: 24px; width: min(400px, calc(100vw - 32px)); height: min(640px, calc(100dvh - 48px)); display: flex; flex-direction: column; overflow: hidden;
@@ -36,7 +42,8 @@
   .buzz-sheet[hidden] { display: none; }
   @media (max-width: 600px) { .buzz-sheet { inset: 0; width: auto; height: 100dvh; border-radius: 0; padding-bottom: env(safe-area-inset-bottom, 0px); } }
   .buzz-head { flex: none; display: flex; align-items: center; gap: 10px; padding: 12px 14px 12px 16px; background: var(--hv-surface-2, #fff6dd); padding-top: calc(12px + env(safe-area-inset-top, 0px)); }
-  .buzz-head img { width: 38px; height: 38px; object-fit: contain; flex: none; border-radius: 50%; }
+  .buzz-head img { width: 44px; height: 44px; padding: 3px; box-sizing: border-box; object-fit: cover; flex: none; border-radius: 50%;
+    background: var(--hv-honey-grad, #f5c542); box-shadow: 0 3px 6px rgba(150,100,10,.22), inset 0 2px 2px rgba(255,255,255,.8), inset 0 -3px 4px rgba(190,120,10,.3); }
   .buzz-head h2 { flex: 1; margin: 0; font-size: 16px; line-height: 1.2; font-weight: 800; }
   .buzz-close { flex: none; width: 40px; height: 40px; border: 0; border-radius: 50%; cursor: pointer; font-size: 22px; line-height: 1; background: var(--hv-surface, #fff); color: inherit; }
   .buzz-context { flex: none; display: flex; align-items: center; gap: 8px; margin: 10px 14px 0; padding: 6px 6px 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 700; background: var(--hv-surface-3, #ffefc7); }
@@ -83,9 +90,9 @@
   .buzz-send:disabled { opacity: .55; cursor: default; }
   .buzz-send svg { width: 20px; height: 20px; }
   html.buzz-open { overflow: hidden; }
-  @keyframes buzz-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+  @keyframes buzz-bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -3px; } }
   @keyframes buzz-flap { from { transform: scaleY(.25); } to { transform: scaleY(1); } }
-  @media (prefers-reduced-motion: reduce) { .buzz-fab img, .buzz-wing { animation: none; } }`;
+  @media (prefers-reduced-motion: reduce) { .buzz-fab, .buzz-wing { animation: none; } }`;
   document.head.append(style);
 
   const ns = 'http://www.w3.org/2000/svg';
