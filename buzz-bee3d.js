@@ -12,8 +12,47 @@ import * as THREE from '/vendor/three/three.module.js';
 import {GLTFLoader} from '/vendor/three/GLTFLoader.js';
 import {RoomEnvironment} from '/vendor/three/RoomEnvironment.js';
 
-const MODEL = '/buzz-bee.glb?v=1';
-const CLAY_TEXTURE = '/buzz-bee-clay.webp?v=3';
+const MODEL = '/bee_hq.glb?v=1';                     // the improved model: smooth seam normals, four parts (body, eyes, wings, bubble), 2048 px WebP textures
+const FALLBACK_MODEL = '/buzz-bee.glb?v=1';           // the original, used if the improved one cannot be loaded (it is never changed)
+const CLAY_TEXTURE = '/buzz-bee-clay.webp?v=3';       // the original model's colour picture (only used with the fallback model)
+
+// Every look value in one place. Change a number here and reload: nothing else needs touching.
+// Material names match the four parts of bee_hq.glb. Values follow three.js MeshPhysicalMaterial.
+export const BEE_LOOK = {
+  render: {
+    toneMapping: 'ACESFilmic',              // 'ACESFilmic' | 'AgX' | 'Neutral' | 'None'
+    exposure: 0.92,                         // ACES darkens and shifts colour a little: this, the light, and each material's mapGlow keep the bee's colours as they were
+    environment: 'studio',                  // the soft studio room that ships with three.js (RoomEnvironment), blurred like a studio HDRI
+    environmentBlur: 0.04,
+    environmentIntensity: 0.5,
+    anisotropy: 'max',                      // 'max' or a number: keeps the texture sharp when the bee turns
+    keyLight: {color: 0xfff1d6, intensity: 1.0, position: [1.6, 2.4, 2.6]},
+    rimLight: {color: 0xffe3a8, intensity: 0.45, position: [-2.2, 1.2, -2]},
+    fill: {sky: 0xfffaf0, ground: 0xffdca0, intensity: 0.55},
+    normalScale: 0.6,
+  },
+  fallback: {roughness: 0.78, clearcoat: 0, sheen: 0.6, transmission: 0},     // the matte clay look used only if bee_hq.glb cannot load and the original model is shown
+  materials: {
+    body: {                                  // head, headphones, body, arms, stripes, antennae
+      roughness: 0.35, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.22,
+      sheen: 0.12, sheenRoughness: 0.5, sheenColor: 0xffc23a, envMapIntensity: 1.0, mapGlow: 0.2,
+    },
+    eyes: {                                  // glossy black with crisp white highlights
+      roughness: 0.12, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.03,
+      specularIntensity: 1, envMapIntensity: 1.6, mapGlow: 0,
+    },
+    wings: {                                 // see-through, a little thick, glassy
+      roughness: 0.22, metalness: 0, clearcoat: 0.6, clearcoatRoughness: 0.15,
+      transmission: 0.55, thickness: 0.18, ior: 1.4, attenuationColor: 0xfff4dc, attenuationDistance: 0.6,
+      sheen: 0.05, sheenColor: 0xffffff, sheenRoughness: 0.4, envMapIntensity: 1.0, mapGlow: 0.25, doubleSided: true,
+    },
+    bubble: {                                // soft glossy white
+      roughness: 0.3, metalness: 0, clearcoat: 0.45, clearcoatRoughness: 0.2,
+      sheen: 0.1, sheenRoughness: 0.5, sheenColor: 0xffffff, envMapIntensity: 0.45, mapGlow: 0.62,   // mapGlow: how much of the picture's own colour is added back as light, so ACES and the gloss do not wash it out
+    },
+  },
+};
+const TONE_MAPPING = {ACESFilmic: THREE.ACESFilmicToneMapping, AgX: THREE.AgXToneMapping, Neutral: THREE.NeutralToneMapping, None: THREE.NoToneMapping};
 const FIT = 1.62;                      // the bee's longest side, in world units (the view is 1.985 units tall for the button's box): leaves room to hop and spin
 const FACE_YAW = 0;                    // turn the model so it looks at the customer (set after checking the model's orientation)
 const IDLE_FPS = 30;
@@ -30,38 +69,52 @@ export async function createBee(canvas, {reducedMotion = false, exact = false, p
   const renderer = new THREE.WebGLRenderer({canvas, alpha: true, antialias: true, powerPreference: 'low-power'});
   renderer.setClearColor(0x000000, 0);
   renderer.setPixelRatio(pixelRatio || Math.min(window.devicePixelRatio || 1, 2));
+  renderer.toneMapping = TONE_MAPPING[BEE_LOOK.render.toneMapping] ?? THREE.NoToneMapping;
+  renderer.toneMappingExposure = BEE_LOOK.render.exposure;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
 
   const scene = new THREE.Scene();
   const pmrem = new THREE.PMREMGenerator(renderer);
   const room = new RoomEnvironment();
-  scene.environment = pmrem.fromScene(room, 0.04).texture;
-  scene.environmentIntensity = 0.6;
+  scene.environment = pmrem.fromScene(room, BEE_LOOK.render.environmentBlur).texture;
+  scene.environmentIntensity = BEE_LOOK.render.environmentIntensity;
   room.dispose();
   // soft, even light like a clay render: a gentle warm key, a strong sky/ground fill and a faint rim from behind
-  const key = new THREE.DirectionalLight(0xfff1d6, 1.05);
-  key.position.set(1.6, 2.4, 2.6);
-  const rim = new THREE.DirectionalLight(0xffe3a8, 0.45);
-  rim.position.set(-2.2, 1.2, -2);
-  scene.add(key, rim, new THREE.HemisphereLight(0xfffaf0, 0xffdca0, 0.85));
+  const L = BEE_LOOK.render;
+  const key = new THREE.DirectionalLight(L.keyLight.color, L.keyLight.intensity);
+  key.position.set(...L.keyLight.position);
+  const rim = new THREE.DirectionalLight(L.rimLight.color, L.rimLight.intensity);
+  rim.position.set(...L.rimLight.position);
+  scene.add(key, rim, new THREE.HemisphereLight(L.fill.sky, L.fill.ground, L.fill.intensity));
 
   const camera = new THREE.PerspectiveCamera(26, 1, 0.1, 20);
   camera.position.set(0, 0.05, BASE_DISTANCE);
   camera.lookAt(0, 0, 0);
 
-  const [gltf, clay] = await Promise.all([
-    new GLTFLoader().loadAsync(MODEL),
-    new THREE.TextureLoader().loadAsync(CLAY_TEXTURE).catch(() => null),      // if the clay picture is missing the original texture is used
-  ]);
+  let gltf, clay = null, hq = true;
+  try { gltf = await new GLTFLoader().loadAsync(MODEL); }
+  catch {                                                      // no improved model: the original, with the clay colour picture
+    hq = false;
+    [gltf, clay] = await Promise.all([new GLTFLoader().loadAsync(FALLBACK_MODEL), new THREE.TextureLoader().loadAsync(CLAY_TEXTURE).catch(() => null)]);
+  }
   const model = gltf.scene;
-  if (clay) { clay.flipY = false; clay.colorSpace = THREE.SRGBColorSpace; clay.anisotropy = 4; }
+  const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
+  const anisotropy = L.anisotropy === 'max' ? maxAnisotropy : Math.min(maxAnisotropy, Number(L.anisotropy) || 1);
+  if (clay) { clay.flipY = false; clay.colorSpace = THREE.SRGBColorSpace; }
   model.traverse(node => {
     if (!node.isMesh) return;
     const original = node.material;
-    // matte clay: no metal, a high roughness, a soft velvet sheen at the edges, and the baked-in bumps turned down so the surface looks smooth
+    const look = {...(BEE_LOOK.materials[original.name] || BEE_LOOK.materials.body)};   // the original model has one material: it gets the body look
+    const {doubleSided = false, mapGlow = 0, ...values} = look;
+    for (const key of ['color', 'sheenColor', 'attenuationColor']) if (key in values) values[key] = new THREE.Color(values[key]);
+    const map = clay || original.map;
+    for (const texture of [map, original.normalMap]) if (texture) texture.anisotropy = anisotropy;
     node.material = new THREE.MeshPhysicalMaterial({
-      map: clay || original.map, normalMap: original.normalMap, normalScale: new THREE.Vector2(0.5, 0.5),
-      roughness: 0.78, metalness: 0, sheen: 0.6, sheenRoughness: 0.55, sheenColor: new THREE.Color(0xfff0c8), envMapIntensity: 0.8,
+      ...values, map, normalMap: original.normalMap, normalScale: new THREE.Vector2(L.normalScale, L.normalScale),
+      side: doubleSided ? THREE.DoubleSide : THREE.FrontSide,
+      ...(mapGlow ? {emissive: new THREE.Color(0xffffff), emissiveMap: map, emissiveIntensity: mapGlow} : {}),
     });
+    if (hq === false) Object.assign(node.material, BEE_LOOK.fallback);          // the original look, matte clay
     if (clay && original.map) original.map.dispose();
     for (const key of ['roughnessMap', 'metalnessMap', 'aoMap']) if (original[key]) original[key].dispose();
     original.dispose();

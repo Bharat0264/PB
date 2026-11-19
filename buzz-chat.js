@@ -515,7 +515,7 @@
     const link = navigator.connection;
     if (link && (link.saveData || /(^|-)2g$/.test(link.effectiveType || ''))) { fab.dataset.state = 'fallback'; introTip(); return; }
     const giveUp = setTimeout(() => { if (fab.dataset.state === 'loading') { fab.dataset.state = 'fallback'; introTip(); } }, 7000);
-    import('/buzz-bee3d.js?v=10')
+    import('/buzz-bee3d.js?v=12')
       .then(module => module.createBee(canvas, {reducedMotion: REDUCED, scale: 0.86, onFrame: lift => fab.style.setProperty('--lift', lift.toFixed(3))}))
       .then(created => {
         clearTimeout(giveUp);
