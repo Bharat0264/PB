@@ -157,3 +157,7 @@ main.inner-page .price-section > h2:first-child {
 main.inner-page .cart-page-heading { margin: 0 0 4px; }
 main.inner-page .cart-page-heading h1 { margin-bottom: 0; }
 [data-theme="dark"] .customer-theme .orders-empty { background: var(--hv-surface-2); box-shadow: var(--raised); color: var(--ink); }
+
+/* dark mode: the "how it works" tiles keep a dark surface so their light text stays readable */
+[data-theme="dark"] .customer-theme .how li { background: linear-gradient(150deg, var(--hv-surface-2), var(--hv-surface)); color: var(--ink); box-shadow: var(--raised); }
+[data-theme="dark"] .customer-theme .how h3 { color: var(--ink); }
