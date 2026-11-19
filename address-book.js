@@ -155,6 +155,9 @@
   }
   function updatePreview() {
     byId('preview-type').textContent = campusMode() ? 'Campus' : 'Outside';
+    const who = [value('customer'),value('phone')].filter(Boolean).join(' · ');
+    byId('preview-who').textContent = who || 'Your name · phone';
+    byId('preview-who').classList.toggle('is-empty',!who);
     byId('preview-line').textContent = value('building') || 'Your delivery address';
     const postal = postalFields.map(value).filter(Boolean).join(', ');
     byId('preview-postal').textContent = postal || 'Street, city, state and PIN';

@@ -339,6 +339,20 @@ function checkoutDelivery(address) {
     {deliveryType:'campus',campusId:profile.campus.campusId} : {};
 }
 
+function showDeliveryLabel() {
+  const label = document.querySelector('#checkout-label');
+  if (!label || !checkoutForm) return;
+  const f = checkoutForm.elements;
+  const who = [f.customer.value.trim(),f.phone.value.trim()].filter(Boolean).join(' · ');
+  const lines = f.address.value.replace(/\nDelivery pin:[^\n]*$/i,'').trim().split('\n').filter(Boolean);
+  label.querySelector('.checkout-label-type').textContent = document.querySelector('#checkout-delivery-type')?.textContent.split(' · ')[0] || '';
+  label.querySelector('.checkout-label-who').textContent = who || 'Your name · phone';
+  label.querySelector('.checkout-label-line').textContent = lines[0] || 'Your delivery address';
+  label.querySelector('.checkout-label-rest').textContent = lines.slice(1).join(', ');
+  label.classList.toggle('is-empty',!who && !lines.length);
+}
+document.addEventListener('input',event => { if (event.target.closest?.('#checkout-delivery')) showDeliveryLabel(); });
+
 function showDeliveryType(address) {
   const hint = document.querySelector('#checkout-delivery-type');
   if (!hint) return;
@@ -346,6 +360,7 @@ function showDeliveryType(address) {
   const campus = deliveryCampuses.find(item => item.id === choice.campusId);
   hint.textContent = choice.deliveryType === 'campus' ?
     ['On-campus delivery',campus?.eta].filter(Boolean).join(' · ') : 'Outside-campus delivery';
+  showDeliveryLabel();
 }
 let placingOrder = false;
 let queuedConfig;

@@ -1412,3 +1412,22 @@ body {
   .profile-page.is-signed-in .profile-login { padding: 18px 14px; }
   .account-hi { font-size: 20px; }
 }
+
+/* Checkout: the chosen delivery shown as a clay shipping label */
+.checkout-label { display:flex; justify-content:space-between; gap:12px; padding:16px 18px; border:1.5px dashed #c98f1a; border-radius:22px;
+  background:linear-gradient(150deg,#fffdf6,#f7eed8);
+  box-shadow:6px 8px 18px #6e502822,-5px -5px 14px #fffdf6c0,inset -3px -4px 9px #a7742012,inset 3px 4px 9px #ffffffb3; }
+.checkout-label > div { min-width:0; display:grid; gap:3px; align-content:center; }
+.checkout-label > div:last-child { justify-items:end; }
+.checkout-label-type { width:fit-content; padding:3px 10px; border-radius:999px; background:#fbe9b6; color:#7a4e00; font-size:12px; font-weight:800; }
+.checkout-label-who { font-size:15px; overflow-wrap:anywhere; }
+.checkout-label-line { font-size:17px; font-weight:800; overflow-wrap:anywhere; }
+.checkout-label-rest { color:#6b5b3c; font-size:13px; overflow-wrap:anywhere; }
+.checkout-label.is-empty .checkout-label-who,.checkout-label.is-empty .checkout-label-line { color:#8a7a58; font-weight:600; }
+.checkout-label img { box-sizing:content-box; padding:6px; border-radius:50%; background:linear-gradient(150deg,#fff6d8,#fbe3a0); box-shadow:4px 5px 10px #6e502828,-3px -3px 8px #fffdf6c0,inset 2px 3px 5px #ffffffa0; }
+.checkout-label-bars { width:58px; height:12px; background:repeating-linear-gradient(90deg,#8a7a58 0 1px,transparent 1px 3px,#8a7a58 3px 5px,transparent 5px 8px); }
+[data-theme="dark"] .checkout-label { background:#2c241a; border-color:#a77a1c; box-shadow:0 6px 16px #0006; }
+[data-theme="dark"] .checkout-label-type { background:#4a3a14; color:#f5c45a; }
+[data-theme="dark"] .checkout-label-rest { color:#c9b78f; }
+[data-theme="dark"] .checkout-label img { background:#3a2f20; box-shadow:none; }
+#checkout-delivery-type { display:none; }
