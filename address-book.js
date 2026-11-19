@@ -40,7 +40,9 @@
   }
   function persist(next, preferred, current) {
     const entry = next[current];
-    localStorage.setItem(profileKey, JSON.stringify({...readProfile(),addresses:next,
+    const known = readProfile();
+    localStorage.setItem(profileKey, JSON.stringify({...known,addresses:next,
+      customer:entry?.customer || known.customer || '',phone:entry?.phone || known.phone || '',    // checkout fills the name and phone of the chosen address
       defaultAddressIndex:preferred,selectedAddressIndex:current,address:entry?.address || '',
       delivery:entry?.delivery || null,deliveryType:entry?.type || 'standard',campus:entry?.campus || null}));
     entries = next;
@@ -84,7 +86,10 @@
       star.title = index === defaultIndex ? 'Default address' : 'Set as default';
       const details = element('p',entry.address.split('\n')[0]);
       const content = element('div',null,'address-card-content');
-      content.append(meta,details);
+      content.append(meta);
+      const who = [entry.customer,entry.phone].filter(Boolean).join(' · ');
+      if (who) content.append(element('p',who,'address-contact-line'));
+      content.append(details);
       const controls = element('div',null,'address-card-actions');
       const pencil = action('',event => edit(index,event.currentTarget),'Edit address, '+label);
       pencil.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg>';
@@ -128,7 +133,7 @@
       else composer.removeAttribute('open');
     }
     syncComposer();
-    if (open && focus) (campusMode()?fields.campusId:fields.building).focus();
+    if (open && focus) (value('customer') ? (campusMode()?fields.campusId:fields.building) : fields.customer).focus();
   }
   function fillCampus(clear = false) {
     const selectedCampus = campus();
@@ -172,6 +177,8 @@
     const entry = entries[index];
     form.reset();
     fields.type.value = entry?.type || 'standard';
+    fields.customer.value = entry?.customer || readProfile().customer || '';      // a new address starts with the name and phone used before
+    fields.phone.value = entry?.phone || readProfile().phone || '';
     for (const key of addressFields) fields[key].value = entry?.delivery?.[key] || '';
     if (entry && !entry.delivery) fields.building.value = entry.address;
     fields.campusId.value = campuses.some(item => item.id === entry?.campus?.campusId) ? entry.campus.campusId : campuses[0]?.id || '';
@@ -251,7 +258,8 @@
   function validate(input) {
     const text = input.value.trim();
     const error = input.required && !text ? 'This field is required.' :
-      input.name === 'pin' && !/^[1-9][0-9]{5}$/.test(text) ? 'Enter a valid 6-digit PIN code.' : '';
+      input.name === 'pin' && !/^[1-9][0-9]{5}$/.test(text) ? 'Enter a valid 6-digit PIN code.' :
+      input.name === 'phone' && (!/^[+0-9 ()-]{7,20}$/.test(text) || text.replace(/\D/g,'').length < 7) ? 'Enter a valid phone number.' : '';
     setError(input,error);
     return !error;
   }
@@ -312,7 +320,7 @@
   };
   form.addEventListener('submit',event => {
     event.preventDefault();
-    const required = ['building',...postalFields,...(campusMode()?['campusId','block','room']:[])];
+    const required = ['customer','phone','building',...postalFields,...(campusMode()?['campusId','block','room']:[])];
     const invalid = required.map(name => fields[name]).filter(input=>!validate(input));
     if (invalid.length) {
       if (postalFields.includes(invalid[0].name)) {postalEdit=true;updateMode();}
@@ -330,7 +338,7 @@
     if (address.length > 500) {errors.textContent = 'Shorten the address to 500 characters or fewer.';return;}
     const index = editing < 0 ? entries.length : editing;
     const next = [...entries];
-    next[index] = {address,type,label:value('label'),delivery:{...delivery,locationPin:pin},...(campusDetails?{campus:campusDetails}:{})};
+    next[index] = {address,type,customer:value('customer'),phone:value('phone'),label:value('label'),delivery:{...delivery,locationPin:pin},...(campusDetails?{campus:campusDetails}:{})};
     const save = form.querySelector('[type="submit"]');
     save.disabled = true;
     try {
@@ -338,7 +346,7 @@
       if (index>=5) showAll=true;
       setOpen(false);
       renderAddresses(index);
-      byId('saved-address-'+index)?.querySelector('.address-deliver').focus({preventScroll:true});
+      byId('saved-address-'+index)?.querySelector('.address-edit')?.focus({preventScroll:true});
       status.textContent = '✓ Address saved on this browser.';
     } catch {
       errors.textContent = 'Your browser could not save the address.';

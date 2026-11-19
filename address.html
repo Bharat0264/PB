@@ -15,8 +15,8 @@
 <script src="footer-wave.js?v=letter-spacing" defer></script>
 <script src="profile.js?v=delivery-types" defer></script>
 <script src="customer-pricing.js?v=published-rates" defer></script>
-<script src="address-book.js?v=star-default" defer></script>
-<link rel="stylesheet" href="address-book.css?v=ticket3">
+<script src="address-book.js?v=contact" defer></script>
+<link rel="stylesheet" href="address-book.css?v=contact">
 <link rel="stylesheet" href="/hive-theme.css?v=soft-focus">
 <link rel="stylesheet" href="/customer-theme.css?v=hive-clay">
 <script src="/hive-theme.js?v=sun-moon"></script>
@@ -57,6 +57,10 @@
         <label for="delivery-campus"><span aria-hidden="true">⌂</span><strong>On campus</strong><small>Hand-delivered to your hostel or block</small></label>
         <input type="radio" id="delivery-standard" name="type" value="standard" checked>
         <label for="delivery-standard"><span aria-hidden="true">⌖</span><strong>Outside campus</strong><small>Regular doorstep delivery</small></label>
+      </div>
+      <div class="address-fields address-contact">
+        <label for="addr-customer">Full name<input id="addr-customer" name="customer" autocomplete="name" required maxlength="100"></label>
+        <label for="addr-phone">Phone<input id="addr-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" pattern="[+0-9 \(\)\-]{7,20}" required maxlength="20"></label>
       </div>
       <div id="campus-fields" class="address-fields" hidden>
         <label for="addr-campus">Campus<select id="addr-campus" name="campusId" required></select></label>

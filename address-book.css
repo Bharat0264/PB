@@ -173,3 +173,5 @@ main.address-layout .address-book > h1:last-of-type { margin-bottom:0; }
   .address-card-tools .address-action { width: 42px; height: 42px; min-height: 0; }
   .address-card + .address-card { margin-top: 14px; }
 }
+
+.address-contact-line { margin:0; font-weight:700; font-size:14px; }
