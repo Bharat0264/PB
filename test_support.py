@@ -1,3 +1,4 @@
+import json
 import sqlite3
 import unittest
 
@@ -190,6 +191,34 @@ class SupportRules(SupportModule):
         self.assertEqual(support.attachment_for_customer(self.db, shown[0]["id"], "me@example.test")["content_type"], "application/pdf")
 
 
+class SupportStorage(SupportModule):
+    class FakeStorage:
+        """Stands in for the S3 private bucket: same put_support / read interface as order_documents.PrivateFiles."""
+        errors = (OSError,)
+
+        def __init__(self):
+            self.objects = {}
+
+        def put_support(self, ticket_id, attachment_id, body):
+            key = f"printbee/support/{ticket_id}/{attachment_id}/fake"
+            self.objects[key] = bytes(body)
+            return key
+
+        def read(self, key):
+            return self.objects[key]
+
+    def test_with_storage_configured_the_file_goes_to_the_bucket_not_the_database(self):
+        storage = self.FakeStorage()
+        ident = self.make()
+        message = support.customer_ticket(self.db, ident, "me@example.test")["messages"][0]["id"]
+        pdf = b"%PDF-1.4" + bytes([10]) + b"x" * 64
+        saved = support.add_attachment(self.db, ident, message, "me@example.test", "scan.pdf", pdf, storage)
+        row = support.attachment_for_customer(self.db, saved["id"], "me@example.test")
+        self.assertIsNone(row["content"])
+        self.assertTrue(row["object_key"].startswith(f"printbee/support/{ident}/{saved['id']}/"))
+        self.assertEqual(storage.read(row["object_key"]), pdf)
+
+
 class SupportApi(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -263,7 +292,7 @@ class SupportApi(unittest.TestCase):
         self.assertEqual((status, saved["attachment"]["name"], saved["attachment"]["type"]), (200, "My receipt.pdf", "application/pdf"))
         # a file that only pretends to be a PDF is refused, and so is a stranger uploading to this message
         self.assertEqual(cat.post(upload, b"<html>hi</html>", **{"X-Filename": "x.pdf", "Content-Type": "application/pdf"})[0], 400)
-        self.assertEqual(dog.post(upload, pdf, **{"X-Filename": "x.pdf", "Content-Type": "application/pdf"})[0], 400)
+        self.assertEqual(dog.post(upload, pdf, **{"X-Filename": "x.pdf", "Content-Type": "application/pdf"})[0], 404)
         listed = cat.get(f"/api/support/tickets/{ticket['id']}")[1]["ticket"]["messages"][0]["attachments"]
         self.assertEqual(len(listed), 1)
         # downloads: owner and admin only, always as an attachment with the verified type
@@ -282,6 +311,50 @@ class SupportApi(unittest.TestCase):
         codes = [cat.post(reply, {"message": f"Hello number {n}"})[0] for n in range(23)]
         self.assertEqual(codes[:20], [200] * 20)
         self.assertEqual(set(codes[20:]), {429})
+
+
+    def test_customer_b_cannot_reach_customer_a_by_changing_ids(self):
+        ann = Customer(self.server, "ann2@example.test")
+        bea = Customer(self.server, "bea2@example.test")
+        status, made, _ = ann.post("/api/support/tickets", {"category": "account", "subject": "Private matter", "message": "My phone number is 98765 43210."})
+        self.assertEqual(status, 200, made)
+        ticket = made["ticket"]
+        pdf = b"%PDF-1.4" + bytes([10]) + b"secret contents " * 10
+        status, saved, _ = ann.post(f"/api/support/tickets/{ticket['id']}/messages/{ticket['messages'][0]['id']}/attachments", pdf,
+                                    **{"X-Filename": "id-card.pdf", "Content-Type": "application/pdf"})
+        self.assertEqual(status, 200, saved)
+        attachment = saved["attachment"]["id"]
+        missing = 99999       # an id that does not exist: the answer for A's real ids must look exactly the same
+        probes = []
+        for ident in (ticket["id"], missing):
+            probes += [
+                ("GET ticket", bea.get(f"/api/support/tickets/{ident}")),
+                ("POST reply", bea.post(f"/api/support/tickets/{ident}/reply", {"message": "I am not the owner"})),
+                ("POST resolve", bea.post(f"/api/support/tickets/{ident}/resolve")),
+                ("GET attachment", bea.get(f"/api/support/attachments/{attachment if ident == ticket['id'] else missing}")),
+                ("POST upload", bea.post(f"/api/support/tickets/{ident}/messages/{ticket['messages'][0]['id']}/attachments", pdf,
+                                         **{"X-Filename": "x.pdf", "Content-Type": "application/pdf"})),
+            ]
+        real, fake = probes[:5], probes[5:]
+        for (label, answer), (_, baseline) in zip(real, fake):
+            self.assertEqual(answer[0], 404, label)
+            self.assertEqual(answer[1], baseline[1], label + " must not reveal that the ticket exists")
+            for secret in ("Private matter", "98765", "id-card", "secret contents", "ann2@example.test"):
+                self.assertNotIn(secret, json.dumps(answer[1]) if isinstance(answer[1], (dict, list)) else str(answer[1]), label)
+        # nothing was changed by the stranger's attempts, and the owner still sees her own ticket and file
+        owner_view = ann.get(f"/api/support/tickets/{ticket['id']}")[1]["ticket"]
+        self.assertEqual((owner_view["status"], len(owner_view["messages"])), ("open", 1))
+        self.assertEqual(ann.get(f"/api/support/attachments/{attachment}")[0], 200)
+        self.assertEqual(bea.get("/api/support/tickets")[1]["tickets"], [])
+        # a stranger's id sweep finds nothing at all
+        sweep = {bea.get(f"/api/support/tickets/{number}")[0] for number in range(1, 40)}
+        sweep |= {bea.get(f"/api/support/attachments/{number}")[0] for number in range(1, 40)}
+        self.assertEqual(sweep, {404})
+        # signed out: 401, and a customer on the admin routes: 403
+        self.assertEqual(self.server.request("GET", f"/api/support/tickets/{ticket['id']}")[0], 401)
+        self.assertEqual(self.server.request("GET", f"/api/support/attachments/{attachment}")[0], 401)
+        self.assertEqual(bea.get(f"/api/admin/support/tickets/{ticket['id']}")[0], 403)
+        self.assertEqual(bea.get(f"/api/admin/support/attachments/{attachment}")[0], 403)
 
 
 class SupportEmail(unittest.TestCase):

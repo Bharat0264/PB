@@ -60,7 +60,7 @@
   background: var(--hv-surface-3, #ffefc7); color: var(--hv-warning-ink, #6e4a05); }
 .help-chip.is-open { background: var(--hv-info-bg, #e3eefc); color: var(--hv-info-ink, #1f4f94); }
 .help-chip.is-progress { background: var(--hv-warning-bg, #fff0c4); color: var(--hv-warning-ink, #6e4a05); }
-.help-chip.is-pending { background: #fde7c8; color: #7a3d00; }
+.help-chip.is-pending { background: color-mix(in srgb, var(--hv-honey-500, #f5c542) 30%, var(--hv-surface, #fff)); color: var(--hv-warning-ink, #6e4a05); }
 .help-chip.is-resolved { background: var(--hv-success-bg, #e2f2e7); color: var(--hv-success-ink, #23593a); }
 .help-chip.is-closed { background: var(--hv-surface-2, #fff6dd); color: var(--hv-muted, #6e5e3e); box-shadow: inset 0 0 0 1px var(--hv-border, #f0e3be); }
 .help-tabs { display: inline-flex; gap: 4px; padding: 4px; border-radius: 999px; background: color-mix(in srgb, var(--hv-ink, #2a2112) 7%, transparent); justify-self: start; }
@@ -128,3 +128,10 @@ textarea.help-input { resize: vertical; min-height: 120px; }
   .help-page { padding-bottom: 110px; }
 }
 @media (prefers-reduced-motion: reduce) { .help-button, .help-topic, .help-row { transition: none; } }
+
+/* Dark theme: swap the light clay highlights for the shared dark shadows (no pale glow around cards) */
+[data-theme="dark"] :is(.help-card, .help-topic, .help-row, .help-button) { box-shadow: var(--hv-sh-2); }
+[data-theme="dark"] .help-primary { box-shadow: var(--hv-sh-1); }
+[data-theme="dark"] .help-bubble.is-support { box-shadow: var(--hv-sh-1); }
+[data-theme="dark"] .help-bubble.is-you { box-shadow: 0 4px 14px rgba(0, 0, 0, .45); }
+[data-theme="dark"] .help-file-link { background: rgba(0, 0, 0, .12); }

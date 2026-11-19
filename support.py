@@ -354,6 +354,9 @@ def add_attachment(db, ticket_id, message_id, uploader, filename, body, storage=
     (then the bytes live in the database like order files). Returns the attachment's public description."""
     ticket = _ticket(db, ticket_id)
     message = db.execute("SELECT kind, author FROM support_messages WHERE id=? AND ticket_id=?", (message_id, ticket_id)).fetchone()
+    # A stranger gets exactly the same "not found" as for a ticket that does not exist, so ids cannot be probed.
+    if ticket["customer_email"] != uploader and not (message and message["kind"] == "agent" and message["author"] == uploader):
+        raise NotFound("That ticket was not found.")
     if not message or message["kind"] not in ("customer", "agent") or message["author"] != uploader:
         raise SupportError("Attach files to a message you wrote.")
     if ticket["status"] == "closed":

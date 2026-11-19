@@ -76,7 +76,8 @@ browser key to the site's origins. Manual address entry works without a map key.
 
 Set `PRINTBEE_S3_BUCKET` to a private bucket with S3 public access blocked.
 Use IAM credentials from the AWS SDK environment and grant access to the
-`printbee/orders/` prefix. An optional S3-compatible endpoint is configurable.
+`printbee/orders/` and `printbee/support/` prefixes (print files and support
+ticket attachments). An optional S3-compatible endpoint is configurable.
 The application checks order ownership before returning a file or creating a
 one-minute signed link. Without S3, the local app stores files in SQLite.
 Existing SQLite files remain readable with either configuration.
@@ -199,6 +200,35 @@ For optional status email, configure the SMTP settings from
 `python send_order_updates.py`. Its first run starts at the current event
 cursor to avoid sending historical mail. Later runs send up to 50 new
 updates and resume from the last successful send.
+
+### Scheduling the email worker
+
+`send_order_updates.py` is a short job, not a server. It sends order updates
+**and** the "support replied to your ticket" emails (`support_notify.py`), then
+exits. Run it every minute or two, one copy at a time, with the same
+environment variables as the website (`PRINTBEE_ORIGIN`, `PRINTBEE_DATA_DIR` or
+the database settings, and the `PRINTBEE_SMTP_*` variables).
+
+- **Linux or macOS (cron)**, every minute:
+  `* * * * * cd /path/to/PrintBee && /usr/bin/env python3 send_order_updates.py >> email-worker.log 2>&1`
+  (put the `PRINTBEE_*` variables in the crontab or load them from your env file first).
+- **Windows (Task Scheduler)**: create a task with trigger "Daily, repeat every
+  1 minute for 1 day", action "Start a program" = `python.exe`, arguments
+  `send_order_updates.py`, "Start in" = the PrintBee folder, and set the
+  `PRINTBEE_*` values as user environment variables. Under "Settings" choose
+  "Do not start a new instance" so two copies never overlap.
+- **Render**: add a Cron Job service running `python send_order_updates.py` on the
+  schedule `* * * * *` with the same environment group as the web service. The
+  database and file storage must be shared with the web service (use a
+  persistent disk or an external database).
+
+**`PRINTBEE_ORIGIN` must be set** to the public HTTPS address customers use (for
+example `https://printbee.co.in`, no trailing slash). The worker refuses to run
+without an HTTPS origin, and the link inside a support-reply email is built from
+it (`PRINTBEE_ORIGIN/help.html#/ticket/<id>`), so a wrong value sends customers to a
+broken page. The email never contains the reply itself; customers sign in and
+read it on the site. To check mail and storage settings before relying on them,
+run `python check_support_services.py you@example.com`.
 
 The admin may cancel an unprinted local test order or request a full refund
 on an unprinted captured Razorpay order. A refund request pauses fulfilment
