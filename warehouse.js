@@ -716,7 +716,7 @@ function syncSheet() {
   const open=mobile.matches && sheet;
   station.classList.toggle('wh-sheet',open);
   station.classList.toggle('wh-context-station',['History','Inventory'].includes(view) && !active);
-  byId('station-close').hidden=!open;
+  byId('station-close').hidden=!open && !active;
   document.body.classList.toggle('wh-has-sheet',open);
   for (const target of [station.previousElementSibling,document.querySelector('.wh-rail'),document.querySelector('.wh-top')]) target.inert=open;
   if (open) {
@@ -734,6 +734,14 @@ function closeSheet(returnFocus=true) {
     const controls=[...board.querySelectorAll('[data-focus]')];
     (controls.find(el=>el.dataset.focus===restoreFocus) || byId('warehouse-search')).focus({preventScroll:true});
   }
+}
+function dismissOrder() {
+  const target=restoreFocus || 'order-'+active;
+  active=null;
+  closeSheet(false);
+  render();
+  const controls=[...board.querySelectorAll('[data-focus]')];
+  (controls.find(el=>el.dataset.focus===target) || byId('warehouse-search')).focus({preventScroll:true});
 }
 function openOrder(id,focus=false) {
   const order=findOrder(id);
@@ -761,6 +769,7 @@ function renderStation(order=findOrder()) {
   const idle=!order && !['History','Inventory'].includes(view);
   station.hidden=view==='Settings' || idle;
   byId('warehouse-columns').classList.toggle('wh-settings-layout',view==='Settings' || idle);
+  byId('station-close').hidden=!order && !(mobile.matches && sheet);
   if (station.hidden) return;
   station.classList.toggle('wh-context-station',['History','Inventory'].includes(view) && !order);
   byId('floor-detail-context').textContent='Order station';
@@ -1272,7 +1281,7 @@ async function start() {
   
   byId('search-icon').append(icon('search'));
   byId('station-close').append(icon('close'));
-  byId('station-close').addEventListener('click',()=>closeSheet());
+  byId('station-close').addEventListener('click',dismissOrder);
   byId('sound-toggle').addEventListener('click',()=>setSetting('sound',!preferences.sound));
   initFloorControls();
   const search=byId('warehouse-search');
