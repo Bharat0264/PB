@@ -109,7 +109,7 @@ let watch, lastSent = 0, point, sending = false, wakeLock, offerIds;
 let shiftSince = demo ? state.shiftSince : null;
 let notices = [], unread = 0, staffDock;
 const skipped = new Set();
-let profile = {name: 'Aarav Kumar', vehicle: 'TN 19 AB 4821 · Electric scooter', payout: 'aarav@upi', language: 'English', alerts: true};
+let profile = demo ? {name: 'Aarav Kumar', vehicle: 'TN 19 AB 4821 · Electric scooter', payout: 'aarav@upi', language: 'English', alerts: true} : {};
 if (demo) { try { profile = {...profile, ...JSON.parse(saved('printbee-rider-profile'))}; } catch {} }
 const goals = {day: 30000, week: 280000};
 
@@ -160,6 +160,8 @@ async function refresh() {
     if (!state.available && data.available) shiftSince = Date.now();
     if (!data.available) shiftSince = null;
     state = data;
+    profile = {...data.profile};
+    $('rider-avatar').textContent = (profile.name || 'Partner').trim().split(/\s+/).map(word => word[0]).join('').slice(0, 2).toUpperCase();
     if (old && old !== active()?.id) {
       localStep = 0;
       stopLocation();
@@ -513,7 +515,7 @@ function statusCell() {
   const time = h('span', {class: 'muted', 'data-shift-time': ''});
   const pill = h('span', {class: 'status-pill' + (on ? ' is-on' : '')}, on ? 'Online' : 'Offline');
   const c = h('section', {class: 'cell'},
-    h('div', {class: 'status-row'}, h('div', {class: 'cockpit-greet'}, h('h1', {}, (on ? 'Fly safe, ' : 'Hi, ') + (demo ? profile.name.split(' ')[0] : 'partner')), time), pill),
+    h('div', {class: 'status-row'}, h('div', {class: 'cockpit-greet'}, h('h1', {}, (on ? 'Fly safe, ' : 'Hi, ') + (profile.name?.split(' ')[0] || 'partner')), time), pill),
     slideToAct({label: on ? 'Slide back to go offline' : 'Slide to go online', done: on, onConfirm: toggleOnline,
       ariaLabel: (on ? 'Go offline' : 'Go online') + '. Drag the bee, or press Enter.',
       thumb: on ? `<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#2A2112" stroke-width="2" stroke-linecap="round"><path d="M12 4v8M7 7a7 7 0 1 0 10 0"/></svg>` : BEE()}));
@@ -784,24 +786,25 @@ function renderEarnings() {
     h('div', {class: 'span-5'}, ticketsCell()))];
 }
 function badge() {
-  const id = demo ? 'PB-R104' : 'PB-PARTNER';
+  const id = demo ? 'PB-R104' : profile.id ? 'PB-' + profile.id.toUpperCase() : '—';
   const stars = 4.9;
   const starcomb = h('div', {class: 'starcomb', 'aria-label': `Rating ${stars} out of 5`}, [1, 2, 3, 4, 5].map(i => h('i', {class: stars >= i ? 'on' : stars >= i - .5 ? 'half' : ''})), h('b', {class: 'num'}, demo ? stars.toFixed(1) : '—'));
   const photo = `<svg viewBox="0 0 88 100" aria-hidden="true"><rect width="88" height="100" fill="#FFF1D2"/><circle cx="44" cy="40" r="17" fill="#C68B59"/><path d="M27 37c0-12 8-19 17-19s17 7 17 19c-4-6-10-8-17-8s-13 2-17 8z" fill="#2A2112"/><path d="M12 100c2-20 15-31 32-31s30 11 32 31z" fill="#F5C542"/><path d="M36 70l8 10 8-10" fill="none" stroke="#B9831A" stroke-width="3"/></svg>`;
   const front = h('div', {class: 'badge-face'},
     h('div', {class: 'badge-band'}, h('span', {class: 'badge-slot'}), h('span', {class: 'badge-org'}, h('img', {src: '/printbee-header-bee.webp', alt: ''}), 'PrintBee Partner'), h('div', {class: 'badge-photo', html: photo})),
     h('div', {class: 'badge-body'},
-      h('div', {class: 'badge-name'}, demo ? profile.name : 'Delivery partner'),
-      h('div', {class: 'badge-role'}, 'Delivery partner · SRM campus hive'), starcomb,
-      h('div', {class: 'badge-row'}, h('div', {class: 'badge-id'}, h('span', {class: 'lbl'}, 'Partner ID'), h('span', {class: 'val num'}, id), h('span', {class: 'lbl', style: {marginTop: '8px'}}, 'Valid through'), h('span', {class: 'num'}, 'Mar 2027')),
+      h('div', {class: 'badge-name'}, profile.name || 'Delivery partner'),
+      h('div', {class: 'badge-role'}, 'Delivery partner · SRM campus hive'), demo ? starcomb :
+        h('div', {class: 'badge-contact'}, ...[profile.email, profile.phone, profile.rollNo ? 'SRM roll no. ' + profile.rollNo : null].filter(Boolean).map(text => h('span', {}, text))),
+      h('div', {class: 'badge-row'}, h('div', {class: 'badge-id'}, h('span', {class: 'lbl'}, 'Partner ID'), h('span', {class: 'val num'}, id), h('span', {class: 'lbl', style: {marginTop: '8px'}}, demo ? 'Valid through' : 'Member since'), h('span', {class: 'num'}, demo ? 'Mar 2027' : profile.created ? new Date(profile.created * 1000).toLocaleDateString('en-IN', {month:'short',year:'numeric'}) : '—')),
         h('div', {class: 'badge-qr', html: QR.svg('PRINTBEE:PARTNER:' + id)}))),
     h('div', {class: 'badge-holo', 'aria-hidden': 'true'}));
   const back = h('div', {class: 'badge-face badge-back'},
     h('div', {class: 'badge-band', style: {height: '22%'}}, h('span', {class: 'badge-slot'}), h('span', {class: 'badge-org'}, 'Vehicle & documents')),
     h('dl', {class: 'back-list'},
-      ...[['Vehicle', profile.vehicle], ['Driving licence', 'Verified · exp 2031'], ['Vehicle RC', 'Verified'], ['Insurance', 'Valid · Aug 2027'], ['Payout account', profile.payout]].map(([k, v]) => h('div', {}, h('dt', {}, k), h('dd', {class: /Verified|Valid/.test(v) ? 'doc-ok' : ''}, v)))),
+      ...(demo ? [['Vehicle', profile.vehicle], ['Driving licence', 'Verified · exp 2031'], ['Vehicle RC', 'Verified'], ['Insurance', 'Valid · Aug 2027'], ['Payout account', profile.payout]] : [['Vehicle', profile.vehicle || 'Not provided'], ['Driving licence', profile.licence || 'Not provided'], ['Vehicle RC', 'Not provided'], ['Insurance', 'Not provided'], ['Payout account', profile.payout || 'Not provided']]).map(([k, v]) => h('div', {}, h('dt', {}, k), h('dd', {class: /Verified|Valid/.test(v) ? 'doc-ok' : ''}, v)))),
     h('div', {class: 'badge-holo', 'aria-hidden': 'true'}));
-  const card = h('div', {class: 'badge', role: 'group', 'aria-label': 'Partner ID card'}, front, back);
+  const card = h('div', {class: 'badge' + (demo ? '' : ' badge-identity'), role: 'group', 'aria-label': 'Partner ID card'}, front, back);
   let flipped = false;
   const flipBtn = h('button', {class: 'hive-btn', type: 'button', 'aria-pressed': 'false', onclick: () => { flipped = !flipped; card.style.setProperty('--flip', flipped ? '180deg' : '0deg'); flipBtn.setAttribute('aria-pressed', String(flipped)); flipBtn.lastChild.textContent = flipped ? 'Show front' : 'Show vehicle & documents'; }}, icon('flip', 18), h('span', {}, 'Show vehicle & documents'));
   const stage = h('div', {class: 'badge-stage'}, card);
@@ -840,7 +843,7 @@ function renderProfile() {
   } else {
     settings.append(h('p', {class: 'muted'}, 'Manage account and payout details through PrintBee support.'), h('div', {class: 'row-actions'}, h('a', {class: 'hive-btn', href: 'mailto:printbee.co.in@gmail.com'}, 'Email PrintBee support')));
   }
-  const docs = cell('Documents', h('div', {style: {display: 'grid', gap: '8px'}}, ...[['Driving licence', 'Verified'], ['Vehicle RC', 'Verified'], ['Insurance', 'Valid until Aug 2027']].map(([k, v]) => h('div', {class: 'toggle-row'}, k, h('span', {class: 'doc-ok'}, '✓ ' + v)))),
+  const docs = cell('Documents', h('div', {style: {display: 'grid', gap: '8px'}}, ...(demo ? [['Driving licence', 'Verified'], ['Vehicle RC', 'Verified'], ['Insurance', 'Valid until Aug 2027']] : [['Driving licence', profile.licence || 'Not provided'], ['Vehicle RC', 'Not provided'], ['Insurance', 'Not provided']]).map(([k, v]) => h('div', {class: 'toggle-row'}, k, h('span', {class: demo ? 'doc-ok' : ''}, (demo ? '✓ ' : '') + v)))),
     demo ? h('div', {class: 'row-actions'}, h('button', {class: 'hive-btn', type: 'button', onclick: () => { state = seed(); shiftSince = null; skipped.clear(); completed = null; tab = 'Cockpit'; changed(); notify('Sample hive reset.'); }}, 'Reset sample deliveries'), h('a', {class: 'hive-btn', href: '/partner'}, 'Live partner sign-in')) : null);
   return [h('div', {class: 'grid-12 assemble'}, head, badge(), h('div', {class: 'span-7', style: {display: 'grid', gap: 'var(--gutter)', alignContent: 'start'}}, settings, docs))];
 }
@@ -996,10 +999,10 @@ async function init() {
   $('rider-notifications').replaceChildren(icon('bell', 22));
   $('rider-search').onclick = openPalette;
   $('rider-notifications').onclick = openNotifications;
-  $('rider-avatar').textContent = (demo ? profile.name : 'Partner').split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
+  $('rider-avatar').textContent = (profile.name || 'Partner').split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
   $('rider-avatar').onclick = () => showDialog('Partner account', body => { body.append(
     h('div', {class: 'acct-head'}, h('span', {class: 'acct-avatar', 'aria-hidden': 'true'}, $('rider-avatar').textContent),
-      h('div', {}, h('strong', {}, demo ? profile.name : 'Delivery partner'), h('small', {}, demo ? 'PB-R104' : 'Signed in'))),
+      h('div', {}, h('strong', {}, profile.name || 'Delivery partner'), h('small', {}, demo ? 'PB-R104' : 'Signed in'))),
     h('button', {class: 'acct-row', type: 'button', onclick: () => { $('rider-dialog').close(); selectTab('Profile', document.querySelector('[data-section=Profile]')); }}, h('span', {}, 'Open profile')));
     body.append(h('div', {class: 'pb-switch', 'data-portal-switch': 'partner', hidden: true}));
     window.PrintBeePortals?.render();

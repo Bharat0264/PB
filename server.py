@@ -1486,7 +1486,7 @@ class PrintBee(SimpleHTTPRequestHandler):
             "COALESCE(sum(CASE WHEN settled IS NULL THEN amount END),0) AS outstanding "
             "FROM partner_earnings WHERE partner=?", (partner,)
         ).fetchone())
-        return self.json_response(200, {"orders": orders, "earnings": earnings, "available": bool(
+        return self.json_response(200, {"profile": admin_records.partner_profile(db, partner), "orders": orders, "earnings": earnings, "available": bool(
             availability and availability["available"] and availability["updated"] > time.time() - 900
         )})
 
@@ -1616,6 +1616,8 @@ class PrintBee(SimpleHTTPRequestHandler):
             if partner != "delivery":
                 directory.setdefault(partner, {"id": partner, "email": None})
         saved = admin_records.partner_accounts(db)
+        for entry in directory.values():
+            entry.update(admin_records.partner_profile(db, entry["id"]))
         partners = [{**entry, "removable": entry["email"] in saved, "deliveries": 0, "accrued": 0, "outstanding": 0, **earned.get(entry["id"], {"partner": 0})}
                     for entry in directory.values()]
         for entry in partners:

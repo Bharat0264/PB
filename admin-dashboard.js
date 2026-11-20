@@ -388,9 +388,9 @@ const paise = value => Math.round(Number(value) * 100);
 
 function livePartners() {
   const rows = partners.map(partner => {
-    const who = String(partner.email || partner.id || '?');
+    const who = String(partner.name || partner.email || partner.id || '?');
     return `<li class="partner-row"><span class="partner-avatar" aria-hidden="true">${escape(who[0].toUpperCase())}</span>
-      <span class="partner-main"><strong>${escape(who)}</strong><small>${number(partner.deliveries)} deliveries &middot; earned ${money(partner.accrued / 100)} &middot; unsettled ${money(partner.outstanding / 100)}</small></span>
+      <span class="partner-main"><strong>${escape(who)}</strong><small>${escape(partner.email || '')}${partner.phone ? ' · ' + escape(partner.phone) : ''}</small><small>${number(partner.deliveries)} deliveries &middot; earned ${money(partner.accrued / 100)} &middot; unsettled ${money(partner.outstanding / 100)}</small></span>
       <span class="partner-side"><span class="directory-verified">Verified</span>${partner.removable ? `<button type="button" class="partner-remove" data-remove-partner="${escape(partner.email)}">Remove access</button>` : ''}</span></li>`;
   }).join('');
   return card('Delivery partners', rows ? `<ul class="partner-list">${rows}</ul>` : '<p class="muted">No delivery partners yet. Use “Add verified partner” to give someone access with their Google email.</p>', 'full') +
@@ -648,7 +648,7 @@ root.addEventListener('input',event => {
 const directoryEditors = {
   partner: {
     title:'Add verified delivery partner',
-    fields:'<label>Full name<input name="name" required maxlength="70"></label><label>Google account email<input name="email" type="email" autocomplete="off" required maxlength="254"></label><label class="directory-confirm"><input name="verified" type="checkbox" required> I have verified this delivery partner’s identity.</label>',
+    fields:'<label>Full name<input name="name" autocomplete="name" required maxlength="70"></label><label>Google account email<input name="email" type="email" autocomplete="off" required maxlength="254"></label><label>Phone number<input name="phone" type="tel" autocomplete="tel" pattern="[+0-9 ()-]{7,20}" required maxlength="20"></label><label>SRM roll number (optional)<input name="rollNo" maxlength="40"></label><label>Driving licence number<input name="licence" required maxlength="40"></label><label>Payout UPI ID<input name="payout" placeholder="name@bank" required maxlength="150"></label><label>Vehicle name<input name="vehicle" placeholder="Vehicle model or name" required maxlength="100"></label><label class="directory-confirm"><input name="verified" type="checkbox" required> I have verified this delivery partner’s identity and driving licence.</label>',
   },
   warehouse: {
     title:'Add warehouse',
@@ -657,12 +657,12 @@ const directoryEditors = {
 };
 
 if (live) directoryEditors.product = {title: 'Add print service', fields: ''};
-if (live) directoryEditors.partner.fields = '<label>Google account email<input name="email" type="email" autocomplete="off" required maxlength="254"></label><label class="directory-confirm"><input name="verified" type="checkbox" required> I have verified this delivery partner’s identity.</label>';
 if (live) directoryEditors.warehouse.fields = '<label>Warehouse name<input name="name" required maxlength="70"></label><label>Google Maps pickup address or coordinates<input name="address" required maxlength="500"></label><label>Staff Google account email<input name="email" type="email" autocomplete="off" required maxlength="254"></label><label class="directory-confirm"><input name="useForPickup" type="checkbox"> Use for new order pickups</label>';
 
 let readOfflineOrders;
 
 function openEditor(kind, id) {
+  $('editor-error').textContent = '';
   const isOrder = kind === 'order';
   const existing = id && orders.find(o => o.id === id);
   const directoryEditor = directoryEditors[kind];
@@ -726,7 +726,7 @@ $('editor-form').onsubmit = async event => {
     field.addEventListener('input', () => field.setCustomValidity(''), {once:true});
   }
   for (const field of form.querySelectorAll('input:not([type="number"], [type="checkbox"])')) {
-    if (field.value.trim()) continue;
+    if (!field.required || field.value.trim()) continue;
     invalid(field, 'Enter a value.');
     return;
   }
@@ -741,7 +741,7 @@ $('editor-form').onsubmit = async event => {
         });
         $('notice').textContent = 'Service added. Customers can choose it at checkout now.';
       } else if (kind === 'partner') {
-        await source.api('/api/admin/partners', {email: data.get('email').trim().toLowerCase()});
+        await source.api('/api/admin/partners', {...Object.fromEntries(['name','email','phone','rollNo','licence','payout','vehicle'].map(key => [key, data.get(key).trim()])), verified:data.has('verified')});
         $('notice').textContent = '';   // the new partner appears in the list below
       } else if (kind === 'warehouse') {
         await source.api('/api/admin/warehouses', {name: data.get('name').trim(), address: data.get('address').trim(), email: data.get('email').trim().toLowerCase(), useForPickup: data.has('useForPickup') || !warehouses.length});
@@ -753,7 +753,7 @@ $('editor-form').onsubmit = async event => {
       $('editor').close();
       await refresh();
     } catch (error) {
-      $('notice').textContent = error.message;
+      $('editor-error').textContent = error.message;
     }
     return;
   }
@@ -764,7 +764,7 @@ $('editor-form').onsubmit = async event => {
       invalid(form.elements.email, 'This partner is already in the directory.');
       return;
     }
-    partners.push({name:data.get('name').trim(), email});
+    partners.push({...Object.fromEntries(['name','phone','rollNo','licence','payout','vehicle'].map(key => [key, data.get(key).trim()])), email});
   } else if (kind === 'warehouse') {
     warehouses.push({name:data.get('name').trim(), location:data.get('location').trim(), address:data.get('address').trim(), email:data.get('email').trim().toLowerCase()});
   } else if (kind === 'order') {

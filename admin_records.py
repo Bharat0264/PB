@@ -24,6 +24,12 @@ CREATE TABLE IF NOT EXISTS offline_sales (
 CREATE TABLE IF NOT EXISTS partner_accounts (
     email TEXT PRIMARY KEY, partner TEXT NOT NULL UNIQUE, created INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS partner_details (
+    partner TEXT PRIMARY KEY REFERENCES partner_accounts(partner) ON DELETE CASCADE,
+    name TEXT NOT NULL, phone TEXT NOT NULL, roll_no TEXT NOT NULL DEFAULT '',
+    licence TEXT NOT NULL, payout TEXT NOT NULL, vehicle TEXT NOT NULL,
+    updated_at INTEGER NOT NULL, updated_by TEXT NOT NULL
+);
 CREATE INDEX IF NOT EXISTS offline_sales_created ON offline_sales(created);
 CREATE INDEX IF NOT EXISTS audit_paid_at ON audit(created, order_id) WHERE action='paid';
 CREATE INDEX IF NOT EXISTS audit_paid_order ON audit(order_id, created) WHERE action='paid';
@@ -121,17 +127,46 @@ def partner_accounts(db):
     return {row["email"]: row["partner"] for row in db.execute("SELECT email, partner FROM partner_accounts")}
 
 
+def partner_profile(db, partner):
+    row = db.execute("""SELECT a.partner AS id, a.email, a.created, d.name, d.phone, d.roll_no AS rollNo,
+        d.licence, d.payout, d.vehicle FROM partner_accounts a LEFT JOIN partner_details d
+        ON a.partner=d.partner WHERE a.partner=?""", (partner,)).fetchone()
+    return dict(row) if row else {"id": partner}
+
+
 def add_partner(db, data, actor):
-    """Verify a delivery partner's Google account. Returns (email, partner id)."""
+    """Save an admin-verified identity and grant its Google account partner access."""
     email = required_text(data, "email", 254).lower()
     if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
         raise InputError("Enter a valid Google email address.")
+    name = required_text(data, "name", 70)
+    phone = required_text(data, "phone", 20)
+    if not re.fullmatch(r"\+?[0-9 ()-]{7,20}", phone) or not 7 <= len(re.sub(r"\D", "", phone)) <= 15:
+        raise InputError("Enter a valid phone number.")
+    roll = data.get("rollNo", "")
+    if not isinstance(roll, str) or len(roll.strip()) > 40:
+        raise InputError("Enter a valid SRM roll number or leave it blank.")
+    licence = required_text(data, "licence", 40)
+    payout = required_text(data, "payout", 150)
+    if not re.fullmatch(r"[A-Za-z0-9._-]{2,100}@[A-Za-z][A-Za-z0-9.-]{1,49}", payout):
+        raise InputError("Enter a valid payout UPI ID.")
+    vehicle = required_text(data, "vehicle", 100)
+    if data.get("verified") is not True:
+        raise InputError("Confirm that you have verified this delivery partner's identity.")
     existing = db.execute("SELECT partner FROM partner_accounts WHERE email=?", (email,)).fetchone()
-    if existing:
-        return email, existing["partner"]
-    partner = "rider-" + secrets.token_hex(4)
-    db.execute("INSERT INTO partner_accounts(email, partner, created) VALUES (?,?,?)", (email, partner, int(time.time())))
-    ops.audit(db, actor, "partner_added", partner)
+    partner = existing["partner"] if existing else "rider-" + secrets.token_hex(4)
+    details = (name, phone, roll.strip(), licence, payout, vehicle)
+    current = db.execute("SELECT name, phone, roll_no, licence, payout, vehicle FROM partner_details WHERE partner=?", (partner,)).fetchone()
+    if current and tuple(current) == details:
+        return email, partner
+    now = int(time.time())
+    if not existing:
+        db.execute("INSERT INTO partner_accounts(email, partner, created) VALUES (?,?,?)", (email, partner, now))
+    db.execute("""INSERT INTO partner_details VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(partner) DO UPDATE SET
+        name=excluded.name, phone=excluded.phone, roll_no=excluded.roll_no, licence=excluded.licence,
+        payout=excluded.payout, vehicle=excluded.vehicle, updated_at=excluded.updated_at, updated_by=excluded.updated_by""",
+        (partner, *details, now, actor))
+    ops.audit(db, actor, "partner_updated" if existing else "partner_added", partner)
     return email, partner
 
 
@@ -140,6 +175,7 @@ def remove_partner(db, data, actor):
     row = db.execute("SELECT partner FROM partner_accounts WHERE email=?", (email,)).fetchone()
     if not row:
         raise InputError("Only partners added here can be removed.")
+    db.execute("DELETE FROM partner_details WHERE partner=?", (row["partner"],))
     db.execute("DELETE FROM partner_accounts WHERE email=?", (email,))
     ops.audit(db, actor, "partner_removed", row["partner"])
     return email

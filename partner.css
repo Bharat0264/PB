@@ -491,3 +491,25 @@ body[data-page="Cockpit"] .hive-main { padding-bottom: 40px; }
 .problem-error { margin: 0; padding: 10px 14px; border-radius: 14px; background: #fce3e0; color: #9a2626; font-weight: 700; }
 .problem-error[hidden] { display: none; }
 .problem-form textarea { font: 500 15px/1.4 Manrope, system-ui, sans-serif; resize: vertical; }
+
+/* Admin-enrolled identity details must fit on both sides of the partner card. */
+.badge-identity { min-height:600px; }
+.badge-identity .badge-name { max-width:100%; overflow-wrap:anywhere; }
+.badge-identity .badge-band { flex:0 0 26%; }
+.badge-identity .badge-back .badge-band { flex-basis:22%; }
+.badge-contact { display:grid; gap:3px; color:var(--muted); font-size:12px; overflow-wrap:anywhere; }
+.badge-identity .back-list dd { overflow-wrap:anywhere; font-size:14px; }
+.badge-identity .badge-body { min-height:0; overflow:auto; }
+.badge-identity .back-list { min-height:0; overflow:auto; }
+
+.cell[aria-label="Partner ID badge"], .badge-stage, .badge-identity .badge-id { min-width:0; }
+.badge-identity .badge-row { grid-template-columns:minmax(0,1fr) auto; }
+.badge-identity .badge-id .val { overflow-wrap:anywhere; font-size:17px; }
+@media (max-width:560px) {
+  .badge-identity .badge-row { grid-template-columns:minmax(0,1fr); align-items:start; }
+  .badge-identity .badge-qr { width:88px; }
+  .badge-identity .badge-band { flex-basis:24%; }
+}
+
+.cell[aria-label="Partner ID badge"], .badge-stage { width:100%; box-sizing:border-box; }
+.badge-identity { min-width:0; max-width:100%; }

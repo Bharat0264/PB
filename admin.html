@@ -56,7 +56,7 @@ if (new URLSearchParams(location.search).get('preview') === '1') location.replac
 #portal-login,.live-gate{display:none!important}
 </style>
 <script src="portal-login.js?v=one-door" defer></script>
-<script type="module" src="admin-dashboard.js?v=svc-add"></script>
+<script type="module" src="admin-dashboard.js?v=partner-details"></script>
 </head>
 <body data-portal="admin">
 <a class="skip" href="#main">Skip to dashboard</a>
@@ -122,6 +122,7 @@ if (new URLSearchParams(location.search).get('preview') === '1') location.replac
   <form id="editor-form">
     <h2 id="editor-title"></h2>
     <div id="editor-fields"></div>
+    <p id="editor-error" role="alert"></p>
     <div class="actions"><button id="close-editor" type="button">Close</button><button class="primary" id="save-editor" type="submit">Save</button></div>
   </form>
 </dialog>
