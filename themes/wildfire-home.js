@@ -124,7 +124,8 @@ export async function mount() {
       stage.classList.add('wf-static');
     }
   };
-  const idle = window.requestIdleCallback || (fn => setTimeout(fn, 250));
+  // idle callbacks can starve on a busy or backgrounded page, so give them a deadline
+  const idle = fn => (window.requestIdleCallback ? window.requestIdleCallback(fn, {timeout: 1200}) : setTimeout(fn, 250));
   if (document.readyState === 'complete') idle(start); else addEventListener('load', () => idle(start), {once: true});
 
   return {

@@ -113,13 +113,17 @@
     root.classList.add('wf-igniting');
     setTimeout(() => root.classList.remove('wf-igniting'), 1500);
     play();
-    // The cinematic home page exists only on the home page. It loads lazily and stop() removes it again.
-    if (document.querySelector('main#main > .hero')) {
-      import('/themes/wildfire-home.js?v=3')
+    // The cinematic home page exists only on the home page. It must wait until the page is fully parsed: when this script
+    // comes from the cache it can start before <main> exists, and the check would wrongly say "not the home page".
+    // It loads lazily and stop() removes it again.
+    const startHome = () => {
+      if (!canvas || home || !document.querySelector('main#main > .hero')) return;
+      import('/themes/wildfire-home.js?v=5')
         .then(module => module.mount())
-        .then(api => { if (canvas) home = api; else api.destroy(); })
+        .then(api => { if (canvas && !home) home = api; else api.destroy(); })
         .catch(error => console.warn('[Wildfire] the home layer did not start', error));
-    }
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startHome, {once: true}); else startHome();
   }
 
   function stop() {

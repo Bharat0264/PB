@@ -181,5 +181,22 @@ class QuickSwitchTests(unittest.TestCase):
         self.assertIn("prefers-reduced-motion", css)
 
 
+class WildfireHomeStartTests(unittest.TestCase):
+    """Regression: the cinematic hero was missing in the embedded home tab because the effects script ran before <main> was parsed."""
+
+    def test_home_layer_waits_for_the_parsed_page(self):
+        effects = (ROOT / "themes" / "wildfire.js").read_text(encoding="utf-8")
+        start = effects[effects.index("function start()"):effects.index("function stop()")]
+        self.assertIn("document.readyState === 'loading'", start)
+        self.assertIn("'DOMContentLoaded', startHome", start)
+        # the main/.hero check lives inside startHome (run after parsing), never directly in start()
+        self.assertLess(start.index("const startHome"), start.index("main#main > .hero"))
+        self.assertNotIn("    if (document.querySelector('main#main > .hero')) {", start)
+
+    def test_hero_start_has_an_idle_deadline(self):
+        home = (ROOT / "themes" / "wildfire-home.js").read_text(encoding="utf-8")
+        self.assertIn("timeout: 1200", home)
+
+
 if __name__ == "__main__":
     unittest.main()
