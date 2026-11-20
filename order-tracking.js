@@ -66,7 +66,7 @@
       return cell;
     }));
   }
-  const D = '#4a3b2a', H = '#f5b731', HL = '#ffd96a';
+  const D = 'var(--journey-icon-ink,#4a3b2a)', H = '#f5b731', HL = '#ffd96a';
   const journeyIcons = [
     `<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M5 10h6l5 18h18l4-12H14" fill="none" stroke="${D}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><rect x="17" y="15" width="17" height="11" rx="3" fill="${HL}"/><circle cx="19" cy="37" r="3.2" fill="${D}"/><circle cx="32" cy="37" r="3.2" fill="${D}"/><circle cx="36" cy="14" r="8" fill="${H}"/><path d="m32 14 3 3 5-6" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
     `<svg viewBox="0 0 48 48" aria-hidden="true"><rect x="15" y="6" width="18" height="8" rx="3" fill="none" stroke="${D}" stroke-width="3"/><rect x="5" y="14" width="38" height="20" rx="6" fill="${D}"/><rect x="13" y="26" width="22" height="15" rx="2" fill="${HL}"/><path d="M18 31h12M18 35h8" stroke="${H}" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="20" r="2" fill="${H}"/></svg>`,
@@ -76,18 +76,23 @@
   ];
   const journeySteps = [['Order placed', ['paid']], ['Printing', ['printing']], ['Ready', ['packed', 'assigned']], ['On the way', ['out_for_delivery']], ['Delivered', ['delivered']]];
   const wave = 'M50 30' + [150, 250, 350, 450].map(x => ` C${x - 70} 2 ${x - 30} 2 ${x} 30`).join('');
+  let journeySerial = 0;
   function orderJourney(status) {
     const at = journeySteps.findIndex(([, keys]) => keys.includes(status));
     if (at < 0 || status === 'delivered') return null;   // only live (active) orders show the journey
     const done = status === 'delivered';
     const list = node('ol', '', 'journey');
     list.setAttribute('aria-label', 'Order journey: ' + journeySteps[at][0]);
-    list.style.setProperty('--progress', String(at / 4 * 100));
-    list.insertAdjacentHTML('afterbegin', `<svg class="journey-wave" viewBox="0 0 500 40" preserveAspectRatio="none" aria-hidden="true"><path pathLength="100" d="${wave}" class="journey-track"/><path pathLength="100" d="${wave}" class="journey-fill"/></svg>`);
+    // Each curved segment has the same length; fill through the current stage.
+    list.style.setProperty('--progress', String(at / (journeySteps.length - 1) * 100));
+    const clipId = 'journey-progress-' + (++journeySerial);
+    const end = 50 + at * 100;
+    list.insertAdjacentHTML('afterbegin', `<svg class="journey-wave" viewBox="0 0 500 40" preserveAspectRatio="none" aria-hidden="true"><defs><clipPath id="${clipId}" clipPathUnits="userSpaceOnUse"><rect x="0" y="-10" width="${end}" height="60"/></clipPath></defs><path d="${wave}" class="journey-track"/><path d="${wave}" class="journey-fill" clip-path="url(#${clipId})"/></svg>`);
     journeySteps.forEach(([text], i) => {
       const step = node('li', '', 'journey-step');
       step.style.setProperty('--i', i);
       step.dataset.state = i < at ? 'done' : i === at ? (done ? 'final' : 'current') : 'todo';
+      if (i === at) step.setAttribute('aria-current', 'step');
       const tile = node('span', '', 'journey-tile');
       tile.innerHTML = journeyIcons[i];
       step.append(tile, node('span', '', 'journey-dot'), node('span', text, 'journey-label'));
