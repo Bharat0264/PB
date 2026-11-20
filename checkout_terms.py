@@ -119,6 +119,10 @@ def require_pickup_coordinates(terms, pickup):
     return origin
 
 
+# Roads are longer than the straight line between two points; 1.3 is a common estimate for city delivery.
+ROAD_FACTOR = 1.3
+
+
 def distance_km(origin, destination):
     lat1, lng1, lat2, lng2 = map(math.radians, (*origin, *destination))
     a = math.sin((lat2 - lat1) / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin((lng2 - lng1) / 2) ** 2
@@ -150,7 +154,7 @@ def distance_delivery(terms, pickup, address):
     destination = coordinates(address, delivery=True)
     if destination is None:
         raise DeliveryQuoteError("Add a delivery pin on the map, or enter it on a new line as Delivery pin: latitude, longitude.")
-    km = distance_km(origin, destination)
+    km = distance_km(origin, destination) * ROAD_FACTOR
     return math.floor(km * rate + 0.5)
 
 

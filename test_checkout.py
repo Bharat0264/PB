@@ -48,9 +48,9 @@ class CheckoutTest(unittest.TestCase):
                                 "platform": 300, "packing": 200, "taxBasisPoints": 500})
         bill = bill_for(2200, 500, "", terms, pickup=pickup,
                         address="Hostel\nDelivery pin: 12.83, 80.04")
-        self.assertEqual(bill, {"printing": 1700, "binding": 500, "delivery": 1890,
+        self.assertEqual(bill, {"printing": 1700, "binding": 500, "delivery": 2156,
                                 "surge": 500, "platform": 300, "packing": 200,
-                                "discount": 0, "tax": 255, "total": 5345})
+                                "discount": 0, "tax": 268, "total": 5624})
         with self.assertRaises(DeliveryQuoteError):
             bill_for(2200, 500, "", terms, pickup=pickup, address="Hostel")
         with self.assertRaises(DeliveryQuoteError):

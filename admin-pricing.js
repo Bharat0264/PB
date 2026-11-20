@@ -53,7 +53,7 @@ export function buildPricingForm(terms, save, {demo = false} = {}) {
     label, terms.bindingRates[key], {required:key === 'glossy' || key === 'blue'})]);
   bindingFields.before(element('p', 'Leave spiral or staple blank to hide that option.'));
   const feeFields = group('Fees');
-  feeFields.before(element('p', 'Delivery uses the base fee plus the straight-line distance from the default warehouse to the customer’s pin. Use warehouse coordinates to enable a per-km rate.'));
+  feeFields.before(element('p', 'Delivery uses the base fee plus an estimated road distance (straight-line distance × 1.3) from the default warehouse to the customer’s pin. Use warehouse coordinates to enable a per-km rate.'));
   const feeInputs = Object.entries(feeLabels).map(([key, label]) => [key, rate(feeFields, label, terms[key] ?? 0)]);
   let advanced;
   if (!demo) {
