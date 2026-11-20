@@ -24,7 +24,7 @@
 }
 :root[data-pb-theme="wildfire"] body::after {
   content: ""; position: fixed; left: 0; right: 0; bottom: 0; height: clamp(90px, 16vh, 170px); z-index: -1; pointer-events: none;
-  background: :root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-themeINES repeat-x bottom / auto 100%;
+  background: url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%22480%22%20height=%22150%22%20viewBox=%220%200%20480%20150%22%3E%3Cpath%20fill=%22%230a0d0b%22%20d=%22M10%2023%20L24%20133%20L-4%20133%20ZM10%2048%20L29%20141%20L-9%20141%20ZM10%2074%20L34%20149%20L-14%20149%20ZM10%2099%20L38%20150%20L-18%20150%20ZM7%20150%20L7%20135%20L13%20135%20L13%20150%20ZM60%2021%20L73%20133%20L47%20133%20ZM60%2047%20L77%20141%20L43%20141%20ZM60%2073%20L81%20149%20L39%20149%20ZM60%2098%20L85%20150%20L35%20150%20ZM57%20150%20L57%20135%20L63%20135%20L63%20150%20ZM104%2056%20L113%20138%20L95%20138%20ZM104%2075%20L115%20143%20L93%20143%20ZM104%2094%20L118%20149%20L90%20149%20ZM104%20112%20L121%20150%20L87%20150%20ZM101%20150%20L101%20139%20L107%20139%20L107%20150%20ZM146%2020%20L160%20133%20L132%20133%20ZM146%2046%20L164%20141%20L128%20141%20ZM146%2072%20L169%20149%20L123%20149%20ZM146%2098%20L173%20150%20L119%20150%20ZM143%20150%20L143%20134%20L149%20134%20L149%20150%20ZM197%2057%20L205%20138%20L189%20138%20ZM197%2076%20L208%20143%20L186%20143%20ZM197%2094%20L211%20149%20L183%20149%20ZM197%20113%20L213%20150%20L181%20150%20ZM194%20150%20L194%20139%20L200%20139%20L200%20150%20ZM232%2062%20L240%20139%20L224%20139%20ZM232%2080%20L242%20144%20L222%20144%20ZM232%2097%20L245%20149%20L219%20149%20ZM232%20115%20L247%20150%20L217%20150%20ZM229%20150%20L229%20139%20L235%20139%20L235%20150%20ZM283%2075%20L291%20140%20L275%20140%20ZM283%2090%20L293%20145%20L273%20145%20ZM283%20105%20L296%20149%20L270%20149%20ZM283%20120%20L298%20150%20L268%20150%20ZM280%20150%20L280%20141%20L286%20141%20L286%20150%20ZM321%2023%20L335%20133%20L307%20133%20ZM321%2048%20L339%20141%20L303%20141%20ZM321%2074%20L343%20149%20L299%20149%20ZM321%2099%20L348%20150%20L294%20150%20ZM318%20150%20L318%20135%20L324%20135%20L324%20150%20ZM366%2060%20L376%20138%20L356%20138%20ZM366%2078%20L379%20144%20L353%20144%20ZM366%2096%20L382%20149%20L350%20149%20ZM366%20114%20L385%20150%20L347%20150%20ZM363%20150%20L363%20139%20L369%20139%20L369%20150%20ZM418%2013%20L430%20132%20L406%20132%20ZM418%2040%20L434%20140%20L402%20140%20ZM418%2068%20L438%20149%20L398%20149%20ZM418%2095%20L442%20150%20L394%20150%20ZM415%20150%20L415%20134%20L421%20134%20L421%20150%20ZM445%2056%20L456%20138%20L434%20138%20ZM445%2075%20L459%20143%20L431%20143%20ZM445%2094%20L463%20149%20L427%20149%20ZM445%20112%20L466%20150%20L424%20150%20ZM442%20150%20L442%20139%20L448%20139%20L448%20150%20ZM0%20150%20H480%20V142%20H0Z%22/%3E%3C/svg%3E") repeat-x bottom / auto 100%;
   opacity: .62;
   -webkit-mask-image: linear-gradient(0deg, #000 35%, transparent);
           mask-image: linear-gradient(0deg, #000 35%, transparent);
@@ -119,75 +119,44 @@
 :root[data-pb-theme="wildfire"].wf-lite .wf-reveal, :root[data-pb-theme="wildfire"].pb-lite .wf-reveal { transition-duration: .4s; }
 
 /* ====================================================================================================================
-   Homepage: the cinematic hero and its sections (built by wildfire-home.js, only while Wildfire is active)
+   Home page: the same layout as PrintBee, dressed in Wildfire (see wildfire-home.js for the two things it swaps in place)
    ==================================================================================================================== */
-:root[data-pb-theme="wildfire"] .wf-layer { display: contents; }
-:root[data-pb-theme="wildfire"].wf-home-on main#main > .hero, :root[data-pb-theme="wildfire"].wf-home-on #how { display: none; }
-:root[data-pb-theme="wildfire"].wf-home-on body { overflow-x: clip; }
-:root[data-pb-theme="wildfire"] .wf-sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
-:root[data-pb-theme="wildfire"] .wf-hero { position: relative; width: 100vw; margin-inline: calc(50% - 50vw); height: clamp(580px, calc(100svh - 96px), 900px); isolation: isolate; overflow: clip; }
-:root[data-pb-theme="wildfire"] .wf-stage {
-  position: absolute; inset: 0; overflow: hidden; background: #0c0a09 url("/themes/img/wf-hero-wide.webp?v=1") center / cover no-repeat;
-  -webkit-mask-image: linear-gradient(180deg, #000 80%, transparent); mask-image: linear-gradient(180deg, #000 80%, transparent);
+/* The hero card keeps its size, padding and grid. Only its look changes: a night-forest panel with ember light behind the emblem. */
+:root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme .hero {
+  border: 1px solid var(--wf-hair);
+  background-color: #100e0c;
+  background-image:
+    url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%22480%22%20height=%22150%22%20viewBox=%220%200%20480%20150%22%3E%3Cpath%20fill=%22%230a0d0b%22%20d=%22M10%2023%20L24%20133%20L-4%20133%20ZM10%2048%20L29%20141%20L-9%20141%20ZM10%2074%20L34%20149%20L-14%20149%20ZM10%2099%20L38%20150%20L-18%20150%20ZM7%20150%20L7%20135%20L13%20135%20L13%20150%20ZM60%2021%20L73%20133%20L47%20133%20ZM60%2047%20L77%20141%20L43%20141%20ZM60%2073%20L81%20149%20L39%20149%20ZM60%2098%20L85%20150%20L35%20150%20ZM57%20150%20L57%20135%20L63%20135%20L63%20150%20ZM104%2056%20L113%20138%20L95%20138%20ZM104%2075%20L115%20143%20L93%20143%20ZM104%2094%20L118%20149%20L90%20149%20ZM104%20112%20L121%20150%20L87%20150%20ZM101%20150%20L101%20139%20L107%20139%20L107%20150%20ZM146%2020%20L160%20133%20L132%20133%20ZM146%2046%20L164%20141%20L128%20141%20ZM146%2072%20L169%20149%20L123%20149%20ZM146%2098%20L173%20150%20L119%20150%20ZM143%20150%20L143%20134%20L149%20134%20L149%20150%20ZM197%2057%20L205%20138%20L189%20138%20ZM197%2076%20L208%20143%20L186%20143%20ZM197%2094%20L211%20149%20L183%20149%20ZM197%20113%20L213%20150%20L181%20150%20ZM194%20150%20L194%20139%20L200%20139%20L200%20150%20ZM232%2062%20L240%20139%20L224%20139%20ZM232%2080%20L242%20144%20L222%20144%20ZM232%2097%20L245%20149%20L219%20149%20ZM232%20115%20L247%20150%20L217%20150%20ZM229%20150%20L229%20139%20L235%20139%20L235%20150%20ZM283%2075%20L291%20140%20L275%20140%20ZM283%2090%20L293%20145%20L273%20145%20ZM283%20105%20L296%20149%20L270%20149%20ZM283%20120%20L298%20150%20L268%20150%20ZM280%20150%20L280%20141%20L286%20141%20L286%20150%20ZM321%2023%20L335%20133%20L307%20133%20ZM321%2048%20L339%20141%20L303%20141%20ZM321%2074%20L343%20149%20L299%20149%20ZM321%2099%20L348%20150%20L294%20150%20ZM318%20150%20L318%20135%20L324%20135%20L324%20150%20ZM366%2060%20L376%20138%20L356%20138%20ZM366%2078%20L379%20144%20L353%20144%20ZM366%2096%20L382%20149%20L350%20149%20ZM366%20114%20L385%20150%20L347%20150%20ZM363%20150%20L363%20139%20L369%20139%20L369%20150%20ZM418%2013%20L430%20132%20L406%20132%20ZM418%2040%20L434%20140%20L402%20140%20ZM418%2068%20L438%20149%20L398%20149%20ZM418%2095%20L442%20150%20L394%20150%20ZM415%20150%20L415%20134%20L421%20134%20L421%20150%20ZM445%2056%20L456%20138%20L434%20138%20ZM445%2075%20L459%20143%20L431%20143%20ZM445%2094%20L463%20149%20L427%20149%20ZM445%20112%20L466%20150%20L424%20150%20ZM442%20150%20L442%20139%20L448%20139%20L448%20150%20ZM0%20150%20H480%20V142%20H0Z%22/%3E%3C/svg%3E"),
+    radial-gradient(58% 85% at 77% 52%, color-mix(in srgb, var(--wf-ember) 20%, transparent), transparent 72%),
+    radial-gradient(70% 90% at 6% 0%, color-mix(in srgb, var(--wf-deep-forest) 78%, transparent), transparent 70%),
+    linear-gradient(150deg, #1b1612, #0f0d0b 70%);
+  background-repeat: repeat-x, no-repeat, no-repeat, no-repeat;
+  background-position: left bottom, center, center, center;
+  background-size: auto 30%, auto, auto, auto;
+  box-shadow: 0 0 0 1px rgba(196, 154, 82, .14), inset 0 1px 0 rgba(242, 222, 180, .08), 0 26px 60px rgba(0, 0, 0, .55);
 }
-@media (max-aspect-ratio: 4/5) {
-  :root[data-pb-theme="wildfire"] .wf-stage { background-image: url("/themes/img/wf-hero-tall.webp?v=1"); background-position: center 38%; }
-  :root[data-pb-theme="wildfire"] .wf-hero { height: clamp(600px, calc(100svh - 120px), 820px); }
-}
-:root[data-pb-theme="wildfire"] .wf-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; opacity: 0; transition: opacity 1s ease; }
-:root[data-pb-theme="wildfire"] .wf-loaded .wf-canvas { opacity: 1; }
-:root[data-pb-theme="wildfire"] .wf-static .wf-canvas { display: none; }
-:root[data-pb-theme="wildfire"] .wf-vignette { position: absolute; inset: 0; z-index: 2; pointer-events: none; background: radial-gradient(120% 90% at 50% 45%, transparent 55%, rgba(8, 6, 5, .72)); }
-:root[data-pb-theme="wildfire"] .wf-hero-copy {
-  position: absolute; z-index: 3; left: 50%; bottom: clamp(18px, 5vh, 54px); transform: translateX(-50%); width: min(720px, calc(100% - 36px));
-  display: grid; justify-items: center; gap: 12px; text-align: center;
-}
-:root[data-pb-theme="wildfire"] .wf-hero-copy::before { content: ""; position: absolute; inset: -40px -10vw -20px; z-index: -1; background: radial-gradient(60% 70% at 50% 60%, rgba(12, 9, 7, .78), transparent 72%); }
-:root[data-pb-theme="wildfire"] .wf-tagline { margin: 0; font: 400 clamp(13px, 1.7vw, 20px) / 1.2 Georgia, "Times New Roman", serif; letter-spacing: .46em; text-transform: uppercase; color: var(--wf-gold); text-shadow: 0 2px 16px rgba(0, 0, 0, .8); }
-:root[data-pb-theme="wildfire"] .wf-sub { margin: 0; max-width: 46ch; color: var(--wf-ivory); font-size: clamp(14px, 1.3vw, 17px); line-height: 1.55; text-shadow: 0 2px 14px rgba(0, 0, 0, .85); }
-:root[data-pb-theme="wildfire"] .wf-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 14px 22px; margin-top: 4px; }
-:root[data-pb-theme="wildfire"] .wf-link { color: var(--wf-ivory); font-weight: 800; text-decoration: none; border-bottom: 1px solid var(--wf-hair); padding-bottom: 2px; }
-:root[data-pb-theme="wildfire"] .wf-link:hover { color: var(--wf-gold); border-color: var(--wf-gold); }
-:root[data-pb-theme="wildfire"] .wf-scroll { position: absolute; z-index: 3; left: 50%; bottom: 8px; width: 28px; height: 28px; transform: translateX(-50%); display: none; }
-:root[data-pb-theme="wildfire"] .wf-scroll span { display: block; width: 10px; height: 10px; margin: 6px auto; border-right: 2px solid var(--wf-gold); border-bottom: 2px solid var(--wf-gold); transform: rotate(45deg); }
-@media (min-width: 900px) { :root[data-pb-theme="wildfire"] .wf-scroll { display: block; } }
-@media (prefers-reduced-motion: no-preference) { :root[data-pb-theme="wildfire"] .wf-scroll span { animation: wf-bob 2.4s ease-in-out infinite; } }
-@keyframes wf-bob { 0%, 100% { transform: translateY(0) rotate(45deg); opacity: .5; } 50% { transform: translateY(6px) rotate(45deg); opacity: 1; } }
+:root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme .hero h1 { color: var(--wf-ivory); text-shadow: 0 2px 22px rgba(0, 0, 0, .55); }
+:root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme .hero h1 em { color: var(--wf-ivory); }
+:root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme .hero .campus { background: color-mix(in srgb, var(--wf-deep-forest) 72%, #000); color: var(--wf-gold); box-shadow: 0 0 0 1px var(--wf-hair); }
+:root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme .hero .campus span { background: var(--wf-ember); }
+:root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme .hero .lede { color: color-mix(in srgb, var(--wf-ivory) 82%, transparent); }
+:root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme .hero .subtle { color: var(--wf-ivory); }
+:root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme .hero .subtle:hover { color: var(--wf-gold); }
 
-:root[data-pb-theme="wildfire"] .wf-section { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: clamp(24px, 5vw, 80px); padding: clamp(44px, 8vw, 104px) 0; }
-:root[data-pb-theme="wildfire"] .wf-copy { display: grid; gap: 14px; justify-items: start; }
-:root[data-pb-theme="wildfire"] .wf-copy .wf-actions { justify-content: flex-start; }
-:root[data-pb-theme="wildfire"] .wf-copy h2, :root[data-pb-theme="wildfire"] .wf-section > h2 { margin: 0; font-size: clamp(30px, 4.4vw, 58px); line-height: 1.04; }
-:root[data-pb-theme="wildfire"] .wf-copy p { margin: 0; max-width: 48ch; color: var(--pb-muted); font-size: clamp(15px, 1.4vw, 18px); line-height: 1.6; }
-:root[data-pb-theme="wildfire"] .wf-eyebrow { color: var(--wf-gold) !important; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; font-size: 12.5px !important; }
-:root[data-pb-theme="wildfire"] .wf-section > h2 span, :root[data-pb-theme="wildfire"] .wf-final h2 { color: var(--wf-amber); }
-:root[data-pb-theme="wildfire"] .wf-figure { position: relative; margin: 0; display: grid; place-items: center; }
-:root[data-pb-theme="wildfire"] .wf-figure::before { content: ""; position: absolute; inset: 8% 4% 0; z-index: -1; background: radial-gradient(55% 55% at 50% 55%, color-mix(in srgb, var(--wf-ember) 30%, transparent), transparent 72%); filter: blur(10px); }
-:root[data-pb-theme="wildfire"] .wf-figure img { width: min(100%, 560px); height: auto; filter: drop-shadow(0 34px 38px rgba(0, 0, 0, .65)); }
-:root[data-pb-theme="wildfire"] .wf-truck img { width: min(100%, 640px); }
-@media (prefers-reduced-motion: no-preference) { :root[data-pb-theme="wildfire"] .wf-intro .wf-figure img, :root[data-pb-theme="wildfire"] .wf-explore .wf-figure img { animation: wf-float 9s ease-in-out infinite; } }
-@keyframes wf-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+/* The 3D scene takes exactly the box the printer picture took (it carries the picture's own class). */
+:root[data-pb-theme="wildfire"] .wf-stage { position: relative; background: var(--wf-poster) center / contain no-repeat; }
+:root[data-pb-theme="wildfire"] .wf-stage { -webkit-mask-image: radial-gradient(ellipse 80% 82% at 50% 50%, #000 62%, transparent); mask-image: radial-gradient(ellipse 80% 82% at 50% 50%, #000 62%, transparent); }
+:root[data-pb-theme="wildfire"] .wf-stage .wf-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; opacity: 0; transition: opacity .8s ease; }
+:root[data-pb-theme="wildfire"] .wf-stage.wf-loaded { background-image: none; }
+:root[data-pb-theme="wildfire"] .wf-stage.wf-loaded .wf-canvas { opacity: 1; }
+:root[data-pb-theme="wildfire"] .wf-stage.wf-static .wf-canvas { display: none; }
+@media (max-width: 800px) { :root[data-pb-theme="wildfire"] .wf-stage { width: 100%; max-width: 600px; margin: 0; justify-self: center; } }
 
-:root[data-pb-theme="wildfire"] .wf-journey, :root[data-pb-theme="wildfire"] .wf-benefits, :root[data-pb-theme="wildfire"] .wf-final { grid-template-columns: minmax(0, 1fr); justify-items: center; text-align: center; }
-:root[data-pb-theme="wildfire"] .wf-steps, :root[data-pb-theme="wildfire"] .wf-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(14px, 2vw, 26px); width: 100%; margin: 0; padding: 0; list-style: none; text-align: left; }
-:root[data-pb-theme="wildfire"] .wf-step, :root[data-pb-theme="wildfire"] .wf-tile { display: grid; gap: 10px; align-content: start; padding: clamp(20px, 2.4vw, 32px); border-radius: var(--pb-radius-card); background-color: var(--pb-surface); background-image: linear-gradient(180deg, color-mix(in srgb, var(--wf-gold) 7%, transparent), transparent 46%); box-shadow: var(--pb-shadow-raised); }
-:root[data-pb-theme="wildfire"] .wf-step h3, :root[data-pb-theme="wildfire"] .wf-tile h3 { margin: 0; font-size: clamp(20px, 2vw, 26px); }
-:root[data-pb-theme="wildfire"] .wf-step p, :root[data-pb-theme="wildfire"] .wf-tile p { margin: 0; color: var(--pb-muted); line-height: 1.55; }
-:root[data-pb-theme="wildfire"] .wf-num { font: 400 clamp(44px, 5vw, 68px) / 1 Georgia, "Times New Roman", serif; color: var(--wf-ember); text-shadow: 0 0 28px var(--wf-glow); }
-:root[data-pb-theme="wildfire"] .wf-tile img { width: 100%; height: clamp(150px, 16vw, 210px); object-fit: contain; filter: drop-shadow(0 18px 22px rgba(0, 0, 0, .6)); margin-bottom: 4px; }
-:root[data-pb-theme="wildfire"] .wf-final { padding-bottom: clamp(60px, 9vw, 120px); gap: 24px; }
-:root[data-pb-theme="wildfire"] .wf-final h2 { font-size: clamp(34px, 6vw, 82px); text-shadow: 0 0 60px var(--wf-glow); }
+/* How it works: same three steps, same size; each icon is a 3D medallion in the same spot (it may overflow its square a little). */
+:root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme .step.wf-has-medallion { position: relative; background: transparent; box-shadow: none; }
+:root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme .step.wf-has-medallion > svg { display: none; }
+:root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme .wf-medallion { position: absolute; left: 50%; top: 50%; width: 66px; height: 66px; transform: translate(-50%, -50%); object-fit: contain; filter: drop-shadow(0 8px 10px rgba(0, 0, 0, .6)); pointer-events: none; }
+:root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme .how li { color: var(--wf-ivory); }
 
-@media (prefers-reduced-motion: no-preference) {
-  :root[data-pb-theme="wildfire"] .wf-reveal { opacity: 0; transform: translateY(26px); transition: opacity .9s cubic-bezier(.22, 1, .36, 1), transform .9s cubic-bezier(.22, 1, .36, 1); }
-  :root[data-pb-theme="wildfire"] .wf-reveal.wf-in { opacity: 1; transform: none; }
-  :root[data-pb-theme="wildfire"] .wf-steps .wf-reveal:nth-child(2), :root[data-pb-theme="wildfire"] .wf-tiles .wf-reveal:nth-child(2) { transition-delay: .12s; }
-  :root[data-pb-theme="wildfire"] .wf-steps .wf-reveal:nth-child(3), :root[data-pb-theme="wildfire"] .wf-tiles .wf-reveal:nth-child(3) { transition-delay: .24s; }
-}
-@media (max-width: 860px) {
-  :root[data-pb-theme="wildfire"] .wf-section { grid-template-columns: minmax(0, 1fr); text-align: left; }
-  :root[data-pb-theme="wildfire"] .wf-explore .wf-figure { order: -1; }
-  :root[data-pb-theme="wildfire"] .wf-steps, :root[data-pb-theme="wildfire"] .wf-tiles { grid-template-columns: minmax(0, 1fr); }
-  :root[data-pb-theme="wildfire"] .wf-figure img { width: min(78%, 420px); }
-}
+@media (prefers-reduced-motion: reduce) { :root[data-pb-theme="wildfire"] .wf-stage .wf-canvas { transition: none; } }

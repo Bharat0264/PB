@@ -5,13 +5,18 @@
 
    mountHero(host, options) -> {destroy()}   host: an element that already has the poster picture as its background.
    options: {capture: true}  keep the drawing buffer so a still can be saved (lab use)
+            {transparent: true}  no backdrop of its own: the scene floats on whatever is behind the canvas (the home page card)
+            {frame: {wide, tall}, drop}  how much world must stay visible, and how far the scene sits above centre
+            {scrollFade: false}  do not dim and push the scene back while the page scrolls
+            {hq: true}  start with the sharp emblem (stills); otherwise it is swapped in on capable screens
             {still: true}    draw the final composition once, no animation (reduced motion, stills)
    Everything is disposed in destroy(). Large assets are fetched here, never at page load. */
 import * as THREE from '/vendor/three/three.module.js';
 import {GLTFLoader} from '/vendor/three/GLTFLoader.js';
 import {TITLE} from './wildfire-title.js';
 
-const MODEL = '/models/wildfire/emblem.glb?v=1';
+const MODEL = '/models/wildfire/emblem.glb?v=2';
+const MODEL_HQ = '/models/wildfire/emblem-hq.glb?v=2';   // 4096 px pictures, swapped in once the light one is showing
 const ATLAS = '/themes/img/wf-embers.webp?v=1';
 const ATLAS_GRID = 5;
 const ease = {
@@ -173,12 +178,12 @@ export function mountHero(host, options = {}) {
 
   let renderer;
   try {
-    renderer = new THREE.WebGLRenderer({antialias: true, alpha: false, powerPreference: 'high-performance', preserveDrawingBuffer: Boolean(options.capture)});
+    renderer = new THREE.WebGLRenderer({antialias: true, alpha: Boolean(options.transparent), powerPreference: 'high-performance', preserveDrawingBuffer: Boolean(options.capture)});
   } catch (error) {
     host.classList.add('wf-static');
     return {destroy() {}};
   }
-  let dpr = Math.min(devicePixelRatio || 1, lite ? 1 : coarse ? 1.25 : 1.5);
+  let dpr = Math.min(devicePixelRatio || 1, lite ? 1 : coarse ? 1.5 : 2);
   renderer.setPixelRatio(dpr);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -190,8 +195,10 @@ export function mountHero(host, options = {}) {
   host.append(canvas);
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color('#0c0a09');
-  scene.fog = new THREE.FogExp2('#0c0907', .035);
+  if (!options.transparent) {
+    scene.background = new THREE.Color('#0c0a09');
+    scene.fog = new THREE.FogExp2('#0c0907', .035);
+  }
   const camera = new THREE.PerspectiveCamera(32, 1, .1, 60);
   const disposables = [];
   const track = item => { disposables.push(item); return item; };
@@ -218,7 +225,7 @@ export function mountHero(host, options = {}) {
   const key = new THREE.DirectionalLight('#ffd7a0', 3.4);
   key.position.set(-3.2, 4.2, 6.5);
   key.castShadow = !lite;
-  key.shadow.mapSize.set(1024, 1024);
+  key.shadow.mapSize.set(lite || coarse ? 1024 : 2048, lite || coarse ? 1024 : 2048);
   Object.assign(key.shadow.camera, {left: -4, right: 4, top: 4, bottom: -4, near: .5, far: 20});
   key.shadow.radius = 5; key.shadow.bias = -.0004; key.shadow.normalBias = .03;
   const rim = new THREE.DirectionalLight('#ff6a1f', 4.2); rim.position.set(5, 1.8, -3.5);
@@ -253,6 +260,7 @@ export function mountHero(host, options = {}) {
       }`,
   })));
   backdrop.position.z = -9;
+  backdrop.visible = !options.transparent;
   backdrop.renderOrder = -10;
   scene.add(backdrop);
 
@@ -260,7 +268,7 @@ export function mountHero(host, options = {}) {
   for (const [seed, z, tall, opacity, y] of [[7, -6.4, true, .6, -2.5], [19, -4.2, false, .85, -2.95]]) {
     const texture = track(pineTexture(seed, tall));
     const mesh = new THREE.Mesh(track(new THREE.PlaneGeometry(1, 1)), track(new THREE.MeshBasicMaterial({map: texture, transparent: true, opacity, depthWrite: false, color: '#050605', fog: false})));
-    mesh.position.set(0, y, z); scene.add(mesh); forest.push({mesh, texture, baseY: y});
+    mesh.position.set(0, y, z); mesh.visible = !options.transparent; scene.add(mesh); forest.push({mesh, texture, baseY: y});
   }
 
   // ----- smoke -----
@@ -276,6 +284,7 @@ export function mountHero(host, options = {}) {
     mesh.position.set((i - 3) * 1.4, -1.4 + (i % 3) * .9, z);
     mesh.scale.setScalar(6 + (i % 4) * 1.4);
     mesh.userData = {base: warm ? .05 : .1, spin: (i % 2 ? 1 : -1) * (.01 + i * .002), drift: .08 + i * .015, phase: i * 1.7};
+    mesh.visible = !options.transparent;          // big soft planes would show a hard edge where the card's canvas ends
     scene.add(mesh); smoke.push(mesh);
   }
 
@@ -381,7 +390,10 @@ export function mountHero(host, options = {}) {
   const TITLE_SCALE = 4.5 / titleWidth;
   title.scale.setScalar(TITLE_SCALE);
 
-  new GLTFLoader().load(MODEL, gltf => {
+  const loader = new GLTFLoader();
+  const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
+  let holder;
+  function placeEmblem(gltf) {
     const model = gltf.scene;
     const box = new THREE.Box3().setFromObject(model), size = box.getSize(new THREE.Vector3()), center = box.getCenter(new THREE.Vector3());
     model.position.sub(center);
@@ -390,16 +402,34 @@ export function mountHero(host, options = {}) {
       object.castShadow = true; object.receiveShadow = true;
       object.material.envMapIntensity = 1.5;
       object.material.roughness = Math.min(1, (object.material.roughness ?? 1) * .92);
-      track(object.geometry); track(object.material);
-      for (const key of ['map', 'metalnessMap', 'normalMap']) if (object.material[key]) track(object.material[key]);
+      for (const key of ['map', 'metalnessMap', 'normalMap']) if (object.material[key]) object.material[key].anisotropy = Math.min(8, maxAnisotropy);
     });
-    const holder = new THREE.Group();
-    holder.add(model);
-    holder.scale.setScalar(3.45 / size.y);
+    const next = new THREE.Group();
+    next.add(model);
+    next.scale.setScalar(3.45 / size.y);
+    if (holder) {                                              // swapping to the sharp model: free the light one
+      emblem.remove(holder);
+      holder.traverse(object => {
+        if (!object.isMesh) return;
+        object.geometry.dispose();
+        for (const key of ['map', 'metalnessMap', 'normalMap']) object.material[key]?.dispose();
+        object.material.dispose();
+      });
+    }
+    holder = next;
     emblem.add(holder);
     emblemReady = true;
     host.classList.add('wf-loaded');
     if (still) frame(0);
+  }
+  const wantSharp = options.hq || (!lite && !coarse && !still);
+  loader.load(options.hq ? MODEL_HQ : MODEL, gltf => {
+    placeEmblem(gltf);
+    if (wantSharp && !options.hq) {
+      // the light emblem is already on screen; fetch the 4096 px one quietly and swap it in when it is ready
+      const later = () => loader.load(MODEL_HQ, hq => { if (!state.destroyed) placeEmblem(hq); }, undefined, () => {});
+      (window.requestIdleCallback ? window.requestIdleCallback(later, {timeout: 2500}) : setTimeout(later, 800));
+    }
   }, undefined, () => { host.classList.add('wf-static'); });
 
   // ----- layout: portrait phones get a farther camera so the complete title always fits -----
@@ -411,10 +441,10 @@ export function mountHero(host, options = {}) {
     renderer.setSize(width, height, false);
     camera.aspect = width / height;
     const fovTan = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
-    const needWide = 5.9, needTall = 5.1;                                  // world size that must stay visible at the emblem
+    const needWide = options.frame?.wide ?? 5.9, needTall = options.frame?.tall ?? 5.1;   // world size that must stay visible at the emblem
     final.camZ = Math.max(needTall / (2 * fovTan), needWide / (camera.aspect * 2 * fovTan));
     // the scene sits a little above centre so the copy under it never covers the emblem or the title
-    final.drop = (camera.aspect > .9 ? .125 : .05) * 2 * fovTan * final.camZ;
+    final.drop = (options.drop ?? (camera.aspect > .9 ? .125 : .05)) * 2 * fovTan * final.camZ;
     camera.updateProjectionMatrix();
     const viewH = 2 * fovTan * (final.camZ + 9) * 1.15;
     backdrop.scale.set(viewH * camera.aspect * 1.2, viewH, 1);
@@ -426,7 +456,7 @@ export function mountHero(host, options = {}) {
   }
 
   // ----- the timeline -----
-  const state = {t: 0, mx: 0, my: 0, smx: 0, smy: 0, scroll: 0, impact: 0, impacted: false, burst: 0, running: false, visible: true};
+  const state = {destroyed: false, t: 0, mx: 0, my: 0, smx: 0, smy: 0, scroll: 0, impact: 0, impacted: false, burst: 0, running: false, visible: true};
   const clock = new THREE.Clock();
   const dummy = new THREE.Vector3();
 
@@ -546,7 +576,7 @@ export function mountHero(host, options = {}) {
   const onMove = event => { state.mx = (event.clientX / innerWidth - .5) * 2; state.my = -((event.clientY / innerHeight) - .5) * 2; };
   const onScroll = () => {
     const rect = host.getBoundingClientRect();
-    state.scroll = clamp01(-rect.top / Math.max(1, rect.height * .8));
+    state.scroll = options.scrollFade === false ? 0 : clamp01(-rect.top / Math.max(1, rect.height * .8));
     state.visible = rect.bottom > -40 && rect.top < innerHeight + 40;
     if (still) frame(0);
   };
@@ -569,13 +599,19 @@ export function mountHero(host, options = {}) {
       state.t = seconds / speed; frame(1 / 30);
     },
     destroy() {
+      state.destroyed = true;
       state.running = false;
       removeEventListener('pointermove', onMove);
       removeEventListener('scroll', onScroll);
       document.removeEventListener('scroll', onScroll);
       resizeObserver.disconnect();
       for (const item of disposables) { try { item.dispose?.(); } catch { /* already gone */ } }
-      scene.traverse(object => { if (object.isMesh || object.isPoints) { object.geometry?.dispose?.(); const m = object.material; (Array.isArray(m) ? m : [m]).forEach(x => x?.dispose?.()); } });
+      scene.traverse(object => {
+        if (!(object.isMesh || object.isPoints)) return;
+        object.geometry?.dispose?.();
+        const m = object.material;
+        (Array.isArray(m) ? m : [m]).forEach(x => { if (!x) return; for (const key of ['map', 'metalnessMap', 'normalMap']) x[key]?.dispose?.(); x.dispose?.(); });
+      });
       renderer.dispose();
       renderer.forceContextLoss();
       canvas.remove();

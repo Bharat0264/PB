@@ -21,7 +21,7 @@
   let active = false, canvas, ctx, grain, sprites, particles, frame, last, tick = 0, running = false, width = 0, height = 0, slow = 0, resizeTimer, home;
 
   const lowPower = () => Boolean(window.PrintBeeThemes && window.PrintBeeThemes.lowPower);
-  const embedded = () => root.classList.contains('embedded-tab');
+  const embedded = () => window.parent !== window;                  // a tab page shown inside the phone shell
 
   function makeSprites() {
     return COLOURS.map(colour => {
@@ -132,7 +132,7 @@
     // It loads lazily and stop() removes it again.
     const startHome = () => {
       if (!active || home || !document.querySelector('main#main > .hero')) return;
-      import('/themes/wildfire-home.js?v=6')
+      import('/themes/wildfire-home.js?v=9')
         .then(module => module.mount())
         .then(api => { if (active && !home) home = api; else api.destroy(); })
         .catch(error => console.warn('[Wildfire] the home layer did not start', error));

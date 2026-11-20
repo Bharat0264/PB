@@ -40,14 +40,14 @@
     tagline: 'Night forest, rising embers',
     description: 'A cinematic dark theme: obsidian surfaces, deep forest green, antique gold detail and ember-orange light.',
     modes: ['dark'],
-    stylesheet: '/themes/wildfire.css?v=7',
-    script: '/themes/wildfire.js?v=6',
+    stylesheet: '/themes/wildfire.css?v=10',
+    script: '/themes/wildfire.js?v=10',
     palette: ['#100E0C', '#191511', '#111A14', '#17442E', '#236B46', '#C49A52', '#D68A32', '#F05A24', '#F2E9D9'],
     preview: {
       dark: {
         page: '#100E0C', surface: '#191511', ink: '#F2E9D9', accent: '#F05A24', nav: '#17442E',
         // the real hero picture, so the gallery shows what the site actually looks like
-        art: 'url("/themes/img/wf-hero-wide.webp?v=2") center / cover no-repeat',
+        art: 'url("/themes/img/wf-hero-card.webp?v=2") center 55% / 88% auto no-repeat, radial-gradient(60% 80% at 70% 50%, rgba(240,90,36,.28), transparent 70%), linear-gradient(150deg, #1b1612, #0f0d0b)',
       },
     },
     tokens: {

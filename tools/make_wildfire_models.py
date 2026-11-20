@@ -30,6 +30,8 @@ DEFAULT_SOURCE = Path(r"C:\Users\cheth\Downloads")
 # name in Downloads  ->  (output name, triangle target, colour px, metal/rough px, normal px)
 MODELS = {
     "wildfire emblem": ("emblem", 140000, 2048, 1024, 2048),
+    # the sharp version the hero swaps in on capable screens once the light one is already showing
+    "wildfire emblem#hq": ("emblem-hq", 240000, 4096, 2048, 4096),
     "wildfire ember particles": ("embers", 40000, 1024, 512, 1024),
     "brass delivery marker": ("marker", 40000, 1024, 512, 1024),
     "forest route signpost": ("signpost", 40000, 1024, 512, 1024),
@@ -173,9 +175,12 @@ if __name__ == "__main__":
     source = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_SOURCE
     output = Path(sys.argv[2]) if len(sys.argv) > 2 else ROOT / "models" / "wildfire"
     output.mkdir(parents=True, exist_ok=True)
-    only = sys.argv[3:] if len(sys.argv) > 3 else None
+    flags = {a.split("=")[0]: a.split("=")[1] for a in sys.argv[3:] if a.startswith("--") and "=" in a}
+    only = [a for a in sys.argv[3:] if not a.startswith("--")] or None
     for name, (slug, tris, colour_px, mr_px, normal_px) in MODELS.items():
         if only and slug not in only:
             continue
+        if "--tris" in flags:                                   # one-off higher/lower detail, for example for rendering pictures
+            tris, colour_px, mr_px, normal_px = int(flags["--tris"]), int(flags.get("--tex", colour_px)), int(flags.get("--tex", colour_px)) // 2, int(flags.get("--tex", normal_px))
         print(slug)
-        build(source / f"{name} 3d model.glb", output / f"{slug}.glb", tris, colour_px, mr_px, normal_px)
+        build(source / f"{name.split('#')[0]} 3d model.glb", output / f"{slug}.glb", tris, colour_px, mr_px, normal_px)

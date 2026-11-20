@@ -123,22 +123,19 @@ class WildfireThemeTests(unittest.TestCase):
 
 
 class WildfireCinematicTests(unittest.TestCase):
-    MODELS = ("emblem", "embers", "marker", "signpost", "crate", "press", "logs", "truck")
-
-    def test_web_models_are_light_and_the_originals_are_not_shipped(self):
-        total = 0
-        for name in self.MODELS:
-            path = ROOT / "models" / "wildfire" / f"{name}.glb"
-            self.assertTrue(path.exists(), name)
-            size = path.stat().st_size
-            total += size
-            self.assertLess(size, 6 * 1024 * 1024, f"{name}.glb is too heavy for the web")
-        self.assertLess(total, 20 * 1024 * 1024)
-        big = [p.name for p in ROOT.rglob("*.glb") if ".git" not in p.parts and p.stat().st_size > 8 * 1024 * 1024]
+    def test_web_models_are_sized_for_the_web_and_the_originals_are_not_shipped(self):
+        folder = ROOT / "models" / "wildfire"
+        light, sharp = folder / "emblem.glb", folder / "emblem-hq.glb"
+        self.assertTrue(light.exists() and sharp.exists())
+        self.assertLess(light.stat().st_size, 7 * 1024 * 1024)       # shown first, on every device
+        self.assertLess(sharp.stat().st_size, 14 * 1024 * 1024)      # swapped in quietly on capable screens
+        self.assertGreater(sharp.stat().st_size, light.stat().st_size)
+        self.assertEqual(sorted(p.name for p in folder.glob("*.glb")), ["emblem-hq.glb", "emblem.glb"])   # nothing unused ships
+        big = [p.name for p in ROOT.rglob("*.glb") if ".git" not in p.parts and p.stat().st_size > 14 * 1024 * 1024]
         self.assertEqual(big, [], "original high-resolution models must stay out of the repository")
 
-    def test_posters_and_title_data_exist(self):
-        for name in ("wf-hero-wide", "wf-hero-tall", "wf-embers", "wf-press", "wf-truck", "wf-signpost", "wf-marker", "wf-crate", "wf-logs"):
+    def test_pictures_and_title_data_exist(self):
+        for name in ("wf-hero-card", "wf-embers", "wf-step-press", "wf-step-signpost", "wf-step-marker"):
             self.assertTrue((ROOT / "themes" / "img" / f"{name}.webp").exists(), name)
         title = (ROOT / "themes" / "wildfire-title.js").read_text(encoding="utf-8")
         self.assertIn('"text":"PrintBee"', title)
@@ -156,18 +153,44 @@ class WildfireCinematicTests(unittest.TestCase):
         self.assertIn("prefers-reduced-motion: reduce", hero)
         self.assertIn("forceContextLoss", hero)                  # the WebGL context is released on destroy
         self.assertIn("document.hidden", hero)                    # no drawing while the tab is hidden
-        self.assertIn("IntersectionObserver", home)
         self.assertIn("requestIdleCallback", home)                # the 3D scene is not started at page load
         self.assertIn("import('/themes/wildfire-home.js", effects)
-        self.assertIn("home?.destroy()", effects)                 # switching away removes the home layer
+        self.assertIn("home?.destroy()", effects)                 # switching away restores the PrintBee home page
         for module in (hero, home):
             self.assertNotIn("fetch(", module)                    # no API calls: business logic is untouched
+
+    def test_sharp_emblem_is_swapped_in_only_on_capable_screens(self):
+        hero = (ROOT / "themes" / "wildfire-hero.js").read_text(encoding="utf-8")
+        self.assertIn("MODEL_HQ", hero)
+        self.assertIn("const wantSharp = options.hq || (!lite && !coarse && !still)", hero)
+        self.assertIn("anisotropy", hero)
 
     def test_title_is_in_front_of_the_emblem(self):
         hero = (ROOT / "themes" / "wildfire-hero.js").read_text(encoding="utf-8")
         self.assertIn("titleZ: .72", hero)
         self.assertIn("emblem.position.set(0, Math.sin(idle * .55) * .035, -.25 * (1 - em) - .05)", hero)
         self.assertIn("castShadow = true", hero)                  # the title throws its shadow on the emblem
+
+
+class WildfireKeepsTheOriginalLayoutTests(unittest.TestCase):
+    """Wildfire must look different but keep every placement of the PrintBee home page."""
+
+    def test_home_module_swaps_in_place_and_adds_no_sections(self):
+        home = (ROOT / "themes" / "wildfire-home.js").read_text(encoding="utf-8")
+        self.assertIn("hero-illustration wf-stage", home)         # the scene takes the printer picture's own box
+        self.assertIn("picture.style.display = 'none'", home)
+        self.assertIn("picture.style.display = ''", home)             # and the original is restored on destroy
+        self.assertIn("#how .step", home)                         # the step icons are replaced in place
+        self.assertNotIn("insertAdjacentHTML", home)
+        self.assertNotIn("wf-section", home)
+
+    def test_css_does_not_hide_or_reorder_the_original_sections(self):
+        css = (ROOT / "themes" / "wildfire.css").read_text(encoding="utf-8")
+        self.assertNotRegex(css, r"\.hero\s*[,{][^}]*display:\s*none")
+        self.assertNotRegex(css, r"#how[^}]*display:\s*none")
+        self.assertNotIn("grid-template-columns", css.split("How it works")[0].split("Home page:")[-1])   # no re-layout of the hero card
+        self.assertNotIn("wf-section", css)
+        self.assertNotRegex(css, r"(?<![a-z-])order:")          # no reordering of the page
 
 
 class QuickSwitchTests(unittest.TestCase):
@@ -231,7 +254,7 @@ class PerformanceAndFallbackTests(unittest.TestCase):
         self.assertIn("hardwareConcurrency", engine)
         self.assertIn("saveData", engine)
         self.assertIn("lowPower()", effects)
-        self.assertIn("embedded-tab", effects)                          # the embedded tab pages skip the page-wide animation
+        self.assertIn("window.parent !== window", effects)                # the embedded tab pages skip the page-wide animation
         self.assertIn("lowPower", hero)
 
     def test_effects_are_frame_capped_and_adaptive(self):
