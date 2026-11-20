@@ -35,11 +35,11 @@ export function buildPricingForm(terms, save, {demo = false} = {}) {
   };
   form.append(element('p', demo ? 'Preview changes appear in the customer pricing preview in this browser.' : 'Enter amounts in rupees. Published rates apply to new checkout orders.'));
   const papers = {};
-  for (const paper of ['A4','A3','A5']) {
-    const fields = group(paper + ' printing · ₹ per page');
+  for (const paper of ['A4','A4 Bond','A3','A5']) {
+    const fields = group((paper === 'A4 Bond' ? 'Bond paper (A4)' : paper) + ' printing · ₹ per page');
     const prices = terms.paperRates[paper];
-    papers[paper] = printLabels.map((label, index) => rate(fields, label, prices?.[index], {min:1, required:paper === 'A4'}));
-    if (paper !== 'A4') {
+    papers[paper] = printLabels.map((label, index) => rate(fields, label, prices?.[index], {min:1, required:paper === 'A4' || paper === 'A4 Bond'}));
+    if (paper !== 'A4' && paper !== 'A4 Bond') {
       const help = element('p', 'Leave all four rates blank to hide ' + paper + ' at checkout.');
       fields.before(help);
       for (const input of papers[paper]) input.addEventListener('input', () => {

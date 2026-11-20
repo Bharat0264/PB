@@ -131,7 +131,7 @@ function printSummary(entry) {
   const copies = Number(options.copies) || 1;
   const parts = [
     pages + (pages === 1 ? ' page' : ' pages') + (copies > 1 ? ' × ' + copies + ' copies' : ''),
-    options.paper || 'A4',
+    options.paper === 'A4 Bond' ? 'Bond paper' : options.paper || 'A4',
     options.colourPages?.length ? 'Colour on ' + options.colourPages.length + ' pages' : options.colour ? 'Colour' : 'Black & white',
     options.duplex ? 'Double-sided' : 'Single-sided',
   ];
@@ -315,6 +315,8 @@ const checkoutClose = document.querySelector('#checkout-close');
 const checkoutSubmit = checkoutForm?.querySelector('[type="submit"]');
 const orderHistory = document.querySelector('#order-history');
 let paperRates = {};
+const paperNames = {A4: 'Normal A4 sheet', 'A4 Bond': 'Bond paper sheet (recommended for major project reports)'};
+const paperLabel = size => paperNames[size] || size;
 let bindingRates = {};
 const bindingNames = {none: 'No binding', glossy: 'Glossy soft binding', blue: 'Blue sheet binding',
   spiral: 'Spiral binding', staple: 'Staple binding'};
@@ -371,7 +373,7 @@ function updatePrintOptions(group) {
   const sizes = Object.keys(paperRates);
   const selectedPaper = paper.value;
   if (sizes.join() !== [...paper.options].filter(option => option.value).map(option => option.value).join()) {
-    const options = sizes.map(size => new Option(size, size));
+    const options = sizes.map(size => new Option(paperLabel(size), size));
     if (!sizes.includes(selectedPaper)) options.unshift(new Option('Choose a paper size', ''));
     paper.replaceChildren(...options);
     paper.value = sizes.includes(selectedPaper) ? selectedPaper : '';
@@ -606,7 +608,7 @@ function createPrintOptions(id, entry, onChange) {
   const paperSelect = document.createElement('select');
   paperSelect.name = 'paper-' + id;
   paperSelect.required = true;
-  paperSelect.append(...Object.keys(paperRates).map(size => new Option(size, size)));
+  paperSelect.append(...Object.keys(paperRates).map(size => new Option(paperLabel(size), size)));
   paper.append(paperSelect);
   group.append(quantity, paper,
     pageRangeField(id),

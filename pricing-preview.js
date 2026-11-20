@@ -9,7 +9,7 @@ export function readPreviewPricing() {
     // Use the sample rates if storage is unavailable.
   }
   return {
-    paperRates:{A4:[175,300,850,1400]},
+    paperRates:{A4:[175,300,850,1400],'A4 Bond':[300,550,1200,2000]},
     bindingRates:{glossy:5000,blue:4000},
     platform:0, packing:0, surge:0, delivery:0, deliveryPerKm:0,
   };

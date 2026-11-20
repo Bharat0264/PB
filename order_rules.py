@@ -1,11 +1,13 @@
 """PrintBee's server-side pricing rules. Prices are integer paise."""
 RATES = (175, 300, 850, 1400)
+# Bond paper (heavier, whiter sheet for project reports): black & white single/double, colour single/double.
+BOND_RATES = (300, 550, 1200, 2000)
 BINDING_RATES = {"none": 0, "glossy": 5000, "blue": 4000}
 LIMIT = 50 * 1024 * 1024
 
 
 def quote_items(items, paper_rates=None, binding_rates=None):
-    paper_rates = paper_rates or {"A4": RATES}
+    paper_rates = paper_rates or {"A4": RATES, "A4 Bond": BOND_RATES}
     binding_rates = binding_rates or BINDING_RATES
     if not isinstance(items, list) or not 1 <= len(items) <= 100:
         raise ValueError("Choose between one and 100 files.")

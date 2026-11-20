@@ -5,7 +5,7 @@ import math
 import os
 import re
 
-from order_rules import BINDING_RATES, RATES
+from order_rules import BINDING_RATES, BOND_RATES, RATES
 
 
 DEFAULT_CAMPUSES = [
@@ -74,7 +74,7 @@ def validate_terms(raw):
     paper = raw.get("paperRates", {})
     binding = raw.get("bindingRates", {})
     if not isinstance(paper, dict) or any(
-        key not in ("A4", "A3", "A5") or not isinstance(rates, (list, tuple)) or len(rates) != 4
+        key not in ("A4", "A4 Bond", "A3", "A5") or not isinstance(rates, (list, tuple)) or len(rates) != 4
         or any(type(rate) is not int or rate < 100 for rate in rates)
         for key, rates in paper.items()
     ):
@@ -84,7 +84,7 @@ def validate_terms(raw):
         for key, rate in binding.items()
     ):
         raise ValueError("Provide integer paise rates for supported bindings.")
-    terms["paperRates"] = {"A4": RATES, **paper}
+    terms["paperRates"] = {"A4": RATES, "A4 Bond": BOND_RATES, **paper}
     terms["bindingRates"] = {**BINDING_RATES, **binding}
     terms["autoDispatch"] = raw.get("autoDispatch", False)
     if type(terms["autoDispatch"]) is not bool:

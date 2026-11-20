@@ -6,10 +6,12 @@ if (printCatalog) {
   const status = printCatalog.querySelector('[data-price-status]');
   const currency = new Intl.NumberFormat('en-IN', {style:'currency',currency:'INR',minimumFractionDigits:0,maximumFractionDigits:2});
   let catalog;
+  const paperNames = {A4:'Normal A4 sheet','A4 Bond':'Bond paper sheet (recommended for major project reports)'};
+  const paperLabel = size => paperNames[size] || size;
 
   function renderPaper() {
     const rates = catalog.paperRates[picker.value];
-    printCatalog.querySelector('#print-rates-title').textContent = picker.value + ' printing';
+    printCatalog.querySelector('#print-rates-title').textContent = (picker.value === 'A4' ? 'A4' : picker.value === 'A4 Bond' ? 'Bond paper' : picker.value) + ' printing';
     for (const cell of printCatalog.querySelectorAll('[data-print-rate]')) {
       cell.textContent = currency.format(rates[Number(cell.dataset.printRate)] / 100);
     }
@@ -21,7 +23,7 @@ if (printCatalog) {
     const papers = Object.keys(terms.paperRates);
     if (papers.join() !== [...picker.options].map(option => option.value).join()) {
       const selected = picker.value;
-      picker.replaceChildren(...papers.map(size => new Option(size, size)));
+      picker.replaceChildren(...papers.map(size => new Option(paperLabel(size), size)));
       picker.value = papers.includes(selected) ? selected : 'A4';
     }
     picker.closest('label').hidden = papers.length <= 1;

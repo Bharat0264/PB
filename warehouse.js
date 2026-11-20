@@ -444,7 +444,7 @@ function queueFilters(open,history=false) {
     makeField('to','Through');
   } else {
     makeField('colour','Colour',[['','All'],['colour','Colour'],['mono','Black & white']]);
-    makeField('paper','Paper',[['','All'],...['A4','A3','A5'].map(size=>[size,size])]);
+    makeField('paper','Paper',[['','All'],...['A4','A4 Bond','A3','A5'].map(size=>[size,size])]);
     makeField('date','Date',[['','Any date'],['today','Today']]);
     makeField('priority','Priority',[['','All'],['Urgent','Urgent'],['Express','Express']]);
     makeField('partner','Partner',[['','Any'],['assigned','Assigned'],['unassigned','Unassigned']]);
