@@ -6,11 +6,14 @@ if (printCatalog) {
   const status = printCatalog.querySelector('[data-price-status]');
   const currency = new Intl.NumberFormat('en-IN', {style:'currency',currency:'INR',minimumFractionDigits:0,maximumFractionDigits:2});
   let catalog;
-  const paperNames = {A4:'Normal A4 sheet','A4 Bond':'Bond paper sheet (recommended for major project reports)'};
+  const paperNames = {A4:'Normal A4 sheet','A4 Bond':'Bond paper sheet'};
   const paperLabel = size => paperNames[size] || size;
 
   function renderPaper() {
     const rates = catalog.paperRates[picker.value];
+    const note = printCatalog.querySelector('[data-paper-note]');
+    if (note) note.textContent = picker.value === 'A4 Bond'
+      ? 'Recommended for major project reports.' : 'Choose paper to compare printing prices.';
     printCatalog.querySelector('#print-rates-title').textContent = (picker.value === 'A4' ? 'A4' : picker.value === 'A4 Bond' ? 'Bond paper' : picker.value) + ' printing';
     for (const cell of printCatalog.querySelectorAll('[data-print-rate]')) {
       cell.textContent = currency.format(rates[Number(cell.dataset.printRate)] / 100);

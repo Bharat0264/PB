@@ -1,0 +1,31 @@
+/* Customer print catalog: paper selection and rates share one clay surface. */
+.price-print { color:var(--hv-ink); background:linear-gradient(145deg,var(--hv-surface),var(--hv-surface-2)); }
+.price-print-heading { display:flex; align-items:center; gap:14px; margin-bottom:24px; }
+.price-print-heading h3 { margin:0; line-height:1.2; }
+.price-print-heading p { margin-top:5px; color:var(--hv-muted); font-size:13px; }
+.price-paper-icon { display:grid; place-items:center; flex:none; width:50px; height:54px; border-radius:18px; color:#67440b; background:var(--hv-honey-grad,linear-gradient(145deg,#fff0b6,#efd27b)); box-shadow:var(--hv-sh-1); }
+.price-paper-icon svg { width:25px; height:25px; }
+.price-paper-field:not([hidden]) { display:grid; gap:9px; margin-bottom:22px; }
+.price-paper-field > span:first-child { color:var(--hv-muted); font-size:12px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
+.price-paper-select { position:relative; display:block; min-width:0; }
+.price-paper-select select { appearance:none; -webkit-appearance:none; display:block; width:100%; min-width:0; min-height:54px; box-sizing:border-box; padding:13px 46px 13px 18px; border:1px solid var(--hv-border); border-radius:17px; background:var(--hv-surface-2); color:var(--hv-ink); box-shadow:var(--hv-field); font:700 15px/1.4 Manrope,system-ui,sans-serif; text-overflow:ellipsis; cursor:pointer; transition:box-shadow .18s ease; }
+.price-paper-select select:hover { box-shadow:var(--hv-field),0 0 0 1px var(--hv-honey-500); }
+.price-paper-select select:focus-visible { outline:3px solid var(--hv-honey-500); outline-offset:3px; }
+.price-paper-select > svg { position:absolute; right:16px; top:50%; width:20px; height:20px; transform:translateY(-50%); color:var(--hv-honey-ink); pointer-events:none; }
+.price-paper-field small { color:var(--hv-muted); font-size:12px; line-height:1.5; padding-inline:3px; }
+.price-print table { width:100%; margin-top:0; border-collapse:separate; border-spacing:0; table-layout:fixed; background:var(--hv-surface); border:1px solid var(--hv-border); border-radius:18px; overflow:hidden; }
+.price-print table :is(th,td) { padding:16px 14px; border:0; color:var(--hv-ink); }
+.price-print table thead th { color:var(--hv-muted); background:var(--hv-surface-2); font-size:12px; font-weight:700; line-height:1.5; vertical-align:middle; }
+.price-print table th:first-child { width:35%; text-align:left; }
+.price-print table tbody th { font-size:13px; font-weight:700; line-height:1.5; }
+.price-print table tbody td { font-size:19px; font-weight:800; font-variant-numeric:tabular-nums; }
+.price-print table tbody tr + tr > * { border-top:1px solid var(--hv-border); }
+.price-print .price-note { margin:14px 2px 0; font-size:12px; line-height:1.6; color:var(--hv-muted); }
+@media (max-width:560px) {
+  .price-print-heading { margin-bottom:20px; }
+  .price-print table :is(th,td) { padding:14px 10px; }
+  .price-print table thead th { font-size:11px; }
+  .price-print table tbody td { font-size:17px; }
+  .price-print table tbody th { font-size:12px; }
+}
+@media (prefers-reduced-motion:reduce) { .price-paper-select select { transition:none; } }
