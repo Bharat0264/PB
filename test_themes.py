@@ -170,5 +170,16 @@ class WildfireCinematicTests(unittest.TestCase):
         self.assertIn("castShadow = true", hero)                  # the title throws its shadow on the emblem
 
 
+class QuickSwitchTests(unittest.TestCase):
+    def test_header_has_a_one_tap_theme_button(self):
+        engine = (ROOT / "theme-engine.js").read_text(encoding="utf-8")
+        css = (ROOT / "theme-engine.css").read_text(encoding="utf-8")
+        self.assertIn("customer-header-actions", engine)
+        self.assertIn("themes.size < 2", engine)              # no button until there is something to switch to
+        self.assertIn("aria-label", engine)
+        self.assertIn(".theme-quick", css)
+        self.assertIn("prefers-reduced-motion", css)
+
+
 if __name__ == "__main__":
     unittest.main()

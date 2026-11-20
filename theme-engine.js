@@ -222,6 +222,24 @@
   remembered = themes.has(stored) ? stored : DEFAULT_ID;
   set(remembered, {persist: false, initial: true});
 
+  // One-tap theme button in the customer header, so a theme can be tried without digging through Profile.
+  // It steps to the next registered theme; the Change theme page (Profile > Appearance) keeps the full preview/apply flow.
+  function addQuickSwitch() {
+    const bar = document.querySelector('.customer-header-actions');
+    if (!bar || bar.querySelector('.theme-quick') || themes.size < 2) return;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'theme-quick';
+    button.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c1 3.2 4.5 5.2 4.5 9.4A4.5 4.5 0 0 1 12 17a4.5 4.5 0 0 1-4.5-4.6c0-1.8.8-3 1.8-4 .2 1.2.8 1.9 1.6 2.2C10.6 8 11 5.4 12 3z"/><path d="M8.5 20.5h7"/></svg>';
+    const next = () => { const all = [...themes.values()]; return all[(all.findIndex(t => t.id === current) + 1) % all.length]; };
+    const label = () => { const target = next(); button.setAttribute('aria-label', 'Switch to the ' + target.name + ' theme'); button.title = 'Theme: ' + themes.get(current).name + '. Tap for ' + target.name + '.'; button.dataset.theme = current; };
+    button.addEventListener('click', () => { button.disabled = true; set(next().id, {persist: true}).finally(() => { button.disabled = false; label(); }); });
+    listeners.add(label);
+    label();
+    bar.prepend(button);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', addQuickSwitch, {once: true}); else addQuickSwitch();
+
   addEventListener('storage', event => {
     if (event.key !== KEY || previewing) return;
     const id = themes.has(event.newValue) ? event.newValue : DEFAULT_ID;

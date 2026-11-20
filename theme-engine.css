@@ -90,3 +90,15 @@
 @media (prefers-reduced-motion: no-preference) {
   ::view-transition-old(root), ::view-transition-new(root) { animation-duration: .35s; }
 }
+
+/* One-tap theme button in the customer header (added by theme-engine.js). */
+.theme-quick {
+  display: grid; place-items: center; width: 44px; height: 44px; flex: none; padding: 0; border: 0; border-radius: 50%; cursor: pointer;
+  color: var(--pb-accent-strong); background: var(--pb-surface-2); box-shadow: var(--pb-shadow-raised);
+  transition: transform .2s var(--pb-ease), color .2s;
+}
+.theme-quick:hover:not(:disabled) { transform: translateY(-2px); color: var(--pb-accent); }
+.theme-quick:active:not(:disabled) { transform: scale(.95); box-shadow: var(--pb-shadow-pressed); }
+.theme-quick:focus-visible { outline: 3px solid var(--pb-accent-strong); outline-offset: 3px; }
+.theme-quick[data-theme="wildfire"] { color: var(--pb-accent); }
+@media (prefers-reduced-motion: reduce) { .theme-quick { transition: none; } }
