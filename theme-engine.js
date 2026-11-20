@@ -35,8 +35,13 @@
   ];
   const ID = /^[a-z][a-z0-9-]{1,31}$/;
   const darkMode = () => ['dark', 'moon'].includes(root.dataset.theme);
-  const read = key => { try { return localStorage.getItem(key); } catch { return null; } };
-  const write = (key, value) => { try { localStorage.setItem(key, value); } catch { /* storage may be blocked */ } };
+  let account = '', identityVersion = 0, interacted = false, modeInteracted = false;
+  const preferenceKey = key => account ? key + ':' + encodeURIComponent(account) : key + '-guest';
+  const preferenceStore = () => account ? localStorage : sessionStorage;
+  const read = key => { try { return preferenceStore().getItem(preferenceKey(key)); } catch { return null; } };
+  const write = (key, value) => { try { preferenceStore().setItem(preferenceKey(key), value); } catch { /* storage may be blocked */ } };
+  // A fresh guest starts in the original light theme, independent of browser-wide legacy choices or OS mode.
+  root.dataset.theme = read(MODE_KEY) === 'dark' ? 'dark' : 'light';
 
   // Weak devices (few cores, little memory, or Data Saver on) get the lighter version of every theme effect.
   const lowPower = (() => {
@@ -113,7 +118,7 @@
   // Sun/Moon mode handling for themes that support only one mode.
   function preferredMode() {
     const saved = read(MODE_KEY);
-    return saved ? saved === 'dark' : system.matches;
+    return saved === 'dark';
   }
   function enforceMode() {
     const def = themes.get(current);
@@ -172,6 +177,7 @@
   }
 
   function set(id, {persist, preview, initial}) {
+    if (!initial && (persist || preview)) interacted = true;
     const def = themes.get(id) || themes.get(DEFAULT_ID);
     const previous = current;
     const change = () => {
@@ -218,6 +224,17 @@
   const api = {
     defaultId: DEFAULT_ID,
     lowPower,
+    modePreference: () => read(MODE_KEY),
+    rememberMode(value) { modeInteracted = true; write(MODE_KEY, value); },
+    isModeStorageEvent: event => event.key === preferenceKey(MODE_KEY),
+    resetGuest() {
+      identityVersion++;
+      account = '';
+      try { sessionStorage.removeItem(KEY + '-guest'); sessionStorage.removeItem(MODE_KEY + '-guest'); } catch {}
+      remembered = DEFAULT_ID;
+      root.dataset.theme = 'light';
+      return set(DEFAULT_ID, {persist: false});
+    },
     requiredTokens: REQUIRED_TOKENS.slice(),
     list: () => [...themes.values()],
     get: id => themes.get(id),
@@ -246,6 +263,27 @@
   remembered = themes.has(stored) ? stored : DEFAULT_ID;
   set(remembered, {persist: false, initial: true});
 
+  // Restore only the signed-in account's own preference. A browser-wide saved theme has no owner,
+  // so it must never be inherited by a guest or a different account on this device.
+  const identity = identityVersion;
+  fetch('/api/auth/session', {cache: 'no-store', credentials: 'same-origin'})
+    .then(response => response.ok ? response.json() : {})
+    .then(session => {
+      if (identity !== identityVersion) return;
+      account = typeof session.email === 'string' ? session.email.trim().toLowerCase() : '';
+      const stored = read(KEY);
+      const saved = themes.has(stored) ? stored : DEFAULT_ID;
+      if (modeInteracted) write(MODE_KEY, darkMode() ? 'dark' : 'light');
+      else root.dataset.theme = preferredMode() ? 'dark' : 'light';
+      if (interacted) {
+        if (previewing) remembered = saved;
+        else write(KEY, remembered);
+        return;
+      }
+      remembered = saved;
+      if (current !== saved) return set(saved, {persist: false});
+    }).catch(() => { /* offline visitors keep the safe guest default */ });
+
   // One-tap theme button in the customer header, so a theme can be tried without digging through Profile.
   // It steps to the next registered theme; the Change theme page (Profile > Appearance) keeps the full preview/apply flow.
   function addQuickSwitch() {
@@ -265,7 +303,7 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', addQuickSwitch, {once: true}); else addQuickSwitch();
 
   addEventListener('storage', event => {
-    if (event.key !== KEY || previewing) return;
+    if (event.key !== preferenceKey(KEY) || previewing) return;
     const id = themes.has(event.newValue) ? event.newValue : DEFAULT_ID;
     if (id !== current) set(id, {persist: false});
     remembered = id;

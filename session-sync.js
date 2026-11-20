@@ -16,7 +16,14 @@
   let channel = null;
   try { channel = new BroadcastChannel('printbee-auth'); } catch { /* old browsers: pings still work */ }
 
-  const goWelcome = () => { if (!onWelcome) location.replace('/welcome.html'); };
+  const resetGuestTheme = () => {
+    try {
+      sessionStorage.removeItem('printbee-theme-guest');
+      sessionStorage.removeItem('printbee-admin-theme-guest');
+    } catch {}
+    window.PrintBeeThemes?.resetGuest();
+  };
+  const goWelcome = () => { resetGuestTheme(); if (!onWelcome) location.replace('/welcome.html'); };
 
   channel?.addEventListener('message', ({data}) => {
     if (data === 'logout') goWelcome();
@@ -24,8 +31,10 @@
   });
 
   window.PrintBeeSession = {
-    announce(kind) { try { channel?.postMessage(kind); } catch { /* ignore */ } },
+    announce(kind) { if (kind === 'logout') resetGuestTheme(); try { channel?.postMessage(kind); } catch { /* ignore */ } },
   };
+
+  document.querySelector('.welcome-guest')?.addEventListener('click', resetGuestTheme);
 
   let last = Date.now();
   let busy = false;

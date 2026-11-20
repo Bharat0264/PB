@@ -11,7 +11,8 @@
   const selectors = '[data-hive-toggle]';
   const read = key => { try { return localStorage.getItem(key); } catch { return null; } };
   const dark = () => ['dark','moon'].includes(root.dataset.theme);
-  const followingSystem = script?.dataset.followSystem !== 'false';
+  const customerThemes = window.PrintBeeThemes;
+  const followingSystem = !customerThemes && script?.dataset.followSystem !== 'false';
 
   function syncControls() {
     const moon = dark();
@@ -28,7 +29,7 @@
     syncControls();
   }
 
-  const saved = read(KEY);
+  const saved = customerThemes ? customerThemes.modePreference() : read(KEY);
   const partnerLegacy = partner ? read('printbee-rider-night') : null;
   apply(override ? override === 'moon' : saved ? saved === 'dark' :
     partnerLegacy !== null ? partnerLegacy === '1' : followingSystem && system.matches);
@@ -37,8 +38,10 @@
     if (!read(KEY) && (!partner || read('printbee-rider-night') === null)) apply(e.matches);
   });
   addEventListener('storage', e => {
-    if (!override && e.key === KEY && e.newValue) apply(e.newValue === 'dark');
+    if (!override && (customerThemes ? customerThemes.isModeStorageEvent(e) : e.key === KEY) && e.newValue) apply(e.newValue === 'dark');
   });
+
+  if (customerThemes) new MutationObserver(syncControls).observe(root, {attributes:true, attributeFilter:['data-theme']});
 
   let reveal;
   function toggleTheme(toggle) {
@@ -46,7 +49,8 @@
       const moon = !dark();
       apply(moon);
       if (!override) {
-        try { localStorage.setItem(KEY, moon ? 'dark' : 'light'); } catch {}
+        if (customerThemes) customerThemes.rememberMode(moon ? 'dark' : 'light');
+        else { try { localStorage.setItem(KEY, moon ? 'dark' : 'light'); } catch {} }
       }
     };
     const box = toggle?.getBoundingClientRect();

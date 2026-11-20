@@ -22,9 +22,13 @@ Mode: Sun Hive / Moon Hive (`data-theme` = `light` / `dark`) still works exactly
 theme. A theme says which modes it supports. A theme with a single mode locks the page to it and hides the Sun/Moon
 switch; switching to a theme that supports both restores the customer's own choice.
 
-Persistence: the choice is saved in `localStorage` under `printbee-theme` and applied on every page before the first
-paint. It is shared between tabs. An unknown or removed theme id falls back to PrintBee. Preview never saves anything.
-Server-side persistence for signed-in customers is not built (it would need a profile API).
+Persistence: new and guest visits start with PrintBee in light mode. Guest choices use sessionStorage
+(`printbee-theme-guest` and `printbee-admin-theme-guest`) while browsing. Continue as guest and sign-out reset
+them. After `/api/auth/session` identifies a signed-in customer, choices are read from that account's
+localStorage keys (`printbee-theme:<encoded email>` and `printbee-admin-theme:<encoded email>`). Unscoped
+legacy choices are ignored because their owner is unknown. Theme and mode remain browser-local, and signed-in
+choices sync between tabs for the same account. Unknown theme IDs fall back to PrintBee. Preview does not save.
+
 
 ## Add a new theme
 
