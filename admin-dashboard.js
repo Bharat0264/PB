@@ -425,7 +425,7 @@ function buildSettlements(host) {
 
 function liveWarehouses() {
   return directory('Warehouse directory', warehouses, warehouse =>
-    `<span>${escape(warehouse.address)}</span><small>${escape(warehouse.email)}${warehouse.is_default ? ' &middot; Default pickup' : ''}</small><span class="wh-row-actions"><a href="${escape(pickupMapUrl(warehouse.address))}" target="_blank" rel="noopener">Pickup on Google Maps</a><button type="button" class="partner-remove" data-remove-warehouse="${warehouse.id}" data-label="${escape(warehouse.name)}">Remove warehouse</button></span>`);
+    `<span>${escape(warehouse.address)}</span><small>${escape(warehouse.email)}${warehouse.is_default ? ' &middot; Default pickup' : ''}</small><dl class="warehouse-revenue"><div><dt>Online revenue</dt><dd>${money((warehouse.revenue || 0) / 100)}</dd></div><div><dt>Paid orders</dt><dd>${number(warehouse.paidOrders || 0)}</dd></div></dl><small>Paid online orders linked to this store. Excludes cancellations and refunds.</small><span class="wh-row-actions"><a href="${escape(pickupMapUrl(warehouse.address))}" target="_blank" rel="noopener">Pickup on Google Maps</a><button type="button" class="partner-remove" data-remove-warehouse="${warehouse.id}" data-label="${escape(warehouse.name)}">Remove warehouse</button></span>`);
 }
 
 function previewLedger(page, filter) {

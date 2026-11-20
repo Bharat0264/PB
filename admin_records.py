@@ -4,6 +4,7 @@ import time
 from datetime import datetime, timedelta, timezone
 
 import fulfillment as ops
+from finance import LIVE as PAID_STATUSES
 
 
 SCHEMA = """
@@ -68,13 +69,39 @@ def set_warehouse_availability(db, data, actor):
 
 
 def warehouse_directory(db):
-    return [dict(row) for row in db.execute(
+    stores = [dict(row) for row in db.execute(
         "SELECT id, name, address, email, is_default FROM warehouse_pickups ORDER BY is_default DESC, name"
     )]
+    by_id = {store["id"]: store for store in stores}
+    legacy = {}
+    for store in stores:
+        store.update(revenue=0, paidOrders=0)
+        legacy.setdefault((store["name"], store["address"]), []).append(store)
+    # Bills are checkout snapshots in paise; exclude cancelled, pending and refunded orders.
+    marks = ",".join("?" for _ in PAID_STATUSES)
+    totals = db.execute("""SELECT json_extract(details,'$.pickupWarehouse.id') AS warehouse_id,
+        json_extract(details,'$.pickupWarehouse.name') AS name,
+        json_extract(details,'$.pickupWarehouse.address') AS address,
+        count(*) AS orders, COALESCE(sum(CAST(COALESCE(json_extract(details,'$.bill.total'),
+            json_extract(details,'$.subtotal'),0) AS INTEGER)),0) AS revenue
+        FROM orders WHERE status IN (""" + marks + """) GROUP BY warehouse_id, name, address""", PAID_STATUSES)
+    for row in totals:
+        if row["warehouse_id"] is not None:
+            store = by_id.get(row["warehouse_id"])
+            # Never assign a removed store's revenue to a different store reusing its numeric ID.
+            if store and (store["name"], store["address"]) != (row["name"], row["address"]):
+                store = None
+        else:
+            matches = legacy.get((row["name"], row["address"]), [])
+            store = matches[0] if len(matches) == 1 else None
+        if store is not None:
+            store["revenue"] += row["revenue"]
+            store["paidOrders"] += row["orders"]
+    return stores
 
 
 def default_pickup(db):
-    row = db.execute("SELECT name, address FROM warehouse_pickups WHERE is_default=1").fetchone()
+    row = db.execute("SELECT id, name, address FROM warehouse_pickups WHERE is_default=1").fetchone()
     return dict(row) if row else None
 
 

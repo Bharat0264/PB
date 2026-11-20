@@ -418,3 +418,9 @@ dialog::backdrop { background: color-mix(in srgb, #8A5E0B 22%, rgba(23,18,10,.45
   [data-theme="dark"] .tb-pill :is(.icon-button:not(.hv-switch), .avatar, .search-clay) { background: var(--hv-surface-2); color: var(--hv-ink); box-shadow: inset 0 0 0 1px var(--hv-border); }
   [data-theme="dark"] .toolbar .collapse { color: var(--hv-ink); }
 }
+
+/* Store totals remain readable inside the existing warehouse directory cards. */
+.warehouse-revenue { display:flex; flex-wrap:wrap; gap:12px 32px; margin:10px 0; }
+.warehouse-revenue > div { display:grid; gap:3px; min-width:120px; }
+.warehouse-revenue dt { color:var(--hv-muted); font-size:12px; font-weight:700; }
+.warehouse-revenue dd { margin:0; color:var(--hv-ink); font-size:22px; font-weight:800; font-variant-numeric:tabular-nums; }
