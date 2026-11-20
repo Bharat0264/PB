@@ -117,7 +117,7 @@ export async function mount() {
   const start = async () => {
     if (destroyed) return;
     try {
-      const {mountHero} = await import('/themes/wildfire-hero.js?v=3');
+      const {mountHero} = await import('/themes/wildfire-hero.js?v=4');
       if (!destroyed) { scene = mountHero(stage); stage.__wf = scene; }   // handle for reviews: stage.__wf.seek(seconds)
     } catch (error) {
       console.warn('[Wildfire] the 3D title could not start; showing the still picture.', error);

@@ -38,6 +38,13 @@
   const read = key => { try { return localStorage.getItem(key); } catch { return null; } };
   const write = (key, value) => { try { localStorage.setItem(key, value); } catch { /* storage may be blocked */ } };
 
+  // Weak devices (few cores, little memory, or Data Saver on) get the lighter version of every theme effect.
+  const lowPower = (() => {
+    try { return Boolean(navigator.connection && navigator.connection.saveData) || (navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 4; }
+    catch { return false; }
+  })();
+  if (lowPower) root.classList.add('pb-lite');
+
   const themes = new Map();
   const listeners = new Set();
   let current = DEFAULT_ID;
@@ -130,16 +137,21 @@
   // Optional per-theme stylesheet, loaded only while that theme is active.
   function loadStylesheet(def, wait) {
     for (const link of document.querySelectorAll('link[data-pb-theme-css]')) link.disabled = link.dataset.pbThemeCss !== def.id;
-    if (!def.stylesheet) return Promise.resolve();
+    if (!def.stylesheet) return Promise.resolve(true);
     let link = document.querySelector('link[data-pb-theme-css="' + def.id + '"]');
-    if (link) { link.disabled = false; return Promise.resolve(); }
+    if (link) { link.disabled = false; return Promise.resolve(true); }
     link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = def.stylesheet;
     link.dataset.pbThemeCss = def.id;
-    const done = new Promise(resolve => { link.onload = link.onerror = resolve; setTimeout(resolve, 2500); });
+    // Resolves true when the file loaded (or is merely slow), false when the server could not deliver it (for example a 404).
+    const done = new Promise(resolve => {
+      link.onload = () => resolve(true);
+      link.onerror = () => { link.remove(); resolve(false); };
+      setTimeout(() => resolve(true), 2500);
+    });
     document.head.append(link);
-    return wait ? done : Promise.resolve();
+    return done;
   }
 
   // Optional per-theme effects (animation, particles). The script registers
@@ -188,12 +200,24 @@
       change();
       return Promise.resolve();
     };
-    if (initial) { loadStylesheet(def, false); change(); finish(); switchEffects(null, def); return Promise.resolve(); }
-    return loadStylesheet(def, true).then(run).then(finish).then(() => switchEffects(previous, def));
+    // A theme whose files are missing must never leave the site half-dressed (dark colours, no layout): use PrintBee instead.
+    const missing = () => {
+      console.error('[PrintBeeThemes] "' + def.id + '" could not load its files, so PrintBee is shown. Check that /themes and /models are deployed.');
+      return def.id !== DEFAULT_ID ? set(DEFAULT_ID, {persist: false}) : Promise.resolve();
+    };
+    if (initial) {
+      loadStylesheet(def).then(ok => { if (!ok && current === def.id) missing(); });
+      change(); finish(); switchEffects(null, def);
+      return Promise.resolve();
+    }
+    return loadStylesheet(def).then(ok => (ok
+      ? run().then(finish).then(() => switchEffects(previous, def))
+      : missing()));
   }
 
   const api = {
     defaultId: DEFAULT_ID,
+    lowPower,
     requiredTokens: REQUIRED_TOKENS.slice(),
     list: () => [...themes.values()],
     get: id => themes.get(id),

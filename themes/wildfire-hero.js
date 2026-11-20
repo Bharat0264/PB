@@ -166,6 +166,8 @@ export function mountHero(host, options = {}) {
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const still = options.still || reduced;
   const coarse = matchMedia('(pointer: coarse)').matches || innerWidth < 760;
+  const lite = Boolean(window.PrintBeeThemes && window.PrintBeeThemes.lowPower);          // weak device: lighter scene from the start
+  let quality = 0;                                                                          // raised by degrade() if frames run slow
   const played = (() => { try { return sessionStorage.getItem('wf-intro') === '1'; } catch { return false; } })();
   const speed = played ? 2.6 : 1;
 
@@ -176,12 +178,12 @@ export function mountHero(host, options = {}) {
     host.classList.add('wf-static');
     return {destroy() {}};
   }
-  const dpr = Math.min(devicePixelRatio || 1, coarse ? 1.5 : 2);
+  let dpr = Math.min(devicePixelRatio || 1, lite ? 1 : coarse ? 1.25 : 1.5);
   renderer.setPixelRatio(dpr);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.enabled = !lite;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
   const canvas = renderer.domElement;
   canvas.className = 'wf-canvas';
   canvas.setAttribute('aria-hidden', 'true');
@@ -215,8 +217,8 @@ export function mountHero(host, options = {}) {
   // ----- lights -----
   const key = new THREE.DirectionalLight('#ffd7a0', 3.4);
   key.position.set(-3.2, 4.2, 6.5);
-  key.castShadow = true;
-  key.shadow.mapSize.set(coarse ? 1024 : 2048, coarse ? 1024 : 2048);
+  key.castShadow = !lite;
+  key.shadow.mapSize.set(1024, 1024);
   Object.assign(key.shadow.camera, {left: -4, right: 4, top: 4, bottom: -4, near: .5, far: 20});
   key.shadow.radius = 5; key.shadow.bias = -.0004; key.shadow.normalBias = .03;
   const rim = new THREE.DirectionalLight('#ff6a1f', 4.2); rim.position.set(5, 1.8, -3.5);
@@ -264,7 +266,7 @@ export function mountHero(host, options = {}) {
   // ----- smoke -----
   const smokeMap = track(smokeTexture());
   const smoke = [];
-  for (let i = 0; i < (coarse ? 4 : 7); i++) {
+  for (let i = 0; i < (lite ? 2 : coarse ? 4 : 6); i++) {
     const warm = i % 3 === 0;
     const mesh = new THREE.Mesh(track(new THREE.PlaneGeometry(1, 1)), track(new THREE.MeshBasicMaterial({
       map: smokeMap, transparent: true, depthWrite: false, opacity: 0, fog: false,
@@ -278,7 +280,7 @@ export function mountHero(host, options = {}) {
   }
 
   // ----- embers: the supplied ember pictures as sprites, plus fine sparks -----
-  const emberCount = coarse ? 22 : 52, sparkCount = coarse ? 36 : 110;
+  const emberCount = lite ? 12 : coarse ? 20 : 40, sparkCount = lite ? 24 : coarse ? 36 : 80;
   const emberGeometry = track(new THREE.BufferGeometry());
   const emberPos = new Float32Array(emberCount * 3), emberCell = new Float32Array(emberCount * 2), emberSize = new Float32Array(emberCount), emberSeed = new Float32Array(emberCount);
   const embers = [];
@@ -443,7 +445,7 @@ export function mountHero(host, options = {}) {
       sparkPos[i * 3] = e.x + Math.sin(e.phase) * e.sway * 1.4; sparkPos[i * 3 + 1] = e.y; sparkPos[i * 3 + 2] = e.z;
     }
     emberGeometry.attributes.position.needsUpdate = true; sparkGeometry.attributes.position.needsUpdate = true;
-    emberMaterial.uniforms.uTime.value = t; emberMaterial.uniforms.uFade.value = fade * .85; sparkMaterial.uniforms.uFade.value = fade;
+    emberMaterial.uniforms.uTime.value = t; emberMaterial.uniforms.uFade.value = quality >= 3 ? 0 : fade * .85; sparkMaterial.uniforms.uFade.value = fade;
   }
 
   function frame(dt) {
@@ -508,13 +510,32 @@ export function mountHero(host, options = {}) {
     renderer.render(scene, camera);
   }
 
+  // Smoothness first: draw at most 45 frames a second (30 on weak devices) and, if frames still run slow, give up the
+  // priciest effects step by step: sharpness, then shadows, then smoke and half the embers.
+  const minStep = 1 / (lite ? 30 : 45);
+  let acc = 0, slowFrames = 0, measured = 0;
+  function degrade() {
+    quality += 1;
+    if (quality === 1) { dpr = 1; renderer.setPixelRatio(1); resize(); }
+    else if (quality === 2) { renderer.shadowMap.enabled = false; key.castShadow = false; scene.traverse(o => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { m.needsUpdate = true; }); }); }
+    else if (quality === 3) { smoke.forEach(m => { m.visible = false; }); sparkPoints.visible = false; emberMaterial.uniforms.uFade.value = 0; }
+  }
   function loop() {
     if (!state.running) return;
     requestAnimationFrame(loop);
-    if (!state.visible || document.hidden) { clock.getDelta(); return; }
-    const dt = Math.min(.05, clock.getDelta());
+    const raw = clock.getDelta();
+    if (!state.visible || document.hidden) { acc = 0; return; }
+    acc += Math.min(.1, raw);
+    if (acc < minStep - .002) return;
+    const dt = Math.min(.05, acc);
+    acc = 0;
     state.t += dt;
     frame(dt);
+    if (state.t > 1.5 && quality < 3) {                      // judge only after start-up work (model upload, shaders) is done
+      measured += 1;
+      if (raw > .042) slowFrames += 1;
+      if (measured >= 45) { if (slowFrames > 18) degrade(); measured = 0; slowFrames = 0; }
+    }
   }
   function play() {
     if (still || state.running) return;

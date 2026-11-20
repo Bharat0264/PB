@@ -40,8 +40,8 @@
     tagline: 'Night forest, rising embers',
     description: 'A cinematic dark theme: obsidian surfaces, deep forest green, antique gold detail and ember-orange light.',
     modes: ['dark'],
-    stylesheet: '/themes/wildfire.css?v=6',
-    script: '/themes/wildfire.js?v=5',
+    stylesheet: '/themes/wildfire.css?v=7',
+    script: '/themes/wildfire.js?v=6',
     palette: ['#100E0C', '#191511', '#111A14', '#17442E', '#236B46', '#C49A52', '#D68A32', '#F05A24', '#F2E9D9'],
     preview: {
       dark: {

@@ -217,5 +217,32 @@ class DeploymentImageTests(unittest.TestCase):
                                 f"{relative} is not allowed into the Docker image (.dockerignore)")
 
 
+class PerformanceAndFallbackTests(unittest.TestCase):
+    def test_a_theme_with_missing_files_falls_back_to_printbee(self):
+        engine = (ROOT / "theme-engine.js").read_text(encoding="utf-8")
+        self.assertIn("link.onerror", engine)
+        self.assertIn("could not load its files", engine)
+        self.assertIn("set(DEFAULT_ID, {persist: false})", engine)      # the saved choice is kept, so it works after a deploy
+
+    def test_low_power_devices_get_the_light_version(self):
+        engine = (ROOT / "theme-engine.js").read_text(encoding="utf-8")
+        effects = (ROOT / "themes" / "wildfire.js").read_text(encoding="utf-8")
+        hero = (ROOT / "themes" / "wildfire-hero.js").read_text(encoding="utf-8")
+        self.assertIn("hardwareConcurrency", engine)
+        self.assertIn("saveData", engine)
+        self.assertIn("lowPower()", effects)
+        self.assertIn("embedded-tab", effects)                          # the embedded tab pages skip the page-wide animation
+        self.assertIn("lowPower", hero)
+
+    def test_effects_are_frame_capped_and_adaptive(self):
+        effects = (ROOT / "themes" / "wildfire.js").read_text(encoding="utf-8")
+        hero = (ROOT / "themes" / "wildfire-hero.js").read_text(encoding="utf-8")
+        self.assertIn("1000 / 30", effects)
+        self.assertIn("minStep", hero)
+        self.assertIn("function degrade()", hero)                      # sharpness, shadows, smoke are dropped if frames run slow
+        css = (ROOT / "themes" / "wildfire.css").read_text(encoding="utf-8")
+        self.assertNotIn("mix-blend-mode", css)                         # full-screen blend modes force a re-composite every frame
+
+
 if __name__ == "__main__":
     unittest.main()
