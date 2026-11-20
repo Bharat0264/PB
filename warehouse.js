@@ -509,9 +509,7 @@ function renderQueue(filterOpen) {
     lanes.append(control);
   }
   board.append(lanes);
-  board.append(node('p',tab==='To print'
-    ? 'Print the files manually using Preview or Download. After printing, select Mark printed in the order details.'
-    : 'Printing is complete. Hand these orders over to the delivery partner.','wh-manual-note'));
+  if (tab==='Ready') board.append(node('p','Printing is complete. Hand these orders over to the delivery partner.','wh-manual-note'));
   board.append(list(selectedOrders(orderGroups[tab])));
 }
 
