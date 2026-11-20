@@ -12,6 +12,9 @@ COPY *.py *.html *.js *.css *.webmanifest *.woff2 *.webp *.png *.glb ./
 COPY buzz_prompt.md ./
 COPY kb ./kb
 COPY vendor ./vendor
+# Theme files: Wildfire styles, effects, home page, pictures, and the web-weight 3D models.
+COPY themes ./themes
+COPY models ./models
 
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh && chmod +x /usr/local/bin/docker-entrypoint.sh

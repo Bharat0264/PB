@@ -15,3 +15,7 @@ test_*.py
 !kb/*.md
 !/*.glb
 !vendor/three/*
+!themes/*.js
+!themes/*.css
+!themes/img/*.webp
+!models/wildfire/*.glb

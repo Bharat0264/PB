@@ -198,5 +198,24 @@ class WildfireHomeStartTests(unittest.TestCase):
         self.assertIn("timeout: 1200", home)
 
 
+class DeploymentImageTests(unittest.TestCase):
+    """Regression: the live site runs from the Docker image, which only copied root-level files, so /themes and /models returned 404."""
+
+    def test_docker_image_contains_every_theme_and_model_file(self):
+        import fnmatch
+        dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+        ignore = [line.strip() for line in (ROOT / ".dockerignore").read_text(encoding="utf-8").splitlines()]
+        allowed = [line[1:].lstrip("/") for line in ignore if line.startswith("!")]
+        self.assertIn("COPY themes ./themes", dockerfile)
+        self.assertIn("COPY models ./models", dockerfile)
+        for folder in ("themes", "models"):
+            files = [p for p in (ROOT / folder).rglob("*") if p.is_file()]
+            self.assertTrue(files, folder)
+            for path in files:
+                relative = path.relative_to(ROOT).as_posix()
+                self.assertTrue(any(fnmatch.fnmatch(relative, pattern) for pattern in allowed),
+                                f"{relative} is not allowed into the Docker image (.dockerignore)")
+
+
 if __name__ == "__main__":
     unittest.main()
