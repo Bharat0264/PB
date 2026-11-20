@@ -17,7 +17,7 @@ class WarehouseAccessTest(unittest.TestCase):
     def test_snapshot_returns_paid_orders_and_excludes_pending(self):
         with tempfile.TemporaryDirectory() as directory, patch.object(app, "DATA", Path(directory)):
             with closing(app.connect()) as db, db:
-                db.executescript(app.auth.SCHEMA + app.ops.SCHEMA + """
+                db.executescript(app.auth.SCHEMA + app.ops.SCHEMA + app.admin_records.SCHEMA + """
                     CREATE TABLE orders(id TEXT PRIMARY KEY, status TEXT, details TEXT);
                     CREATE TABLE order_owners(order_id TEXT, order_number TEXT);
                     INSERT INTO orders VALUES ('paid-order','paid','{"items":[]}');

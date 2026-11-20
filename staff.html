@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="/clay.css?v=1">
 <link rel="stylesheet" href="/warehouse.css?v=print-to-ready">
 <link rel="stylesheet" href="/hive-theme.css?v=soft-focus">
-<link rel="stylesheet" href="/warehouse-hive.css?v=sheet-x">
+<link rel="stylesheet" href="/warehouse-hive.css?v=availability">
 <script src="/hive-theme.js?v=sun-moon"></script>
 <style>
 /* There is one sign-in page (the welcome page). Portals never show their own sign-in card. */
@@ -22,7 +22,7 @@
 <script src="/status-model.js?v=1" defer></script>
 <script src="/live.js?v=1" defer></script>
 <script src="/portal-switch.js?v=1" defer></script>
-<script src="/warehouse.js?v=manual" defer></script>
+<script src="/warehouse.js?v=availability" defer></script>
 </head>
 <body class="warehouse">
 <a class="wh-skip" href="#warehouse-main">Skip to warehouse</a>
@@ -61,6 +61,11 @@
           <button id="sound-toggle" type="button" class="wh-icon-button" aria-label="Order chime" aria-pressed="false"></button>
         </div>
       </header>
+      <div class="wh-service-bar">
+        <button id="warehouse-availability" class="wh-service-button" type="button" aria-label="Warehouse availability" aria-pressed="false" disabled>
+          <span class="wh-service-dot" aria-hidden="true"></span><span id="warehouse-availability-label">Checking availability…</span>
+        </button>
+      </div>
       <div id="floor-connection" class="wh-floor-banner" hidden>
         <span id="floor-connection-copy"></span>
         <button class="clay-button" id="floor-retry" type="button">Retry</button>

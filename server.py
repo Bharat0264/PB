@@ -409,6 +409,11 @@ class PrintBee(SimpleHTTPRequestHandler):
                 return self.send_error(400)
             signed_in = self.google_portal_access(portal) or (portal == "partner" and self.get_partner())
             return self.json_response(200, {"signedIn": bool(signed_in)})
+        if path == "/api/staff/availability":
+            if self.get_role() not in ("warehouse", "admin"):
+                return self.json_response(403, {"error": "Warehouse access is required."})
+            with closing(connect()) as db:
+                return self.json_response(200, admin_records.warehouse_availability(db))
         if path == "/api/orders/notifications":
             return self.customer_notifications()
         if path == "/api/checkout":
@@ -416,7 +421,8 @@ class PrintBee(SimpleHTTPRequestHandler):
                 db.execute("BEGIN")
                 terms = {key: value for key, value in self.checkout_terms(db).items() if key != "coupons"}
                 version = db.execute("SELECT COALESCE(max(id),0) FROM pricing_versions").fetchone()[0]
-            return self.json_response(200, {"mode": self.server.payment_mode, "terms": terms,
+                service = admin_records.warehouse_availability(db)
+            return self.json_response(200, {"serviceOpen": service["open"], "mode": self.server.payment_mode, "terms": terms,
                                            "maps": self.server.maps, "pricingVersion": version})
         if not path.startswith("/api/"):
             allowed = {"/welcome.html", "/welcome.css", "/index.html", "/studio.js", "/studio.css", "/clay.css", "/staff.html", "/staff.js", "/warehouse.css", "/warehouse.js", "/delivery-map.js",
@@ -514,6 +520,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                     ):
                         timeline.setdefault(event["order_id"], []).append(dict(event))
                 return self.json_response(200, {"role": role,
+                                               "availability": admin_records.warehouse_availability(db),
                                                "orders": [
                     {"id": row["id"], "number": row["order_number"], "status": row["status"],
                      "jobs": jobs.get(row["id"], []), "paidAt": row["paid_at"],
@@ -788,6 +795,19 @@ class PrintBee(SimpleHTTPRequestHandler):
             if path.startswith(("/api/staff/", "/api/admin/")) and not self.headers.get("X-Staff-Key"):
                 if not self.same_origin():
                     return self.json_response(403, {"error": "Open PrintBee directly and try again."})
+            if path == "/api/staff/availability":
+                role = self.get_role()
+                if role not in ("warehouse", "admin"):
+                    return self.json_response(403, {"error": "Warehouse access is required."})
+                length = int(self.headers.get("Content-Length", "0"))
+                if not 0 < length <= 1024:
+                    raise ValueError()
+                data = json.loads(self.rfile.read(length))
+                with closing(connect()) as db, db:
+                    db.execute("BEGIN IMMEDIATE")
+                    actor = (auth.portal_google_email(db, self.headers, role) or role)
+                    result = admin_records.set_warehouse_availability(db, data, actor)
+                return self.json_response(200, result)
             if path == "/api/orders/notifications/read":
                 return self.customer_notifications(mark_read=True)
             if path in ("/api/partner/auth/send", "/api/partner/auth/check", "/api/partner/auth/logout"):
@@ -934,6 +954,8 @@ class PrintBee(SimpleHTTPRequestHandler):
                 if stored != details or options(previous) != options(selection):
                     return self.json_response(409, {"error": "Order details changed. Reopen checkout to try again."})
             else:
+                if not admin_records.warehouse_availability(db)["open"]:
+                    return self.json_response(409, {"error": "Printing is currently closed. Please try again when the warehouse reopens.", "serviceClosed": True})
                 terms = delivery_terms(self.checkout_terms(db), data, details["address"])
                 documents, total = quote_items(data["items"], terms["paperRates"], terms["bindingRates"])
                 details.update(items=documents, subtotal=total)
@@ -967,6 +989,8 @@ class PrintBee(SimpleHTTPRequestHandler):
             raise ValueError("Invalid delivery address.")
         with closing(connect()) as db, db:
             db.execute("BEGIN")
+            if not admin_records.warehouse_availability(db)["open"]:
+                return self.json_response(409, {"error": "Printing is currently closed. Please try again when the warehouse reopens.", "serviceClosed": True})
             terms = delivery_terms(self.checkout_terms(db), data, address)
             pickup = admin_records.default_pickup(db) if terms.get("deliveryPerKm") else None
         documents, total = quote_items(data["items"], terms["paperRates"], terms["bindingRates"])

@@ -70,6 +70,45 @@ let printAction, printPending = false, previewUrl, previewRequest = 0, arrivalOr
 let staffDock, floorFilter, arrivalTimer, historyPreset='';
 let lastStages=new Map(), newlyReady=new Set(), renderedOrderSnapshot;
 let polling, liveFeed, busyRefresh = false, refreshVersion = 0, toastTimer, audio;
+let serviceOpen, savingAvailability = false;
+function renderAvailability() {
+  const control = byId('warehouse-availability');
+  control.disabled = savingAvailability || typeof serviceOpen !== 'boolean';
+  control.setAttribute('aria-pressed', String(serviceOpen === true));
+  control.dataset.state = serviceOpen === undefined ? 'loading' : serviceOpen ? 'open' : 'closed';
+  byId('warehouse-availability-label').textContent = savingAvailability ? 'Saving…' :
+    serviceOpen === undefined ? 'Checking availability…' : serviceOpen ? 'Open · Close service' : 'Closed · Open service';
+  control.title = preview ? 'Sample setting. Live availability is controlled in the signed-in warehouse.' :
+    'Controls whether the warehouse accepts new print orders.';
+}
+async function toggleAvailability() {
+  if (savingAvailability || typeof serviceOpen !== 'boolean') return;
+  const next = !serviceOpen;
+  savingAvailability = true;
+  renderAvailability();
+  try {
+    if (preview) {
+      localStorage.setItem('printbee-warehouse-preview-open', String(next));
+      serviceOpen = next;
+    } else {
+      const result = await (await request('/api/staff/availability', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({open:next}),
+      })).json();
+      serviceOpen = result.open;
+    }
+    announce(preview ? 'Sample availability updated.' : serviceOpen ? 'Warehouse is open for new orders.' : 'Warehouse is closed for new orders.');
+  } catch (error) {
+    announce(error.message);
+    if (!preview) {
+      try { serviceOpen = (await (await request('/api/staff/availability')).json()).open; } catch {}
+    }
+  } finally {
+    savingAvailability = false;
+    renderAvailability();
+  }
+}
+
 const filters = {colour:'', paper:'', date:'', priority:'', partner:'', from:'', to:''};
 
 function readSetting(key) {
@@ -1091,12 +1130,13 @@ function playChime(first,second) {
 }
 async function refresh(force=false) {
   const version=++refreshVersion;
-  const current=preview?{orders:demoOrders}:await (await request('/api/staff/orders')).json();
+  const current=preview?{orders:demoOrders,availability:{open:localStorage.getItem('printbee-warehouse-preview-open')!=='false'}}:await (await request('/api/staff/orders')).json();
   if (version!==refreshVersion) return;
   const previous=JSON.stringify(findOrder());
   newlyReady=new Set(current.orders.filter(order=>order.status==='packed' && lastStages.get(order.id)==='printing').map(order=>order.id));
   lastStages=new Map(current.orders.map(order=>[order.id,order.status]));
   orders=current.orders;
+  if (!savingAvailability) { serviceOpen=current.availability?.open; renderAvailability(); }
   connected=true;
   updateTop();
   const fresh=known?orders.filter(order=>order.status==='paid' && !known.has(order.id)):[];
@@ -1228,6 +1268,7 @@ function handleKeys(event) {
 }
 async function start() {
   byId('warehouse-app').hidden=false;
+  byId('warehouse-availability').addEventListener('click',toggleAvailability);
   
   byId('search-icon').append(icon('search'));
   byId('station-close').append(icon('close'));

@@ -7,6 +7,10 @@ import fulfillment as ops
 
 
 SCHEMA = """
+CREATE TABLE IF NOT EXISTS warehouse_availability (
+    id INTEGER PRIMARY KEY CHECK(id=1), is_open INTEGER NOT NULL CHECK(is_open IN (0,1)),
+    updated_at INTEGER NOT NULL, updated_by TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS warehouse_pickups (
     id INTEGER PRIMARY KEY, name TEXT NOT NULL, address TEXT NOT NULL,
     email TEXT NOT NULL, is_default INTEGER NOT NULL DEFAULT 0
@@ -36,6 +40,25 @@ def required_text(data, key, limit):
     if not isinstance(value, str) or not 0 < len(value.strip()) <= limit:
         raise InputError(f"Enter a valid {key}.")
     return value.strip()
+
+
+def warehouse_availability(db):
+    row = db.execute("SELECT is_open, updated_at FROM warehouse_availability WHERE id=1").fetchone()
+    return {"open": bool(row["is_open"]), "updatedAt": row["updated_at"]} if row else {"open": True, "updatedAt": None}
+
+
+def set_warehouse_availability(db, data, actor):
+    if not isinstance(data, dict) or type(data.get("open")) is not bool:
+        raise InputError("Choose Open or Closed.")
+    current = warehouse_availability(db)
+    if current["open"] == data["open"]:
+        return current
+    now = int(time.time())
+    db.execute("INSERT INTO warehouse_availability VALUES (1,?,?,?) "
+               "ON CONFLICT(id) DO UPDATE SET is_open=excluded.is_open, updated_at=excluded.updated_at, "
+               "updated_by=excluded.updated_by", (int(data["open"]), now, actor))
+    ops.audit(db, actor, "warehouse_opened" if data["open"] else "warehouse_closed", "warehouse")
+    return warehouse_availability(db)
 
 
 def warehouse_directory(db):

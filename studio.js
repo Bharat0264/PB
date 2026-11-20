@@ -397,6 +397,8 @@ function applyCheckoutConfig(config) {
     queuedConfig = config;
     return;
   }
+  const closed = document.querySelector('#warehouse-closed');
+  if (closed) closed.hidden = config.serviceOpen !== false;
   const {mode, terms, maps} = config;
   const printChanged = JSON.stringify([paperRates,bindingRates]) !== JSON.stringify([terms.paperRates,terms.bindingRates]);
   paperRates = terms.paperRates;
