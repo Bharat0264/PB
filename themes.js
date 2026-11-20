@@ -30,7 +30,7 @@
     thumb.setAttribute('aria-hidden', 'true');
     const colours = swatches(theme);
     for (const [name, value] of Object.entries(colours)) if (value) thumb.style.setProperty('--t-' + name, value);
-    if (colours.art) thumb.dataset.art = 'true';
+    if (colours.art) thumb.dataset.art = /^url\(/.test(colours.art) ? 'image' : 'true';
     const top = make('span', 'theme-thumb-top');
     top.append(make('i'), make('i'), make('i'));
     const card = make('span', 'theme-thumb-card');

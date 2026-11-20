@@ -181,6 +181,7 @@
         let ran = false;
         const once = () => { if (!ran) { ran = true; change(); } };
         const fade = document.startViewTransition(once);
+        fade.ready.catch(() => {}); fade.finished.catch(() => {});      // a skipped fade is not an error
         return Promise.race([fade.updateCallbackDone, new Promise(resolve => setTimeout(resolve, 300))])
           .catch(() => {}).then(once);
       }

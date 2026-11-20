@@ -26,6 +26,8 @@
 }
 .theme-thumb i { display: block; border-radius: 99px; background: var(--t-ink, var(--pb-ink)); opacity: .55; height: 6px; }
 .theme-thumb-top { display: flex; align-items: center; gap: 6px; padding: 4px 8px; margin: -2px -2px 0; border-radius: 99px; background: var(--t-nav, transparent); }
+.theme-thumb[data-art="image"] > :not(.theme-thumb-top) { display: none; }
+.theme-thumb[data-art="image"]::after { display: none; }
 .theme-thumb[data-art]::after {
   content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .8;
   background:

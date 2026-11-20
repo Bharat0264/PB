@@ -199,3 +199,8 @@ main.inner-page .cart-page-heading h1 { margin-bottom: 0; }
   .terms-document { border-radius:24px; }
 }
 @media (max-width:380px) { .terms-index nav { padding:10px 6px; } .terms-index nav a { padding:6px; } }
+
+/* Long option labels (for example the Bond paper line) must never push a page wider than the screen. */
+.customer-theme select { max-width: 100%; min-width: 0; text-overflow: ellipsis; }
+.customer-theme .price-panel label { display: block; max-width: 100%; }
+.customer-theme .price-panel label select { width: 100%; }

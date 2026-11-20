@@ -40,13 +40,14 @@
     tagline: 'Night forest, rising embers',
     description: 'A cinematic dark theme: obsidian surfaces, deep forest green, antique gold detail and ember-orange light.',
     modes: ['dark'],
-    stylesheet: '/themes/wildfire.css?v=3',
-    script: '/themes/wildfire.js?v=1',
+    stylesheet: '/themes/wildfire.css?v=6',
+    script: '/themes/wildfire.js?v=3',
     palette: ['#100E0C', '#191511', '#111A14', '#17442E', '#236B46', '#C49A52', '#D68A32', '#F05A24', '#F2E9D9'],
     preview: {
       dark: {
         page: '#100E0C', surface: '#191511', ink: '#F2E9D9', accent: '#F05A24', nav: '#17442E',
-        art: 'radial-gradient(circle at 18% 88%, rgba(240,90,36,.38), transparent 46%), radial-gradient(circle at 80% 10%, rgba(35,107,70,.42), transparent 55%), linear-gradient(180deg, #111A14, #100E0C 72%)',
+        // the real hero picture, so the gallery shows what the site actually looks like
+        art: 'url("/themes/img/wf-hero-wide.webp?v=2") center / cover no-repeat',
       },
     },
     tokens: {
@@ -60,7 +61,7 @@
         'shadow-inset': 'inset 0 2px 7px rgba(0,0,0,.62), inset 0 0 0 1px rgba(196,154,82,.14)',
         'shadow-pressed': 'inset 0 3px 9px rgba(0,0,0,.68), 0 0 0 1px rgba(196,154,82,.2)',
         'font-body': 'Manrope, system-ui, sans-serif',
-        'font-display': '"Young Serif", Georgia, serif',
+        'font-display': 'Georgia, "Times New Roman", serif',
       },
     },
   }

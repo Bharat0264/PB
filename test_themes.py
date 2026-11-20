@@ -122,5 +122,53 @@ class WildfireThemeTests(unittest.TestCase):
         self.assertIn("document.hidden", script)             # pauses while the tab is hidden
 
 
+class WildfireCinematicTests(unittest.TestCase):
+    MODELS = ("emblem", "embers", "marker", "signpost", "crate", "press", "logs", "truck")
+
+    def test_web_models_are_light_and_the_originals_are_not_shipped(self):
+        total = 0
+        for name in self.MODELS:
+            path = ROOT / "models" / "wildfire" / f"{name}.glb"
+            self.assertTrue(path.exists(), name)
+            size = path.stat().st_size
+            total += size
+            self.assertLess(size, 6 * 1024 * 1024, f"{name}.glb is too heavy for the web")
+        self.assertLess(total, 20 * 1024 * 1024)
+        big = [p.name for p in ROOT.rglob("*.glb") if ".git" not in p.parts and p.stat().st_size > 8 * 1024 * 1024]
+        self.assertEqual(big, [], "original high-resolution models must stay out of the repository")
+
+    def test_posters_and_title_data_exist(self):
+        for name in ("wf-hero-wide", "wf-hero-tall", "wf-embers", "wf-press", "wf-truck", "wf-signpost", "wf-marker", "wf-crate", "wf-logs"):
+            self.assertTrue((ROOT / "themes" / "img" / f"{name}.webp").exists(), name)
+        title = (ROOT / "themes" / "wildfire-title.js").read_text(encoding="utf-8")
+        self.assertIn('"text":"PrintBee"', title)
+        self.assertEqual(title.count('"char"'), 8)
+
+    def test_server_serves_models_and_pictures(self):
+        source = (ROOT / "server.py").read_text(encoding="utf-8")
+        self.assertIn(r"/models/wildfire/[a-z0-9-]+\.glb", source)
+        self.assertIn(r"/themes/img/[a-z0-9-]+\.webp", source)
+
+    def test_hero_is_lazy_safe_and_cleans_up(self):
+        hero = (ROOT / "themes" / "wildfire-hero.js").read_text(encoding="utf-8")
+        home = (ROOT / "themes" / "wildfire-home.js").read_text(encoding="utf-8")
+        effects = (ROOT / "themes" / "wildfire.js").read_text(encoding="utf-8")
+        self.assertIn("prefers-reduced-motion: reduce", hero)
+        self.assertIn("forceContextLoss", hero)                  # the WebGL context is released on destroy
+        self.assertIn("document.hidden", hero)                    # no drawing while the tab is hidden
+        self.assertIn("IntersectionObserver", home)
+        self.assertIn("requestIdleCallback", home)                # the 3D scene is not started at page load
+        self.assertIn("import('/themes/wildfire-home.js", effects)
+        self.assertIn("home?.destroy()", effects)                 # switching away removes the home layer
+        for module in (hero, home):
+            self.assertNotIn("fetch(", module)                    # no API calls: business logic is untouched
+
+    def test_title_is_in_front_of_the_emblem(self):
+        hero = (ROOT / "themes" / "wildfire-hero.js").read_text(encoding="utf-8")
+        self.assertIn("titleZ: .72", hero)
+        self.assertIn("emblem.position.set(0, Math.sin(idle * .55) * .035, -.25 * (1 - em) - .05)", hero)
+        self.assertIn("castShadow = true", hero)                  # the title throws its shadow on the emblem
+
+
 if __name__ == "__main__":
     unittest.main()

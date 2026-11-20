@@ -12,7 +12,7 @@
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const COLOURS = ['#F05A24', '#D68A32', '#C49A52', '#FF8A3D'];
 
-  let canvas, ctx, grain, sprites, particles, frame, last, running = false, width = 0, height = 0, ratio = 1, slow = 0, resizeTimer;
+  let canvas, ctx, grain, sprites, particles, frame, last, running = false, width = 0, height = 0, ratio = 1, slow = 0, resizeTimer, home;
 
   function makeSprites() {
     return COLOURS.map(colour => {
@@ -113,9 +113,18 @@
     root.classList.add('wf-igniting');
     setTimeout(() => root.classList.remove('wf-igniting'), 1500);
     play();
+    // The cinematic home page exists only on the home page. It loads lazily and stop() removes it again.
+    if (document.querySelector('main#main > .hero')) {
+      import('/themes/wildfire-home.js?v=3')
+        .then(module => module.mount())
+        .then(api => { if (canvas) home = api; else api.destroy(); })
+        .catch(error => console.warn('[Wildfire] the home layer did not start', error));
+    }
   }
 
   function stop() {
+    home?.destroy();
+    home = null;
     pause();
     removeEventListener('resize', onResize);
     document.removeEventListener('visibilitychange', onVisibility);
