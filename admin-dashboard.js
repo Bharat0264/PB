@@ -276,7 +276,7 @@ function productList() {
   const groups = [...new Set(products.map(p => p.category))];
   return groups.map(name => {
     const list = products.filter(p => p.category === name);
-    return card(name, `<ul class="svc-grid">${list.map(row).join('')}</ul>`, 'full', `<span class="svc-count">${list.length} ${list.length === 1 ? 'rate' : 'rates'}</span>`);
+    return card(name, `<ul class="svc-grid">${list.map(row).join('')}</ul>`, 'full', `<span class="svc-head-end">${live ? `<button type="button" class="primary svc-add" data-add-service="${name === 'Binding' ? 'binding' : 'paper'}">${name === 'Binding' ? '+ Add binding' : '+ Add printing'}</button>` : ''}<span class="svc-count">${list.length} ${list.length === 1 ? 'rate' : 'rates'}</span></span>`);
   }).join('');
 }
 
@@ -699,6 +699,7 @@ root.addEventListener('click',event => {
   }
   if (button.id === 'prev' || button.id === 'next') { state.page += button.id === 'prev' ? -1 : 1; updateTable(); }
   if (button.dataset.view) openEditor('order',button.dataset.view);
+  if (button.dataset.addService) { serviceFilter = button.dataset.addService; openEditor('product'); }
 });
 
 function tooltip(event,show) {
@@ -805,8 +806,7 @@ $('export-pdf').onclick = () => window.print();
 if (live) {
   const workspace = document.querySelector('.workspace');
   workspace.hidden = true;
-  $('add-product').textContent = '+ Add printing';
-  if ($('add-binding')) $('add-binding').hidden = false;
+  document.querySelector('[data-page-actions="inventory"]')?.remove();   // the Add buttons live on their own cards
   let feedConnection;
   connectPortal('admin', $('ops-status'), async () => {
     await source.load();

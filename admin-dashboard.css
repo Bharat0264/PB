@@ -151,3 +151,7 @@ dialog::backdrop { background:#21180b7a }
 .attention-list li::before { content: ""; position: absolute; left: 14px; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 50% }
 .attention-bad { background: #fde7e4; color: #8a1f17 } .attention-bad::before { background: #d64535 }
 .attention-warn { background: #fff0c8; color: #6b4a00 } .attention-warn::before { background: #e6a817 }
+
+/* Print services: each card carries its own Add button. */
+.svc-head-end { display:inline-flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
+.svc-head-end .svc-add { min-height:34px; padding:0 14px; font-size:13px; }
