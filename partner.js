@@ -69,7 +69,7 @@ const BEE = (cls = '') => `<svg class="${cls}" viewBox="0 0 64 64" aria-hidden="
     <ellipse cx="25" cy="31" rx="6" ry="2.2" fill="#fff" fill-opacity=".35" transform="rotate(-12 25 31)"/>
   </g></svg>`;
 const EMPTY_COMB = `<svg viewBox="0 0 120 96" aria-hidden="true">${[[30, 26], [60, 26], [90, 26], [45, 52], [75, 52], [60, 78]].map(([x, y], i) => `<path d="M${x} ${y - 16}l14 8v16l-14 8-14-8v-16z" fill="${i === 4 ? '#FBE08A' : 'none'}" stroke="#E2C88A" stroke-width="2.4" stroke-linejoin="round"/>`).join('')}</svg>`;
-const SLEEPY = `<svg viewBox="0 0 120 96" aria-hidden="true"><g transform="translate(18 18) scale(1.2)">${BEE().replace(/<svg[^>]*>|<\/svg>/g, '')}</g><text x="88" y="24" font-weight="800" font-size="16" fill="#B9831A">z</text><text x="98" y="12" font-weight="800" font-size="12" fill="#B9831A">z</text></svg>`;
+const SLEEPY = '<img class="sleeping-bee" src="/printbee-sleeping-bee.png" width="144" height="96" alt="" aria-hidden="true">';
 
 /* ================================================================ data layer */
 const DAY = 86400000;

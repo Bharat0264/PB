@@ -327,6 +327,7 @@ body[data-page="Cockpit"] .hive-main { padding-bottom: 40px; }
 /* ---------- States ---------- */
 .empty { display: grid; justify-items: center; gap: 8px; padding: 24px 8px; text-align: center; color: var(--muted); }
 .empty svg { width: 120px; height: 96px; }
+.empty .sleeping-bee { display:block; width:144px; height:96px; object-fit:contain; }
 .empty strong { color: var(--ink); font-size: 16px; }
 .skel { border-radius: var(--r-md); background: linear-gradient(100deg, var(--surface-3) 30%, var(--honey-100) 50%, var(--surface-3) 70%); background-size: 250% 100%; animation: shimmer 1.4s ease-in-out infinite; }
 .skel-cell { height: 160px; }
