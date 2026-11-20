@@ -1230,6 +1230,19 @@ function initFloorControls() {
   const phone=matchMedia('(max-width:850px)');
   brand.setAttribute('aria-expanded','false');
   brand.addEventListener('click',()=>setNav(!document.body.classList.contains('nav-open')));
+  const home=document.querySelector('.wh-rail > .wh-brand');
+  home.href=preview?'/warehouse?preview=1':'/warehouse';
+  home.addEventListener('click',event=>{
+    if (event.button!==0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    active=null;
+    closeSheet(false);
+    setNav(false);
+    go('Home');
+    byId('warehouse-columns').scrollTop=0;
+    window.scrollTo({top:0,behavior:'instant'});
+    (phone.matches?brand:home).focus({preventScroll:true});
+  });
   byId('wh-nav-close').addEventListener('click',()=>setNav(false));
   byId('wh-nav-scrim').addEventListener('click',()=>setNav(false));
   byId('warehouse-nav').addEventListener('click',event=>{if (event.target.closest('button')) setNav(false);});
