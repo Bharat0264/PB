@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="/clay.css?v=1">
 <link rel="stylesheet" href="/warehouse.css?v=print-to-ready">
 <link rel="stylesheet" href="/hive-theme.css?v=soft-focus">
-<link rel="stylesheet" href="/warehouse-hive.css?v=order-close">
+<link rel="stylesheet" href="/warehouse-hive.css?v=manual-orders">
 <script src="/hive-theme.js?v=sun-moon"></script>
 <style>
 /* There is one sign-in page (the welcome page). Portals never show their own sign-in card. */
@@ -22,7 +22,7 @@
 <script src="/status-model.js?v=1" defer></script>
 <script src="/live.js?v=1" defer></script>
 <script src="/portal-switch.js?v=1" defer></script>
-<script src="/warehouse.js?v=order-close" defer></script>
+<script src="/warehouse.js?v=manual-orders" defer></script>
 </head>
 <body class="warehouse">
 <a class="wh-skip" href="#warehouse-main">Skip to warehouse</a>
@@ -100,7 +100,7 @@
   <p id="floor-print-tip" class="wh-muted">Press Enter to confirm.</p>
   <form method="dialog" class="wh-dialog-actions">
     <button type="submit" value="cancel" class="clay-button">Cancel</button>
-    <button type="submit" value="print" class="clay-button wh-primary wh-print-slide" id="floor-print-slide" aria-describedby="floor-print-tip"><span aria-hidden="true">✓</span> Mark printed</button>
+    <button type="submit" value="print" class="clay-button wh-primary wh-confirm-print" id="floor-print-slide" aria-describedby="floor-print-tip"><span aria-hidden="true">✓</span> Mark printed</button>
   </form>
 </dialog>
 <dialog class="clay-card wh-dialog wh-preview" id="warehouse-preview" aria-labelledby="preview-title">
@@ -111,7 +111,7 @@
   <img src="/printbee-header-bee.webp" width="150" height="120" alt=""><h2 id="arrival-title">New paid order</h2>
   <p id="arrival-number"></p>
   <p id="floor-arrival-timer"></p>
-  <form method="dialog" class="wh-dialog-actions"><button class="clay-button" value="dismiss">Dismiss</button><button class="clay-button wh-primary" value="open">Accept to queue</button></form>
+  <form method="dialog" class="wh-dialog-actions"><button class="clay-button" value="dismiss">Dismiss</button><button class="clay-button wh-primary" value="open">Open order</button></form>
 </dialog>
 <dialog class="clay-card wh-dialog" id="floor-handover" aria-labelledby="floor-handover-title">
   <h2 id="floor-handover-title">Hand over</h2>

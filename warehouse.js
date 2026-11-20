@@ -18,7 +18,8 @@ const floorStages = [
 ];
 const conveyorStage = order => buckets.includes(stage(order))?stage(order):'Handed over';
 const buckets = ['New', 'Printing', 'Ready'];
-const sections = [['Home','home'],['Print Queue','printer'],['History','history'],['Support','support'],['Settings','settings']];
+const orderGroups = {'To print':['New','Printing'], Ready:['Ready']};
+const sections = [['Home','home'],['Orders','printer'],['History','history'],['Support','support'],['Settings','settings']];
 const glyphs = {
   home:'<path d="m3 10 9-7 9 7v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 21v-7h6v7"/>',
   printer:'<path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6zM6 12h.01"/>',
@@ -65,7 +66,7 @@ const demoOrders = preview ? makeSamples() : [];
 const preferences = Object.fromEntries(['sound','takeover','large','contrast'].map(key => [key,readSetting(key)]));
 const money = new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR'}).format;
 let orders = [], known, newBadges = new Set(), connected = true;
-let view = 'Home', tab = 'New', active, sheet = false, restoreFocus;
+let view = 'Home', tab = 'To print', active, sheet = false, restoreFocus;
 let printAction, printPending = false, previewUrl, previewRequest = 0, arrivalOrder;
 let staffDock, floorFilter, arrivalTimer, historyPreset='';
 let lastStages=new Map(), newlyReady=new Set(), renderedOrderSnapshot;
@@ -224,7 +225,7 @@ function go(section, selectedTab, keepSearch=false) {
   view=section;
   floorFilter=null;
   if (!keepSearch) byId('warehouse-search').value='';
-  tab=selectedTab || 'New';
+  tab=selectedTab==='Ready' ? 'Ready' : 'To print';
   if (['Settings','Inventory','History','Support'].includes(section)) {
     active=null;
     closeSheet(false);
@@ -248,7 +249,7 @@ function selectedOrders(wanted) {
       && (!filters.priority || order.priority===filters.priority)
       && (!filters.partner || Boolean(order.partner)===(filters.partner==='assigned'))
       && (view!=='History' || ((!from || when && when>=from) && (!to || when && when<=to)));
-  }).sort((a,b)=>Number(b.priority==='Urgent')-Number(a.priority==='Urgent') || ((view==='History' || (view==='Print Queue' && tab==='New'))?(b.paidAt||0)-(a.paidAt||0):(a.paidAt||0)-(b.paidAt||0)));
+  }).sort((a,b)=>Number(b.priority==='Urgent')-Number(a.priority==='Urgent') || ((view==='History' || (view==='Orders' && tab==='To print'))?(b.paidAt||0)-(a.paidAt||0):(a.paidAt||0)-(b.paidAt||0)));
 }
 function counts() {
   return Object.fromEntries(buckets.map(label=>[label,orders.filter(order=>stage(order)===label).length]));
@@ -274,7 +275,7 @@ function render(refreshStation=true,focusDate=false) {
   const filterOpen=board.querySelector('.wh-filters')?.open;
   board.replaceChildren();
   staffDock?.setActive(view);
-  staffDock?.setBadge('Print Queue', newBadges.has('New') ? 1 : 0);
+  staffDock?.setBadge('Orders', newBadges.has('New') ? 1 : 0);
   byId('warehouse-title').textContent=view==='Home'?'Mission control':view;
   for (const control of byId('warehouse-nav').querySelectorAll('button')) {
     if (control.dataset.section===view) control.setAttribute('aria-current','page');
@@ -432,7 +433,7 @@ function renderHome() {
   metrics.setAttribute('role','group');
   metrics.setAttribute('aria-label','Production stages');
   for (const [label,stageKey,glyph] of floorStages) {
-    const stat=button('',()=>label==='Handed over'?go('History'):go('Print Queue',label),'wh-stat');
+    const stat=button('',()=>label==='Handed over'?go('History'):go('Orders',label),'wh-stat');
     stat.dataset.focus='stat-'+label;
     stat.dataset.stage=stageKey;
     const symbol=icon(glyph);
@@ -493,22 +494,27 @@ function queueFilters(open,history=false) {
 function renderQueue(filterOpen) {
   const lanes=node('div',null,'wh-tabs');
   lanes.setAttribute('role','group');
-  lanes.setAttribute('aria-label','Queue stage');
+  lanes.setAttribute('aria-label','Order stage');
   const totals=counts();
-  for (const label of buckets) {
+  for (const [label, stages] of Object.entries(orderGroups)) {
     const control=button(label,()=>{
       tab=label;
-      newBadges.delete(label);
+      stages.forEach(stage=>newBadges.delete(stage));
       render();
     },'wh-tab');
     control.dataset.focus='tab-'+label;
     control.setAttribute('aria-pressed',String(tab===label));
-    control.append(node('span',totals[label],'wh-count'+(newBadges.has(label)?' wh-arrive':'')));
+    const count=stages.reduce((sum,stage)=>sum+totals[stage],0);
+    control.append(node('span',count,'wh-count'+(stages.some(stage=>newBadges.has(stage))?' wh-arrive':'')));
     lanes.append(control);
   }
   board.append(lanes);
-  board.append(list(selectedOrders([tab])));   // the tab above already names this lane
+  board.append(node('p',tab==='To print'
+    ? 'Print the files manually using Preview or Download. After printing, select Mark printed in the order details.'
+    : 'Printing is complete. Hand these orders over to the delivery partner.','wh-manual-note'));
+  board.append(list(selectedOrders(orderGroups[tab])));
 }
+
 function updateCardAge(meta,order) {
   const label=meta.querySelector('.wh-card-age');
   const text=age(order);
@@ -562,7 +568,7 @@ function list(items) {
       if (/^A[345]/.test(text)) spec.prepend(icon('file'));
       specs.append(spec);
     });
-    const action={New:'Print',Printing:'View print',Ready:'Hand over'}[stage(order)] || 'View order';
+    const action={New:'View files',Printing:'View files',Ready:'Hand over'}[stage(order)] || 'View order';
     const open=button(action,()=>openOrder(order.id,true),'clay-button wh-open'+(['New','Ready'].includes(stage(order))?' wh-primary':''));
     open.dataset.focus='order-'+order.id;
     open.setAttribute('aria-label',action+' '+labelOrder(order));
@@ -1009,10 +1015,10 @@ viewer.addEventListener('close',()=>{
 function confirmPrint(order,index) {
   if (printPending || confirmation.open) return;
   const current=findOrder(order.id);
-  if (!current) throw new Error('This order is no longer in the queue.');
+  if (!current) throw new Error('This order is no longer available.');
   const selected=(index==='all'?current.items.map((_,i)=>i):[index]).filter(i=>jobState(current,i)!=='done');
   if (!selected.length) throw new Error('These files are already marked as printed.');
-  if (!connected) throw new Error('Connection lost. Try again when the queue reconnects.');
+  if (!connected) throw new Error('Connection lost. Try again when orders reconnect.');
   printAction=()=>markPrinted(current,selected);
   const total=selected.reduce((sum,i)=>sum+sheets(current.items[i]),0);
   byId('confirm-title').textContent='Mark as printed';
@@ -1082,11 +1088,11 @@ function updateTop() {
   todayBadge.title=handedOver+' handed over today';
   const banner=byId('floor-connection');
   banner.hidden=connected;
-  byId('floor-connection-copy').textContent='Connection lost. The queue reconnects automatically.';
+  byId('floor-connection-copy').textContent='Connection lost. Orders reconnect automatically.';
   byId('floor-retry').hidden=connected;
 }
 function openArrival(id) {
-  go('Print Queue','New');
+  go('Orders','New');
   openOrder(id,true);
   byId('warehouse-arrival').hidden=true;
 }
@@ -1228,27 +1234,6 @@ function initFloorControls() {
   byId('warehouse-nav').addEventListener('click',event=>{if (event.target.closest('button')) setNav(false);});
   addEventListener('keydown',event=>{if (event.key==='Escape' && document.body.classList.contains('nav-open')) setNav(false);});
   phone.addEventListener('change',()=>setNav(false));
-  const slide=byId('floor-print-slide');
-  let start, travel;
-  slide.addEventListener('pointerdown',event=>{
-    if (!event.isPrimary || event.button!==0) return;
-    start=event.clientX;
-    travel=Math.max(1,slide.clientWidth-slide.firstElementChild.offsetWidth-16);
-    slide.setPointerCapture(event.pointerId);
-  });
-  slide.addEventListener('pointermove',event=>{
-    if (start===undefined) return;
-    const distance=Math.max(0,Math.min(travel,event.clientX-start));
-    slide.style.setProperty('--slide-offset',distance+'px');
-  });
-  const clear=()=>{start=undefined;slide.style.removeProperty('--slide-offset');};
-  slide.addEventListener('pointercancel',clear);
-  slide.addEventListener('pointerup',event=>{
-    const complete=start!==undefined && event.clientX-start>=travel*.78;
-    clear();
-    if (complete && confirmation.open) slide.form.requestSubmit(slide);
-  });
-  slide.addEventListener('click',event=>{if (event.detail>0) event.preventDefault();});
 }
 function handleKeys(event) {
   if (event.defaultPrevented || confirmation.open || viewer.open || arrival.open || handover.open || shortcutDialog.open) return;
@@ -1286,7 +1271,7 @@ async function start() {
   initFloorControls();
   const search=byId('warehouse-search');
   search.addEventListener('input',()=>{
-    if (search.value.trim() && ['Settings','Inventory'].includes(view)) go('Print Queue','New',true);
+    if (search.value.trim() && ['Settings','Inventory'].includes(view)) go('Orders','New',true);
     else render();
   });
   for (const [title,glyph] of sections) {
