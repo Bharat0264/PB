@@ -1026,3 +1026,8 @@ button.wh-mbrand { border: 0; cursor: pointer; -webkit-tap-highlight-color: tran
 .wh-service-button[data-state="closed"] { color:var(--hv-danger-ink); background:var(--hv-danger-bg); }
 .wh-service-button:active { box-shadow:var(--hv-press); }
 .wh-service-button:disabled { cursor:wait; }
+
+/* Open / close service now sits in the top bar: small. */
+.wh-indicators .wh-service-button { min-height:26px; padding:0 10px; gap:6px; font-size:11px; line-height:1; white-space:nowrap; }
+.wh-indicators .wh-service-dot { width:7px; height:7px; }
+@media (max-width: 700px) { .wh-indicators .wh-service-button { font-size:10.5px; padding:0 8px; } }

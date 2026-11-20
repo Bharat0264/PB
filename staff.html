@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="/clay.css?v=1">
 <link rel="stylesheet" href="/warehouse.css?v=print-to-ready">
 <link rel="stylesheet" href="/hive-theme.css?v=soft-focus">
-<link rel="stylesheet" href="/warehouse-hive.css?v=settings-width">
+<link rel="stylesheet" href="/warehouse-hive.css?v=small-settings-width">
 <script src="/hive-theme.js?v=sun-moon"></script>
 <style>
 /* There is one sign-in page (the welcome page). Portals never show their own sign-in card. */
@@ -56,16 +56,14 @@
         <div class="wh-indicators">
           <label class="wh-search"><span id="search-icon" aria-hidden="true"></span><span class="wh-sr">Search orders</span><input id="warehouse-search" type="search" placeholder="Search orders"><kbd aria-hidden="true">/</kbd></label>
           <span class="wh-chip wh-agent" id="agent-status"></span>
+          <button id="warehouse-availability" class="wh-service-button" type="button" aria-label="Warehouse availability" aria-pressed="false" disabled>
+            <span class="wh-service-dot" aria-hidden="true"></span><span id="warehouse-availability-label">Checking availability…</span>
+          </button>
           <span class="wh-today" id="today-count"></span>
           <button id="theme" type="button" class="wh-icon-button wh-floor-theme hv-switch" data-hive-toggle aria-label="Moon Hive" aria-pressed="false"></button>
           <button id="sound-toggle" type="button" class="wh-icon-button" aria-label="Order chime" aria-pressed="false"></button>
         </div>
       </header>
-      <div class="wh-service-bar">
-        <button id="warehouse-availability" class="wh-service-button" type="button" aria-label="Warehouse availability" aria-pressed="false" disabled>
-          <span class="wh-service-dot" aria-hidden="true"></span><span id="warehouse-availability-label">Checking availability…</span>
-        </button>
-      </div>
       <div id="floor-connection" class="wh-floor-banner" hidden>
         <span id="floor-connection-copy"></span>
         <button class="clay-button" id="floor-retry" type="button">Retry</button>
