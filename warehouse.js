@@ -77,7 +77,7 @@ function renderAvailability() {
   control.setAttribute('aria-pressed', String(serviceOpen === true));
   control.dataset.state = serviceOpen === undefined ? 'loading' : serviceOpen ? 'open' : 'closed';
   byId('warehouse-availability-label').textContent = savingAvailability ? 'Saving…' :
-    serviceOpen === undefined ? 'Checking availability…' : serviceOpen ? 'Open · Close service' : 'Closed · Open service';
+    serviceOpen === undefined ? 'Checking availability…' : serviceOpen ? 'Open' : 'Closed';
   control.title = preview ? 'Sample setting. Live availability is controlled in the signed-in warehouse.' :
     'Controls whether the warehouse accepts new print orders.';
 }
