@@ -1322,13 +1322,24 @@ body {
   box-shadow: 12px 14px 28px #6e50282e, -6px -6px 16px #fffdf680, inset -5px -6px 12px #a7742014, inset 5px 6px 12px #fff3c98c;
   color: #3b2d0e;
 }
-.cart-summary h2 { margin: 0; font-size: 22px; }
-.cart-summary-count { margin: 0; font-size: 17px; font-weight: 800; }
-.cart-summary-notes { display: grid; gap: 8px; margin: 4px 0 6px; padding: 0; list-style: none; font-size: 13.5px; line-height: 1.4; }
-.cart-summary-notes li { position: relative; padding-left: 22px; }
-.cart-summary-notes li::before { content: ""; position: absolute; left: 2px; top: .35em; width: 10px; height: 6px; border-left: 2.5px solid #3e7d4f; border-bottom: 2.5px solid #3e7d4f; transform: rotate(-45deg); }
-.cart-summary .pill { width: 100%; min-height: 56px; background: #2f2615; color: #fff3cf; box-shadow: 6px 8px 16px #2f261540; }
-.cart-summary .pill:hover { filter: brightness(1.12); }
+.cart-summary-top { display: flex; align-items: center; gap: 14px; padding: 6px 2px 8px; }
+.cart-summary-orb {
+  flex: none; display: grid; place-items: center; width: 68px; height: 68px; border-radius: 50%;
+  background: linear-gradient(150deg, #fffaf0, #f6e6b6);
+  box-shadow: 6px 8px 16px #8c611e33, -4px -4px 10px #fffdf6c0, inset -3px -4px 8px #a7742014, inset 3px 4px 8px #fffdf6c0;
+}
+.cart-summary-orb img { width: 44px; height: 44px; object-fit: contain; }
+.cart-summary-count { margin: 0; display: grid; gap: 2px; }
+.cart-summary-count strong { font-size: 30px; line-height: 1.05; font-weight: 800; letter-spacing: -.01em; }
+.cart-summary-count span { font-size: 14px; font-weight: 700; color: #6b531c; }
+.cart-summary .pill {
+  width: 100%; min-height: 58px; display: flex; align-items: center; justify-content: center; gap: 10px;
+  background: linear-gradient(150deg, #43361c, #2a2110); color: #fff3cf; font-weight: 800;
+  box-shadow: 7px 9px 18px #2f261547, -3px -3px 8px #fff3c980, inset 2px 3px 5px #ffffff1c;
+  transition: transform .2s cubic-bezier(.34, 1.45, .64, 1);
+}
+.cart-summary .pill:hover { transform: translateY(-2px); filter: brightness(1.1); }
+.cart-summary .pill:active { transform: scale(.97); }
 
 .cart-empty {
   display: grid; justify-items: center; gap: 10px; padding: clamp(36px, 7vw, 72px) 20px; text-align: center; border-radius: 32px;

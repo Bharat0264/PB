@@ -10,7 +10,7 @@
 <script src="/session-sync.js?v=1" defer></script>
 <script src="embedded-tab.js?v=customer-tabs" defer></script>
 <script type="module" src="bottom-nav.js?v=cart-tab"></script>
-<link rel="stylesheet" href="studio.css?v=bar">
+<link rel="stylesheet" href="studio.css?v=sum">
 <link rel="stylesheet" href="footer-wave.css?v=horizontal-brand">
 <script src="footer-wave.js?v=letter-spacing" defer></script>
 <script src="profile.js?v=delivery-details" defer></script>
@@ -62,14 +62,11 @@
       <ul id="queue-list" aria-label="Saved documents"></ul>
     </section>
     <aside id="cart-checkout" class="cart-summary" aria-label="Order summary" hidden>
-      <h2>Summary</h2>
-      <p class="cart-summary-count"><span id="cart-count"></span> ready to print</p>
-      <ul class="cart-summary-notes">
-        <li>Price is worked out at checkout from your print options.</li>
-        <li>Pay securely online, then we print and deliver.</li>
-        <li>Track every step from the Orders page.</li>
-      </ul>
-      <button type="button" class="pill yellow">Checkout all files</button>
+      <div class="cart-summary-top">
+        <span class="cart-summary-orb" aria-hidden="true"><img src="/printbee-header-bee.webp" width="44" height="44" alt=""></span>
+        <p class="cart-summary-count"><strong id="cart-count"></strong><span>ready to print</span></p>
+      </div>
+      <button type="button" class="pill yellow">Checkout all files <span aria-hidden="true">→</span></button>
     </aside>
   </div>
 </main>
