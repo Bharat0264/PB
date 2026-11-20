@@ -100,5 +100,4 @@
 .theme-quick:hover:not(:disabled) { transform: translateY(-2px); color: var(--pb-accent); }
 .theme-quick:active:not(:disabled) { transform: scale(.95); box-shadow: var(--pb-shadow-pressed); }
 .theme-quick:focus-visible { outline: 3px solid var(--pb-accent-strong); outline-offset: 3px; }
-.theme-quick[data-theme="wildfire"] { color: var(--pb-accent); }
 @media (prefers-reduced-motion: reduce) { .theme-quick { transition: none; } }
