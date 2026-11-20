@@ -98,6 +98,7 @@
   [data-theme="dark"] .buzz-tip::after { box-shadow: 4px -4px 8px rgba(0,0,0,.25); }
   .buzz-tip.is-on { opacity: 1; transform: none; }
 
+  .buzz-sheet, .buzz-sheet * { box-sizing: border-box; }
   /* ---- the sheet: 380px card anchored to the bee on desktop, full screen on phones ---- */
   .buzz-sheet { position: fixed; z-index: 85; right: max(16px, env(safe-area-inset-right)); bottom: calc(var(--bz-lift) + max(16px, env(safe-area-inset-bottom)));
     width: min(380px, calc(100vw - 32px)); height: min(660px, calc(100dvh - var(--bz-lift) - 40px)); display: flex; flex-direction: column; overflow: hidden;
@@ -142,7 +143,7 @@
   .buzz-log::-webkit-scrollbar-track { background: transparent; margin: 8px 0; }
   .buzz-log::-webkit-scrollbar-thumb { background: var(--bz-honey); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
   .buzz-log::-webkit-scrollbar-thumb:hover { background: var(--bz-deep); background-clip: padding-box; border: 2px solid transparent; }
-  .buzz-msg { max-width: 82%; margin-top: 16px; display: flex; flex-direction: column; gap: 6px; }
+  .buzz-msg { flex: none; max-width: 82%; margin-top: 16px; display: flex; flex-direction: column; gap: 6px; }
   .buzz-msg:first-child { margin-top: 0; }
   .buzz-msg.grouped { margin-top: 8px; }
   .buzz-msg p { margin: 0; padding: 11px 15px; border-radius: 20px; font-size: 15px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; cursor: default; }
@@ -157,7 +158,7 @@
   .buzz-thumb { width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; display: grid; place-items: center; color: var(--bz-muted); background: var(--bz-white); box-shadow: var(--bz-s1); transition: transform .12s ease, box-shadow .12s ease; }
   .buzz-thumb svg { width: 17px; height: 17px; }
   .buzz-thumb[aria-pressed="true"] { background: var(--bz-bubble-you); color: var(--bz-on-honey); }
-  .buzz-card { align-self: stretch; margin-top: 8px; padding: 16px; border-radius: 24px; display: grid; gap: 10px; background: var(--bz-white); box-shadow: var(--bz-s2); }
+  .buzz-card { flex: none; align-self: stretch; margin-top: 8px; padding: 16px; border-radius: 24px; display: grid; gap: 10px; background: var(--bz-white); box-shadow: var(--bz-s2); }
   .buzz-card h3 { margin: 0; font-size: 15px; display: flex; justify-content: space-between; gap: 8px; align-items: center; }
   .buzz-pill { padding: 3px 11px; border-radius: 999px; font-size: 12px; font-weight: 800; background: var(--bz-bubble-you); color: var(--bz-on-honey); white-space: nowrap; box-shadow: var(--bz-s1); }
   .buzz-pill.urgent { background: #D64545; color: #fff; }
@@ -200,6 +201,26 @@
   .buzz-send:active:not(:disabled) { transform: scale(.92); box-shadow: var(--bz-press); }
   .buzz-send:disabled { opacity: .5; cursor: default; box-shadow: var(--bz-sink); }
   .buzz-send svg { width: 21px; height: 21px; }
+
+  @media (max-width: 600px) {
+    .buzz-head { gap: 10px; padding: calc(10px + env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 10px max(16px, env(safe-area-inset-left)); }
+    .buzz-head h2 { font-size: 15px; line-height: 1.3; }
+    .buzz-avatar { width: 38px; height: 38px; }
+    .buzz-avatar img { width: 50px; height: 50px; left: -6px; top: -8px; }
+    .buzz-notice { margin: 0 12px; padding: 7px 10px; border-radius: 14px; font-size: 11px; }
+    .buzz-log { padding: 16px max(12px, env(safe-area-inset-right)) 16px max(12px, env(safe-area-inset-left)); }
+    .buzz-msg { max-width: 90%; }
+    .buzz-msg p { font-size: 14px; line-height: 1.5; padding: 11px 13px; }
+    .buzz-chips { flex-wrap: nowrap; overflow-x: auto; padding: 10px 12px; scrollbar-width: none; overscroll-behavior-x: contain; }
+    .buzz-chips::-webkit-scrollbar { display: none; }
+    .buzz-chip { flex: none; min-height: 44px; }
+    .buzz-form { gap: 10px; margin: 0; padding: 10px max(12px, env(safe-area-inset-right)) 12px max(12px, env(safe-area-inset-left)); background: var(--bz-cream); }
+    .buzz-input { width: 0; padding: 0 14px; }
+    .buzz-sheet.is-compact .buzz-head { padding-top: max(6px, env(safe-area-inset-top)); padding-bottom: 6px; }
+    .buzz-sheet.is-compact .buzz-chips { display: none; }
+    .buzz-sheet.is-compact .buzz-log { padding-top: 12px; padding-bottom: 12px; }
+    .buzz-sheet.is-compact .buzz-form { padding-top: 8px; padding-bottom: 8px; }
+  }
 
   .buzz-close:focus-visible, .buzz-chip:focus-visible, .buzz-send:focus-visible, .buzz-btn:focus-visible, .buzz-thumb:focus-visible, .buzz-context button:focus-visible { outline: 3px solid var(--bz-deep); outline-offset: 3px; }
   html.buzz-open { overflow: hidden; }
@@ -393,7 +414,7 @@
   const syncSend = () => { send.disabled = state.busy || !input.value.trim(); };
   function busy(on) {
     state.busy = on;
-    input.disabled = on;
+    // Keep the field focused on phones while a reply arrives; disabling it dismisses the keyboard.
     for (const chip of chips.children) chip.disabled = on;
     syncSend();
   }
@@ -412,7 +433,7 @@
     typing(true);
     try { show(await request()); }
     catch (error) { bubble('bee', error.message, 'problem'); }
-    finally { typing(false); busy(false); if (!sheet.hidden) input.focus(); }
+    finally { typing(false); busy(false); if (!sheet.hidden && !phone.matches) input.focus({preventScroll: true}); }
   }
   const ask = text => run(() => call('/api/support/chat', {message: text, sessionId: state.sessionId, orderNumber: state.orderNumber}), text);
   const humanTicket = () => run(() => call('/api/support/chat', {action: 'human', sessionId: state.sessionId, orderNumber: state.orderNumber}), 'I would like to talk to a person.');
@@ -421,17 +442,20 @@
   const phone = matchMedia('(max-width: 600px)');
   function fitViewport() {
     const vv = window.visualViewport;
-    if (sheet.hidden || !vv) return;
+    if (sheet.hidden) return;
     if (phone.matches) {
-      const keyboard = innerHeight - vv.height > 120;
-      sheet.style.setProperty('--buzz-vh', Math.round(vv.height) + 'px');
-      sheet.style.setProperty('--buzz-vt', Math.round(vv.offsetTop) + 'px');
+      const height = vv ? vv.height : innerHeight;
+      const keyboard = innerHeight - height > 120;
+      sheet.style.setProperty('--buzz-vh', Math.round(height) + 'px');
+      sheet.style.setProperty('--buzz-vt', Math.round(vv ? vv.offsetTop : 0) + 'px');
       sheet.classList.toggle('kb-open', keyboard);
+      sheet.classList.toggle('is-compact', keyboard || height <= 500);
       if (keyboard) scroll();
     } else {
       sheet.style.removeProperty('--buzz-vh');
       sheet.style.removeProperty('--buzz-vt');
       sheet.classList.remove('kb-open');
+      sheet.classList.remove('is-compact');
     }
   }
   if (window.visualViewport) { visualViewport.addEventListener('resize', fitViewport); visualViewport.addEventListener('scroll', fitViewport); }
@@ -455,7 +479,8 @@
     if (bee) bee.show(false);
     fab.setAttribute('aria-expanded', 'true');
     document.documentElement.classList.add('buzz-open');
-    input.focus({preventScroll: true});
+    // Show the conversation and quick questions first, without summoning the mobile keyboard.
+    (phone.matches ? close : input).focus({preventScroll: true});
     if (options.orderNumber && !log.querySelector('.buzz-asked-' + state.orderNumber)) {
       const marker = el('span', {className: 'buzz-asked-' + state.orderNumber, hidden: true});
       log.append(marker);
