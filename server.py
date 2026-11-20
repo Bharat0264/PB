@@ -90,7 +90,13 @@ def eta_minutes(here, there, speed_kmh=18):
 
 def active_checkout_terms(db, default):
     row = db.execute("SELECT terms FROM pricing_versions ORDER BY id DESC LIMIT 1").fetchone()
-    return {"surge": 0, "deliveryPerKm": 0, **json.loads(row["terms"]), "campuses": default.get("campuses", [])} if row else default
+    if not row:
+        return default
+    saved = json.loads(row["terms"])
+    # Pricing saved before Bond paper existed still offers it, at the default rates, until an admin sets them.
+    saved["paperRates"] = {**saved.get("paperRates", {}), **{k: v for k, v in default.get("paperRates", {}).items()
+                                                            if k == "A4 Bond" and k not in saved.get("paperRates", {})}}
+    return {"surge": 0, "deliveryPerKm": 0, **saved, "campuses": default.get("campuses", [])}
 
 
 def customer_print_specs(items):
