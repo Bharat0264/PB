@@ -1,0 +1,119 @@
+/* PrintBee "Wildfire" theme: night forest, rising embers.
+   Loaded by the Theme Engine only while Wildfire is active (see theme-registry.js). Colours come from the --pb-* tokens
+   the registry defines; the few extra values below are Wildfire's own palette. Dark only. */
+:root[data-pb-theme="wildfire"] {
+  --wf-obsidian: #100E0C; --wf-forest-black: #111A14; --wf-deep-forest: #17442E; --wf-emerald: #236B46;
+  --wf-ember: #F05A24; --wf-fire: #A92B1E; --wf-amber: #D68A32; --wf-gold: #C49A52; --wf-ivory: #F2E9D9;
+  --wf-hair: color-mix(in srgb, var(--wf-gold) 24%, transparent);
+  --wf-glow: color-mix(in srgb, var(--wf-ember) 34%, transparent);
+}
+
+/* ---------- Atmosphere: forest light, grain, treeline ---------- */
+/* The page colour lives on <html>; <body> goes transparent so the forest layers behind the content can show. */
+:root[data-pb-theme="wildfire"] { background-color: var(--wf-obsidian); }
+:root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme { background: transparent; }
+:root[data-pb-theme="wildfire"] body::before {
+  content: ""; position: fixed; inset: -8%; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(60% 50% at 12% 0%, color-mix(in srgb, var(--wf-deep-forest) 70%, transparent), transparent 70%),
+    radial-gradient(50% 45% at 92% 18%, color-mix(in srgb, var(--wf-emerald) 26%, transparent), transparent 72%),
+    radial-gradient(70% 38% at 50% 108%, color-mix(in srgb, var(--wf-ember) 22%, transparent), transparent 70%),
+    linear-gradient(180deg, var(--wf-forest-black), var(--wf-obsidian) 60%);
+  animation: wf-drift 48s ease-in-out infinite alternate;
+  will-change: transform;
+}
+:root[data-pb-theme="wildfire"] body::after {
+  content: ""; position: fixed; left: 0; right: 0; bottom: 0; height: clamp(90px, 16vh, 170px); z-index: -1; pointer-events: none;
+  background: :root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-themeINES repeat-x bottom / auto 100%;
+  opacity: .62;
+  -webkit-mask-image: linear-gradient(0deg, #000 35%, transparent);
+          mask-image: linear-gradient(0deg, #000 35%, transparent);
+}
+:root[data-pb-theme="wildfire"] .wf-grain {
+  position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: .045; mix-blend-mode: screen;
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%22160%22%20height=%22160%22%3E%3Cfilter%20id=%22n%22%3E%3CfeTurbulence%20type=%22fractalNoise%22%20baseFrequency=%22.85%22%20numOctaves=%222%22%20stitchTiles=%22stitch%22/%3E%3CfeColorMatrix%20values=%220%200%200%200%20.95%20%200%200%200%200%20.85%20%200%200%200%200%20.7%20%200%200%200%20.55%200%22/%3E%3C/filter%3E%3Crect%20width=%22160%22%20height=%22160%22%20filter=%22url%28%23n%29%22/%3E%3C/svg%3E");
+}
+:root[data-pb-theme="wildfire"] .wf-embers { position: fixed; inset: 0; z-index: -1; width: 100%; height: 100%; pointer-events: none; }
+@keyframes wf-drift { from { transform: translate3d(-1.2%, -.6%, 0) scale(1); } to { transform: translate3d(1.2%, .8%, 0) scale(1.04); } }
+:root[data-pb-theme="wildfire"].wf-igniting body::before { animation: wf-drift 48s ease-in-out infinite alternate, wf-ignite 1.4s ease-out 1; }
+@keyframes wf-ignite { 0% { filter: brightness(1.9) saturate(1.3); } 100% { filter: none; } }
+
+/* ---------- Type: serif display, gold eyebrows ---------- */
+:root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme :is(h1, h2, h3) { font-weight: 400; letter-spacing: -.012em; color: var(--wf-ivory); text-wrap: balance; }
+:root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme :is(.cart-eyebrow, .themes-eyebrow, .account-group h2) { color: var(--wf-gold); letter-spacing: .14em; }
+:root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme :is(h1, h2, h3) :is(em, mark), :root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme #pricing-title span { color: var(--wf-amber); }
+:root[data-pb-theme="wildfire"] ::selection { background: var(--wf-ember); color: #140B06; }
+
+/* ---------- Surfaces: cinematic cards with a gold hairline and a soft top sheen ---------- */
+:root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme :is(.raised, .hero, .step, .price-panel, .upload-panel, .orders-card, .file-review, .print-options, .review-summary,
+  .table-card, .cart-summary, .cart-empty, .account-hero, .account-row, .profile-login, .theme-card, #order-history details,
+  .cart-page #queue-list li.cart-item) {
+  background-color: var(--pb-surface);
+  background-image: linear-gradient(180deg, color-mix(in srgb, var(--wf-gold) 7%, transparent), transparent 46%);
+  box-shadow: var(--pb-shadow-raised);
+}
+:root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme .footer-surface {
+  background-color: var(--wf-forest-black);
+  background-image: linear-gradient(180deg, color-mix(in srgb, var(--wf-deep-forest) 55%, transparent), transparent 70%);
+  box-shadow: var(--pb-shadow-raised);
+}
+:root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme .hero { background-image:
+  radial-gradient(70% 90% at 100% 100%, color-mix(in srgb, var(--wf-ember) 16%, transparent), transparent 70%),
+  linear-gradient(180deg, color-mix(in srgb, var(--wf-gold) 7%, transparent), transparent 46%); }
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  :root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme :is(.account-row, .step, .price-panel, .theme-card, .cart-page #queue-list li.cart-item) {
+    transition: transform .4s cubic-bezier(.22, 1, .36, 1), box-shadow .4s ease;
+  }
+  :root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme :is(.account-row, .step, .price-panel, .theme-card:not(.theme-soon), .cart-page #queue-list li.cart-item):hover {
+    transform: translateY(-3px);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--wf-gold) 42%, transparent), inset 0 1px 0 rgba(242, 222, 180, .1), 0 18px 38px rgba(0, 0, 0, .6), 0 0 34px var(--wf-glow);
+  }
+}
+
+/* ---------- Navigation: forest-green bar, gold hairline, ember marker ---------- */
+@media (min-width: 701px) {
+  :root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme .desktop-nav {
+    background: linear-gradient(180deg, var(--wf-deep-forest), color-mix(in srgb, var(--wf-deep-forest) 70%, var(--wf-obsidian)));
+    border-color: var(--wf-hair); box-shadow: 0 10px 26px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(242, 222, 180, .08);
+  }
+  :root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme .desktop-nav a { color: color-mix(in srgb, var(--wf-ivory) 78%, transparent); letter-spacing: .08em; }
+  :root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme .desktop-nav a:is(:hover, [aria-current="page"]) { color: var(--wf-gold); }
+  :root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme .desktop-nav a[aria-current="page"]::before { background: var(--wf-ember); box-shadow: 0 4px 14px 3px var(--wf-glow); }
+}
+:root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme .customer-header-actions .header-profile { background: var(--pb-surface-2); color: var(--wf-gold); box-shadow: var(--pb-shadow-raised); }
+:root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme .bottom-nav { --nav-active: var(--wf-gold); --nav-rim: var(--wf-hair); }
+
+/* ---------- Buttons: ember action, gold hairline for the rest ---------- */
+:root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme :is(.pill.yellow, .yellow, .profile-email-submit:not(#email-sign-out button, .signout-all button)) {
+  background: linear-gradient(180deg, #F46A31, #DD4A17); color: #140B06; font-weight: 800; border: 0;
+  box-shadow: 0 0 0 1px rgba(255, 190, 120, .35), inset 0 1px 0 rgba(255, 220, 180, .45), 0 8px 20px rgba(0, 0, 0, .5), 0 0 24px color-mix(in srgb, var(--wf-ember) 22%, transparent);
+  text-shadow: none;
+}
+:root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme :is(.pill.yellow, .yellow, .profile-email-submit):hover { background: linear-gradient(180deg, #F7773F, #E5551F); box-shadow: 0 0 0 1px rgba(255, 200, 140, .5), inset 0 1px 0 rgba(255, 225, 190, .5), 0 10px 24px rgba(0, 0, 0, .55), 0 0 34px var(--wf-glow); }
+:root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme :is(.pill.yellow, .yellow, .profile-email-submit):active { box-shadow: var(--pb-shadow-pressed); transform: translateY(1px); }
+:root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme :is(.pill.raised, .pill:not(.yellow)) { color: var(--wf-ivory); }
+:root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme :is(a, button, input, select, textarea, summary):focus-visible { outline: 3px solid var(--wf-ember); outline-offset: 3px; }
+
+/* ---------- Forms, dialogs, dropdowns ---------- */
+:root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme :is(input, select, textarea):not([type="checkbox"], [type="radio"], [type="range"], [type="file"]) {
+  background-color: var(--wf-obsidian); color: var(--wf-ivory); border-color: var(--wf-hair);
+  box-shadow: var(--pb-shadow-inset);
+}
+:root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme :is(input, select, textarea):focus { border-color: var(--wf-ember); box-shadow: var(--pb-shadow-inset), 0 0 0 3px color-mix(in srgb, var(--wf-ember) 35%, transparent); }
+:root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme select option { background: var(--pb-surface); color: var(--wf-ivory); }
+:root[data-pb-theme="wildfire"] dialog { background: var(--pb-surface); color: var(--wf-ivory); border: 1px solid var(--wf-hair); box-shadow: 0 30px 80px rgba(0, 0, 0, .75), 0 0 60px color-mix(in srgb, var(--wf-ember) 10%, transparent); }
+:root[data-pb-theme="wildfire"] dialog::backdrop { background: rgba(8, 6, 4, .74); backdrop-filter: blur(6px); }
+:root[data-pb-theme="wildfire"] { scrollbar-color: #4a3826 var(--wf-obsidian); }
+
+/* ---------- Empty and loading states: a quiet ember pulse ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme :is(.cart-empty-orb, .upload-orb) { animation: wf-pulse 4.2s ease-in-out infinite; }
+}
+@keyframes wf-pulse { 0%, 100% { box-shadow: var(--pb-shadow-raised), 0 0 0 0 transparent; } 50% { box-shadow: var(--pb-shadow-raised), 0 0 38px 6px var(--wf-glow); } }
+:root[data-pb-theme="wildfire"] body.customer-theme.customer-theme.customer-theme.customer-theme :is(.cart-empty-orb, .upload-orb, .cart-badge, .tile-icon) { background: linear-gradient(180deg, #F46A31, #D9461A); color: #140B06; }
+
+@media (max-width: 700px) { :root[data-pb-theme="wildfire"] body::after { height: 90px; opacity: .5; } }
+@media (prefers-reduced-motion: reduce) {
+  :root[data-pb-theme="wildfire"] body::before { animation: none; }
+  :root[data-pb-theme="wildfire"].wf-igniting body::before { animation: none; }
+}

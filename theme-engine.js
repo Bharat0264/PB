@@ -64,7 +64,9 @@
         for (const name of REQUIRED_TOKENS) if (typeof set[name] !== 'string' || !set[name]) problems.push('tokens.' + mode + '.' + name + ' is missing.');
       }
     }
-    if (def.stylesheet && !/^\/themes\/[a-z0-9-]+\.css$/.test(def.stylesheet)) problems.push('stylesheet must be /themes/<name>.css.');
+    if (def.stylesheet && !/^\/themes\/[a-z0-9-]+\.css(\?v=[\w.-]+)?$/.test(def.stylesheet)) problems.push('stylesheet must be /themes/<name>.css (optionally with ?v=version).');
+    if (def.script && !/^\/themes\/[a-z0-9-]+\.js(\?v=[\w.-]+)?$/.test(def.script)) problems.push('script must be /themes/<name>.js (optionally with ?v=version).');
+    if (def.palette && (!Array.isArray(def.palette) || def.palette.length > 10 || def.palette.some(c => typeof c !== 'string'))) problems.push('palette must be up to 10 colour strings.');
     return problems;
   }
 
@@ -140,6 +142,23 @@
     return wait ? done : Promise.resolve();
   }
 
+  // Optional per-theme effects (animation, particles). The script registers
+  // window.PrintBeeThemeEffects[id] = {start(), stop()}; the engine starts it while the theme is current and stops it after.
+  function switchEffects(previousId, def) {
+    const effects = () => window.PrintBeeThemeEffects || {};
+    if (previousId && previousId !== def.id) { try { effects()[previousId]?.stop(); } catch (error) { console.error(error); } }
+    if (!def.script) return;
+    const start = () => { if (current === def.id) { try { effects()[def.id]?.start(); } catch (error) { console.error(error); } } };
+    if (effects()[def.id]) { start(); return; }
+    if (document.querySelector('script[data-pb-theme-js="' + def.id + '"]')) return;
+    const script = document.createElement('script');
+    script.src = def.script;
+    script.async = true;
+    script.dataset.pbThemeJs = def.id;
+    script.onload = start;
+    document.head.append(script);
+  }
+
   function set(id, {persist, preview, initial}) {
     const def = themes.get(id) || themes.get(DEFAULT_ID);
     const previous = current;
@@ -168,8 +187,8 @@
       change();
       return Promise.resolve();
     };
-    if (initial) { loadStylesheet(def, false); change(); finish(); return Promise.resolve(); }
-    return loadStylesheet(def, true).then(run).then(finish);
+    if (initial) { loadStylesheet(def, false); change(); finish(); switchEffects(null, def); return Promise.resolve(); }
+    return loadStylesheet(def, true).then(run).then(finish).then(() => switchEffects(previous, def));
   }
 
   const api = {

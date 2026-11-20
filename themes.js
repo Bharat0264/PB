@@ -22,7 +22,7 @@
   function swatches(theme) {
     const wanted = isDark() ? 'dark' : 'light';
     const set = theme.preview?.[wanted] || theme.preview?.light || theme.preview?.dark || {};
-    return {page: set.page, surface: set.surface, ink: set.ink, accent: set.accent};
+    return {page: set.page, surface: set.surface, ink: set.ink, accent: set.accent, nav: set.nav, art: set.art};
   }
 
   function thumbnail(theme) {
@@ -30,6 +30,7 @@
     thumb.setAttribute('aria-hidden', 'true');
     const colours = swatches(theme);
     for (const [name, value] of Object.entries(colours)) if (value) thumb.style.setProperty('--t-' + name, value);
+    if (colours.art) thumb.dataset.art = 'true';
     const top = make('span', 'theme-thumb-top');
     top.append(make('i'), make('i'), make('i'));
     const card = make('span', 'theme-thumb-card');
@@ -57,6 +58,17 @@
     const head = make('div', 'theme-head');
     head.append(title, badges);
     info.append(head, make('p', 'theme-tagline', theme.tagline), make('p', 'theme-desc', theme.description));
+    if (theme.palette?.length) {
+      const palette = make('ul', 'theme-palette');
+      palette.setAttribute('aria-label', theme.name + ' colour identity');
+      for (const colour of theme.palette) {
+        const dot = make('li');
+        dot.style.setProperty('--c', colour);
+        dot.title = colour;
+        palette.append(dot);
+      }
+      info.append(palette);
+    }
 
     const actions = make('div', 'theme-actions');
     const preview = make('button', 'theme-btn', previewed ? 'Previewing' : 'Preview');

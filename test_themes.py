@@ -58,5 +58,69 @@ class ThemeFoundationTests(unittest.TestCase):
         self.assertIn("theme-registry.js", text)
 
 
+def _luminance(hex_colour):
+    channels = [int(hex_colour[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+    linear = [c / 12.92 if c <= .03928 else ((c + .055) / 1.055) ** 2.4 for c in channels]
+    return .2126 * linear[0] + .7152 * linear[1] + .0722 * linear[2]
+
+
+def _contrast(a, b):
+    high, low = sorted((_luminance(a), _luminance(b)), reverse=True)
+    return (high + .05) / (low + .05)
+
+
+class WildfireThemeTests(unittest.TestCase):
+    registry = (ROOT / "theme-registry.js").read_text(encoding="utf-8")
+
+    def token(self, name):
+        block = self.registry[self.registry.index("id: 'wildfire'"):]
+        block = block[block.index("tokens:"):]
+        return re.search(r"(?<![\w-])'?" + re.escape(name) + r"'?: '(#[0-9A-Fa-f]{6})'", block).group(1)
+
+    def test_wildfire_is_registered_with_a_complete_dark_token_set(self):
+        block = self.registry[self.registry.index("id: 'wildfire'"):]
+        self.assertIn("modes: ['dark']", block)
+        tokens = block[block.index("tokens:"):]
+        for name in re.findall(r"'([a-z0-9-]+)'", REQUIRED.group(1)):
+            self.assertRegex(tokens, r"(?<![\w-])'?" + re.escape(name) + r"'?:", name)
+
+    def test_printbee_default_entry_is_unchanged(self):
+        default = self.registry[self.registry.index("id: 'printbee'"):self.registry.index("// Wildfire:")]
+        self.assertIn("default: true", default)
+        self.assertIn("tokens: null", default)
+        self.assertNotIn("stylesheet:", default)
+        self.assertNotIn("script:", default)
+
+    def test_wildfire_text_colours_are_readable(self):
+        surface, page = self.token("surface"), self.token("page")
+        self.assertGreaterEqual(_contrast(self.token("ink"), surface), 7)
+        self.assertGreaterEqual(_contrast(self.token("muted"), surface), 4.5)
+        self.assertGreaterEqual(_contrast(self.token("muted"), page), 4.5)
+        self.assertGreaterEqual(_contrast(self.token("accent-ink"), self.token("accent")), 4.5)
+        self.assertGreaterEqual(_contrast(self.token("accent-strong"), surface), 4.5)
+        for status in ("success", "warning", "danger", "info"):
+            self.assertGreaterEqual(_contrast(self.token(status), surface), 4.5, status)
+
+    def test_wildfire_files_exist_and_are_scoped(self):
+        css = (ROOT / "themes" / "wildfire.css").read_text(encoding="utf-8")
+        self.assertTrue((ROOT / "themes" / "wildfire.js").exists())
+        css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+        selectors = re.findall(r"^\s*([^\s@}/;][^{};]*)\{", css, re.M)
+        self.assertGreater(len(selectors), 30)
+        for selector in selectors:
+            head = selector.strip()
+            if head.startswith(("from", "to")) or re.match(r"^[\d.%, ]+$", head):
+                continue                                    # keyframe steps
+            self.assertIn('data-pb-theme="wildfire"', head, "unscoped selector: " + head[:80])
+
+    def test_wildfire_respects_reduced_motion(self):
+        css = (ROOT / "themes" / "wildfire.css").read_text(encoding="utf-8")
+        script = (ROOT / "themes" / "wildfire.js").read_text(encoding="utf-8")
+        self.assertIn("prefers-reduced-motion: reduce", css)
+        self.assertIn("prefers-reduced-motion: no-preference", css)
+        self.assertIn("prefers-reduced-motion: reduce", script)
+        self.assertIn("document.hidden", script)             # pauses while the tab is hidden
+
+
 if __name__ == "__main__":
     unittest.main()

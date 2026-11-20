@@ -22,10 +22,18 @@
 /* Thumbnail: a tiny page drawn from the theme's own swatches. */
 .theme-thumb {
   position: relative; display: grid; align-content: start; gap: 8px; height: 150px; padding: 12px; overflow: hidden;
-  border-radius: calc(var(--pb-radius-card) * .6); background: var(--t-page, var(--pb-page)); box-shadow: var(--pb-shadow-inset);
+  border-radius: calc(var(--pb-radius-card) * .6); background: var(--t-art, var(--t-page, var(--pb-page))); box-shadow: var(--pb-shadow-inset);
 }
 .theme-thumb i { display: block; border-radius: 99px; background: var(--t-ink, var(--pb-ink)); opacity: .55; height: 6px; }
-.theme-thumb-top { display: flex; align-items: center; gap: 6px; }
+.theme-thumb-top { display: flex; align-items: center; gap: 6px; padding: 4px 8px; margin: -2px -2px 0; border-radius: 99px; background: var(--t-nav, transparent); }
+.theme-thumb[data-art]::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .8;
+  background:
+    radial-gradient(circle at 22% 70%, var(--t-accent) 0 1.4px, transparent 2.4px),
+    radial-gradient(circle at 38% 52%, var(--t-accent) 0 1px, transparent 2px),
+    radial-gradient(circle at 12% 40%, var(--t-accent) 0 1.2px, transparent 2.2px),
+    radial-gradient(circle at 30% 86%, var(--t-accent) 0 1.6px, transparent 2.6px);
+}
 .theme-thumb-top i { width: 22px; opacity: .35; }
 .theme-thumb-top i:first-child { width: 36px; background: var(--t-accent, var(--pb-accent)); opacity: 1; }
 .theme-thumb-card {
@@ -47,6 +55,8 @@
 .theme-badge { padding: 3px 9px; border-radius: var(--pb-radius-pill); background: var(--pb-surface-2); color: var(--pb-muted); font-size: 11.5px; font-weight: 800; }
 .theme-badge-applied { background: color-mix(in srgb, var(--pb-success) 18%, var(--pb-surface)); color: var(--pb-success); }
 .theme-badge-preview { background: color-mix(in srgb, var(--pb-accent) 28%, var(--pb-surface)); color: var(--pb-ink); }
+.theme-palette { display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0 0; padding: 0; list-style: none; }
+.theme-palette li { width: 18px; height: 18px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 1px var(--pb-border); }
 .theme-tagline { margin: 0; color: var(--pb-accent-strong); font-weight: 800; font-size: 13.5px; }
 .theme-desc { margin: 0; color: var(--pb-muted); font-size: 14px; line-height: 1.45; }
 .theme-actions { display: flex; gap: 10px; }
