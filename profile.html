@@ -19,6 +19,10 @@
 <script src="account-home.js?v=1" defer></script>
 <link rel="stylesheet" href="/hive-theme.css?v=soft-focus">
 <link rel="stylesheet" href="/customer-theme.css?v=how-dark">
+<link rel="stylesheet" href="/theme-engine.css?v=3">
+<link rel="stylesheet" href="/theme-adapter.css?v=2">
+<script src="/theme-registry.js?v=1"></script>
+<script src="/theme-engine.js?v=2"></script>
 <script src="/hive-theme.js?v=sun-moon"></script>
 <script src="/support-bell.js?v=2" defer></script>
 <script src="/buzz-chat.js?v=21" defer></script>
@@ -102,6 +106,10 @@
       <form id="email-sign-out-all" class="signout-all" hidden>
         <button class="pill profile-email-submit" type="submit">Log out of all devices</button>
       </form>
+      <section class="account-group profile-appearance" aria-labelledby="group-appearance">
+        <h2 id="group-appearance">Appearance</h2>
+        <a class="account-row" href="themes.html"><span class="tile-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17M12 8h4.5M12 12h6M12 16h3.5"/></svg></span><span class="row-text"><strong>Change theme</strong><small>Choose how PrintBee looks</small></span><span class="row-chevron" aria-hidden="true"></span></a>
+      </section>
       <p id="email-login-status" role="status"></p>
     </div>
   </section>

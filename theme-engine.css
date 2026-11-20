@@ -1,0 +1,92 @@
+/* PrintBee Theme Engine: semantic design tokens and the bridge to the existing stylesheets.
+
+   1. DEFAULT TOKENS. The --pb-* tokens are the one vocabulary themes speak. For the default PrintBee theme they
+      simply point at the variables the site already uses, so nothing about its appearance changes.
+   2. BRIDGE. When any other theme is active, the existing variables (--hv-*, --base, --ink, --clay-* ...) are
+      re-pointed at the active theme's --pb-* tokens, so every component built on them follows the theme without
+      being rewritten.
+
+   Rule for new work: use var(--pb-*) for colour, radius, shadow and font. Never write a literal colour in a
+   component. Literal colours belong only inside a theme definition (theme-registry.js or /themes/). */
+
+/* ---------- 1. Default PrintBee tokens (Sun Hive and Moon Hive come from hive-theme.css) ---------- */
+:root {
+  --pb-page: var(--hv-page-bg, #EDE5D3);
+  --pb-surface: var(--hv-surface, #FFFFFF);
+  --pb-surface-2: var(--hv-surface-2, #FFF6DD);
+  --pb-ink: var(--hv-ink, #2A2112);
+  --pb-muted: var(--hv-muted, #6E5E3E);
+  --pb-border: var(--hv-border, #F0E3BE);
+  --pb-accent: var(--hv-honey-500, #F5C542);
+  --pb-accent-strong: var(--hv-honey-700, #B9831A);
+  --pb-accent-ink: #2A2112;
+  --pb-success: var(--hv-success, #3E8E5A);
+  --pb-warning: var(--hv-warning, #E0A91E);
+  --pb-danger: var(--hv-danger, #D64545);
+  --pb-info: var(--hv-info, #3B7DD8);
+  --pb-radius-card: var(--hv-r-card, 28px);
+  --pb-radius-control: var(--hv-r-input, 14px);
+  --pb-radius-pill: var(--hv-r-pill, 999px);
+  --pb-shadow-raised: var(--hv-sh-2, 0 4px 8px rgba(122,90,30,.1), 0 14px 28px rgba(122,90,30,.1));
+  --pb-shadow-inset: var(--hv-field, inset 0 2px 5px rgba(122,90,30,.17));
+  --pb-shadow-pressed: var(--hv-press, inset 0 3px 8px rgba(122,90,30,.17));
+  --pb-font-body: Manrope, system-ui, sans-serif;
+  --pb-font-display: Manrope, system-ui, sans-serif;
+  --pb-focus: 0 0 0 3px color-mix(in srgb, var(--pb-accent) 60%, transparent);
+  --pb-ease: cubic-bezier(.22, 1, .36, 1);
+}
+
+/* ---------- 2. Bridge: only while a non-default theme is active ---------- */
+:root[data-pb-theme]:not([data-pb-theme="printbee"]),
+:root[data-pb-theme]:not([data-pb-theme="printbee"]) .customer-theme {
+  /* studio.css, clay.css, customer-theme.css */
+  --base: var(--pb-surface); --ink: var(--pb-ink); --muted: var(--pb-muted); --line: var(--pb-border);
+  --raised: var(--pb-shadow-raised); --inset: var(--pb-shadow-inset); --honey: var(--pb-accent);
+  --page-clay: var(--pb-page);
+  --clay-bg: var(--pb-page); --clay-surface: var(--pb-surface); --clay-primary: var(--pb-accent);
+  --clay-primary-deep: var(--pb-accent-strong); --clay-ink: var(--pb-ink); --clay-muted: var(--pb-muted);
+  --clay-radius: var(--pb-radius-card); --clay-raised: var(--pb-shadow-raised);
+
+  /* hive-theme.css */
+  --hv-page-bg: var(--pb-page); --hv-bg: var(--pb-page);
+  --hv-surface: var(--pb-surface); --hv-surface-2: var(--pb-surface-2);
+  --hv-surface-3: color-mix(in srgb, var(--pb-surface-2) 80%, var(--pb-accent));
+  --hv-ink: var(--pb-ink); --hv-muted: var(--pb-muted); --hv-border: var(--pb-border);
+  --hv-honey-300: color-mix(in srgb, var(--pb-accent) 45%, var(--pb-surface));
+  --hv-honey-500: var(--pb-accent); --hv-honey-600: var(--pb-accent-strong);
+  --hv-honey-700: var(--pb-accent-strong); --hv-honey-ink: var(--pb-accent-strong);   /* readable accent text on surfaces */
+  --hv-success: var(--pb-success); --hv-warning: var(--pb-warning); --hv-danger: var(--pb-danger); --hv-info: var(--pb-info);
+  --hv-success-ink: var(--pb-success); --hv-warning-ink: var(--pb-warning); --hv-danger-ink: var(--pb-danger); --hv-info-ink: var(--pb-info);
+  --hv-success-bg: color-mix(in srgb, var(--pb-success) 16%, var(--pb-surface));
+  --hv-warning-bg: color-mix(in srgb, var(--pb-warning) 18%, var(--pb-surface));
+  --hv-danger-bg: color-mix(in srgb, var(--pb-danger) 15%, var(--pb-surface));
+  --hv-info-bg: color-mix(in srgb, var(--pb-info) 15%, var(--pb-surface));
+  --hv-sh-1: var(--pb-shadow-raised); --hv-sh-2: var(--pb-shadow-raised); --hv-sh-3: var(--pb-shadow-raised);
+  --hv-press: var(--pb-shadow-pressed); --hv-field: var(--pb-shadow-inset);
+  --hv-glass: color-mix(in srgb, var(--pb-surface) 86%, transparent);
+  --hv-honey-grad: linear-gradient(180deg, color-mix(in srgb, var(--pb-accent) 70%, white), var(--pb-accent));
+  --hv-focus: var(--pb-focus);
+  --hv-r-card: var(--pb-radius-card); --hv-r-tile: var(--pb-radius-card);
+  --hv-r-input: var(--pb-radius-control); --hv-r-pill: var(--pb-radius-pill);
+
+  /* status-model.css */
+  --pbs-bg: color-mix(in srgb, var(--pb-surface-2) 85%, var(--pb-accent));
+  --pbs-ink: var(--pb-ink); --pbs-dot: var(--pb-accent-strong);
+}
+:root[data-pb-theme]:not([data-pb-theme="printbee"]) .bottom-nav {
+  /* nav-tokens / navigation.css */
+  --nav-glaze: var(--pb-surface); --nav-surface: var(--pb-surface); --nav-depth: var(--pb-surface-2);
+  --nav-rim: var(--pb-border); --nav-ink: var(--pb-ink); --nav-active: var(--pb-accent-strong);
+  --nav-shadow: 0 -4px 14px color-mix(in srgb, var(--pb-ink) 18%, transparent);
+  --nav-bubble-shadow: var(--pb-shadow-raised);
+}
+:root[data-pb-theme]:not([data-pb-theme="printbee"]) body { font-family: var(--pb-font-body); }
+:root[data-pb-theme]:not([data-pb-theme="printbee"]) :is(h1, h2, h3) { font-family: var(--pb-font-display); }
+
+/* A theme that supports only one of Sun/Moon hides the switch: the mode is part of its identity. */
+:root[data-pb-mode-locked] [data-hive-toggle] { display: none !important; }
+
+/* Smooth cross-fade when the theme changes, off for people who ask for less motion. */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root), ::view-transition-new(root) { animation-duration: .35s; }
+}

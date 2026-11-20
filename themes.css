@@ -1,0 +1,93 @@
+/* Change Theme gallery. Colours, radii, shadows and fonts all come from the --pb-* tokens, so this page
+   follows whichever theme is active. The only literal values are the thumbnail swatches, which are
+   supplied per theme by the registry through --t-* custom properties. */
+.themes-page { display: grid; gap: clamp(18px, 3vw, 30px); padding-bottom: 140px; font-family: var(--pb-font-body); }
+.themes-head { display: grid; gap: 8px; max-width: 62ch; }
+.themes-back { justify-self: start; color: var(--pb-muted); font-weight: 800; text-decoration: none; padding: 6px 2px; }
+.themes-back:hover { color: var(--pb-ink); }
+.themes-eyebrow { margin: 0; color: var(--pb-accent-strong); font-size: 12.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.themes-head h1 { margin: 0; font-family: var(--pb-font-display); font-size: clamp(32px, 5vw, 52px); line-height: 1.02; color: var(--pb-ink); }
+.themes-lead { margin: 0; color: var(--pb-muted); line-height: 1.5; }
+
+.theme-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 270px), 1fr)); gap: clamp(14px, 2vw, 22px); margin: 0; padding: 0; list-style: none; }
+.theme-card {
+  display: grid; grid-template-rows: auto 1fr auto; gap: 16px; padding: 16px; border-radius: var(--pb-radius-card);
+  background: var(--pb-surface); color: var(--pb-ink); box-shadow: var(--pb-shadow-raised);
+  transition: transform .25s var(--pb-ease), box-shadow .25s var(--pb-ease);
+}
+.theme-card:hover { transform: translateY(-3px); }
+.theme-card.is-applied { outline: 2px solid var(--pb-accent); outline-offset: -2px; }
+.theme-card.is-previewing { outline: 2px dashed var(--pb-accent-strong); outline-offset: -2px; }
+
+/* Thumbnail: a tiny page drawn from the theme's own swatches. */
+.theme-thumb {
+  position: relative; display: grid; align-content: start; gap: 8px; height: 150px; padding: 12px; overflow: hidden;
+  border-radius: calc(var(--pb-radius-card) * .6); background: var(--t-page, var(--pb-page)); box-shadow: var(--pb-shadow-inset);
+}
+.theme-thumb i { display: block; border-radius: 99px; background: var(--t-ink, var(--pb-ink)); opacity: .55; height: 6px; }
+.theme-thumb-top { display: flex; align-items: center; gap: 6px; }
+.theme-thumb-top i { width: 22px; opacity: .35; }
+.theme-thumb-top i:first-child { width: 36px; background: var(--t-accent, var(--pb-accent)); opacity: 1; }
+.theme-thumb-card {
+  display: grid; gap: 7px; padding: 12px; border-radius: 14px; background: var(--t-surface, var(--pb-surface));
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--t-ink, var(--pb-ink)) 14%, transparent);
+}
+.theme-thumb-card i:nth-child(1) { width: 55%; height: 8px; opacity: .9; }
+.theme-thumb-card i:nth-child(2) { width: 88%; }
+.theme-thumb-card i:nth-child(3) { width: 70%; }
+.theme-thumb-button {
+  position: absolute; right: 14px; bottom: 12px; width: 64px; height: 22px; border-radius: 99px;
+  background: var(--t-accent, var(--pb-accent)); box-shadow: 0 4px 10px color-mix(in srgb, var(--t-ink, var(--pb-ink)) 18%, transparent);
+}
+
+.theme-info { display: grid; gap: 6px; align-content: start; }
+.theme-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.theme-name { margin: 0; font-family: var(--pb-font-display); font-size: 20px; line-height: 1.15; color: var(--pb-ink); }
+.theme-badges { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.theme-badge { padding: 3px 9px; border-radius: var(--pb-radius-pill); background: var(--pb-surface-2); color: var(--pb-muted); font-size: 11.5px; font-weight: 800; }
+.theme-badge-applied { background: color-mix(in srgb, var(--pb-success) 18%, var(--pb-surface)); color: var(--pb-success); }
+.theme-badge-preview { background: color-mix(in srgb, var(--pb-accent) 28%, var(--pb-surface)); color: var(--pb-ink); }
+.theme-tagline { margin: 0; color: var(--pb-accent-strong); font-weight: 800; font-size: 13.5px; }
+.theme-desc { margin: 0; color: var(--pb-muted); font-size: 14px; line-height: 1.45; }
+.theme-actions { display: flex; gap: 10px; }
+.theme-actions .theme-btn { flex: 1; }
+
+.theme-btn {
+  min-height: 46px; padding: 0 18px; border: 0; border-radius: var(--pb-radius-pill); cursor: pointer;
+  font-family: var(--pb-font-body); font-size: 14.5px; font-weight: 800; color: var(--pb-ink); background: var(--pb-surface-2);
+  box-shadow: var(--pb-shadow-raised); transition: transform .2s var(--pb-ease), filter .2s;
+}
+.theme-btn:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.04); }
+.theme-btn:active:not(:disabled) { transform: scale(.97); box-shadow: var(--pb-shadow-pressed); }
+.theme-btn:disabled { cursor: default; opacity: .6; box-shadow: var(--pb-shadow-inset); }
+.theme-btn-primary { background: var(--pb-accent); color: var(--pb-accent-ink); }
+.theme-btn:focus-visible, .themes-back:focus-visible { outline: 3px solid var(--pb-accent-strong); outline-offset: 3px; }
+
+.theme-soon { grid-template-rows: none; gap: 10px; align-content: center; justify-items: center; text-align: center; border: 2px dashed var(--pb-border); background: transparent; box-shadow: none; min-height: 260px; }
+.theme-soon:hover { transform: none; }
+.theme-soon-mark { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 50%; background: var(--pb-surface-2); color: var(--pb-accent-strong); font-size: 28px; font-weight: 800; box-shadow: var(--pb-shadow-inset); }
+
+/* Preview bar: stays in view while a theme is being tried. */
+.theme-bar {
+  position: fixed; z-index: 85; left: 50%; bottom: max(18px, env(safe-area-inset-bottom)); transform: translateX(-50%);
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 18px;
+  width: min(720px, calc(100% - 32px)); padding: 12px 14px 12px 20px; border-radius: var(--pb-radius-card);
+  background: var(--pb-surface); color: var(--pb-ink); box-shadow: var(--pb-shadow-raised), 0 0 0 2px var(--pb-accent);
+  animation: theme-bar-in .35s var(--pb-ease) both;
+}
+.theme-bar[hidden] { display: none; }
+.theme-bar-text { margin: 0; font-size: 14.5px; line-height: 1.4; }
+.theme-bar-actions { display: flex; gap: 10px; margin-left: auto; }
+@keyframes theme-bar-in { from { opacity: 0; transform: translate(-50%, 14px); } }
+@media (max-width: 700px) {
+  .themes-page { padding-bottom: 190px; }
+  .theme-bar { bottom: calc(96px + env(safe-area-inset-bottom)); }
+  .theme-bar-actions { width: 100%; }
+  .theme-bar-actions .theme-btn { flex: 1; }
+}
+.theme-sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) {
+  .theme-card, .theme-btn { transition: none; }
+  .theme-card:hover { transform: none; }
+  .theme-bar { animation: none; }
+}

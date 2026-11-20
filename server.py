@@ -391,7 +391,7 @@ class PrintBee(SimpleHTTPRequestHandler):
         if path.rstrip("/") in ("/home", "/upload", "/address"):
             self.path = "/navigation.html"
             return super().do_GET()
-        if path.rstrip("/") in ("/orders", "/cart", "/profile", "/help"):
+        if path.rstrip("/") in ("/orders", "/cart", "/profile", "/help", "/themes"):
             self.path = path.rstrip("/") + ".html"
             return super().do_GET()
         if re.fullmatch(r"/orders/[^/]+/?", path):
@@ -433,7 +433,7 @@ class PrintBee(SimpleHTTPRequestHandler):
         if not path.startswith("/api/"):
             allowed = {"/welcome.html", "/welcome.css", "/index.html", "/studio.js", "/studio.css", "/clay.css", "/staff.html", "/staff.js", "/warehouse.css", "/warehouse.js", "/delivery-map.js",
                        "/footer-wave.css", "/footer-wave.js",
-                       "/hive-theme.css", "/hive-theme.js", "/customer-theme.css", "/admin-hive.css", "/admin-mobile.css", "/warehouse-hive.css", "/staff-dock.css", "/staff-dock.js",
+                       "/hive-theme.css", "/hive-theme.js", "/customer-theme.css", "/theme-registry.js", "/theme-engine.js", "/theme-engine.css", "/theme-adapter.css", "/themes.html", "/themes.js", "/themes.css", "/admin-hive.css", "/admin-mobile.css", "/warehouse-hive.css", "/staff-dock.css", "/staff-dock.js",
                        "/partner.html", "/partner.css", "/partner.js", "/partner-sw.js", "/admin.html", "/admin-preview.html", "/admin-dashboard.css", "/admin-tokens.css",
                        "/customer-pricing.js", "/customer-price-table.js", "/pricing-preview.js", "/admin-dashboard.js", "/admin-records.js", "/admin-ledger.js", "/admin-ledger.css", "/admin-pricing.js", "/admin-pricing.css", "/admin-data.js", "/admin-live-data.js", "/partner.webmanifest", "/portal-login.js", "/portal-loader.js",
                        "/pricing.html", "/terms.html", "/queue.html", "/cart.html", "/orders.html", "/profile.html", "/profile.js", "/address.html", "/address-book.js", "/address-book.css", "/customer-login.js", "/account-home.js", "/session-sync.js",
@@ -443,6 +443,8 @@ class PrintBee(SimpleHTTPRequestHandler):
                        "/vendor/three/three.module.js", "/vendor/three/three.core.js", "/vendor/three/GLTFLoader.js", "/vendor/three/BufferGeometryUtils.js",
                        "/vendor/three/SkeletonUtils.js", "/vendor/three/RoomEnvironment.js", "/vendor/three/LICENSE"}
             if path in allowed:
+                return super().do_GET()
+            if re.fullmatch(r"/themes/[a-z0-9-]+\.(css|js|woff2)", path):
                 return super().do_GET()
             if re.fullmatch(r"/[a-z0-9.-]+\.(png|webp|woff2)", path):
                 return super().do_GET()
