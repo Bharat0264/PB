@@ -1048,3 +1048,38 @@ button.wh-mbrand { border: 0; cursor: pointer; -webkit-tap-highlight-color: tran
 }
 
 .wh-queue #warehouse-content .wh-manual-note { margin:0 0 16px; padding:12px 16px; border-radius:14px; background:var(--hv-surface-2); color:var(--hv-muted); font-size:13px; line-height:1.6; }
+
+/* Order station: fixed header, scrollable files and a compact manual-completion footer. */
+.wh-station > .wh-station-head { position:relative; flex:none; margin:0; padding:18px 20px; border-bottom:1px solid var(--hv-border); background:var(--hv-surface); }
+.wh-station > .wh-station-head h2 { font-size:clamp(18px,2vw,23px); line-height:1.3; margin:4px 0 0; }
+.wh-station > .wh-station-head .wh-context { margin:0; font-size:11px; line-height:1.4; letter-spacing:.04em; }
+.wh-station .wh-station-head #station-close { top:16px; right:16px; }
+.wh-station .wh-station-scroll { flex:1 1 auto; min-height:0; padding:16px 20px; }
+.wh-station.wh-sheet .wh-station-scroll { padding:16px !important; }
+.wh-station #detail-body { gap:14px; }
+.wh-station .wh-tracker { font-size:11px; gap:6px; }
+.wh-station .wh-station-contact { padding:10px 12px; font-size:13px; line-height:1.5; }
+.wh-station .wh-files { gap:10px; }
+.wh-station .wh-files > h3 { font-size:16px; line-height:1.4; }
+.wh-station .wh-file { grid-template-columns:40px minmax(0,1fr); gap:10px; padding:14px; border-radius:18px; }
+.wh-station .wh-file h3 { font-size:15px; line-height:1.45; margin:0 0 4px; }
+.wh-station .wh-file .wh-chips, .wh-station .wh-file .wh-file-actions { grid-column:1/-1; }
+.wh-station .wh-file .wh-chips { gap:6px; margin:0; }
+.wh-station .wh-file .wh-chip { font-size:11px; padding:4px 8px; line-height:1.4; }
+.wh-station .wh-file-actions { gap:8px; }
+.wh-station .wh-file-actions button { min-height:44px; padding:8px 14px; font-size:13px; flex:1 1 auto; }
+.wh-station .wh-details { padding-inline:12px; border-radius:16px; }
+.wh-station .wh-details summary { min-height:46px; font-size:13px; line-height:1.4; }
+.wh-station .wh-details > div { font-size:13px; line-height:1.6; }
+.wh-station .wh-action-dock { flex:none; padding:12px 16px calc(12px + env(safe-area-inset-bottom)) !important; background:var(--hv-surface-2); }
+#detail-action .wh-primary { min-height:48px !important; font-size:15px !important; box-shadow:var(--hv-sh-1) !important; }
+.wh-station #detail-action small { display:block; margin:8px 0 0; font-size:12px; line-height:1.4; text-align:center; }
+@media (max-width:560px) { .wh-station > .wh-station-head { padding:14px 16px; } .wh-station .wh-station-head #station-close { top:12px; right:12px; } }
+
+@media (max-width:1100px) {
+  .wh-station.wh-sheet { top:12px !important; bottom:auto !important; height:auto !important; max-height:calc(100dvh - 24px) !important; }
+  .wh-station.wh-sheet .wh-station-scroll { flex:1 1 auto !important; }
+}
+@media (max-width:560px) {
+  .wh-station.wh-sheet { top:8px !important; left:8px !important; right:8px !important; width:calc(100% - 16px) !important; max-height:calc(100dvh - 16px) !important; border-radius:22px !important; }
+}

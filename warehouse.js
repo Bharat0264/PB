@@ -791,8 +791,9 @@ function renderStation(order=findOrder()) {
   body.append(summary,orderTracker(bucket));
   if (bucket==='Ready') body.append(node('span','READY','wh-ready-stamp'+(newlyReady.has(order.id)?' wh-arrive':'')));
   const contact=node('div',null,'wh-station-contact');
-  contact.append(node('strong',order.customer || 'Customer unavailable'),
-    node('span',order.partner?'Partner: '+order.partner:'Unassigned'),node('span',order.slot || 'No delivery slot set'));
+  contact.append(node('strong',order.customer || 'Customer unavailable'));
+  if (order.partner) contact.append(node('span','Partner: '+order.partner));
+  if (order.slot) contact.append(node('span',order.slot));
   body.append(contact);
   const docs=node('section',null,'wh-files');
   docs.append(node('h3','Files · '+order.items.length));
@@ -875,15 +876,17 @@ function fileRow(order,item,index) {
     open.setAttribute('aria-label','Preview '+item.name);
     actions.append(open);
   }
-  const more=node('details'), menu=node('div',null,'wh-file-actions');
-  more.append(node('summary','More'),menu);
-  if (!preview) menu.append(button('Download',()=>downloadAsset('/api/staff/files/'+order.id+'/'+index,item.name)));
-  if (['paid','printing'].includes(order.status) && state!=='done') {
+  if (!preview) {
+    const download=button('Download',()=>downloadAsset('/api/staff/files/'+order.id+'/'+index,item.name));
+    download.dataset.focus='download-'+index;
+    download.setAttribute('aria-label','Download '+item.name);
+    actions.append(download);
+  }
+  if (order.items.length>1 && ['paid','printing'].includes(order.status) && state!=='done') {
     const mark=button('Mark printed',()=>confirmPrint(order,index),'clay-button wh-primary');
     mark.disabled=!connected || printPending;
     actions.append(mark);
   }
-  if (menu.childElementCount) actions.append(more);
   if (actions.childElementCount) row.append(actions);
   return row;
 }
@@ -903,7 +906,7 @@ function renderPrintAction(order,dock,selectFirst=false) {
   control.prepend(icon('printer'));
   control.disabled=printPending || !left || !connected;
   dock.append(control);
-  dock.append(node('small','Print the files yourself (use Preview or Download), then press Mark printed.','wh-muted'));
+  dock.append(node('small','Confirm only after printing is complete.','wh-muted'));
 }
 function renderHandover(order,body,dock) {
   const details=node('section',null,'wh-notes wh-pickup');

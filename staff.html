@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="/clay.css?v=1">
 <link rel="stylesheet" href="/warehouse.css?v=print-to-ready">
 <link rel="stylesheet" href="/hive-theme.css?v=soft-focus">
-<link rel="stylesheet" href="/warehouse-hive.css?v=manual-orders">
+<link rel="stylesheet" href="/warehouse-hive.css?v=order-panel-fit">
 <script src="/hive-theme.js?v=sun-moon"></script>
 <style>
 /* There is one sign-in page (the welcome page). Portals never show their own sign-in card. */
@@ -22,7 +22,7 @@
 <script src="/status-model.js?v=1" defer></script>
 <script src="/live.js?v=1" defer></script>
 <script src="/portal-switch.js?v=1" defer></script>
-<script src="/warehouse.js?v=manual-orders" defer></script>
+<script src="/warehouse.js?v=order-panel-fit" defer></script>
 </head>
 <body class="warehouse">
 <a class="wh-skip" href="#warehouse-main">Skip to warehouse</a>
@@ -76,11 +76,11 @@
           <div id="warehouse-content"><div class="wh-loading" role="status"><img src="/printbee-header-bee.webp" width="80" height="64" alt="">Loading paid orders<div class="clay-skeleton"></div></div></div>
         </section>
         <section id="warehouse-detail" class="clay-card wh-station" aria-labelledby="detail-title" tabindex="-1">
+          <div class="wh-station-head">
+            <div><p class="wh-context" id="floor-detail-context">Order station</p><h2 id="detail-title">Next up</h2></div>
+            <button type="button" class="wh-icon-button" id="station-close" aria-label="Close order" hidden></button>
+          </div>
           <div class="wh-station-scroll">
-            <div class="wh-station-head">
-              <div><p class="wh-context" id="floor-detail-context">Order station</p><h2 id="detail-title">Next up</h2></div>
-              <button type="button" class="wh-icon-button" id="station-close" aria-label="Close order" hidden></button>
-            </div>
             <div id="detail-body"></div>
           </div>
           <div id="detail-action" class="wh-action-dock" hidden></div>
