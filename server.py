@@ -444,8 +444,6 @@ class PrintBee(SimpleHTTPRequestHandler):
                        "/vendor/three/SkeletonUtils.js", "/vendor/three/RoomEnvironment.js", "/vendor/three/LICENSE"}
             if path in allowed:
                 return super().do_GET()
-            if re.fullmatch(r"/themes/[a-z0-9-]+\.(css|js|woff2)", path) or re.fullmatch(r"/themes/img/[a-z0-9-]+\.webp", path) or re.fullmatch(r"/models/wildfire/[a-z0-9-]+\.glb", path):
-                return super().do_GET()
             if re.fullmatch(r"/[a-z0-9.-]+\.(png|webp|woff2)", path):
                 return super().do_GET()
             return self.send_error(404)
