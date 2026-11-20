@@ -56,7 +56,7 @@ if (new URLSearchParams(location.search).get('preview') === '1') location.replac
 #portal-login,.live-gate{display:none!important}
 </style>
 <script src="portal-login.js?v=one-door" defer></script>
-<script type="module" src="admin-dashboard.js?v=attention"></script>
+<script type="module" src="admin-dashboard.js?v=add-binding"></script>
 </head>
 <body data-portal="admin">
 <a class="skip" href="#main">Skip to dashboard</a>
@@ -101,6 +101,7 @@ if (new URLSearchParams(location.search).get('preview') === '1') location.replac
         </div>
         <div class="actions" data-page-actions="inventory" hidden>
           <button id="add-product" class="primary" type="button">+ Add product</button>
+          <button id="add-binding" class="primary" type="button" hidden>+ Add binding</button>
         </div>
         <div class="actions" data-page-actions="partners" hidden>
           <button id="add-partner" class="primary" type="button">+ Add verified partner</button>

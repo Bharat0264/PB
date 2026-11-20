@@ -343,17 +343,19 @@ const servicePapers = {A3: 'A3 printing', A5: 'A5 printing'};
 const serviceBindings = {spiral: 'Spiral binding', staple: 'Staple binding'};
 const serviceRateLabels = ['B&W single-sided', 'B&W double-sided', 'Colour single-sided', 'Colour double-sided'];
 
+let serviceFilter = '';   // 'paper' or 'binding': which Add button opened the editor
+
 function availableServices() {
   const terms = source.info.terms;
   return [
-    ...Object.entries(servicePapers).filter(([key]) => !terms.paperRates[key]).map(([key, label]) => ['paper:' + key, label]),
-    ...Object.entries(serviceBindings).filter(([key]) => !(key in terms.bindingRates)).map(([key, label]) => ['binding:' + key, label]),
+    ...(serviceFilter === 'binding' ? [] : Object.entries(servicePapers).filter(([key]) => !terms.paperRates[key]).map(([key, label]) => ['paper:' + key, label])),
+    ...(serviceFilter === 'paper' ? [] : Object.entries(serviceBindings).filter(([key]) => !(key in terms.bindingRates)).map(([key, label]) => ['binding:' + key, label])),
   ];
 }
 
 function serviceEditorFields() {
   const options = availableServices();
-  if (!options.length) return '<p class="muted">All available services are already offered. Use the Pricing page to change their rates.</p>';
+  if (!options.length) return '<p class="muted">All available ' + (serviceFilter === 'binding' ? 'binding options' : serviceFilter === 'paper' ? 'printing options' : 'services') + ' are already offered. Use the Pricing page to change their rates.</p>';
   return `<label>Service<select name="service">${options.map(([value, label]) => `<option value="${value}">${escape(label)}</option>`).join('')}</select></label>
     <div id="service-paper-rates">${serviceRateLabels.map((label, i) => `<label>${label} (INR per page)<input name="rate${i}" type="number" min="1" step="0.01" inputmode="decimal"></label>`).join('')}</div>
     <div id="service-binding-rate"><label>Price (INR per copy)<input name="bindingRate" type="number" min="0" step="0.01" inputmode="decimal"></label></div>`;
@@ -670,7 +672,11 @@ function openEditor(kind, id) {
   $('editor-fields').innerHTML = existing ? `<p><strong>${escape(existing.customer)}</strong></p><p>${escape(existing.product)} &middot; ${money(existing.total)}</p><p>${escape(existing.status)} &middot; ${escape(existing.region)}</p>` :
     directoryEditor?.fields ?? (isOrder ? '' :
     '<label>Product name<input name="name" required maxlength="70"></label><label>Category<input name="category" required maxlength="70"></label><label>Price (INR)<input name="price" type="number" min=".01" max="999999" step=".01" required></label><label>Stock<input name="stock" type="number" min="0" max="999999" required></label>');
-  if (live && kind === 'product') { $('editor-fields').innerHTML = serviceEditorFields(); wireServiceEditor(); }
+  if (live && kind === 'product') {
+    $('editor-title').textContent = serviceFilter === 'binding' ? 'Add binding' : serviceFilter === 'paper' ? 'Add printing service' : 'Add print service';
+    $('editor-fields').innerHTML = serviceEditorFields();
+    wireServiceEditor();
+  }
   if (live && existing) $('editor-fields').append(liveActions(existing));
   if (isOrder && !existing) readOfflineOrders = addOfflineOrderFields($('editor-fields'), products);
   $('editor').showModal();
@@ -704,7 +710,8 @@ function tooltip(event,show) {
 }
 for (const [event,show] of [['pointerover',true],['pointerout',false],['focusin',true],['focusout',false]]) root.addEventListener(event,e => tooltip(e,show));
 $('add-order').onclick = () => openEditor('order');
-$('add-product').onclick = () => openEditor('product');
+$('add-product').onclick = () => { serviceFilter = live ? 'paper' : ''; openEditor('product'); };
+if ($('add-binding')) $('add-binding').onclick = () => { serviceFilter = 'binding'; openEditor('product'); };
 $('add-partner').onclick = () => openEditor('partner');
 $('add-warehouse').onclick = () => openEditor('warehouse');
 $('close-editor').onclick = () => $('editor').close();
@@ -798,7 +805,8 @@ $('export-pdf').onclick = () => window.print();
 if (live) {
   const workspace = document.querySelector('.workspace');
   workspace.hidden = true;
-  $('add-product').textContent = '+ Add service';
+  $('add-product').textContent = '+ Add printing';
+  if ($('add-binding')) $('add-binding').hidden = false;
   let feedConnection;
   connectPortal('admin', $('ops-status'), async () => {
     await source.load();
