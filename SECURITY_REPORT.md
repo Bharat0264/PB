@@ -18,6 +18,10 @@ No real secrets were found, so nothing had to be masked in this report.
 
 The single most important fix: **one person can stop every new customer from signing in** with about 50 requests (F-01). It was reproduced locally.
 
+### Fix status (branch `security-fixes`)
+
+The top 5 were fixed on 2026-11-21, one commit each, on the local branch `security-fixes` (**not pushed, not deployed**): F-01 `397ad9f`, F-03 `9b6258f`, F-04 `f7419be`, F-06 `8d9d01e`, F-05 `d671bdd`. The test suite grew from 255 to 275 tests and passes; the full customer, warehouse, partner and admin order flow, all portals and the signed-in customer pages were re-checked. Risk after these fixes: about 2 out of 10. Still open: F-02, F-07 to F-14 and the Info items.
+
 ### What the audit covered
 Stack: plain Python 3 standard-library web server (`server.py`, about 2,000 lines) with SQLite, vanilla HTML/CSS/JS pages, Docker image deployed on Render. Integrations: Razorpay (payments), Google sign-in (staff portals and customers), email sign-in links (SMTP), Twilio Verify (delivery partner SMS), S3-compatible file storage (optional), Google Maps (browser key), Gemini (optional chatbot, off by default), LibreOffice (optional, to count DOCX pages).
 
@@ -33,12 +37,12 @@ Routes: 3 public pages families (welcome, customer app, pricing/terms), 3 staff 
 
 | ID | Title | Severity | File:Line |
 | --- | --- | --- | --- |
-| F-01 | One person can block all customer sign-ins (and email-bomb a victim) | **High** | `customer_auth.py:135-138`, `server.py:935-938` |
+| F-01 | One person can block all customer sign-ins (and email-bomb a victim) | **High** (**FIXED** `397ad9f`) | `customer_auth.py:135-138`, `server.py:935-938` |
 | F-02 | Sign-in form reveals which emails are staff accounts | Medium | `server.py:936-937` |
-| F-03 | Unpaid orders keep their uploaded files forever, with no total size cap | Medium | `server.py:1083-1126`, `order_rules.py:13,22`, `file_retention.py:15-31` |
-| F-04 | Vulnerable Pillow image library (42 known advisories), version not pinned | Medium | `requirements.txt:1-3` |
-| F-05 | Content-Security-Policy is report-only, so it protects nothing yet | Medium | `server.py:108-121,389` |
-| F-06 | No connection timeouts and no cap on live-update streams (easy to exhaust) | Medium | `server.py:134,691-739` |
+| F-03 | Unpaid orders keep their uploaded files forever, with no total size cap | Medium (**FIXED** `9b6258f`) | `server.py:1083-1126`, `order_rules.py:13,22`, `file_retention.py:15-31` |
+| F-04 | Vulnerable Pillow image library (42 known advisories), version not pinned | Medium (**FIXED** `f7419be`) | `requirements.txt:1-3` |
+| F-05 | Content-Security-Policy is report-only, so it protects nothing yet | Medium (**FIXED** `d671bdd`) | `server.py:108-121,389` |
+| F-06 | No connection timeouts and no cap on live-update streams (easy to exhaust) | Medium (**FIXED** `8d9d01e`) | `server.py:134,691-739` |
 | F-07 | Permanent staff API keys that skip the Google login and the CSRF check | Low | `server.py:50-60,215-224,852-854` |
 | F-08 | Safety checks quietly weaken if `PRINTBEE_ORIGIN` is missing | Low | `customer_auth.py:97-103`, `server.py:241-243,1949` |
 | F-09 | Public page counter parses untrusted files (and can be kept busy) | Low | `server.py:889-890,1060-1081`, `document_pages.py:14-35` |
@@ -54,6 +58,8 @@ Routes: 3 public pages families (welcome, customer app, pricing/terms), 3 staff 
 ## 3. Findings in detail
 
 ### F-01: One person can block all customer sign-ins (High)
+**Status: FIXED** in commit `397ad9f` (branch `security-fixes`, not pushed). Sign-in links are now limited per visitor address (10 per 15 minutes) and per email (5, one a minute). The site-wide cap is only an emergency brake at 2000. Replay of the attack: one address sending 52 fake emails is cut off after 10 and a real customer from another address still gets a link.
+
 **The problem.** Customers sign in with an emailed link. The code allows at most 50 "pending links" for the *whole site* (not per person). Once 50 exist, **every** sign-in request is refused for up to 15 minutes. There is no limit per visitor address (IP), so one script can fill the 50 slots with made-up emails. A signed-out customer cannot place an order (orders need a login), so this is a cheap way to stop sales.
 
 **How an attacker abuses it.** Run a loop: ask for a link for `fake1@x.com` … `fake50@x.com`. From then on, real customers get "Too many sign-in requests". Repeat every 15 minutes. The same weakness lets someone send up to 5 sign-in emails (one per minute) to any victim's address, which is email-bombing from your domain.
@@ -111,6 +117,8 @@ if isinstance(data, dict) and self.staff_role(str(data.get("email", "")).strip()
 (Put a hint on the staff portal pages, not on the public sign-in form.)
 
 ### F-03: Unpaid orders keep their uploaded files forever, with no total size cap (Medium)
+**Status: FIXED** in commit `9b6258f` (branch `security-fixes`, not pushed). Unpaid orders (never paid, no payment started) and their files are deleted after 24 hours by the existing cleanup worker (cloud files through the existing deletion queue). One order may hold 200 MB in total. One customer keeps at most 5 unpaid orders / 500 MB: the oldest unpaid ones make room, so an honest customer is never locked out. Replay: 12 unpaid orders in a row leave 5 orders and 5 stored files; an order declaring 250 MB is refused with 400.
+
 **The problem.** A signed-in customer can create an order with up to 100 files of 50 MB each (about 5 GB) and never pay. Only files of *delivered* orders are ever deleted, and there is no limit on how many unpaid orders one account can create. Files are stored in the database on the 1 GB Render disk unless S3 is configured.
 
 **Attack.** Sign up with a free email address, create a few big unpaid orders. The disk fills, the database can no longer write, and the whole site stops.
@@ -144,6 +152,8 @@ DELETE FROM files WHERE order_id IN (SELECT id FROM orders WHERE status='pending
 (Adjust to your `audit.created` format and also remove the S3 objects for those orders.)
 
 ### F-04: Vulnerable Pillow library, version not pinned (Medium)
+**Status: FIXED** in commit `f7419be` (branch `security-fixes`, not pushed). `requirements.txt` now has `pillow>=13.0.0; python_version >= "3.11"`. Correction to the finding: my audit ran on Python 3.10, which can only reach Pillow 12.3.0. The Docker image uses Python 3.12, where pip already picks 13.0.0, so production was probably not on the vulnerable version; the pin makes sure it stays that way. Pillow 13 needs Python 3.11+, so a Python 3.10 PC still gets 12.3.0 (development only). Added `test_pdf_documents.py` (logo, invoice, packing label). Tested here only on Pillow 11.2.1 (Pillow 13 could not be installed on this PC and Docker was not running): see the manual steps.
+
 **The problem.** `reportlab` (used to make invoice PDFs) pulls in the image library Pillow. Your `requirements.txt` does not pin it, so Docker installs 12.3.0, and `pip-audit` reports **42 known vulnerabilities, all fixed in 13.0.0**. In this app Pillow only loads the PrintBee logo from disk (`order_documents.py:77-80`), not customer files, so real exposure looks low, but a one-line change closes it.
 
 **Proof (pip-audit output, shortened):**
@@ -161,6 +171,8 @@ pillow>=13.0.0
 Then rebuild, run `python -m unittest discover`, and re-run `pip-audit -r requirements.txt`.
 
 ### F-05: Content-Security-Policy is report-only (Medium)
+**Status: FIXED** in commit `d671bdd` (branch `security-fixes`, not pushed). `Content-Security-Policy: object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'` is now enforced on every response; the strict script/style policy stays report-only. Checked in Chrome on all pages and roles: nothing legitimate blocked, and an injected plugin object, an injected `<base>` tag, a form posting to another site and framing from another site were all stopped. Also found and fixed a gap in the report-only list: the PDF preview needs `blob:` in `frame-src`.
+
 **The problem.** A CSP is the main safety net if an XSS bug ever appears. Today it is sent only as `Content-Security-Policy-Report-Only`, which blocks nothing (I added it that way on purpose so the site would not break). Nothing collects its reports either.
 
 **Attack.** If a future change forgets to escape some text, an attacker's script would run with no browser-side brake.
@@ -181,6 +193,8 @@ Step 1, enforce right now the parts that need no page changes:
 Step 2, later: move the one inline script in `admin.html` into a `.js` file, then enforce `script-src 'self' https://checkout.razorpay.com https://maps.googleapis.com` (scripts are the dangerous part; allowing `style-src 'unsafe-inline'` is an acceptable compromise until the inline styles are moved).
 
 ### F-06: No connection timeouts, and no cap on live-update streams (Medium)
+**Status: FIXED** in commit `8d9d01e` (branch `security-fixes`, not pushed). Idle or half-finished connections are dropped after 30 seconds (`PRINTBEE_CONNECTION_TIMEOUT`). One person may keep 3 live streams open (400 site-wide); extra ones get 429 and the page falls back to polling (verified: 20 streams from one account gives 3 accepted, 17 refused). A closed stream now frees its thread and slot at once.
+
 **The problem.** The server makes one thread per connection and never times out a slow or idle connection. Each signed-in user can also open unlimited "live update" streams (each loops for up to 5 minutes and checks the database every second).
 
 **Attack.** Open many connections and send one byte per minute ("slowloris"), or open hundreds of `/api/events` streams from a free customer account. The thread pool and database get saturated and real users time out. Render's proxy softens this but does not remove it.
