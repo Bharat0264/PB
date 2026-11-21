@@ -1025,6 +1025,9 @@ class PrintBee(SimpleHTTPRequestHandler):
                 bill = bill_for(total, binding_total, coupon, terms, pickup=pickup, address=details["address"])
                 if type(data.get("expectedTotal")) is not int or data["expectedTotal"] != bill["total"]:
                     return self.json_response(409, {"error": "Prices changed. Review your updated total.", "pricingChanged": True})
+                # One customer keeps only a few unpaid orders (and bytes): the oldest unpaid ones make room.
+                if file_retention.make_room(db, email, sum(item["size"] for item in documents), bool(self.server.files)):
+                    self.server.file_cleanup.wake()
                 encoded = json.dumps({
                     **details, "bill": bill, "partnerPayout": terms.get("partnerPayout", 0),
                     "pickupWarehouse": pickup,

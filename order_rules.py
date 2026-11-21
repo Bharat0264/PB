@@ -5,6 +5,7 @@ RATES = (175, 300, 850, 1400)
 BOND_RATES = (300, 550, 1200, 2000)
 BINDING_RATES = {"none": 0, "glossy": 5000, "blue": 4000}
 LIMIT = 50 * 1024 * 1024
+MAX_ORDER_BYTES = 200 * 1024 * 1024      # all files of one order together
 
 
 def quote_items(items, paper_rates=None, binding_rates=None):
@@ -54,6 +55,8 @@ def quote_items(items, paper_rates=None, binding_rates=None):
                 raise ValueError("Invalid print page range.")
             document["pageRange"] = page_range
         documents.append(document)
+    if sum(document["size"] for document in documents) > MAX_ORDER_BYTES:
+        raise ValueError("An order can hold up to 200 MB of files in total.")
     return documents, sum(item["subtotal"] for item in documents)
 
 
