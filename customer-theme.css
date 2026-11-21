@@ -82,10 +82,7 @@
 
 .cart-page-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px 20px; }
 .cart-page-heading h1 { margin: 0; }
-.cart-panel { margin-top: 16px; padding: clamp(16px,3vw,32px); }
-.cart-panel #cart-checkout { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
-.cart-panel #cart-checkout[hidden] { display: none; }
-.cart-panel #cart-empty { margin: 0; color: var(--muted); }
+
 .cart-page #queue-status:empty { display: none; }
 
 /* Profile account home in dark mode keeps its own surfaces off the honey tones. */
@@ -164,11 +161,7 @@ main.inner-page .cart-page-heading h1 { margin-bottom: 0; }
 
 /* Terms: readable document typography within the shared PrintBee theme. */
 .terms-page .terms-main { max-width:1040px; padding-top:36px; }
-.terms-heading { margin-bottom:30px; }
-.terms-heading .terms-eyebrow { margin:0 0 12px; color:var(--hv-honey-ink); font-size:11px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
-.terms-page .terms-heading h1 { margin:0 0 12px; font-size:clamp(30px,4vw,42px); line-height:1.15; letter-spacing:-.035em; }
-.terms-heading .terms-intro { margin:0; color:var(--muted); font-size:15px; line-height:1.7; }
-.terms-layout { display:grid; grid-template-columns:210px minmax(0,1fr); gap:32px; align-items:start; }
+
 .terms-index { position:sticky; top:24px; min-width:0; }
 .terms-index nav { display:grid; gap:5px; padding:18px 12px; border:1px solid var(--hv-border); border-radius:22px; background:var(--hv-surface-2); box-shadow:var(--hv-sh-1); }
 .terms-index h2 { margin:0 8px 8px; color:var(--muted); font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
@@ -180,7 +173,7 @@ main.inner-page .cart-page-heading h1 { margin-bottom: 0; }
 .terms-document { min-width:0; padding:clamp(22px,3vw,36px); border:1px solid var(--hv-border); border-radius:28px; background:var(--hv-surface); box-shadow:var(--hv-sh-2); }
 .terms-section { margin:0; padding:0; scroll-margin-top:28px; }
 .terms-section + .terms-section { margin-top:28px; padding-top:28px; border-top:1px solid var(--hv-border); }
-.terms-section-heading { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+
 .terms-number { display:grid; place-items:center; flex:none; width:34px; height:34px; border-radius:11px; background:var(--hv-surface-2); color:var(--hv-honey-ink); font-size:11px; font-weight:800; box-shadow:var(--hv-sh-1); }
 .terms-page .terms-section h2 { margin:0; color:var(--ink); font-size:clamp(18px,2vw,21px); line-height:1.4; letter-spacing:-.02em; }
 .terms-section > p { margin:0; max-width:65ch; color:var(--muted); font-size:14px; line-height:1.85; overflow-wrap:anywhere; }
@@ -189,8 +182,8 @@ main.inner-page .cart-page-heading h1 { margin-bottom: 0; }
 .terms-page .footer-bottom { max-width:1040px; margin-inline:auto; }
 @media (max-width:760px) {
   .terms-page .terms-main { padding-top:26px; }
-  .terms-heading { margin-bottom:22px; }
-  .terms-layout { grid-template-columns:minmax(0,1fr); gap:20px; }
+  
+  
   .terms-index { position:static; }
   .terms-index nav { grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; padding:12px; }
   .terms-index h2 { grid-column:1/-1; margin-bottom:0; }

@@ -133,7 +133,6 @@ body[data-page="Cockpit"] .hive-main { padding-bottom: 40px; }
 .slide.is-on .slide-fill { background: linear-gradient(90deg, #BFE3C9, var(--success)); }
 .slide.is-on .slide-label { padding-left: 0; padding-right: 64px; --ink: #173320; --honey-700: #3E8E5A; }
 .slide.is-done .slide-thumb { box-shadow: 0 0 0 6px rgba(245,197,66,.35), var(--sh-2); }
-.slide-hint { margin-top: 8px; font-size: 12px; color: var(--muted); text-align: center; }
 
 /* Status cell */
 .status-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
@@ -364,7 +363,6 @@ body[data-page="Cockpit"] .hive-main { padding-bottom: 40px; }
           mask: radial-gradient(circle at var(--rx, 50%) var(--ry, 50%), #000 0, #000 var(--rr, 0px), transparent calc(var(--rr, 0px) + 120px)); }
 .hive-ripple.is-on { animation: ripple .3s ease-out forwards; }
 .assemble > * { animation: assemble .3s cubic-bezier(.22,1,.36,1) both; animation-delay: calc(var(--k, 0) * 40ms + 60ms); }
-
 
 /* ---------- Keyframes ---------- */
 @keyframes pop { from { opacity: 0; transform: scale(.92); } }

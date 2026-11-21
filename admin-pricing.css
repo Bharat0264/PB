@@ -10,10 +10,8 @@
 .admin-pricing-form textarea { resize:vertical; }
 .admin-pricing-form > button { justify-self:start; }
 .admin-pricing-form [role=status]:empty { display:none; }
-.admin-section-nav { display:flex; flex-wrap:wrap; gap:8px; grid-column:1/-1; }
-.admin-section-nav .clay-button { display:inline-flex; align-items:center; text-decoration:none; }
-body[data-portal=admin] .admin-section-nav a[aria-current=page],
+
 body[data-portal=admin] .admin-pricing-form > button { background:var(--hv-honey-grad); color:#2A2112; }
-#ops-content > .pricing-panel { grid-column:1/-1; }
+
 #ops-content[data-section=pricing] > :not(.pricing-panel),
 #ops-content:not([data-section=pricing]) > .pricing-panel { display:none; }

@@ -65,10 +65,10 @@ h1 em{font-style:normal;color:#785315}
 .paper-front i:last-child{width:48px}
 .paper-seal{position:absolute;top:53px;left:110px;width:32px;height:32px;font-size:17px}
 .console{padding:26px;border-radius:32px;scroll-margin-top:24px}
-.console-head{display:flex;align-items:center;gap:14px;margin-bottom:20px}
+
 .console-icon{display:grid;place-items:center;width:44px;height:44px;border-radius:15px;font-size:21px;color:#795616}
 .console h2{font-size:24px;letter-spacing:-.055em;line-height:1.2}
-.console-head p,.total small,.toggle-row small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+.total small,.toggle-row small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
 .field-label,legend,.toggle-row strong{font-size:13px;font-weight:800}
 .quantity,.segments{display:flex;align-items:center;border-radius:16px;margin-top:5px;padding:5px;min-height:45px}
 .quantity button{width:39px;height:35px;border-radius:12px;box-shadow:2px 3px 7px #6e604333,-2px -2px 5px #fff8;font-size:19px;line-height:1}
@@ -152,8 +152,6 @@ td{font-weight:800}
 .contact a > span:last-child{color:#785315}
 @media(max-width:900px){.contact ul{grid-template-columns:1fr}}
 @media(max-width:700px){.footer{grid-template-columns:1fr;gap:20px;padding:20px;margin-bottom:94px}}
-
-
 
 @media(min-width:701px){
   .top{
@@ -284,9 +282,9 @@ td{font-weight:800}
 .footer-intro img{display:block;object-fit:contain;mix-blend-mode:multiply;margin-bottom:10px}
 .footer-intro p{font-size:15px;line-height:1.5;font-weight:700}
 .footer-columns h2{font-size:12px;font-weight:800;margin:0 0 14px}
-.footer-explore,.footer-social{display:flex;flex-direction:column;align-items:flex-start;gap:7px;font-size:12px}
+
 .footer-columns a{overflow-wrap:anywhere}
-.footer-explore a,.footer-social a{color:#606458}
+
 .footer-columns a:hover{text-decoration:underline;text-underline-offset:4px}
 .footer-actions>a{display:flex;align-items:center;justify-content:space-between;font-size:17px;letter-spacing:-.04em;font-weight:700}
 .footer-actions>a span{display:grid;place-items:center;background:#292e27;color:#fff;width:23px;height:23px;border-radius:50%;flex:none;margin-left:8px}
@@ -297,7 +295,7 @@ td{font-weight:800}
 .footer-wordmark span{color:#9a8125}
 .footer-bottom{display:flex;justify-content:space-between;gap:16px;font-size:11px;color:#686c61;padding:18px 26px}
 @media(max-width:900px){.footer-columns{grid-template-columns:1fr 1fr;padding:28px;gap:26px}.footer-wordmark{margin-top:15px}}
-@media(max-width:700px){.brand-footer{margin-bottom:96px}.footer-surface{border-radius:24px}.footer-columns{padding:24px 20px;gap:24px 16px}.footer-social{grid-column:1/-1}.footer-actions{grid-column:1/-1}.footer-bottom{padding:14px 4px;flex-wrap:wrap;gap:8px 16px}.footer-wordmark{font-size:22vw}}
+@media(max-width:700px){.brand-footer{margin-bottom:96px}.footer-surface{border-radius:24px}.footer-columns{padding:24px 20px;gap:24px 16px}.footer-actions{grid-column:1/-1}.footer-bottom{padding:14px 4px;flex-wrap:wrap;gap:8px 16px}.footer-wordmark{font-size:22vw}}
 
 /* Clay surfaces */
 :root{
@@ -445,10 +443,6 @@ body{background:var(--base)}
  .desktop-nav a[aria-current]{color:#963610}
  .desktop-nav a[aria-current]::before{background:#eb6127;box-shadow:0 4px 12px 3px #ed9e5480}
 }
-
-
-
-
 
 .footer-actions>a span{
  position:relative;font-size:0;line-height:0;
@@ -631,12 +625,6 @@ body{background:var(--base)}
   border-radius: clamp(16px, 3vw, 32px);
   background: #efe8d0;
   box-shadow: 0 5px 14px #84602429;
-}
-
-.footer-relief {
-  display: block;
-  width: 100%;
-  height: auto;
 }
 
 .footer-actions>a span{

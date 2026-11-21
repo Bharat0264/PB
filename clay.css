@@ -63,19 +63,11 @@
 }
 
 .clay-stepper { display: flex; align-items: center; gap: 8px; }
-.clay-modal { border: 0; max-width: min(620px, calc(100% - 24px)); }
-.clay-modal::backdrop { background: #2b241570; }
+
 .clay-table { width: 100%; border-collapse: collapse; text-align: left; }
 .clay-table :is(th, td) { border-bottom: 1px solid #d8cfbc; padding: 8px; }
-.clay-toast { color: var(--clay-muted); }
-.clay-skeleton { border-radius: 12px; min-height: 1em; background: #e7dfce; }
 
-.staff-console { display: grid; gap: 18px; }
-.staff-login-fields { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; }
-.staff-login-fields label { display: grid; flex: 1 1 220px; gap: 4px; }
-.staff-console #staff-orders { display: grid; gap: 16px; }
-.staff-console #staff-orders article { overflow-wrap: anywhere; }
-.staff-console #staff-orders button { margin: 8px 8px 0 0; }
+.clay-skeleton { border-radius: 12px; min-height: 1em; background: #e7dfce; }
 
 @media (prefers-reduced-motion: reduce) {
   .clay-button { transition: none; }

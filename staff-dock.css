@@ -10,7 +10,7 @@
     display: none;
   }
   .has-staff-dock .workspace, .has-staff-dock .workspace.compact,
-  .has-staff-dock .wh-workspace, .has-staff-dock .staff-console {
+  .has-staff-dock .wh-workspace{
     padding-bottom: calc(116px + env(safe-area-inset-bottom));
   }
   .has-staff-dock[data-page="Cockpit"] .hive-main {

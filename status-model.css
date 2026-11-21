@@ -38,7 +38,7 @@
 .pb-switch[hidden] { display: none; }
 .pb-switch-title { margin: 0; font: 800 12px/1.2 Manrope, system-ui, sans-serif; letter-spacing: .06em; text-transform: uppercase; opacity: .7; }
 .pb-switch-list { display: flex; flex-wrap: wrap; gap: 6px; }
-.staff-console > .pb-switch { grid-column: 1 / -1; }
+
 .pb-switch-link { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; white-space: nowrap; border-radius: 14px; background: rgba(245, 197, 66, .18); color: inherit; font: 800 14px/1 Manrope, system-ui, sans-serif; text-decoration: none; }
 .pb-switch-link:hover { background: rgba(245, 197, 66, .32); }
 .pb-switch-link:focus-visible { outline: 3px solid #B9831A; outline-offset: 2px; }
