@@ -16,6 +16,15 @@ CREATE TABLE IF NOT EXISTS warehouse_pickups (
     id INTEGER PRIMARY KEY, name TEXT NOT NULL, address TEXT NOT NULL,
     email TEXT NOT NULL, is_default INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS warehouse_service_states (
+    warehouse_id INTEGER PRIMARY KEY REFERENCES warehouse_pickups(id) ON DELETE CASCADE,
+    is_open INTEGER NOT NULL CHECK(is_open IN (0,1)),
+    updated_at INTEGER NOT NULL, updated_by TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS website_ordering (
+    id INTEGER PRIMARY KEY CHECK(id=1), paused INTEGER NOT NULL CHECK(paused IN (0,1)),
+    updated_at INTEGER NOT NULL, updated_by TEXT NOT NULL
+);
 CREATE UNIQUE INDEX IF NOT EXISTS one_default_pickup
     ON warehouse_pickups(is_default) WHERE is_default=1;
 CREATE TABLE IF NOT EXISTS offline_sales (
@@ -49,23 +58,85 @@ def required_text(data, key, limit):
     return value.strip()
 
 
-def warehouse_availability(db):
+def warehouse_availability(db, email=None):
+    """Public aggregate, or the signed-in operator's own warehouses.
+
+    Existing installations without a directory retain their shared switch. Stores
+    without an individual setting inherit that switch until their operator changes it.
+    """
     row = db.execute("SELECT is_open, updated_at FROM warehouse_availability WHERE id=1").fetchone()
-    return {"open": bool(row["is_open"]), "updatedAt": row["updated_at"]} if row else {"open": True, "updatedAt": None}
+    fallback = bool(row["is_open"]) if row else True
+    stores = db.execute("SELECT w.id, s.is_open, s.updated_at FROM warehouse_pickups w "
+                        "LEFT JOIN warehouse_service_states s ON s.warehouse_id=w.id" +
+                        (" WHERE lower(w.email)=?" if email else ""), (email.lower(),) if email else ()).fetchall()
+    if stores:
+        return {"open": any(bool(s["is_open"]) if s["is_open"] is not None else fallback for s in stores),
+                "updatedAt": max((s["updated_at"] or 0 for s in stores), default=0) or None}
+    if email and db.execute("SELECT 1 FROM warehouse_pickups LIMIT 1").fetchone():
+        return {"open": False, "updatedAt": None}
+    return {"open": fallback, "updatedAt": row["updated_at"] if row else None}
 
 
-def set_warehouse_availability(db, data, actor):
+def ordering_availability(db):
+    warehouse = warehouse_availability(db)
+    row = db.execute("SELECT paused FROM website_ordering WHERE id=1").fetchone()
+    paused = bool(row["paused"]) if row else False
+    return {"serviceOpen": warehouse["open"] and not paused, "orderingPaused": paused,
+            "warehouseOpen": warehouse["open"],
+            "closureReason": "paused" if paused else "warehouses_closed" if not warehouse["open"] else None}
+
+
+def set_ordering_availability(db, data, actor):
+    if not isinstance(data, dict) or type(data.get("paused")) is not bool:
+        raise InputError("Choose whether to pause new orders.")
+    if ordering_availability(db)["orderingPaused"] != data["paused"]:
+        db.execute("INSERT INTO website_ordering VALUES (1,?,?,?) ON CONFLICT(id) DO UPDATE SET "
+                   "paused=excluded.paused, updated_at=excluded.updated_at, updated_by=excluded.updated_by",
+                   (int(data["paused"]), int(time.time()), actor))
+        ops.audit(db, actor, "website_orders_paused" if data["paused"] else "website_orders_resumed", "website")
+    return ordering_availability(db)
+
+
+def set_warehouse_availability(db, data, actor, email=None):
     if not isinstance(data, dict) or type(data.get("open")) is not bool:
         raise InputError("Choose Open or Closed.")
-    current = warehouse_availability(db)
-    if current["open"] == data["open"]:
+    stores = db.execute("SELECT id FROM warehouse_pickups" + (" WHERE lower(email)=?" if email else ""),
+                        (email.lower(),) if email else ()).fetchall()
+    if email and not stores and db.execute("SELECT 1 FROM warehouse_pickups LIMIT 1").fetchone():
+        raise InputError("Ask the admin to link your account to a warehouse.")
+    # Check every store: an aggregate of Open must not hide a closed sibling store.
+    current = warehouse_availability(db, email)
+    if current["open"] == data["open"] and not stores:
         return current
     now = int(time.time())
-    db.execute("INSERT INTO warehouse_availability VALUES (1,?,?,?) "
+    changed = False
+    legacy = db.execute("SELECT is_open FROM warehouse_availability WHERE id=1").fetchone()
+    for store in stores:
+        old = db.execute("SELECT is_open FROM warehouse_service_states WHERE warehouse_id=?", (store["id"],)).fetchone()
+        fallback = bool(old["is_open"]) if old else bool(legacy["is_open"]) if legacy else True
+        # Always persist the operator's explicit state, including inherited defaults.
+        db.execute("INSERT INTO warehouse_service_states VALUES (?,?,?,?) ON CONFLICT(warehouse_id) DO UPDATE SET "
+                   "is_open=excluded.is_open, updated_at=excluded.updated_at, updated_by=excluded.updated_by",
+                   (store["id"], int(data["open"]), now, actor))
+        changed = changed or fallback != data["open"]
+    if not email or not stores:
+        db.execute("INSERT INTO warehouse_availability VALUES (1,?,?,?) "
                "ON CONFLICT(id) DO UPDATE SET is_open=excluded.is_open, updated_at=excluded.updated_at, "
                "updated_by=excluded.updated_by", (int(data["open"]), now, actor))
-    ops.audit(db, actor, "warehouse_opened" if data["open"] else "warehouse_closed", "warehouse")
-    return warehouse_availability(db)
+        changed = changed or current["open"] != data["open"]
+    if changed:
+        ops.audit(db, actor, "warehouse_opened" if data["open"] else "warehouse_closed", email or "warehouse")
+    return warehouse_availability(db, email)
+
+
+def available_pickup(db):
+    """Route new orders to an open store, preferring the configured default."""
+    fallback = db.execute("SELECT is_open FROM warehouse_availability WHERE id=1").fetchone()
+    row = db.execute("SELECT w.id, w.name, w.address FROM warehouse_pickups w "
+                     "LEFT JOIN warehouse_service_states s ON s.warehouse_id=w.id "
+                     "WHERE COALESCE(s.is_open,?)=1 ORDER BY w.is_default DESC, w.id LIMIT 1",
+                     (fallback["is_open"] if fallback else 1,)).fetchone()
+    return dict(row) if row else None
 
 
 def warehouse_directory(db):
@@ -138,6 +209,7 @@ def remove_warehouse(db, data, actor):
     row = db.execute("SELECT email, is_default FROM warehouse_pickups WHERE id=?", (ident,)).fetchone()
     if not row:
         raise InputError("That warehouse no longer exists.")
+    db.execute("DELETE FROM warehouse_service_states WHERE warehouse_id=?", (ident,))
     db.execute("DELETE FROM warehouse_pickups WHERE id=?", (ident,))
     if row["is_default"]:
         db.execute("UPDATE warehouse_pickups SET is_default=1 WHERE id=(SELECT id FROM warehouse_pickups ORDER BY name LIMIT 1)")

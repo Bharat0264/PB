@@ -40,6 +40,44 @@ const state = { period:'Daily', query:'', filter:'', sort:'date', direction:-1, 
 const getStored = key => { try { return localStorage.getItem(key); } catch { return null; } };
 const store = (key, value) => { try { localStorage.setItem(key, value); } catch {} };
 
+// This switch pauses new website orders independently of each warehouse's switch.
+let savingOrdering = false;
+function renderOrdering() {
+  const button = $('ordering-control');
+  if (!button || savingOrdering) return;
+  const ordering = source.info?.ordering;
+  button.disabled = !ordering;
+  if (!ordering) return;
+  const paused = ordering.orderingPaused;
+  button.setAttribute('aria-pressed', String(paused));
+  button.dataset.state = paused ? 'paused' : 'open';
+  button.title = button.ariaLabel = paused ? 'Resume website orders' : 'Pause website orders';
+  button.innerHTML = icon(paused ? 'm9 5 11 7-11 7z' : 'M8 5v14 M16 5v14');
+  const status = $('ordering-status');
+  status.hidden = ordering.serviceOpen;
+  status.textContent = paused ? 'Website orders paused · Tap the play button to resume.' :
+    'All warehouses are closed · New website orders are unavailable.';
+}
+if ($('ordering-control')) $('ordering-control').onclick = async () => {
+  const button = $('ordering-control');
+  if (savingOrdering || !source.info?.ordering) return;
+  savingOrdering = true;
+  button.disabled = true;
+  button.setAttribute('aria-busy', 'true');
+  try {
+    source.info.ordering = await source.api('/api/admin/ordering', {paused: !source.info.ordering.orderingPaused});
+    $('notice').textContent = source.info.ordering.orderingPaused ?
+      'New website orders are paused. Existing orders can still be fulfilled.' :
+      source.info.ordering.serviceOpen ? 'Website orders are open.' : 'Pause removed. Orders will reopen when a warehouse opens.';
+  } catch (error) {
+    $('notice').textContent = error.message;
+  } finally {
+    savingOrdering = false;
+    button.removeAttribute('aria-busy');
+    renderOrdering();
+  }
+};
+
 function day(offset) {
   const date = new Date(today);
   date.setDate(date.getDate() - offset);
@@ -287,6 +325,7 @@ function directory(title, records, details, status = '') {
 
 async function refresh() {
   await source.load();
+  renderOrdering();
   render();
   refreshFeed();
 }
@@ -295,6 +334,7 @@ async function refresh() {
 async function softRefresh() {
   if (document.hidden || $('editor').open || (root.contains(document.activeElement) && document.activeElement !== root)) return;
   try { await source.load(); } catch { return; }
+  renderOrdering();
   if (!['pricing', 'ledger', 'warehouses'].includes(location.hash.slice(1)) && !location.hash.startsWith('#support')) render();
   refreshFeed();
 }
@@ -810,6 +850,7 @@ if (live) {
   let feedConnection;
   connectPortal('admin', $('ops-status'), async () => {
     await source.load();
+    renderOrdering();
     workspace.hidden = false;
     document.querySelector('.live-gate').hidden = true;
     refreshFeed();

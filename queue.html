@@ -10,7 +10,7 @@
 <script src="/session-sync.js?v=guest-theme" defer></script>
 <script src="embedded-tab.js?v=customer-tabs" defer></script>
 <script type="module" src="bottom-nav.js?v=cart-tab"></script>
-<link rel="stylesheet" href="studio.css?v=page-beige">
+<link rel="stylesheet" href="studio.css?v=ordering-availability">
 <link rel="stylesheet" href="footer-wave.css?v=horizontal-brand">
 <script src="footer-wave.js?v=letter-spacing" defer></script>
 <script src="profile.js?v=delivery-details" defer></script>
@@ -19,7 +19,7 @@
 <link rel="stylesheet" href="/status-model.css?v=2">
 <script src="/status-model.js?v=1" defer></script>
 <script src="/live.js?v=1" defer></script>
-<script src="studio.js?v=file-retention-signed-out" defer></script>
+<script src="studio.js?v=ordering-availability" defer></script>
 <link rel="stylesheet" href="/hive-theme.css?v=soft-focus">
 <link rel="stylesheet" href="/customer-theme.css?v=clean-1">
 <link rel="stylesheet" href="/theme-engine.css?v=4">
@@ -58,7 +58,14 @@
       <div><h1>Upload files</h1></div>
       <a class="pill raised" href="/cart">View cart</a>
     </div>
-    <div class="upload-card">
+    <section class="upload-break" id="warehouse-closed" aria-labelledby="upload-break-title" role="status" hidden>
+      <span class="customer-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l2.5 1.5"/><circle cx="12" cy="12" r="8.5"/></svg></span>
+      <span class="upload-break-eyebrow">A short break</span>
+      <h2 id="upload-break-title">We’ll be back soon</h2>
+      <p id="upload-break-message">Our warehouses are closed right now. Please check back soon to place your order.</p>
+      <a class="pill raised" href="/orders">View your orders</a>
+    </section>
+    <div class="upload-card" id="upload-workspace">
       <form id="queue-form">
         <input class="upload-input" id="document-file" type="file" accept=".pdf,.docx,.jpg,.jpeg,.png,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png" aria-describedby="upload-hint" multiple>
         <label class="upload-panel upload-picker" for="document-file">

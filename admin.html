@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="admin-tokens.css">
 <link rel="stylesheet" href="admin-dashboard.css?v=svc-add">
 <link rel="stylesheet" href="hive-theme.css?v=soft-focus">
-<link rel="stylesheet" href="admin-hive.css?v=store-revenue">
+<link rel="stylesheet" href="admin-hive.css?v=ordering-availability">
 <script src="hive-theme.js?v=sun-moon" data-follow-system="false"></script>
 <link rel="stylesheet" href="admin-pricing.css">
 <link rel="stylesheet" href="admin-ledger.css">
@@ -56,7 +56,7 @@ if (new URLSearchParams(location.search).get('preview') === '1') location.replac
 #portal-login,.live-gate{display:none!important}
 </style>
 <script src="portal-login.js?v=one-door" defer></script>
-<script type="module" src="admin-dashboard.js?v=legend-escaped"></script>
+<script type="module" src="admin-dashboard.js?v=ordering-availability"></script>
 </head>
 <body data-portal="admin">
 <a class="skip" href="#main">Skip to dashboard</a>
@@ -79,6 +79,7 @@ if (new URLSearchParams(location.search).get('preview') === '1') location.replac
       <label class="search-clay"><span id="search-icon" aria-hidden="true"></span><input id="global-search" type="search" aria-label="Search orders" placeholder="Search orders"></label>
       <button class="icon-button hv-switch" id="theme" data-hive-toggle type="button" aria-label="Dark mode" aria-pressed="false"></button>
       <button class="icon-button" id="notifications" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-panel"></button>
+      <button class="icon-button ordering-control" id="ordering-control" type="button" aria-label="Checking order availability" title="Checking order availability" aria-pressed="false" disabled></button>
       <button class="avatar" id="profile" type="button" aria-label="Admin profile" aria-expanded="false" aria-controls="profile-panel">PB</button>
       </div>
       <div class="popover card" id="notification-panel" hidden><h2>Notifications</h2><ul id="notification-list" class="activity"></ul></div>
@@ -91,6 +92,7 @@ if (new URLSearchParams(location.search).get('preview') === '1') location.replac
         </div>
       </div>
     </header>
+    <p class="ordering-status" id="ordering-status" role="status" hidden></p>
     <div id="admin-workarea" class="admin-workarea">
       <div class="intro">
         <div><h1 id="page-title">Dashboard</h1><p id="page-description">Track campus print orders, revenue, and delivery activity.</p></div>

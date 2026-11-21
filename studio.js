@@ -310,6 +310,7 @@ reviewSettings?.addEventListener('input', updateDraftTotal);
 form?.addEventListener('submit', async event => {
   event.preventDefault();
   if (saveButton.disabled || !draftFiles.length) return;
+  if (!await pricingAvailable()) return;
   const items = readPrintItems(form, draftFiles);
   if (items.includes(null)) {
     form.reportValidity();
@@ -422,12 +423,20 @@ function updatePrintOptions(group) {
 }
 
 function applyCheckoutConfig(config) {
+  const closed = document.querySelector('#warehouse-closed');
+  const unavailable = config.serviceOpen === false;
+  if (closed) closed.hidden = !unavailable;
+  const workspace = document.querySelector('#upload-workspace');
+  if (workspace) workspace.hidden = unavailable;
+  if (fileInput) fileInput.disabled = unavailable;
+  const message = document.querySelector('#upload-break-message');
+  if (message) message.textContent = config.orderingPaused ?
+    'We’re taking a short break from new orders. Please check back soon.' :
+    'Our warehouses are closed right now. Please check back soon to place your order.';
   if (placingOrder) {
     queuedConfig = config;
     return;
   }
-  const closed = document.querySelector('#warehouse-closed');
-  if (closed) closed.hidden = config.serviceOpen !== false;
   const {mode, terms, maps} = config;
   const printChanged = JSON.stringify([paperRates,bindingRates]) !== JSON.stringify([terms.paperRates,terms.bindingRates]);
   paperRates = terms.paperRates;
@@ -465,12 +474,18 @@ function applyCheckoutConfig(config) {
 
 async function pricingAvailable() {
   const config = await window.printbeePricing.refresh();
+  if (config?.serviceOpen === false) {
+    if (status) status.textContent = 'We’ll be back soon. New orders are temporarily unavailable.';
+    return false;
+  }
   if (config) return true;
   status.textContent = 'Current prices are temporarily unavailable. Try again.';
   return false;
 }
 
 if (form || checkout) window.printbeePricing.subscribe(applyCheckoutConfig);
+// A newly opened Upload page must check availability even when prices are cached.
+if (form) window.printbeePricing.refresh();
 
 function fileCount(files) {
   return files.length + (files.length === 1 ? ' file' : ' files');

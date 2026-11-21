@@ -1454,3 +1454,15 @@ body {
 #checkout > form { padding: var(--pad) var(--pad) 0; }
 #checkout .checkout-bar { bottom: 0; z-index: 3; margin: 12px calc(-1 * var(--pad)) 0; padding: 14px var(--pad) calc(14px + env(safe-area-inset-bottom)); background: var(--base);
   border-top: 1px solid var(--line); box-shadow: 0 -10px 18px -12px #6e50282e; }
+/* The upload surface is replaced while ordering is paused; drafts stay in memory. */
+.upload-break {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  gap: 18px; padding: clamp(36px, 6vw, 80px) 24px;
+  border-radius: 32px; background: var(--hv-surface, #fffaf0);
+  box-shadow: inset 2px 2px 5px #ffffffaa, 0 18px 40px #6e542018;
+}
+.upload-break[hidden], #upload-workspace[hidden] { display: none; }
+.upload-break .customer-tab-icon { flex: none; }
+.upload-break-eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; opacity: .7; }
+.upload-break h2 { margin: 0; font-size: clamp(28px, 4vw, 42px); line-height: 1.15; }
+.upload-break p { margin: 0 0 8px; max-width: 440px; line-height: 1.6; }

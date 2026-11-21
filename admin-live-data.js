@@ -80,6 +80,7 @@ export async function load() {
   warehouses.splice(0, warehouses.length, ...data.warehouses);
   payouts.splice(0, payouts.length, ...data.payouts);
   Object.assign(info, {terms: data.terms, paymentMode: data.paymentMode, pricingVersion: data.pricingVersion,
+    ordering: data.ordering,
     finance: data.finance, counts: data.counts, attention: data.attention || [], captured: data.captured, today: data.today});
   return data;
 }
