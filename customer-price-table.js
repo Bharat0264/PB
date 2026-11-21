@@ -5,8 +5,9 @@ if (printCatalog) {
   const status = printCatalog.querySelector('[data-price-status]');
   const currency = new Intl.NumberFormat('en-IN', {style:'currency',currency:'INR',minimumFractionDigits:0,maximumFractionDigits:2});
   function renderCatalog(terms) {
-    const rates = terms.paperRates.A4 || [];
+    for (const panel of printCatalog.querySelectorAll('[data-paper]')) panel.hidden = !terms.paperRates[panel.dataset.paper];
     for (const cell of printCatalog.querySelectorAll('[data-print-rate]')) {
+      const rates = terms.paperRates[cell.closest('[data-paper]')?.dataset.paper || 'A4'] || [];
       const amount = rates[Number(cell.dataset.printRate)];
       cell.textContent = typeof amount === 'number' ? currency.format(amount / 100) : '—';
     }

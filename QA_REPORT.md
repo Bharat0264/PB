@@ -26,7 +26,7 @@ Live and local behaved identically in every comparison, except that live runs re
 
 ## Fix pass (2026-11-21): final status
 
-Five bugs were fixed in the order asked, one commit each (`fix(BUG-001)`, `004`, `005`, `003`, `007`, `002`; details and how each was verified are under the bug). **Nothing is pushed or deployed yet**, so the live site still has all 18 bugs until you say to push.
+Six bugs were fixed (BUG-008 after your decision), one commit each (`fix(BUG-001)`, `004`, `005`, `003`, `007`, `002`; details and how each was verified are under the bug). **Nothing is pushed or deployed yet**, so the live site still has all 18 bugs until you say to push.
 
 | Bug | Result | Re-test of the original steps (local, fresh data) |
 | --- | --- | --- |
@@ -36,12 +36,11 @@ Five bugs were fixed in the order asked, one commit each (`fix(BUG-001)`, `004`,
 | BUG-003 console errors | **PASS** (fixed) | 26 errors across 11 signed-out pages before, 0 after; signed-in bell, orders and Help unchanged |
 | BUG-007 polling | **PASS** (fixed) | `/api/checkout` every 5 s before, now at 0, 60 and 120 s; none while the tab is hidden; one refresh on regaining focus |
 | BUG-002 3D bee | **PARTIAL** | TBT 2.9 to 6.7 s down to 0 ms and script time 10 to 16 s down to 0.2 s on mobile; performance 27/26/50 up to 59/60/85 locally, but 90+ is not reached on home and upload (hero image and a duplicated stylesheet, not the bee) |
-| BUG-008 Bond paper on pricing | **OPEN, needs your decision** | Not touched: your note offered two options ("bring back the Bond paper selector with prices" or "remove Bond from the pricing page") and did not pick one |
+| BUG-008 Bond paper on pricing | **PASS** (fixed) | Pricing page shows a Bond paper card with the same prices as checkout |
 
 Checks run after the last commit, all on a freshly reset demo server: full unit suite (239 tests: all pass); customer order through the UI, warehouse "Mark printed", partner accept and pickup, wrong delivery code throttling, admin snapshot (8 of 8 pass); sessions and sign-out (9 of 9 pass); warehouse, partner and admin portals at 1440 and 390 px (no console errors, no failed requests); 12 customer pages at 5 widths (60 loads); payout scan (only partner and admin show payout, as intended); upload checks (7 of 8 pass; the 8th, "a mixed pick keeps the good file", fails only because my test script cut the page text too short: checked by hand, the page keeps `ok.pdf` and refuses `virus.exe` with the right message).
 
 **Still open:**
-- BUG-008 (waiting for your choice).
 - BUG-006, sign-in email throttle (Medium): not on your list, not touched.
 - BUG-009 to BUG-018 (Low): not touched, as you asked.
 - Page speed: home and upload stay near 60 in the local Lighthouse run because of the 280 KB hero picture `printing-clay.webp` and `studio.css` loading three times on `index.html`. A separate, small fix.
@@ -154,7 +153,7 @@ Checks run after the last commit, all on a freshly reset demo server: full unit 
 - Actual result: only the A4 table shows. The paper selector was removed in commit `97d1b1a`, so "Bond paper sheet" is purchasable at checkout (`A4 Bond`: ₹3 / ₹5.50 / ₹12 / ₹20) but its prices are not on the pricing page.
 - Evidence: pricing page DOM has no `[data-paper-picker]`; live `paperRates` has `A4` and `A4 Bond`.
 - Likely cause: intentional removal in `97d1b1a`, but nothing replaced it.
-- **Status: NOT FIXED, waiting for your decision.** Your instruction listed two options (bring back the Bond paper selector with prices, or remove Bond from the pricing page) and did not choose one. Nothing was changed. Note: Bond paper is still selectable on the upload page, so "remove Bond from pricing page" would leave a paper that can be bought but has no listed price.
+- **Status: FIXED** (commit `fix(BUG-008)`), as you chose: bring Bond prices back. `pricing.html` has a second card, "Bond paper printing (A4)", beside the A4 card (no dropdown). `customer-price-table.js` fills it from the same published `paperRates` (`A4 Bond`) and hides the card if that rate does not exist. **Verified:** at 1280 px and 390 px the card shows ₹3 / ₹5.50 / ₹12 / ₹20, identical to `GET /api/checkout`; no console errors, no sideways scroll; full suite passes. Note: on desktop the three cards wrap into two rows (A4 and Bond, then Binding); I left the layout as is.
 - Fix prompt: "The pricing page shows only A4 rates, but Bond paper is also sold. Show a second price table (or a second row group) for 'Bond paper sheet (recommended for major project reports)' fed by the same `paperRates`, without bringing back the dropdown. Keep the layout and styling."
 
 ### BUG-009: Dark-mode heading accent words are hard to read
