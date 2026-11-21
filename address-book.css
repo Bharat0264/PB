@@ -4,6 +4,9 @@
 .address-book { gap:12px 20px; }
 main.address-layout .address-book > h1:last-of-type { margin-bottom:0; }
 .address-helper,.address-card p,.address-campus-summary,#profile-status { color:var(--hv-muted); }
+.address-pin label { display:grid; gap:8px; font-size:14px; font-weight:700; }
+.address-pin > div:first-child { flex:1 1 240px; min-width:0; display:grid; gap:8px; }
+.address-pin input { box-sizing:border-box; width:100%; min-width:0; min-height:48px; padding:12px; border:1px solid var(--hv-border); border-radius:16px; background:var(--hv-surface); color:var(--hv-ink); font:inherit; font-size:16px; box-shadow:var(--hv-field); }
 #saved-addresses-title { margin:0 0 12px; font-size:18px; letter-spacing:-.01em; }
 .address-composer-title h2 { margin:0; font-size:22px; letter-spacing:-.015em; line-height:1.2; }
 .address-action { min-height:44px; border:1px solid var(--hv-border); border-radius:999px; padding:6px 14px; background:var(--hv-surface); color:var(--hv-ink); box-shadow:var(--hv-sh-1); font:inherit; font-size:13px; font-weight:700; line-height:1.2; cursor:pointer; }
@@ -61,7 +64,7 @@ main.address-layout .address-book > h1:last-of-type { margin-bottom:0; }
 @keyframes address-enter { from { opacity:0; transform:translateY(7px); } }
 
 @media(max-width:600px) {
-  .address-composer:modal { position:fixed; inset:0; height:100dvh; max-height:100dvh; border-radius:24px 24px 0 0; overflow:auto; overscroll-behavior:contain; }
+  .address-composer:modal { position:fixed; inset:0; height:100dvh; max-height:100dvh; border-radius:24px 24px 0 0; overflow:auto; overscroll-behavior:contain; scroll-padding-block:16px 100px; }
   .address-composer:modal::backdrop { background:#251a11a0; }
   .address-composer form { padding-bottom:0; }
   .address-save { position:sticky; bottom:0; z-index:2; margin-inline:-16px; padding:10px 16px max(12px,env(safe-area-inset-bottom)); background:var(--hv-surface); border-top:1px solid var(--hv-border); }

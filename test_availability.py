@@ -58,7 +58,8 @@ class AvailabilityTests(unittest.TestCase):
             self.assertIn(existing["id"], [order["id"] for order in listing["orders"]])
         finally:
             self.server.request("POST", "/api/staff/availability", {"open": True}, self.staff)
-        self.assertEqual(self.customer.post("/api/checkout/quote", {"items": [item]})[0], 200)
+        self.assertEqual(self.customer.post("/api/checkout/quote", {"items": [item],
+                         "address": "Test Road\nDelivery pin: 12.8240, 80.0450"})[0], 200)
 
 
 if __name__ == "__main__":

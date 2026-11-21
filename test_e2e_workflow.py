@@ -177,7 +177,8 @@ class Customer:
         pdf = make_pdf(pages)
         item = {"name": "notes.pdf", "pages": pages, "copies": copies, "size": len(pdf), "colour": False,
                 "duplex": False, "orientation": "Portrait"}
-        status, bill, _ = self.post("/api/checkout/quote", {"items": [item], "coupon": ""})
+        status, bill, _ = self.post("/api/checkout/quote", {"items": [item], "coupon": "",
+                                    "address": "North Hostel, SRM campus\nDelivery pin: 12.8240, 80.0450"})
         assert status == 200, bill
         order_id, key = uuid.uuid4().hex, secrets.token_hex(32)
         status, result, _ = self.post("/api/orders", {
@@ -449,11 +450,12 @@ class WorkflowTests(unittest.TestCase):
         row = next(o for o in snapshot["orders"] if o["id"] == old["id"])
         self.assertEqual(row["total"], quote_before)                                      # snapshot kept
         item = {"name": "notes.pdf", "pages": 3, "copies": 1, "size": len(make_pdf()), "colour": False, "duplex": False, "orientation": "Portrait"}
-        fresh = self.customer.post("/api/checkout/quote", {"items": [item], "coupon": ""})[1]
+        fresh = self.customer.post("/api/checkout/quote", {"items": [item], "coupon": "",
+                                   "address": "Hostel\nDelivery pin: 12.8240, 80.0450"})[1]
         self.assertGreater(fresh["total"], quote_before)
         self.assertEqual(fresh["platform"], 900)
         status, result, _ = self.customer.post("/api/orders", {
-            "id": uuid.uuid4().hex, "customer": "Test Customer", "phone": "+91 98765 43210", "address": "Hostel",
+            "id": uuid.uuid4().hex, "customer": "Test Customer", "phone": "+91 98765 43210", "address": "Hostel\nDelivery pin: 12.8240, 80.0450",
             "items": [item], "expectedTotal": quote_before, "coupon": "", "notes": "", "slot": ""}, **{"X-Order-Key": secrets.token_hex(32)})
         self.assertEqual(status, 409)
         self.assertTrue(result.get("pricingChanged"))                                     # stale price is refused

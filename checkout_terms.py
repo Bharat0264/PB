@@ -8,6 +8,12 @@ import re
 from order_rules import BINDING_RATES, BOND_RATES, RATES
 
 
+# Approved delivery area: https://maps.app.goo.gl/S8uDxefB1KYZGsKd6
+# Coverage is straight-line distance, independent of warehouse pickup and delivery fees.
+SERVICE_AREA = {"latitude": 12.822949, "longitude": 80.044780, "radiusMeters": 5000,
+                "mapUrl": "https://maps.app.goo.gl/S8uDxefB1KYZGsKd6"}
+
+
 DEFAULT_CAMPUSES = [
     {"id": "srm-ktr", "name": "SRM Kattankulathur", "locality": "SRM Nagar",
      "city": "Kattankulathur", "region": "Tamil Nadu", "pin": "603203", "blocks": []},
@@ -64,6 +70,7 @@ def validate_terms(raw):
         raise ValueError("Delivery slots must be a list of labels (up to 100 characters each).")
     terms["slots"] = slots
     terms["campuses"] = validate_campuses(raw.get("campuses", DEFAULT_CAMPUSES))
+    terms["serviceArea"] = dict(SERVICE_AREA)
     coupons = raw.get("coupons", {})
     if not isinstance(coupons, dict) or any(
         not 0 < len(code) <= 30 or code != code.upper() or type(value) is not int or value <= 0
@@ -130,6 +137,7 @@ def distance_km(origin, destination):
 
 
 def delivery_terms(terms, data, address):
+    require_delivery_area(address)
     kind = data.get("deliveryType", "standard")
     if kind == "standard":
         return terms
@@ -144,6 +152,15 @@ def delivery_terms(terms, data, address):
     if pin is None or distance_km((campus["latitude"], campus["longitude"]), pin) * 1000 > campus["radiusMeters"]:
         raise DeliveryQuoteError("Add a delivery pin inside the selected campus to use campus delivery pricing.")
     return {**terms, "delivery": campus["delivery"], "deliveryPerKm": 0}
+
+
+def require_delivery_area(address):
+    pin = coordinates(address, delivery=True)
+    if pin is None:
+        raise DeliveryQuoteError("Add a delivery location pin to check our 5 km delivery area. Use the Address page or add a final line: Delivery pin: latitude, longitude.")
+    origin = (SERVICE_AREA["latitude"], SERVICE_AREA["longitude"])
+    if distance_km(origin, pin) > SERVICE_AREA["radiusMeters"] / 1000 + 1e-9:
+        raise DeliveryQuoteError("This address is outside our delivery area. We currently deliver within 5 km of our service location. Choose an address inside this area.")
 
 
 def distance_delivery(terms, pickup, address):

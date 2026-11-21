@@ -18,6 +18,7 @@
   let previewAnimated;
   let focusSource;
   let standardPostal, campusPostal;
+  let serviceArea;
   const value = key => fields[key].value.trim();
   const campusMode = () => value('type') === 'campus';
   const campus = () => campuses.find(item => item.id === value('campusId'));
@@ -235,18 +236,30 @@
     return 12742000*Math.asin(Math.sqrt(Math.min(1,a)));
   }
   function showPin() {
-    byId('clear-location').hidden = byId('pin-preview').hidden = !pin;
-    locationStatus.textContent = pin ? 'Delivery pin: '+pin : 'Optional. Add a location pin for delivery.';
+    if (fields.locationPin !== document.activeElement) fields.locationPin.value = pin;
+    const issue = pinError(pin);
+    byId('clear-location').hidden = !pin;
+    byId('pin-preview').hidden = !pin || Boolean(issue);
+    locationStatus.textContent = issue || (serviceArea ? 'Within our 5 km delivery area ✓' : 'Delivery pin: '+pin);
     const [lat,lng] = pin.split(',').map(Number);
     suggestion = pin && campuses.find(place => place.radiusMeters && distance(lat,lng,place)<=place.radiusMeters);
     byId('campus-suggestion').hidden = !suggestion || dismissed || campusMode();
+  }
+  function pinError(text) {
+    if (!text) return 'Add your delivery pin. Use current location or paste latitude, longitude from Google Maps.';
+    if (!/^-?\d{1,3}(?:\.\d+)?,\s*-?\d{1,3}(?:\.\d+)?$/.test(text)) return 'Enter coordinates as latitude, longitude.';
+    const [lat,lng] = text.split(',').map(Number);
+    if (Math.abs(lat)>90 || Math.abs(lng)>180) return 'Enter a valid latitude and longitude.';
+    if (serviceArea && distance(lat,lng,serviceArea) > serviceArea.radiusMeters + 1e-6) return 'Outside our delivery area. Choose a delivery point within 5 km of our service location.';
+    return '';
   }
   function setError(input, message) {
     const id = input.id+'-error';
     let error = byId(id);
     if (!message) {
       input.removeAttribute('aria-invalid');
-      input.removeAttribute('aria-describedby');
+      if (input.name === 'locationPin') input.setAttribute('aria-describedby','location-status');
+      else input.removeAttribute('aria-describedby');
       error?.remove();
       return;
     }
@@ -256,11 +269,11 @@
     }
     error.textContent = message;
     input.setAttribute('aria-invalid','true');
-    input.setAttribute('aria-describedby',id);
+    input.setAttribute('aria-describedby',input.name === 'locationPin' ? 'location-status '+id : id);
   }
   function validate(input) {
     const text = input.value.trim();
-    const error = input.required && !text ? 'This field is required.' :
+    const error = input.name === 'locationPin' ? pinError(text) : input.required && !text ? 'This field is required.' :
       input.name === 'pin' && !/^[1-9][0-9]{5}$/.test(text) ? 'Enter a valid 6-digit PIN code.' :
       input.name === 'phone' && (!/^[+0-9 ()-]{7,20}$/.test(text) || text.replace(/\D/g,'').length < 7) ? 'Enter a valid phone number.' : '';
     setError(input,error);
@@ -281,6 +294,7 @@
     if (event.target.required && event.target.getClientRects().length) validate(event.target);
   });
   form.addEventListener('input',event => {
+    if (event.target.name === 'locationPin') {pin=value('locationPin');dismissed=false;showPin();}
     if (event.target.name === 'building') manualBuilding = Boolean(value('building'));
     if (['block','room'].includes(event.target.name)) updateBuilding();
     if (event.target.hasAttribute('aria-invalid')) validate(event.target);
@@ -296,7 +310,7 @@
     if (event.target.name === 'campusId') {fillCampus(true);updateMode(true);}
   });
   byId('use-location').onclick = () => {
-    if (!navigator.geolocation) {locationStatus.textContent = 'Location is unavailable here. Enter your address manually.';return;}
+    if (!navigator.geolocation) {locationStatus.textContent = 'Location is unavailable here. Paste delivery coordinates from Google Maps.';return;}
     const id = ++request;
     byId('use-location').disabled = true;
     locationStatus.textContent = 'Getting your location…';
@@ -309,8 +323,8 @@
     }, error => {
       if (request !== id) return;
       byId('use-location').disabled = false;
-      locationStatus.textContent = error.code === 1 ? 'Location permission was denied. You can still save your address.' :
-        'Could not get your location. Try again or save your address without a pin.';
+      locationStatus.textContent = error.code === 1 ? 'Location permission was denied. Paste delivery coordinates from Google Maps.' :
+        'Could not get your location. Try again or paste delivery coordinates from Google Maps.';
     },{enableHighAccuracy:true,timeout:10000,maximumAge:0});
   };
   byId('clear-location').onclick = () => {pin='';showPin();byId('use-location').focus();};
@@ -323,7 +337,7 @@
   };
   form.addEventListener('submit',event => {
     event.preventDefault();
-    const required = ['customer','phone','building',...postalFields,...(campusMode()?['campusId','block','room']:[])];
+    const required = ['customer','phone','building',...postalFields,'locationPin',...(campusMode()?['campusId','block','room']:[])];
     const invalid = required.map(name => fields[name]).filter(input=>!validate(input));
     if (invalid.length) {
       if (postalFields.includes(invalid[0].name)) {postalEdit=true;updateMode();}
@@ -369,6 +383,8 @@
   renderAddresses();
   if (!entries.length && !narrow.matches) edit(-1);
   window.printbeePricing.refresh().then(config => {
+    serviceArea = config?.terms?.serviceArea;
+    showPin();
     campuses = config?.terms?.campuses || [];
     const select = fields.campusId;
     select.replaceChildren(...campuses.map(item=>new Option(item.name,item.id)));

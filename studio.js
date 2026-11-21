@@ -420,7 +420,7 @@ function applyCheckoutConfig(config) {
   slot.disabled = terms.slots.length === 0;
   slot.closest('label').hidden = slot.disabled;
   if (maps && !mapsReady) {
-    setupDeliveryMap(maps);
+    setupDeliveryMap(maps, terms.serviceArea);
     mapsReady = true;
   }
   if (!checkout.open) return;

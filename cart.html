@@ -14,12 +14,12 @@
 <link rel="stylesheet" href="footer-wave.css?v=horizontal-brand">
 <script src="footer-wave.js?v=letter-spacing" defer></script>
 <script src="profile.js?v=delivery-details" defer></script>
-<script src="delivery-map.js?v=pricing" defer></script>
+<script src="delivery-map.js?v=delivery-area" defer></script>
 <script src="customer-pricing.js?v=published-rates" defer></script>
 <link rel="stylesheet" href="/status-model.css?v=2">
 <script src="/status-model.js?v=1" defer></script>
 <script src="/live.js?v=1" defer></script>
-<script src="studio.js?v=bond-availability" defer></script>
+<script src="studio.js?v=delivery-area" defer></script>
 <link rel="stylesheet" href="/hive-theme.css?v=soft-focus">
 <link rel="stylesheet" href="/customer-theme.css?v=clean-1">
 <link rel="stylesheet" href="/theme-engine.css?v=4">
@@ -87,6 +87,7 @@
       <label>Full name<input name="customer" autocomplete="name" required maxlength="100"></label>
       <label>Phone<input name="phone" type="tel" autocomplete="tel" pattern="[+0-9 \(\)\-]{7,20}" required maxlength="20"></label>
       <label class="checkout-address">Delivery address<textarea name="address" autocomplete="street-address" required maxlength="500"></textarea></label>
+      <p class="checkout-address">Delivery is available within 5 km of our <a href="https://maps.app.goo.gl/S8uDxefB1KYZGsKd6" target="_blank" rel="noopener">service location ↗</a>. Add a delivery pin on the <a href="/address">Address page</a>, or use the map below. You can also add a final address line: Delivery pin: latitude, longitude.</p>
       <div class="checkout-address">
         <button class="pill raised" type="button" id="open-delivery-map" hidden>Find address and pin</button>
         <div id="delivery-place-search"></div>

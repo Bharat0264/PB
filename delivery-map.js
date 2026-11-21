@@ -23,7 +23,7 @@ function loadDeliveryMaps(key) {
   return mapsLibrary;
 }
 
-function setupDeliveryMap(config) {
+function setupDeliveryMap(config, serviceArea) {
   if (!config) return;
   const address = document.querySelector('#checkout-form [name="address"]');
   const toggle = document.querySelector('#open-delivery-map');
@@ -36,13 +36,16 @@ function setupDeliveryMap(config) {
     message.textContent = 'Loading address search…';
     try {
       const googleMaps = await loadDeliveryMaps(config.key);
-      const [{Map}, {PlaceAutocompleteElement}, {AdvancedMarkerElement}] = await Promise.all(
+      const [{Map, Circle}, {PlaceAutocompleteElement}, {AdvancedMarkerElement}] = await Promise.all(
         ['maps', 'places', 'marker'].map(name => googleMaps.importLibrary(name))
       );
       const picker = new PlaceAutocompleteElement({includedRegionCodes: ['in']});
       search.append(picker);
       preview.hidden = false;
-      const map = new Map(preview, {mapId: config.id, center: {lat: 12.82, lng: 80.04}, zoom: 13});
+      const center = serviceArea ? {lat: serviceArea.latitude, lng: serviceArea.longitude} : {lat: 12.82, lng: 80.04};
+      const map = new Map(preview, {mapId: config.id, center, zoom: 13});
+      if (serviceArea) new Circle({map, center, radius: serviceArea.radiusMeters, clickable: false,
+        fillColor: '#F5C542', fillOpacity: .12, strokeColor: '#B9831A', strokeWeight: 2});
       const marker = new AdvancedMarkerElement({map, title: 'Delivery location'});
       function setPin(position) {
         marker.position = position;
@@ -69,7 +72,7 @@ function setupDeliveryMap(config) {
       message.textContent = 'Search for an address or choose a point on the map.';
       toggle.hidden = true;
     } catch {
-      message.textContent = 'The map is unavailable. You can enter your address manually.';
+      message.textContent = 'The map is unavailable. Add a pin on the Address page, or add Delivery pin: latitude, longitude as the last line of your address.';
     } finally {
       toggle.disabled = false;
     }

@@ -1,5 +1,13 @@
 # Delivery address changelog
 
+## Current service area
+
+Delivery is limited to a **5 km straight-line radius** around **12.822949, 80.044780**, the point in the [approved Google Maps link](https://maps.app.goo.gl/S8uDxefB1KYZGsKd6). This coverage check is separate from per-kilometre fees and the selected warehouse pickup.
+
+The published `/api/checkout` catalog includes `terms.serviceArea`. Quotes and new orders require a final `Delivery pin: latitude, longitude` address line and reject missing, invalid, or outside-area pins for both standard and campus delivery. Existing orders retain their fulfillment and payment flow. Older saved pricing cannot override coverage.
+
+Customers can use current location or paste coordinates on the Address page; existing saved addresses without pins must be edited before checkout. Google Maps checkout shows the coverage circle when Maps is configured. No Maps API key is required to paste coordinates or validate coverage on the server.
+
 | Area | Change |
 | --- | --- |
 | Address page | Added a responsive address book and composer, campus and outside-campus forms, inline validation, a live parcel label, and a location suggestion. |

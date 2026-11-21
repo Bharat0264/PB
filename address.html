@@ -15,8 +15,8 @@
 <script src="footer-wave.js?v=letter-spacing" defer></script>
 <script src="profile.js?v=delivery-types" defer></script>
 <script src="customer-pricing.js?v=published-rates" defer></script>
-<script src="address-book.js?v=star" defer></script>
-<link rel="stylesheet" href="address-book.css?v=label-who">
+<script src="address-book.js?v=delivery-area" defer></script>
+<link rel="stylesheet" href="address-book.css?v=delivery-area">
 <link rel="stylesheet" href="/hive-theme.css?v=soft-focus">
 <link rel="stylesheet" href="/customer-theme.css?v=clean-1">
 <link rel="stylesheet" href="/theme-engine.css?v=4">
@@ -53,6 +53,7 @@
     <h1 id="address-title">Delivery address</h1>
     <button class="address-action address-add" id="add-address" type="button" aria-controls="address-composer" aria-expanded="false">+ Add address</button>
   </div>
+  <p class="address-helper">We currently deliver within 5 km of our <a href="https://maps.app.goo.gl/S8uDxefB1KYZGsKd6" target="_blank" rel="noopener">service location ↗</a>. Add your delivery pin to check coverage.</p>
   <dialog class="address-composer" id="address-composer" aria-labelledby="delivery-title">
     <form id="address-form" novalidate>
       <div class="address-composer-title"><h2 id="delivery-title">Delivery details</h2><button class="address-action address-close" id="close-address" type="button" aria-label="Close address form">×</button></div>
@@ -93,7 +94,8 @@
         <label for="addr-landmark">Landmark (optional)<input id="addr-landmark" name="landmark" maxlength="100" placeholder="Near the main gate"></label>
       </div>
       <div class="address-pin">
-        <div><p id="location-status" role="status">Optional. Add a location pin for delivery.</p>
+        <div><label for="addr-location">Delivery location pin<input id="addr-location" name="locationPin" placeholder="Latitude, longitude" autocomplete="off" required maxlength="60" aria-describedby="location-status"></label>
+          <p id="location-status" role="status">Use your current location or paste the delivery coordinates from Google Maps.</p>
           <div class="address-location-actions"><button class="address-action" type="button" id="use-location">Use current location</button>
           <button class="address-action address-ghost" type="button" id="clear-location" hidden>Remove location</button></div>
         </div>
