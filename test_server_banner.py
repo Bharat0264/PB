@@ -1,4 +1,3 @@
-import re
 import unittest
 
 from test_e2e_workflow import Server

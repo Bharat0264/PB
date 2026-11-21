@@ -13,7 +13,6 @@ and the production-origin rules. Run with:  python -m unittest test_e2e_workflow
 import http.client
 import json
 import os
-import re
 import secrets
 import shutil
 import socket

@@ -7,7 +7,7 @@ import uuid
 import file_retention as retention
 import fulfillment as ops
 import razorpay_checkout
-from order_rules import MAX_ORDER_BYTES, quote_items
+from order_rules import quote_items
 from test_e2e_workflow import Customer, Server, closing_db, make_pdf
 
 DAY = 24 * 3600

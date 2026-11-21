@@ -1,6 +1,5 @@
 import json
 import unittest
-from unittest import mock
 
 import customer_auth as auth
 from test_e2e_workflow import BOSS, Server
