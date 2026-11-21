@@ -103,6 +103,12 @@ def active_checkout_terms(db, default):
             "serviceArea": default["serviceArea"]}
 
 
+# What each audience may see. Allowlists, so a field added to the stored settings later stays private until it is listed here.
+PUBLIC_TERMS = ("paperRates", "bindingRates", "slots", "campuses")          # what the public checkout config needs
+WAREHOUSE_ORDER_FIELDS = ("address", "bill", "campusId", "coupon", "customer", "deliveryType", "items", "notes", "phone",
+                          "pickupWarehouse", "priority", "slot", "subtotal")   # no delivery partner payout
+
+
 def customer_print_specs(items):
     fields = ("name", "pages", "copies", "colour", "duplex", "orientation",
               "binding", "colourPages", "pageRange", "paper")
@@ -432,7 +438,8 @@ class PrintBee(SimpleHTTPRequestHandler):
         if path == "/api/checkout":
             with closing(connect()) as db:
                 db.execute("BEGIN")
-                terms = {key: value for key, value in self.checkout_terms(db).items() if key != "coupons"}
+                stored = self.checkout_terms(db)
+                terms = {key: stored[key] for key in PUBLIC_TERMS if key in stored}
                 version = db.execute("SELECT COALESCE(max(id),0) FROM pricing_versions").fetchone()[0]
                 service = admin_records.warehouse_availability(db)
             return self.json_response(200, {"serviceOpen": service["open"], "mode": self.server.payment_mode, "terms": terms,
@@ -538,7 +545,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                     {"id": row["id"], "number": row["order_number"], "status": row["status"],
                      "jobs": jobs.get(row["id"], []), "paidAt": row["paid_at"],
                      "partner": row["partner"], "timeline": timeline.get(row["id"], []),
-                     **json.loads(row["details"])} for row in rows
+                     **{key: value for key, value in json.loads(row["details"]).items() if key in WAREHOUSE_ORDER_FIELDS}} for row in rows
                 ]})
             match = re.fullmatch(r"/api/orders/([a-f0-9]{32})", path)
             if match:
