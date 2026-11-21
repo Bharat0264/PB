@@ -985,9 +985,11 @@ class PrintBee(SimpleHTTPRequestHandler):
         data = json.loads(self.rfile.read(length))
         with closing(connect()) as db:
             if path == "/api/auth/request":
-                if isinstance(data, dict) and self.staff_role(str(data.get("email", "")).strip().lower()):
-                    return self.json_response(403, {"error": "This email is a staff account. Use its portal to sign in."})
-                return self.json_response(*auth.request_link(db, data["email"], self.client_ip()))
+                # A staff email gets exactly the same answer (and the same limits) as any other, but no email is sent:
+                # staff sign in through their portal, and this form must not reveal who is staff.
+                staff = isinstance(data, dict) and self.staff_role(str(data.get("email", "")).strip().lower())
+                deliver = (lambda email, token: None) if staff else auth.send_link
+                return self.json_response(*auth.request_link(db, data["email"], self.client_ip(), deliver))
             if path == "/api/auth/verify":
                 result = auth.redeem(db, data["token"], auth.session_token(self.headers))
                 if result:
