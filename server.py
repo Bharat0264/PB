@@ -935,7 +935,7 @@ class PrintBee(SimpleHTTPRequestHandler):
             if path == "/api/auth/request":
                 if isinstance(data, dict) and self.staff_role(str(data.get("email", "")).strip().lower()):
                     return self.json_response(403, {"error": "This email is a staff account. Use its portal to sign in."})
-                return self.json_response(*auth.request_link(db, data["email"]))
+                return self.json_response(*auth.request_link(db, data["email"], self.client_ip()))
             if path == "/api/auth/verify":
                 result = auth.redeem(db, data["token"], auth.session_token(self.headers))
                 if result:
@@ -1996,6 +1996,7 @@ if __name__ == "__main__":
         raise SystemExit()
     with closing(connect()) as db, db:
         db.executescript(auth.SCHEMA)
+        auth.add_ip_column(db)
         if "last_active" not in {column["name"] for column in db.execute("PRAGMA table_info(customer_sessions)")}:
             db.execute("ALTER TABLE customer_sessions ADD COLUMN last_active INTEGER")
         if "portal" not in {column["name"] for column in db.execute("PRAGMA table_info(google_portal_sessions)")}:
