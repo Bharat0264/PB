@@ -33,7 +33,8 @@ function showAccount(email) {
 async function leaveWelcomeIfSignedIn(email) {
   if (!onWelcome || !email) return false;
   try {
-    if ((await fetch('/api/dev/roles', {cache: 'no-store'})).ok) return false;
+    // Only a developer's own machine can be the demo; elsewhere skip the (404) check.
+    if (['localhost', '127.0.0.1', '[::1]'].includes(location.hostname) && (await fetch('/api/dev/roles', {cache: 'no-store'})).ok) return false;
   } catch { /* not the demo */ }
   location.replace('/index.html');
   return true;

@@ -52,6 +52,8 @@
 
   async function api(path, options = {}) {
     let response;
+    // Every Help call needs a signed-in customer; do not send one (and log a 401) for a signed-out visitor.
+    if (!(await (window.PrintBeeWho || Promise.resolve({email: 'unknown'}))).email) throw Object.assign(new Error('Sign in to use Help.'), {signedOut: true});
     try { response = await fetch(path, {credentials: 'same-origin', ...options}); }
     catch { throw new Error('No connection. Check your network and try again.'); }
     const data = await response.json().catch(() => ({}));

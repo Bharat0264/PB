@@ -5,6 +5,8 @@
   'use strict';
   const mount = document.getElementById('demo-login');
   if (!mount) return;
+  // The demo exists only on a developer's own machine; on the real site do not even ask (it would be a 404).
+  if (!['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)) return;
   let roles;
   try {
     const response = await fetch('/api/dev/roles', {cache: 'no-store'});

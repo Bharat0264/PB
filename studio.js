@@ -836,7 +836,9 @@ async function showOrders() {
   let accountUnavailable = false;
   status.textContent = '';
   try {
-    const response = await fetch('/api/orders');
+    // Signed out: there is no account history to ask for (and asking would log a 401).
+    const signedIn = Boolean((await (window.PrintBeeWho || Promise.resolve({email: 'unknown'}))).email);
+    const response = signedIn ? await fetch('/api/orders') : {ok: false, status: 401};
     if (response.ok) {
       const data = await response.json();
       if (!Array.isArray(data.orders)) throw new Error('Invalid order list');

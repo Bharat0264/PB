@@ -266,10 +266,13 @@
   // Restore only the signed-in account's own preference. A browser-wide saved theme has no owner,
   // so it must never be inherited by a guest or a different account on this device.
   const identity = identityVersion;
-  fetch('/api/auth/session', {cache: 'no-store', credentials: 'same-origin'})
-    .then(response => response.ok ? response.json() : {})
+  // The one "who is signed in?" answer for this page. Pages ask it before calling sign-in-only endpoints,
+  // so a signed-out visitor never triggers a 401 in the console.
+  window.PrintBeeWho = window.PrintBeeWho || fetch('/api/auth/session', {cache: 'no-store', credentials: 'same-origin'})
+    .then(response => response.ok ? response.json() : {}).catch(() => ({offline: true}));
+  window.PrintBeeWho
     .then(session => {
-      if (identity !== identityVersion) return;
+      if (identity !== identityVersion || session.offline) return;
       account = typeof session.email === 'string' ? session.email.trim().toLowerCase() : '';
       const stored = read(KEY);
       const saved = themes.has(stored) ? stored : DEFAULT_ID;

@@ -130,7 +130,11 @@
   });
   document.addEventListener('click', event => { if (!panel.hidden && !wrap.contains(event.target)) { panel.hidden = true; bell.setAttribute('aria-expanded', 'false'); } });
   document.addEventListener('keydown', event => { if (event.key === 'Escape' && !panel.hidden) { panel.hidden = true; bell.setAttribute('aria-expanded', 'false'); bell.focus(); } });
-  load();
-  setInterval(() => { if (!document.hidden) load(); }, 60000);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+  // Signed-out visitors get no bell and no request at all (no 401s in their console).
+  (window.PrintBeeWho || Promise.resolve({email: 'unknown'})).then(who => {
+    if (!who.email) return;
+    load();
+    setInterval(() => { if (!document.hidden) load(); }, 60000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+  });
 })();
