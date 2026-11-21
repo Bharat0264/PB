@@ -184,13 +184,11 @@ main.address-layout .address-book > h1:last-of-type { margin-bottom:0; }
   background:linear-gradient(150deg,#fffdf6,#f7eed8);
   box-shadow:10px 12px 26px #6e502826,-8px -8px 20px #fffdf6c0,inset -4px -5px 12px #a7742014,inset 4px 5px 12px #ffffffb3; }
 .address-empty-icon { display:grid; place-items:center; width:82px; height:82px; box-sizing:content-box; padding:12px; border-radius:50%; color:var(--hv-honey-ink); background:linear-gradient(150deg,#fff6d8,#fbe3a0);
-  box-shadow:6px 8px 16px #6e502830,-4px -4px 10px #fffdf6c0,inset -3px -4px 8px #a7742026,inset 3px 4px 8px #ffffffa0; animation:address-bob 3.4s ease-in-out infinite; }
+  box-shadow:6px 8px 16px #6e502830,-4px -4px 10px #fffdf6c0,inset -3px -4px 8px #a7742026,inset 3px 4px 8px #ffffffa0; }
 .address-empty-icon svg { display:block; width:46px; height:46px; }
 .address-empty h3 { margin:12px 0 0; font-size:19px; letter-spacing:-.01em; }
 [data-theme="dark"] .address-empty { background:var(--hv-surface-2); box-shadow:var(--hv-sh-1); }
 [data-theme="dark"] .address-empty-icon { background:var(--hv-surface-3); box-shadow:none; }
-@keyframes address-bob { 50% { transform:translateY(-4px); } }
-@media (prefers-reduced-motion:reduce) { .address-empty-icon { animation:none; } }
 
 /* Label preview: a clay shipping label that shows who the parcel is for */
 .address-ticket { padding:16px 18px; border:1.5px dashed var(--hv-honey-700); border-radius:22px; background:linear-gradient(150deg,#fffdf6,#f7eed8);
