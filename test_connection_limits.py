@@ -3,26 +3,27 @@ import socket
 import time
 import unittest
 
+import request_limits as limits
 import server
 from test_e2e_workflow import Customer, Server
 
 
 class StreamSlotTests(unittest.TestCase):
     def tearDown(self):
-        server.OPEN_STREAMS.clear()
+        limits.OPEN_STREAMS.clear()
 
     def test_one_person_gets_a_few_streams_and_slots_come_back(self):
         person = ("events", "customer", "a@x.test")
-        taken = [server.take_stream_slot(person) for _ in range(server.STREAMS_PER_PERSON + 2)]
-        self.assertEqual(taken, [True] * server.STREAMS_PER_PERSON + [False, False])
-        self.assertTrue(server.take_stream_slot(("events", "customer", "b@x.test")))      # somebody else is unaffected
-        server.release_stream_slot(person)
-        self.assertTrue(server.take_stream_slot(person))
+        taken = [limits.take_stream_slot(person) for _ in range(limits.STREAMS_PER_PERSON + 2)]
+        self.assertEqual(taken, [True] * limits.STREAMS_PER_PERSON + [False, False])
+        self.assertTrue(limits.take_stream_slot(("events", "customer", "b@x.test")))      # somebody else is unaffected
+        limits.release_stream_slot(person)
+        self.assertTrue(limits.take_stream_slot(person))
 
     def test_the_whole_site_has_a_ceiling_too(self):
-        for n in range(server.STREAMS_TOTAL):
-            server.OPEN_STREAMS[("x", n)] = 1
-        self.assertFalse(server.take_stream_slot(("events", "customer", "late@x.test")))
+        for n in range(limits.STREAMS_TOTAL):
+            limits.OPEN_STREAMS[("x", n)] = 1
+        self.assertFalse(limits.take_stream_slot(("events", "customer", "late@x.test")))
 
 
 class LiveStreamsOverHttpTests(unittest.TestCase):
@@ -45,11 +46,11 @@ class LiveStreamsOverHttpTests(unittest.TestCase):
         open_streams = []
         try:
             statuses = []
-            for _ in range(server.STREAMS_PER_PERSON + 1):
+            for _ in range(limits.STREAMS_PER_PERSON + 1):
                 connection, response = self.open_stream(self.customer)
                 statuses.append(response.status)
                 open_streams.append(connection)
-            self.assertEqual(statuses, [200] * server.STREAMS_PER_PERSON + [429])
+            self.assertEqual(statuses, [200] * limits.STREAMS_PER_PERSON + [429])
             status, body, _ = self.customer.get("/api/events?as=customer&poll=1")         # the page's fallback
             self.assertEqual(status, 200, body)
             connection, response = self.open_stream(self.other)                              # another customer is unaffected

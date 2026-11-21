@@ -2,32 +2,32 @@ import socket
 import time
 import unittest
 
-import server
-from test_e2e_workflow import Customer, Server, make_pdf
+import request_limits as limits
+from test_e2e_workflow import Server, make_pdf
 
 
 class ClaimTests(unittest.TestCase):
     def tearDown(self):
-        server.PAGE_COUNT_BUSY.clear()
-        server.PAGE_COUNT_LOG.clear()
+        limits.PAGE_COUNT_BUSY.clear()
+        limits.PAGE_COUNT_LOG.clear()
 
     def test_one_file_at_a_time_per_address(self):
-        self.assertIsNone(server.claim_page_counter("1.1.1.1"))
-        self.assertEqual(server.claim_page_counter("1.1.1.1")[0], 503)         # same address, still busy
-        self.assertIsNone(server.claim_page_counter("2.2.2.2"))                # another address is not held up
-        server.release_page_counter("1.1.1.1")
-        self.assertIsNone(server.claim_page_counter("1.1.1.1"))
+        self.assertIsNone(limits.claim_page_counter("1.1.1.1"))
+        self.assertEqual(limits.claim_page_counter("1.1.1.1")[0], 503)         # same address, still busy
+        self.assertIsNone(limits.claim_page_counter("2.2.2.2"))                # another address is not held up
+        limits.release_page_counter("1.1.1.1")
+        self.assertIsNone(limits.claim_page_counter("1.1.1.1"))
 
     def test_rate_per_ten_minutes_per_address(self):
         now = 1000.0
-        for n in range(server.PAGE_COUNT_PER_WINDOW):
-            self.assertIsNone(server.claim_page_counter("3.3.3.3", now + n * 0.01))
-            server.release_page_counter("3.3.3.3")
-        refusal = server.claim_page_counter("3.3.3.3", now + 5)
+        for n in range(limits.PAGE_COUNT_PER_WINDOW):
+            self.assertIsNone(limits.claim_page_counter("3.3.3.3", now + n * 0.01))
+            limits.release_page_counter("3.3.3.3")
+        refusal = limits.claim_page_counter("3.3.3.3", now + 5)
         self.assertEqual(refusal[0], 429)
-        self.assertIsNone(server.claim_page_counter("4.4.4.4", now + 5))
-        server.release_page_counter("4.4.4.4")
-        self.assertIsNone(server.claim_page_counter("3.3.3.3", now + server.PAGE_COUNT_WINDOW + 5))   # the window moves on
+        self.assertIsNone(limits.claim_page_counter("4.4.4.4", now + 5))
+        limits.release_page_counter("4.4.4.4")
+        self.assertIsNone(limits.claim_page_counter("3.3.3.3", now + limits.PAGE_COUNT_WINDOW + 5))   # the window moves on
 
 
 class PageCounterOverHttpTests(unittest.TestCase):
