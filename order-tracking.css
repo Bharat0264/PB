@@ -100,7 +100,8 @@ main.inner-page .tracking-top h1 { margin:0; font:800 clamp(18px,2.8vw,25px)/1.2
 .track-list-row .order-actions { display:flex; flex-wrap:wrap; gap:8px; margin:0; }
 .track-list-row .order-actions a:first-child { background:var(--hv-warning-bg); color:var(--hv-warning-ink); }
 .track-empty { display:grid; justify-items:center; text-align:center; gap:8px; }
-.track-empty-bee { width:72px; height:72px; object-fit:contain; }
+.track-empty-icon { display:grid; place-items:center; width:96px; height:96px; margin-bottom:8px; border-radius:50%; color:var(--hv-honey-ink); background:var(--hv-honey-grad); box-shadow:var(--hv-sh-1); }
+.track-empty-icon svg { display:block; width:44px; height:44px; }
 @keyframes track-pulse { 50% { opacity:.7; transform:scale(.92); } }
 @keyframes track-hover { 50% { translate:0 -3px; } }
 @keyframes track-feed { 0%,100% { scale:1 .35; } 55%,72% { scale:1 1; } }

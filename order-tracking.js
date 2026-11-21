@@ -122,7 +122,15 @@
   }
   function emptyOrders() {
     const empty = node('li', '', 'orders-empty track-empty');
-    empty.append(bee('track-empty-bee'), node('h2','Place your first print order'));
+    const symbol = node('span', '', 'track-empty-icon');
+    symbol.setAttribute('aria-hidden', 'true');
+    const picture = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    for (const [key,value] of Object.entries({viewBox:'0 0 24 24',fill:'none',stroke:'currentColor','stroke-width':'1.7','stroke-linecap':'round','stroke-linejoin':'round'})) picture.setAttribute(key,value);
+    const outline = document.createElementNS(picture.namespaceURI, 'path');
+    outline.setAttribute('d', 'M6 8V3h12v5M6 17H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v7H6zM17 11h1');
+    picture.append(outline);
+    symbol.append(picture);
+    empty.append(symbol, node('h2','Place your first print order'));
     return empty;
   }
   const filters = byId('order-filters');
