@@ -34,6 +34,24 @@ class SecurityHeaderTests(unittest.TestCase):
             self.assertNotIn("style-src", enforced)
             self.assertIn("script-src", found.get("content-security-policy-report-only", ""))
 
+    def test_unused_browser_features_are_switched_off_but_location_and_payment_are_not(self):
+        for path in ("/", "/api/checkout"):
+            _, found = self.headers(path)
+            policy = found.get("permissions-policy", "")
+            for rule in ("camera=()", "microphone=()", "geolocation=(self)", "usb=()"):
+                self.assertIn(rule, policy, path)
+            self.assertNotIn("payment", policy)                   # Razorpay's checkout window needs it
+
+    def test_hsts_subdomains_only_when_the_owner_opts_in(self):
+        _, found = self.headers("/", **{"X-Forwarded-Proto": "https"})
+        self.assertNotIn("includeSubDomains", found["strict-transport-security"])
+        other = Server(extra={"PRINTBEE_HSTS_SUBDOMAINS": "1"})
+        try:
+            status, _, headers = other.request("GET", "/", headers={"X-Forwarded-Proto": "https"})
+            self.assertIn("includeSubDomains", dict(headers)["Strict-Transport-Security"])
+        finally:
+            other.stop()
+
     def test_hsts_only_on_https(self):
         _, plain = self.headers("/")
         self.assertNotIn("strict-transport-security", plain)

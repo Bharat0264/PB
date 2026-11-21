@@ -452,12 +452,17 @@ class PrintBee(SimpleHTTPRequestHandler):
             "X-Content-Type-Options": "nosniff",
             "Referrer-Policy": "strict-origin-when-cross-origin",
             "X-Frame-Options": "SAMEORIGIN",          # navigation.html and the phone tabs frame our own pages
+            # Browser features PrintBee never uses are switched off; location stays on (address pin, delivery tracking).
+            # `payment` is left alone on purpose: Razorpay's checkout window needs it.
+            "Permissions-Policy": "camera=(), microphone=(), geolocation=(self), usb=(), display-capture=()",
             "Content-Security-Policy": CSP_ENFORCED,
             "Content-Security-Policy-Report-Only": CSP_REPORT_ONLY,
         }
         secure = auth.public_origin().startswith("https://") or self.headers.get("X-Forwarded-Proto", "").lower() == "https"
         if secure:
-            wanted["Strict-Transport-Security"] = "max-age=31536000"
+            # includeSubDomains only when the owner confirms every subdomain of the site is https (PRINTBEE_HSTS_SUBDOMAINS=1).
+            wanted["Strict-Transport-Security"] = "max-age=31536000" + (
+                "; includeSubDomains" if os.environ.get("PRINTBEE_HSTS_SUBDOMAINS") == "1" else "")
         for name, value in wanted.items():
             if name.lower() not in self.headers_sent:
                 self.send_header(name, value)
