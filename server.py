@@ -1,6 +1,8 @@
 import argparse
 import hashlib
 import buzz
+import select
+import socket
 import support
 import hmac
 import json
@@ -120,6 +122,28 @@ CSP_REPORT_ONLY = "; ".join((
     "frame-ancestors 'self'",
 ))
 
+# Live-update streams hold a thread each, so one person may keep only a few open (the page falls back to polling).
+STREAMS_PER_PERSON, STREAMS_TOTAL = 3, 400
+OPEN_STREAMS = {}
+STREAM_LOCK = threading.Lock()
+
+
+def take_stream_slot(person):
+    with STREAM_LOCK:
+        if OPEN_STREAMS.get(person, 0) >= STREAMS_PER_PERSON or sum(OPEN_STREAMS.values()) >= STREAMS_TOTAL:
+            return False
+        OPEN_STREAMS[person] = OPEN_STREAMS.get(person, 0) + 1
+        return True
+
+
+def release_stream_slot(person):
+    with STREAM_LOCK:
+        if OPEN_STREAMS.get(person, 0) <= 1:
+            OPEN_STREAMS.pop(person, None)
+        else:
+            OPEN_STREAMS[person] -= 1
+
+
 PUBLIC_TERMS = ("paperRates", "bindingRates", "slots", "campuses", "serviceArea")          # what the public checkout config needs
 WAREHOUSE_ORDER_FIELDS = ("address", "bill", "campusId", "coupon", "customer", "deliveryType", "items", "notes", "phone",
                           "pickupWarehouse", "priority", "slot", "subtotal")   # no delivery partner payout
@@ -132,6 +156,8 @@ def customer_print_specs(items):
 
 
 class PrintBee(SimpleHTTPRequestHandler):
+    timeout = int(os.environ.get("PRINTBEE_CONNECTION_TIMEOUT", "30"))   # seconds a connection may sit silent before it is dropped
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(ROOT), **kwargs)
 
@@ -667,6 +693,15 @@ class PrintBee(SimpleHTTPRequestHandler):
             )
             return self.json_response(200, {"updates": [dict(row) for row in rows]})
 
+    def client_gone(self):
+        """True once the browser has closed a live stream, so its thread and slot are freed at once."""
+        try:
+            if select.select([self.connection], [], [], 0)[0]:
+                return self.connection.recv(1, socket.MSG_PEEK) == b""
+        except OSError:
+            return True
+        return False
+
     def event_audience(self, wanted):
         """(audience, identity) for the signed-in role the client asked to follow, else None."""
         if wanted in ("admin", "warehouse"):
@@ -705,6 +740,7 @@ class PrintBee(SimpleHTTPRequestHandler):
         except ValueError:
             return self.json_response(400, {"error": "Invalid event cursor."})
         db = connect()
+        person = None
         try:
             newest = event_feed.latest(db)
             if last is None or last > newest:
@@ -712,6 +748,10 @@ class PrintBee(SimpleHTTPRequestHandler):
             if "poll" in query:
                 events = event_feed.fetch(db, kind, identity, last)
                 return self.json_response(200, {"events": events, "latest": events[-1]["id"] if events else last})
+            person = ("events", kind, identity)
+            if not take_stream_slot(person):
+                person = None
+                return self.json_response(429, {"error": "Too many live connections. Updates will refresh automatically."})
             self.send_response(200)
             self.send_header("Content-Type", "text/event-stream")
             self.send_header("Cache-Control", "no-store")
@@ -721,7 +761,7 @@ class PrintBee(SimpleHTTPRequestHandler):
             self.wfile.flush()
             quiet = time.time()
             deadline = time.time() + 300      # clients reconnect and catch up from Last-Event-ID
-            while time.time() < deadline:
+            while time.time() < deadline and not self.client_gone():
                 events = event_feed.fetch(db, kind, identity, last)
                 for event in events:
                     self.wfile.write(f"id: {event['id']}\ndata: {json.dumps(event)}\n\n".encode())
@@ -737,6 +777,8 @@ class PrintBee(SimpleHTTPRequestHandler):
             pass
         finally:
             db.close()
+            if person:
+                release_stream_slot(person)
 
     def order_events(self, order_id):
         def snapshot(db):
@@ -752,6 +794,9 @@ class PrintBee(SimpleHTTPRequestHandler):
             current = snapshot(db)
         if current is None:
             return self.json_response(404, {"error": "Order unavailable."})
+        person = ("order", order_id)
+        if not take_stream_slot(person):
+            return self.json_response(429, {"error": "Too many live connections."})
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-store")
@@ -774,6 +819,8 @@ class PrintBee(SimpleHTTPRequestHandler):
                     current = snapshot(db)
         except (OSError, ConnectionError):
             pass
+        finally:
+            release_stream_slot(person)
 
     def send_download(self, body, content_type, disposition="attachment"):
         self.send_response(200)
