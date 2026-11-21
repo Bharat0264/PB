@@ -612,7 +612,6 @@ const routes = Object.keys(sections);
 $('sidebar-nav').innerHTML = routes.map(navLink).join('');
 $('sidebar-nav').querySelectorAll('.nav-link').forEach((link, i) => link.style.setProperty('--n', i));
 $('notification-list').outerHTML = feed();
-$('search-icon').innerHTML = icon('M16 16l5 5 M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z');
 $('notifications').innerHTML = icon('M18 8a6 6 0 0 0-12 0v5l-2 3h16l-2-3z M10 20h4');
 
 const phone = matchMedia('(max-width: 850px)');
@@ -663,18 +662,12 @@ document.addEventListener('keydown',event => {
 addEventListener('hashchange',() => {
   closePopovers();
   render(true);
-  if (document.activeElement !== $('global-search')) $('main').focus({preventScroll:true});
+  $('main').focus({preventScroll:true});
   $('admin-workarea').scrollTop = 0;
   scrollTo(0,0);
 });
-$('global-search').oninput = event => {
-  state.query = event.target.value;
-  state.page = 0;
-  if (location.hash !== '#orders') location.hash = 'orders';
-  else { $('order-search').value = state.query; updateTable(); }
-};
 root.addEventListener('input',event => {
-  if (event.target.id === 'order-search') { state.query = event.target.value; $('global-search').value = state.query; state.page = 0; updateTable(); }
+  if (event.target.id === 'order-search') { state.query = event.target.value; state.page = 0; updateTable(); }
   if (event.target.id === 'order-filter') { state.filter = event.target.value; state.page = 0; updateTable(); }
   if (event.target.id === 'order-sort') {
     const [key, direction] = event.target.value.split(':');
