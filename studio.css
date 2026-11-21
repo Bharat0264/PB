@@ -1457,12 +1457,39 @@ body {
 /* The upload surface is replaced while ordering is paused; drafts stay in memory. */
 .upload-break {
   display: flex; flex-direction: column; align-items: center; text-align: center;
-  gap: 18px; padding: clamp(36px, 6vw, 80px) 24px;
-  border-radius: 32px; background: var(--hv-surface, #fffaf0);
-  box-shadow: inset 2px 2px 5px #ffffffaa, 0 18px 40px #6e542018;
+  gap: 22px; padding: clamp(40px, 6vw, 76px) clamp(20px, 4vw, 48px);
+  border: 1px solid var(--hv-hi, #fffdf6);
+  border-radius: clamp(28px, 4vw, 44px);
+  background: linear-gradient(145deg, var(--hv-surface-2, #fff6dd), var(--hv-surface-3, #ffefc7));
+  box-shadow: 12px 18px 36px var(--hv-drop-2, #7a5a1e2b),
+    -6px -6px 20px var(--hv-hi, #fffffff2),
+    inset 5px 5px 12px var(--hv-hi, #fffffff2),
+    inset -7px -8px 18px var(--hv-shade, #b9831a21);
 }
 .upload-break[hidden], #upload-workspace[hidden] { display: none; }
 .upload-break .customer-tab-icon { flex: none; }
-.upload-break-eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; opacity: .7; }
+.upload-break-eyebrow {
+  padding: 8px 16px; border-radius: 999px; color: var(--hv-muted, #6e6243);
+  background: var(--hv-surface-2, #fff6dd);
+  box-shadow: inset 2px 2px 5px var(--hv-shade, #b9831a21),
+    inset -2px -2px 5px var(--hv-hi, #fffffff2);
+  font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+}
 .upload-break h2 { margin: 0; font-size: clamp(28px, 4vw, 42px); line-height: 1.15; }
 .upload-break p { margin: 0 0 8px; max-width: 440px; line-height: 1.6; }
+.customer-theme #main .upload-break > .pill {
+  min-height: 48px; padding: 13px 28px; border: 1px solid var(--hv-hi);
+  border-radius: 999px; color: var(--pb-accent-ink, #2a2112);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--pb-accent, #ffcf59) 55%, var(--hv-surface)), var(--pb-accent, #ffcf59));
+  box-shadow: 5px 7px 14px var(--hv-drop-2), inset 3px 3px 6px var(--hv-hi), inset -3px -4px 8px var(--hv-shade);
+  transition: box-shadow .18s ease;
+}
+.customer-theme #main .upload-break > .pill:hover {
+  box-shadow: 3px 4px 10px var(--hv-drop-2), inset 3px 3px 6px var(--hv-hi), inset -3px -4px 8px var(--hv-shade);
+}
+.customer-theme #main .upload-break > .pill:active {
+  box-shadow: inset 3px 4px 8px var(--hv-shade), inset -2px -2px 5px var(--hv-hi);
+}
+@media (prefers-reduced-motion: reduce) {
+  .customer-theme #main .upload-break > .pill { transition: none; }
+}
