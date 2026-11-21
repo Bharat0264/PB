@@ -20,7 +20,26 @@ The single most important fix: **one person can stop every new customer from sig
 
 ### Fix status (branch `security-fixes`)
 
-The top 5 were fixed on 2026-11-21, one commit each, on the local branch `security-fixes` (**not pushed, not deployed**): F-01 `397ad9f`, F-03 `9b6258f`, F-04 `f7419be`, F-06 `8d9d01e`, F-05 `d671bdd`. The test suite grew from 255 to 275 tests and passes; the full customer, warehouse, partner and admin order flow, all portals and the signed-in customer pages were re-checked. Risk after these fixes: about 2 out of 10. Still open: F-02, F-07 to F-14 and the Info items.
+Fixed on 2026-11-21 on the local branch `security-fixes` (**not pushed, not deployed**), one commit each:
+
+| Round | Findings and commits |
+| --- | --- |
+| Top 5 | F-01 `397ad9f`, F-03 `9b6258f`, F-04 `f7419be`, F-06 `8d9d01e`, F-05 `d671bdd` |
+| Remaining | F-02 `cc270f8`, F-07 `a3a4dc2`, F-08 `dbc0c57`, F-09 `51435d6`, F-10 `f58c65c`, F-11 `cf850a9`, F-12 `b116331`, F-13 `a1e554c`, F-17 `a5b9207` |
+
+Not fixed: **F-14** (needs Docker, see manual steps), **F-15** (one-line chart legend escape, not requested), **F-16** (Google Cloud setting, manual). The test suite grew from 255 to 298 tests and passes; the customer, warehouse, partner and admin order flow, all portals, the signed-in and signed-out customer pages and a Chrome CSP scan were re-checked after the last change. Risk after these fixes: about 1 out of 10.
+
+### Manual steps (things only you can do, or that need real keys, Docker or the live site)
+
+1. **Review and push.** Review `git diff main..security-fixes`, then merge or push when you are ready. Nothing has been pushed or deployed.
+2. **Render environment** (Settings > Environment). Confirm `PRINTBEE_ORIGIN` is your `https://` address: the server now refuses to start on Render without it (F-08). If you rely on the old `X-Staff-Key` header for any script, set `PRINTBEE_ALLOW_STAFF_KEYS=1` (F-07); otherwise leave it unset and, if you like, delete `staff-keys.json` from the data disk so old keys are gone. Optional: `PRINTBEE_HSTS_SUBDOMAINS=1` only if every subdomain of your domain is https (F-12); `PRINTBEE_UNPAID_ORDER_HOURS` and `PRINTBEE_CONNECTION_TIMEOUT` if you want values other than 24 and 30.
+3. **After the first deploy:** request one real sign-in email and sign in; download one invoice and check the bee logo is on it (Pillow 13, F-04); sign in as admin, warehouse and a delivery partner with Google; open an order tracking page; run `curl.exe -s -D - -o NUL https://printbee.onrender.com/pricing.html` and check for `Permissions-Policy`, `Content-Security-Policy` and `Server: PrintBee`. The first background sweep removes unpaid orders older than 24 hours (F-03), including old leftovers.
+4. **Pillow 13 with Python 3.12 (F-04).** With Docker running: `docker run --rm -v "${PWD}:/src:ro" python:3.12-slim sh -c "cp -r /src /app && cd /app && pip install -q -r requirements.txt && python -m unittest test_pdf_documents"`. Better: upgrade this PC to Python 3.12 so local tests match production, then run `pip-audit -r requirements.txt` again.
+5. **F-14 (pinning).** With Docker running: pull `python:3.12-slim`, read its digest with `docker inspect --format "{{index .RepoDigests 0}}" python:3.12-slim`, and use `FROM python:3.12-slim@sha256:...` in the Dockerfile; create a hashed lock file inside that image (`pip install pip-tools`, then `pip-compile --generate-hashes requirements.txt`) and install from it with `--require-hashes`. Run `pip-audit` before every deploy.
+6. **LibreOffice (F-09).** Do not install LibreOffice in the production image unless it runs in a locked-down container with no network access.
+7. **Google Maps key (F-16).** In Google Cloud Console > Credentials, restrict the browser key to your website address and to the Maps JavaScript API only.
+8. **Real-key flows not tested here:** Razorpay payments and webhook, Google sign-in, Twilio partner SMS (the F-10 limits are unit-tested only), S3 file storage (the unpaid-file deletion queue in F-03 is tested with a fake), and the sign-in email itself.
+9. **Later:** enforce the full script policy (`script-src` and `style-src`) once the inline admin script and inline styles are moved out (F-05 step 2); a friendlier on-page message for the 200 MB order limit and a "stop sharing" button for tracking links.
 
 ### What the audit covered
 Stack: plain Python 3 standard-library web server (`server.py`, about 2,000 lines) with SQLite, vanilla HTML/CSS/JS pages, Docker image deployed on Render. Integrations: Razorpay (payments), Google sign-in (staff portals and customers), email sign-in links (SMTP), Twilio Verify (delivery partner SMS), S3-compatible file storage (optional), Google Maps (browser key), Gemini (optional chatbot, off by default), LibreOffice (optional, to count DOCX pages).
@@ -38,22 +57,22 @@ Routes: 3 public pages families (welcome, customer app, pricing/terms), 3 staff 
 | ID | Title | Severity | File:Line |
 | --- | --- | --- | --- |
 | F-01 | One person can block all customer sign-ins (and email-bomb a victim) | **High** (**FIXED** `397ad9f`) | `customer_auth.py:135-138`, `server.py:935-938` |
-| F-02 | Sign-in form reveals which emails are staff accounts | Medium | `server.py:936-937` |
+| F-02 | Sign-in form reveals which emails are staff accounts | Medium (**FIXED** `cc270f8`) | `server.py:936-937` |
 | F-03 | Unpaid orders keep their uploaded files forever, with no total size cap | Medium (**FIXED** `9b6258f`) | `server.py:1083-1126`, `order_rules.py:13,22`, `file_retention.py:15-31` |
 | F-04 | Vulnerable Pillow image library (42 known advisories), version not pinned | Medium (**FIXED** `f7419be`) | `requirements.txt:1-3` |
 | F-05 | Content-Security-Policy is report-only, so it protects nothing yet | Medium (**FIXED** `d671bdd`) | `server.py:108-121,389` |
 | F-06 | No connection timeouts and no cap on live-update streams (easy to exhaust) | Medium (**FIXED** `8d9d01e`) | `server.py:134,691-739` |
-| F-07 | Permanent staff API keys that skip the Google login and the CSRF check | Low | `server.py:50-60,215-224,852-854` |
-| F-08 | Safety checks quietly weaken if `PRINTBEE_ORIGIN` is missing | Low | `customer_auth.py:97-103`, `server.py:241-243,1949` |
-| F-09 | Public page counter parses untrusted files (and can be kept busy) | Low | `server.py:889-890,1060-1081`, `document_pages.py:14-35` |
-| F-10 | Delivery-partner SMS limit is global, so one caller can lock everyone out | Low | `server.py:1576-1578` |
-| F-11 | Server banner and error pages disclose software and version | Low | `server.py:630-631` |
-| F-12 | Missing Permissions-Policy and a weak HSTS setting | Low | `server.py:383-398` |
-| F-13 | Order tracking link can never be revoked | Low | `server.py:633-635,596-601` |
-| F-14 | Docker image and dependencies are not pinned to exact versions | Low | `Dockerfile:1`, `requirements.txt` |
+| F-07 | Permanent staff API keys that skip the Google login and the CSRF check | Low (**FIXED** `a3a4dc2`) | `server.py:50-60,215-224,852-854` |
+| F-08 | Safety checks quietly weaken if `PRINTBEE_ORIGIN` is missing | Low (**FIXED** `dbc0c57`) | `customer_auth.py:97-103`, `server.py:241-243,1949` |
+| F-09 | Public page counter parses untrusted files (and can be kept busy) | Low (**FIXED** `51435d6`) | `server.py:889-890,1060-1081`, `document_pages.py:14-35` |
+| F-10 | Delivery-partner SMS limit is global, so one caller can lock everyone out | Low (**FIXED** `f58c65c`) | `server.py:1576-1578` |
+| F-11 | Server banner and error pages disclose software and version | Low (**FIXED** `cf850a9`) | `server.py:630-631` |
+| F-12 | Missing Permissions-Policy and a weak HSTS setting | Low (**FIXED** `b116331`) | `server.py:383-398` |
+| F-13 | Order tracking link can never be revoked | Low (**FIXED** `a1e554c`) | `server.py:633-635,596-601` |
+| F-14 | Docker image and dependencies are not pinned to exact versions | Low (**NOT FIXED: manual**) | `Dockerfile:1`, `requirements.txt` |
 | F-15 | Chart legend inserts text into the page without escaping | Info | `admin-dashboard.js:154` |
 | F-16 | Google Maps key is public by design; check it is restricted | Info | `server.py:2065-2067` |
-| F-17 | `.claude/` folder is not in `.gitignore` | Info | `.gitignore` |
+| F-17 | `.claude/` folder is not in `.gitignore` | Info (**FIXED** `a5b9207`) | `.gitignore` |
 
 ## 3. Findings in detail
 
@@ -95,6 +114,8 @@ return self.json_response(*auth.request_link(db, data["email"], self.client_ip()
 Also consider a bot check (for example Cloudflare Turnstile) on the sign-in form.
 
 ### F-02: Sign-in form reveals which emails are staff accounts (Medium)
+**Status: FIXED** in commit `cc270f8` (branch `security-fixes`, not pushed). A staff email now gets the same answer and the same rate limits as any other email, and no sign-in email is sent for it (staff use their portal). The "This email is a staff account" message is gone. Locally the normal-email answer was 503 only because the test server has no mail server; on the live site both answers are 200.
+
 **The problem.** If you type a staff email into the customer sign-in box, the server answers "This email is a staff account". Anyone can test email addresses and learn who your admin and warehouse people are.
 
 **Attack.** An attacker tries likely emails (`owner@…`, `admin@…`), sees which return the staff message, and then targets those people with phishing or Google-account attacks.
@@ -231,6 +252,8 @@ def event_stream(self):
 (Keep the read timeout from breaking the long-lived writes: streams only write, so it is safe.)
 
 ### F-07: Permanent staff API keys skip the Google login and the CSRF check (Low)
+**Status: FIXED** in commit `a3a4dc2` (branch `security-fixes`, not pushed). The `X-Staff-Key` header is ignored unless `PRINTBEE_ALLOW_STAFF_KEYS=1` is set (README updated). With it off, a copy of the key file opens nothing (admin, warehouse and partner calls return 403), and a fake header can no longer skip the same-origin check. The key file is now created readable by the server user only. Google sign-in is unchanged (order flow and all portals re-checked on the demo server, which has no keys enabled).
+
 **The problem.** Besides Google sign-in, the server accepts a long random key in the `X-Staff-Key` header for the warehouse, admin and delivery roles. These keys are created once, never expire, are stored as plain text in `staff-keys.json` on the data volume, and `Show Staff Keys.cmd` prints them. Anyone who gets one key has full admin power until you delete the file. Actions made with a key are logged only as "admin", not as a person.
 
 **Attack.** A leaked backup, log, or a copied key from a laptop gives permanent admin access that no one can notice or revoke without editing the server.
@@ -254,6 +277,8 @@ if key and os.environ.get("PRINTBEE_ALLOW_STAFF_KEYS") == "1":
 and delete `staff-keys.json` on the live disk (the file is recreated, but the header is then ignored). If you keep the keys, rotate them regularly.
 
 ### F-08: Safety checks quietly weaken if `PRINTBEE_ORIGIN` is missing (Low)
+**Status: FIXED** in commit `dbc0c57` (branch `security-fixes`, not pushed). A server listening on a public address now refuses to start unless `PRINTBEE_ORIGIN` is an `https://` address. Test payments are allowed only with a local origin, or on a loopback-only server with no origin (so `Start PrintBee.cmd` still works). Checked: `python server.py --host 0.0.0.0` with no origin prints the refusal and exits.
+
 **The problem.** Three protections depend on one environment variable, `PRINTBEE_ORIGIN`: (a) the `Secure` flag on cookies, (b) the CSRF origin check, (c) the block on fake "test" payments. If it is empty, cookies are sent without `Secure`, the CSRF check compares the browser's `Origin` with the request's own `Host` header (which an attacker controls), and test payments (which mark orders paid without money) are still allowed because a missing hostname is accepted.
 
 **Proof:**
@@ -275,6 +300,8 @@ if payment_mode == "test" and urlsplit(auth.public_origin()).hostname not in ("l
 ```
 
 ### F-09: Public page counter parses untrusted files (Low)
+**Status: FIXED** in commit `51435d6` (branch `security-fixes`, not pushed). The public page counter allows one file at a time and 120 files per 10 minutes per visitor address (generous, because a whole campus can share one address; the 20 suggested in this report would have blocked students), with room for 3 files at once overall. Replay: an attacker holding a hung upload is refused (503) on every further try, while a student on another address still gets 200. The LibreOffice point is a manual step (it is not installed in production).
+
 **The problem.** `POST /api/checkout/pages` needs no login and accepts files up to 50 MB. Only 2 can be processed at once (the others get "busy"), so one visitor can keep both slots busy and break page counting for everybody. PDFs are parsed by `pypdf`; DOCX files are converted by LibreOffice **if it is installed** (the Docker image does not install it, so on live DOCX page counting is skipped). If you ever add LibreOffice, you will be opening untrusted Word files on a public endpoint (external links, macros, parser bugs).
 
 **Proof:**
@@ -288,6 +315,8 @@ subprocess.run([executable, ... "--headless", "--convert-to", "pdf", ...], timeo
 **Fix.** Add a per-IP limit (reuse `support.check_rate`-style counters, for example 20 per 10 minutes). If you add LibreOffice, run it in a locked-down container with no network, and keep the 30-second timeout.
 
 ### F-10: Delivery-partner SMS limit is global (Low)
+**Status: FIXED** in commit `f58c65c` (branch `security-fixes`, not pushed). Partner SMS sign-in is now limited per visitor address (20) and per phone (5) per 10 minutes; the site-wide number is only an emergency brake (1000). Replay: 200 attempts from one address are cut off after 20 and a partner on another address is still allowed. Not tested against real Twilio (needs keys).
+
 **The problem.** The phone sign-in limiter refuses everyone once 150 attempts exist in 10 minutes. One caller can hit that and stop all partners from signing in by phone. (Same pattern as F-01.)
 
 **Proof:**
@@ -299,6 +328,8 @@ if total >= 150 or count >= 5 or (action == "send" and last and last > now - 60)
 **Fix.** Add an IP-based scope (`scope = action + ":ip:" + self.client_ip()`) with its own small limit, and keep the global number only as a high emergency brake.
 
 ### F-11: Server banner and error pages disclose software and version (Low)
+**Status: FIXED** in commit `cf850a9` (branch `security-fixes`, not pushed). The `Server` header is now just `PrintBee` (it was `SimpleHTTP/0.6 Python/3.10.0`) on pages, API responses and error pages.
+
 **The problem.** Responses include `Server: SimpleHTTP/0.6 Python/3.10.0` (the live server answers HEAD with `405`), and Python's built-in HTML error pages are used for unknown URLs. This tells attackers exactly which software and version to target.
 
 **Proof:**
@@ -316,6 +347,8 @@ class PrintBee(SimpleHTTPRequestHandler):
 (This was also reported earlier as BUG-012 and BUG-013.)
 
 ### F-12: Missing Permissions-Policy and weak HSTS setting (Low)
+**Status: FIXED** in commit `b116331` (branch `security-fixes`, not pushed). Added `Permissions-Policy: camera=(), microphone=(), geolocation=(self), usb=(), display-capture=()`. Location stays on (address pin, delivery tracking) and `payment` is deliberately not restricted, because Razorpay's checkout window needs it. Checked in Chrome: geolocation works, camera and microphone are blocked, no new console warnings on 11 pages across all roles. HSTS `includeSubDomains` is opt-in with `PRINTBEE_HSTS_SUBDOMAINS=1` (see manual steps).
+
 **The problem.** The new security headers do not include `Permissions-Policy` (to switch off camera, microphone and so on), and HSTS has no `includeSubDomains`. Low impact because the site does not use those features.
 
 **Proof:**
@@ -332,6 +365,8 @@ wanted["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
 (Add `includeSubDomains` only if every subdomain of your domain is https. `geolocation=(self)` is kept because delivery partners share their location.)
 
 ### F-13: Order tracking link can never be revoked (Low)
+**Status: FIXED** in commit `a1e554c` (branch `security-fixes`, not pushed). A shared tracking link now stops working 30 days after the order was placed, or one day after it was delivered, cancelled or refunded; the owner's own view is unaffected and an expired link shows the page's existing "This order is unavailable" message. A per-order "stop sharing" button was not built (it needs a page change).
+
 **The problem.** The shareable tracking key is computed from the order id and a server secret. It is permanent, and there is no way to cancel one that was shared by mistake. It only shows status, order number and whether payment started, so the damage is small.
 
 **Proof:**
@@ -344,6 +379,8 @@ def tracking_key(self, order_id):
 **Fix.** Store a random per-order tracking key (with an "expires" date) in the database instead, or stop answering the key once the order is delivered.
 
 ### F-14: Docker image and dependencies are not pinned (Low)
+**Status: NOT FIXED here.** Pinning the base image by digest and creating a hashed lock file needs Docker and a registry lookup (Docker was not running, and a guessed digest or platform hash could break your deploy). Exact steps are under "Manual steps" below.
+
 **The problem.** `python:3.12-slim` moves over time and the app's transitive dependencies (such as Pillow, F-04) are whatever is newest on build day. A bad upstream release or a vulnerable one is installed automatically on the next deploy.
 
 **Proof:**
@@ -354,6 +391,8 @@ FROM python:3.12-slim
 **Fix.** Pin the base image by digest, keep a full lock file (`pip-compile --generate-hashes`), and run `pip-audit` before each deploy.
 
 ### F-15: Chart legend inserts text without escaping (Info)
+**Status: not changed** (not in the requested list; a one-line fix).
+
 **The problem.** `entry.name` is placed into HTML unescaped. Today it is fixed text from the code, so there is no attack, but if a name ever comes from user data it would become cross-site scripting.
 
 **Proof:**
@@ -364,9 +403,13 @@ FROM python:3.12-slim
 **Fix.** `${escape(entry.name)}` (the file already defines `escape` at line 34).
 
 ### F-16: Google Maps key is public by design (Info)
+**Status: manual step** (it is a Google Cloud setting).
+
 The Maps key must be in the browser, so anyone can read it from `/api/checkout` (`server.py:2065-2067`). That is normal, but **check in Google Cloud that the key is restricted to your website address and only to the Maps JavaScript API**, otherwise others can run up your bill.
 
 ### F-17: `.claude/` is not ignored by git (Info)
+**Status: FIXED** in commit `a5b9207` (branch `security-fixes`, not pushed). `.claude/` is now in `.gitignore`; `git status` no longer lists it.
+
 `git status` shows `.claude/` as untracked. It holds local tool settings and can contain private paths or approvals. **Fix:** add `.claude/` to `.gitignore`.
 
 ## 4. Fix first (top 5)
