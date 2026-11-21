@@ -594,6 +594,8 @@
     // The phone dock is created by another script after this one, so look again as the page settles and when it resizes.
     for (const event of ['load', 'resize', 'orientationchange', 'pageshow']) addEventListener(event, place);
     addEventListener('resize', fitViewport);
+    addEventListener('pageshow', fitViewport);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) fitViewport(); });
     addEventListener('scroll', placeSoon, {passive: true});                // a sticky bar can slide under the bee as the page scrolls
     setInterval(() => { if (!document.hidden && sheet.hidden) place(); }, 1500);
   };

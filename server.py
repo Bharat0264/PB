@@ -357,10 +357,13 @@ class PrintBee(SimpleHTTPRequestHandler):
             self.cookie_sent = True
             for value in self.renewed_cookies:
                 super().send_header("Set-Cookie", value)
-        # Revalidate page markup so all pages use the current navigation.
+        # Revalidate markup and UI code: browsers may otherwise keep scripts
+        # heuristically cached after a deployment, even when the page is current.
         path = urlsplit(self.path).path
         if path == "/" or path.endswith(".html"):
             self.send_header("Cache-Control", "no-cache")
+        elif path.endswith((".js", ".css")):
+            self.send_header("Cache-Control", "no-cache, must-revalidate")
         super().end_headers()
 
     def do_GET(self):
