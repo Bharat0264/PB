@@ -104,6 +104,22 @@ def active_checkout_terms(db, default):
 
 
 # What each audience may see. Allowlists, so a field added to the stored settings later stays private until it is listed here.
+# A strict policy, sent in REPORT-ONLY mode: browsers log what it would block but nothing is blocked yet.
+CSP_REPORT_ONLY = "; ".join((
+    "default-src 'self'",
+    "script-src 'self' https://checkout.razorpay.com https://maps.googleapis.com",
+    "style-src 'self'",
+    "img-src 'self' data: blob: https://maps.gstatic.com https://maps.googleapis.com",
+    "font-src 'self'",
+    "connect-src 'self' blob: https://maps.googleapis.com https://lumberjack.razorpay.com",
+    "frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com",
+    "worker-src 'self' blob:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'self'",
+))
+
 PUBLIC_TERMS = ("paperRates", "bindingRates", "slots", "campuses")          # what the public checkout config needs
 WAREHOUSE_ORDER_FIELDS = ("address", "bill", "campusId", "coupon", "customer", "deliveryType", "items", "notes", "phone",
                           "pickupWarehouse", "priority", "slot", "subtotal")   # no delivery partner payout
@@ -332,10 +348,12 @@ class PrintBee(SimpleHTTPRequestHandler):
     session_state = "none"
     renewed_cookies = ()
     cookie_sent = False
+    headers_sent = frozenset()
 
     def parse_request(self):
         """Every API call counts as activity: it slides the customer's 7-day session window forward."""
         self.session_state, self.renewed_cookies, self.cookie_sent = "none", (), False
+        self.headers_sent = frozenset()
         if not super().parse_request():
             return False
         path = urlsplit(self.path).path
@@ -359,9 +377,26 @@ class PrintBee(SimpleHTTPRequestHandler):
     def send_header(self, keyword, value):
         if keyword.lower() == "set-cookie" and str(value).startswith(auth.COOKIE + "="):
             self.cookie_sent = True
+        self.headers_sent = self.headers_sent | {keyword.lower()}
         super().send_header(keyword, value)
 
+    def security_headers(self):
+        """Headers that go on every response. Anything a route already set itself is left alone."""
+        wanted = {
+            "X-Content-Type-Options": "nosniff",
+            "Referrer-Policy": "strict-origin-when-cross-origin",
+            "X-Frame-Options": "SAMEORIGIN",          # navigation.html and the phone tabs frame our own pages
+            "Content-Security-Policy-Report-Only": CSP_REPORT_ONLY,
+        }
+        secure = auth.public_origin().startswith("https://") or self.headers.get("X-Forwarded-Proto", "").lower() == "https"
+        if secure:
+            wanted["Strict-Transport-Security"] = "max-age=31536000"
+        for name, value in wanted.items():
+            if name.lower() not in self.headers_sent:
+                self.send_header(name, value)
+
     def end_headers(self):
+        self.security_headers()
         if self.renewed_cookies and not self.cookie_sent:
             self.cookie_sent = True
             for value in self.renewed_cookies:
