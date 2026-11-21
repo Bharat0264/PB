@@ -28,6 +28,8 @@ Live and local behaved identically in every comparison, except that live runs re
 
 ### BUG-001: Any file type can be uploaded and ordered (.exe, .txt, corrupt PDFs)
 - Severity: High
+- **Status: FIXED** (commit `fix(BUG-001)`). New module `upload_types.py`: only PDF, DOCX, JPG/JPEG and PNG pass, and each file must pass three checks: extension, the MIME type the browser declared (generic or empty is allowed only if the content check passes), and the real content (magic bytes; a DOCX must be a ZIP holding `word/document.xml`, with a 300 MB unpacked limit). 50 MB maximum. Enforced on the server in three places: order creation (`order_rules.quote_items` refuses other extensions), the file upload route (`415` with a clear message) and the page-count route. The upload page now has an `accept` list and gives a friendly message before anything is sent.
+- **Verified:** in a real browser against the demo and plain servers, `virus.exe`, `notes.txt` and an `.exe` renamed to `.pdf` were all refused with a clear message; a real PDF, PNG and DOCX were accepted together; a mixed pick kept the good file and explained the refused one. Straight to the API (bypassing the page), an exe sent as PDF, a text file sent as PDF and an exe sent as DOCX all got `415`. Order creation with `virus.exe` or `notes.txt` returned `400`. The full order, warehouse, delivery and admin lifecycle still ran. 10 new tests in `test_upload_types.py`.
 - Area: Upload page, cart, order creation, warehouse download
 - Steps to reproduce:
   1. Open `/upload`.

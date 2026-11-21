@@ -151,6 +151,29 @@ const imageFormats = new Map([
   ['gif', 'image/gif'], ['webp', 'image/webp'], ['bmp', 'image/bmp'],
   ['avif', 'image/avif'],
 ]);
+// Friendly early check. The server repeats it (upload_types.py) and is the one that counts.
+const allowedFiles = new Map([
+  ['pdf', ['application/pdf']], ['docx', ['application/vnd.openxmlformats-officedocument.wordprocessingml.document']],
+  ['jpg', ['image/jpeg']], ['jpeg', ['image/jpeg']], ['png', ['image/png']],
+]);
+const looksReal = {
+  pdf: bytes => new TextDecoder('latin1').decode(bytes).includes('%PDF-'),
+  docx: bytes => bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 3 && bytes[3] === 4,
+  jpg: bytes => bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff,
+  png: bytes => [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every((value, index) => bytes[index] === value),
+};
+async function fileProblem(file) {
+  const extension = file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : '';
+  const types = allowedFiles.get(extension);
+  const unsupported = ' can’t be added. Only PDF, DOCX, JPG and PNG files are supported.';
+  if (!types) return '“' + file.name + '”' + unsupported;
+  if (file.type && file.type !== 'application/octet-stream' && !types.includes(file.type)) return '“' + file.name + '”' + unsupported;
+  const kind = extension === 'jpeg' ? 'jpg' : extension;
+  const bytes = new Uint8Array(await file.slice(0, 1024).arrayBuffer());
+  if (!looksReal[kind](bytes)) return '“' + file.name + '” is not a real ' + kind.toUpperCase() + ' file, so it can’t be added.';
+  return '';
+}
+
 let draftFiles = [];
 let nextDraftId = 0;
 let pdfPageQueue = Promise.resolve();
@@ -249,18 +272,24 @@ if (addMore) {
   addMore.className = 'review-add';
   reviewGrid.append(addMore);
 }
-function reviewFiles(files) {
+async function reviewFiles(chosen) {
   if (fileInput.disabled) return;
-  if (!files.length) return;
+  if (!chosen.length) return;
+  const refused = [];
+  const files = [];
+  for (const file of chosen) {
+    const problem = await fileProblem(file);
+    if (problem) refused.push(problem); else files.push(file);
+  }
   const invalid = files.find(file => !file.size || file.size > maxFileSize);
   if (invalid || draftFiles.length + files.length > maxOrderFiles) {
     status.textContent = invalid ? invalid.name + ' must be non-empty and no larger than 50 MB.' : 'You can review up to 100 files at a time.';
     return;
   }
   for (const file of files) addDraft(file);
-  review.hidden = false;
-  status.textContent = '';
-  updateDraftTotal();
+  review.hidden = draftFiles.length === 0;
+  status.textContent = refused.join(' ');
+  if (files.length) updateDraftTotal();
 }
 fileInput?.addEventListener('change', async () => {
   const files = Array.from(fileInput.files);

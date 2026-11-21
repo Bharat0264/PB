@@ -1,4 +1,5 @@
 """PrintBee's server-side pricing rules. Prices are integer paise."""
+from upload_types import check_name
 RATES = (175, 300, 850, 1400)
 # Bond paper (heavier, whiter sheet for project reports): black & white single/double, colour single/double.
 BOND_RATES = (300, 550, 1200, 2000)
@@ -22,6 +23,7 @@ def quote_items(items, paper_rates=None, binding_rates=None):
                 and item["orientation"] in ("Portrait", "Landscape")
                 and isinstance(item["name"], str) and 1 <= len(item["name"]) <= 255):
             raise ValueError("Invalid file options.")
+        check_name(item["name"])          # only PDF, DOCX, JPG and PNG can be ordered
         binding = item.get("binding", "none")
         if not isinstance(binding, str) or binding not in binding_rates:
             raise ValueError("Invalid binding.")

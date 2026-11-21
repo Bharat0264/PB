@@ -30,6 +30,7 @@ import partner_auth
 import razorpay_checkout
 from checkout_terms import DeliveryQuoteError, bill_for, configured_terms, coordinates, delivery_terms, require_pickup_coordinates, validate_terms
 from document_pages import count_pages
+from upload_types import validate_upload
 from order_documents import PrivateFiles, invoice_pdf, packing_label_pdf
 from order_rules import LIMIT, TRANSITIONS, advance_order, quote_items
 
@@ -1028,6 +1029,10 @@ class PrintBee(SimpleHTTPRequestHandler):
             kind = parse_qs(urlsplit(self.path).query).get("format", ["pdf"])[0]
             if kind not in ("pdf", "docx"):
                 raise ValueError("Unsupported document format.")
+            try:
+                validate_upload("document." + kind, body, self.headers.get("Content-Type"))
+            except ValueError as error:
+                return self.json_response(415, {"error": str(error)})
             pages = count_pages("document." + kind, body)
         finally:
             DOCUMENT_READERS.release()
@@ -1047,6 +1052,10 @@ class PrintBee(SimpleHTTPRequestHandler):
             if len(body) != length:
                 raise ValueError()
             item = items[position]
+            try:
+                validate_upload(item["name"], body, self.headers.get("Content-Type"))
+            except ValueError as error:
+                return self.json_response(415, {"error": str(error)})
             if not DOCUMENT_READERS.acquire(blocking=False):
                 return self.json_response(503, {"error": "Page counting is busy. Try again."})
             try:

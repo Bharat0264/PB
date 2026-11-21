@@ -19,7 +19,7 @@
 <link rel="stylesheet" href="/status-model.css?v=2">
 <script src="/status-model.js?v=1" defer></script>
 <script src="/live.js?v=1" defer></script>
-<script src="studio.js?v=file-retention" defer></script>
+<script src="studio.js?v=file-retention-upload-types" defer></script>
 <link rel="stylesheet" href="/hive-theme.css?v=soft-focus">
 <link rel="stylesheet" href="/customer-theme.css?v=clean-1">
 <link rel="stylesheet" href="/theme-engine.css?v=4">
@@ -59,17 +59,17 @@
     </div>
     <div class="upload-card">
       <form id="queue-form">
-        <input class="upload-input" id="document-file" type="file" aria-describedby="upload-hint" multiple>
+        <input class="upload-input" id="document-file" type="file" accept=".pdf,.docx,.jpg,.jpeg,.png,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png" aria-describedby="upload-hint" multiple>
         <label class="upload-panel upload-picker" for="document-file">
           <span class="upload-drop-hint">
             <span class="upload-orb" aria-hidden="true"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"/><path d="M5 14v3.5A2.5 2.5 0 0 0 7.5 20h9a2.5 2.5 0 0 0 2.5-2.5V14"/></svg></span>
             <strong>Drop your files here, or tap to choose</strong>
-            <small id="upload-hint">PDF, Word or images · up to 50 MB per file</small>
+            <small id="upload-hint">PDF, DOCX, JPG or PNG · up to 50 MB per file</small>
           </span>
         </label>
         <section class="file-review" id="file-review" aria-labelledby="review-title" hidden>
           <h2 id="review-title">Review your files</h2>
-          <p class="review-note">PDF and Word files are sent to PrintBee to count pages. Files are saved with your order at checkout.</p>
+          <p class="review-note">PDF and DOCX files are sent to PrintBee to count pages. Files are saved with your order at checkout.</p>
           <div id="review-grid" class="review-grid"></div>
           <div id="review-settings"></div>
           <div class="review-actions review-summary">
