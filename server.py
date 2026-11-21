@@ -308,6 +308,10 @@ class PrintBee(SimpleHTTPRequestHandler):
         origin = auth.public_origin() or f"http://{self.headers.get('Host')}"
         return self.headers.get("Origin") == origin
 
+    def same_origin_json(self):
+        """Same origin AND a JSON body: what every cookie-authenticated JSON POST must be."""
+        return self.same_origin() and self.headers.get_content_type() == "application/json"
+
     def get_partner(self):
         key = self.staff_key().encode()
         partner = next((name for name, secret in self.server.partners.items()
@@ -722,10 +726,8 @@ class PrintBee(SimpleHTTPRequestHandler):
         return hmac.digest(secret, ("tracking:" + order_id).encode(), "sha256").hex()
 
     def customer_notifications(self, mark_read=False):
-        if mark_read:
-            origin = auth.public_origin() or f"http://{self.headers.get('Host')}"
-            if self.headers.get("Origin") != origin:
-                return self.json_response(403, {"error": "Open PrintBee directly and try again."})
+        if mark_read and not self.same_origin():
+            return self.json_response(403, {"error": "Open PrintBee directly and try again."})
         with closing(connect()) as db, db:
             email = auth.session_email(db, self.headers)
             if not email:
@@ -1031,9 +1033,7 @@ class PrintBee(SimpleHTTPRequestHandler):
             self.json_response(400, {"error": "Check the order details and try again."})
 
     def customer_auth(self, path):
-        origin = self.headers.get("Origin")
-        expected = auth.public_origin() or f"http://{self.headers.get('Host')}"
-        if origin != expected or self.headers.get_content_type() != "application/json":
+        if not self.same_origin_json():
             return self.json_response(403, {"error": "Open PrintBee directly and try again."})
         length = int(self.headers.get("Content-Length", "0"))
         if not 0 < length <= 4096:
@@ -1672,8 +1672,7 @@ class PrintBee(SimpleHTTPRequestHandler):
         )})
 
     def verify_partner_phone(self, action):
-        origin = auth.public_origin() or f"http://{self.headers.get('Host')}"
-        if self.headers.get("Origin") != origin or self.headers.get_content_type() != "application/json":
+        if not self.same_origin_json():
             return self.json_response(403, {"error": "Open PrintBee directly and try again."})
         if action == "logout":
             with closing(connect()) as db, db:
@@ -1827,10 +1826,8 @@ class PrintBee(SimpleHTTPRequestHandler):
         area = path.split("/")[2]
         role = {"admin": "admin", "partner": "delivery"}[area]
         partner = self.get_partner() if area == "partner" else None
-        if area == "partner" and not self.staff_key():
-            origin = auth.public_origin() or f"http://{self.headers.get('Host')}"
-            if self.headers.get("Origin") != origin or self.headers.get_content_type() != "application/json":
-                return self.json_response(403, {"error": "Open PrintBee directly and try again."})
+        if area == "partner" and not self.staff_key() and not self.same_origin_json():
+            return self.json_response(403, {"error": "Open PrintBee directly and try again."})
         if not (partner if area == "partner" else self.get_role() == role):
             return self.json_response(403, {"error": "This account cannot perform this action."})
         length = int(self.headers.get("Content-Length", "0"))
