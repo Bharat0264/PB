@@ -100,8 +100,15 @@ main.inner-page .tracking-top h1 { margin:0; font:800 clamp(18px,2.8vw,25px)/1.2
 .track-list-row .order-actions { display:flex; flex-wrap:wrap; gap:8px; margin:0; }
 .track-list-row .order-actions a:first-child { background:var(--hv-warning-bg); color:var(--hv-warning-ink); }
 .track-empty { display:grid; justify-items:center; text-align:center; gap:8px; }
-.track-empty-icon { display:grid; place-items:center; width:96px; height:96px; margin-bottom:8px; border-radius:50%; color:var(--hv-honey-ink); background:var(--hv-honey-grad); box-shadow:var(--hv-sh-1); }
-.track-empty-icon svg { display:block; width:44px; height:44px; }
+/* A soft clay badge and the same compact title scale as the address empty state. */
+.track-empty-icon { display:grid; place-items:center; width:96px; height:96px; margin-bottom:8px; border-radius:50%; color:var(--hv-honey-ink);
+  background:linear-gradient(145deg,#fff8de,#f9e6a5 52%,#edcd73);
+  box-shadow:8px 10px 22px #6e50282b,-6px -6px 16px #fffdf6b3,inset 3px 3px 8px #ffffffc7,inset -5px -6px 12px #b0832233; }
+.track-empty-icon svg { display:block; width:44px; height:44px; filter:drop-shadow(0 1px 0 #ffffff9e); }
+#orders .track-empty h2 { margin:12px 0 0; color:var(--hv-ink); font-family:inherit; font-size:19px; font-weight:700; line-height:1.4; letter-spacing:-.01em; }
+[data-theme="dark"] .track-empty-icon { background:linear-gradient(145deg,var(--hv-surface-3),var(--hv-surface));
+  box-shadow:7px 9px 20px var(--hv-drop),-4px -4px 12px var(--hv-hi),inset 3px 3px 7px var(--hv-hi),inset -4px -5px 10px var(--hv-shade); }
+[data-theme="dark"] .track-empty-icon svg { filter:drop-shadow(0 1px 1px #0006); }
 @keyframes track-pulse { 50% { opacity:.7; transform:scale(.92); } }
 @keyframes track-hover { 50% { translate:0 -3px; } }
 @keyframes track-feed { 0%,100% { scale:1 .35; } 55%,72% { scale:1 1; } }
