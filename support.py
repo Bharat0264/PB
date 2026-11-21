@@ -129,10 +129,8 @@ TRANSITIONS = {
     "resolved": {"open", "in_progress", "closed"},       # reopen, or finish
     "closed": {"open"},                                  # only a reopen
 }
-ACTIVE = ("open", "in_progress", "pending")
 PRIORITIES = ("low", "normal", "high", "urgent")
 SOURCES = ("customer", "buzz", "admin", "runner")
-CUSTOMER_VISIBLE = ("customer", "agent")
 MAX_OPEN_PER_CUSTOMER = 5
 MAX_MESSAGES = 300
 
@@ -843,10 +841,6 @@ RUNNER_PROBLEMS = {
     "pickup_problem": ("Pickup problem", "high"),
     "safety": ("Safety issue", "urgent"),             # always urgent, which also emails the owner at once
 }
-
-
-def runner_problem_kinds():
-    return [{"key": key, "label": label} for key, (label, _) in RUNNER_PROBLEMS.items()]
 
 
 def create_runner_ticket(db, partner_id, order_id, kind, note=""):

@@ -161,7 +161,6 @@ def purge(db, now=None):
 EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 LONG_NUMBER = re.compile(r"(?<![\w.])(?:\d[ -]?){10,19}(?!\w)")
 CODE_AFTER_WORD = re.compile(r"(?i)\b(otp|code|pin|cvv|password|passcode)\b([^0-9\n]{0,12})(\d{3,8})\b")
-BARE_CODE = re.compile(r"(?<![\w.])\d{4,6}(?![\w.])")
 SECRET_KEY = re.compile(r"\b[0-9a-fA-F]{32,}\b")                                    # an order key or an internal id
 PAYMENT_ID = re.compile(r"(?i)\b(?:pay|order|rfnd|refund|rzp|txn|plink)_[A-Za-z0-9]{6,}\b")
 UPI_ID = re.compile(r"(?i)(?<![\w@])[\w.-]{2,}@[a-z][a-z0-9]{1,20}\b(?!\.)")

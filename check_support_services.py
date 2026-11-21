@@ -16,7 +16,6 @@ from email.message import EmailMessage
 
 from customer_auth import public_origin
 
-REQUIRED_STORAGE = ["PRINTBEE_S3_BUCKET"]
 REQUIRED_SMTP = ["PRINTBEE_SMTP_HOST", "PRINTBEE_SMTP_FROM"]
 
 

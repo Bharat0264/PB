@@ -19,7 +19,7 @@ def build_message(ticket, origin):
     """(subject, body) for one staff reply."""
     subject = f"PrintBee support · reply on {ticket['ticket_number']}"
     body = "\n".join([
-        f"Hello,",
+        "Hello,",
         "",
         f"PrintBee Support replied to your ticket {ticket['ticket_number']}: {ticket['subject']}",
         "",

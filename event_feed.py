@@ -7,7 +7,6 @@ the event, the status change and the time. Never customer details, addresses or 
 # What a delivery partner may learn about an order that is not (or no longer) theirs: only that
 # something changed on an order that reached the ready pool, so their list can refresh.
 PARTNER_POOL_EVENTS = ("packed", "delivery_accepted", "delivery_reassigned", "order_cancelled", "refund_requested")
-AUDIENCES = ("admin", "warehouse", "partner", "customer")
 
 
 def latest(db):

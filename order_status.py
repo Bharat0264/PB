@@ -62,8 +62,6 @@ EVENT_LABELS = {
     "refund.failed": "Refund needs assistance", "print_job_recovered": "Print job recovered",
 }
 
-ROLES = ("customer", "warehouse", "partner", "admin", "system", "razorpay", "checkout")
-
 
 def allowed(old, new):
     return old == new or new in TRANSITIONS.get(old, {})
