@@ -66,8 +66,7 @@ if ($('ordering-control')) $('ordering-control').onclick = async () => {
   button.setAttribute('aria-busy', 'true');
   try {
     source.info.ordering = await source.api('/api/admin/ordering', {paused: !source.info.ordering.orderingPaused});
-    $('notice').textContent = source.info.ordering.orderingPaused ?
-      'New website orders are paused. Existing orders can still be fulfilled.' :
+    $('notice').textContent = source.info.ordering.orderingPaused ? '' :
       source.info.ordering.serviceOpen ? 'Website orders are open.' : 'Pause removed. Orders will reopen when a warehouse opens.';
   } catch (error) {
     $('notice').textContent = error.message;
