@@ -58,6 +58,7 @@ def staff_keys():
     if updated != keys:
         temporary = path.with_suffix(".tmp")
         temporary.write_text(json.dumps(updated), encoding="utf-8")
+        temporary.chmod(0o600)          # only the server's own user may read the keys
         temporary.replace(path)
     return updated
 
@@ -242,8 +243,13 @@ class PrintBee(SimpleHTTPRequestHandler):
             current = current or "partner"
         return customer, holders, current
 
+    def staff_key(self):
+        """The X-Staff-Key header, honoured only when the owner switched staff API keys on (PRINTBEE_ALLOW_STAFF_KEYS=1).
+        Otherwise it is treated as not sent: staff sign in with Google, which names the person and can be revoked."""
+        return self.headers.get("X-Staff-Key", "") if getattr(self.server, "staff_keys_enabled", False) else ""
+
     def get_role(self):
-        key = self.headers.get("X-Staff-Key", "").encode()
+        key = self.staff_key().encode()
         if key:
             return next((role for role, secret in self.server.keys.items()
                          if role != "delivery-code" and hmac.compare_digest(key, secret.encode())), None)
@@ -273,7 +279,7 @@ class PrintBee(SimpleHTTPRequestHandler):
         return self.headers.get("Origin") == origin
 
     def get_partner(self):
-        key = self.headers.get("X-Staff-Key", "").encode()
+        key = self.staff_key().encode()
         partner = next((name for name, secret in self.server.partners.items()
                         if hmac.compare_digest(key, secret.encode())), None)
         if partner:
@@ -710,7 +716,7 @@ class PrintBee(SimpleHTTPRequestHandler):
     def event_audience(self, wanted):
         """(audience, identity) for the signed-in role the client asked to follow, else None."""
         if wanted in ("admin", "warehouse"):
-            key = self.headers.get("X-Staff-Key", "").encode()
+            key = self.staff_key().encode()
             if key:
                 role = next((name for name, secret in self.server.keys.items()
                              if name != "delivery-code" and hmac.compare_digest(key, secret.encode())), None)
@@ -901,7 +907,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                         return self.json_response(200, {"path": destination})
                     cookie = auth.portal_session(db, self.headers, holders[target], target)
                 return self.json_response(200, {"path": destination}, cookie)
-            if path.startswith(("/api/staff/", "/api/admin/")) and not self.headers.get("X-Staff-Key"):
+            if path.startswith(("/api/staff/", "/api/admin/")) and not self.staff_key():
                 if not self.same_origin():
                     return self.json_response(403, {"error": "Open PrintBee directly and try again."})
             if path == "/api/staff/availability":
@@ -1301,13 +1307,13 @@ class PrintBee(SimpleHTTPRequestHandler):
             if area == "admin":
                 if self.get_role() != "admin":
                     return self.json_response(403, {"error": "Admin access is required."})
-                actor = "admin" if self.headers.get("X-Staff-Key") else auth.portal_google_email(db, self.headers, "admin") or "admin"
+                actor = "admin" if self.staff_key() else auth.portal_google_email(db, self.headers, "admin") or "admin"
                 email = None
             elif area == "staff":
                 role = self.get_role()
                 if role not in ("warehouse", "admin"):
                     return self.json_response(403, {"error": "Warehouse access is required."})
-                actor = role if self.headers.get("X-Staff-Key") else auth.portal_google_email(db, self.headers, "warehouse") or role
+                actor = role if self.staff_key() else auth.portal_google_email(db, self.headers, "warehouse") or role
                 email = None
             else:
                 email = auth.session_email(db, self.headers)
@@ -1766,7 +1772,7 @@ class PrintBee(SimpleHTTPRequestHandler):
         area = path.split("/")[2]
         role = {"admin": "admin", "partner": "delivery"}[area]
         partner = self.get_partner() if area == "partner" else None
-        if area == "partner" and not self.headers.get("X-Staff-Key"):
+        if area == "partner" and not self.staff_key():
             origin = auth.public_origin() or f"http://{self.headers.get('Host')}"
             if self.headers.get("Origin") != origin or self.headers.get_content_type() != "application/json":
                 return self.json_response(403, {"error": "Open PrintBee directly and try again."})
@@ -1785,7 +1791,7 @@ class PrintBee(SimpleHTTPRequestHandler):
             if path in ("/api/admin/offline-orders", "/api/admin/warehouses"):
                 if not isinstance(data, dict):
                     raise ValueError("Invalid admin request.")
-                actor = "admin" if self.headers.get("X-Staff-Key") else auth.portal_google_email(
+                actor = "admin" if self.staff_key() else auth.portal_google_email(
                     db, self.headers, "admin"
                 ) or "admin"
                 if path == "/api/admin/offline-orders":
@@ -2112,6 +2118,7 @@ if __name__ == "__main__":
         ops.ready_printed_orders(db, "warehouse", eligible_partners=eligible)
     with ThreadingHTTPServer((args.host, args.port), PrintBee) as server:
         server.keys = keys
+        server.staff_keys_enabled = os.environ.get("PRINTBEE_ALLOW_STAFF_KEYS") == "1"
         server.google_access = google_access
         server.partners = {"delivery": keys["delivery"], **partners}
         server.partner_phones = phones

@@ -66,7 +66,7 @@ class Server:
             "PRINTBEE_ORIGIN": self.origin, "PRINTBEE_DATA_DIR": str(self.dir), "PRINTBEE_PAYMENT_MODE": payment,
             "PRINTBEE_CHECKOUT_TERMS": json.dumps(TERMS), "PRINTBEE_PARTNER_KEYS": json.dumps(RIDER_KEYS),
             "PRINTBEE_GOOGLE_ADMIN_EMAILS": BOSS, "PRINTBEE_GOOGLE_WAREHOUSE_EMAILS": BOSS,
-            "PRINTBEE_GOOGLE_PARTNERS": json.dumps({BOSS: "boss-rider"}), **(extra or {}),
+            "PRINTBEE_GOOGLE_PARTNERS": json.dumps({BOSS: "boss-rider"}), "PRINTBEE_ALLOW_STAFF_KEYS": "1", **(extra or {}),
         })
         self.log = open(self.dir / "server.log", "wb")
         self.process = subprocess.Popen([sys.executable, str(ROOT / "server.py"), "--port", str(self.port)],

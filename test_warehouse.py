@@ -26,6 +26,7 @@ class WarehouseAccessTest(unittest.TestCase):
                 app.ops.audit(db, "razorpay", "paid", "paid-order")
             with ThreadingHTTPServer(("127.0.0.1", 0), app.PrintBee) as server:
                 server.keys = {"warehouse": "test-warehouse", "admin": "test-admin", "delivery": "test-delivery"}
+                server.staff_keys_enabled = True
                 server.google_access = {"warehouse": {}, "admin": {}}
                 thread = Thread(target=server.serve_forever, daemon=True)
                 thread.start()
@@ -65,6 +66,7 @@ class WarehouseAccessTest(unittest.TestCase):
 
             with ThreadingHTTPServer(("127.0.0.1", 0), app.PrintBee) as server:
                 server.keys = {"warehouse": "test-warehouse"}
+                server.staff_keys_enabled = True
                 server.partners = {"rider": "test-rider"}
                 server.partner_phones = {}
                 server.google_access = {"partner": {}}

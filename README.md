@@ -169,8 +169,9 @@ mapping Google email addresses to partner IDs) are still read if set. To preserv
 history, use the existing partner ID, including `delivery` for the default
 operator. Customer sign-in sessions do not grant portal access.
 
-Run `python server.py --show-staff-keys` to obtain the staff credentials
-for the warehouse workstation. Existing API credentials continue to work.
+Staff API keys (the `X-Staff-Key` header) are OFF by default: staff sign in with Google. To use the keys,
+for example for a script or a warehouse workstation, set `PRINTBEE_ALLOW_STAFF_KEYS=1` and run
+`python server.py --show-staff-keys` to obtain them. Keys never expire, so keep this off unless you need it.
 
 Printing is manual. The warehouse opens each file (Preview or Download), prints it on the print-room
 printer, and presses **Mark printed** for that file or for all of them. Once every file is
