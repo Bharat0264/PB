@@ -190,6 +190,7 @@ def customer_print_specs(items):
 
 
 class PrintBee(SimpleHTTPRequestHandler):
+    server_version, sys_version = "PrintBee", ""     # the Server header no longer names the Python version
     timeout = int(os.environ.get("PRINTBEE_CONNECTION_TIMEOUT", "30"))   # seconds a connection may sit silent before it is dropped
 
     def __init__(self, *args, **kwargs):
