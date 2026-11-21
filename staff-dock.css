@@ -154,4 +154,20 @@
   .staff-dock .staff-dock-center .staff-dock-label { color: var(--icon-inactive); }
   .staff-dock .staff-dock-center[data-online] .staff-dock-label { color: #248a3d; font-weight: 700; }
   .staff-dock .staff-dock-center:active .staff-dock-symbol { transform: scale(.94); }
+  /* Partner availability is an action, separate from the moving page indicator. */
+  #partner-staff-dock .staff-dock-center .staff-dock-symbol {
+    width: 42px; height: 38px; border-radius: 13px;
+    background: linear-gradient(160deg, var(--nav-bg), var(--accent-soft));
+    color: var(--accent-ink); border: 1px solid var(--accent-border);
+    box-shadow: 0 2px 4px rgba(60,45,15,.06), inset 0 1px 0 color-mix(in srgb, var(--nav-bg) 80%, transparent);
+  }
+  #partner-staff-dock .staff-dock-center .staff-dock-symbol svg { display: block; width: 21px; height: 21px; }
+  #partner-staff-dock .staff-dock-center .staff-dock-symbol::before,
+  #partner-staff-dock .staff-dock-center .staff-dock-symbol::after { display: none; }
+  #partner-staff-dock .staff-dock-center[data-online] .staff-dock-symbol {
+    background: var(--hv-success-bg, #e8f4eb); color: var(--hv-success-ink, #248a3d);
+    border-color: color-mix(in srgb, var(--hv-success-ink, #248a3d) 22%, var(--nav-bg));
+  }
+  #partner-staff-dock .staff-dock-center .staff-dock-label { font-weight: 600; }
+  #partner-staff-dock .staff-dock-center[data-online] .staff-dock-label { color: var(--hv-success-ink, #248a3d); }
 }

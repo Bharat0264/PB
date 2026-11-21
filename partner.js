@@ -862,9 +862,14 @@ function updateActiveBar() {
   if (!bar.hidden) { bar.setAttribute('role', 'region'); bar.setAttribute('aria-label', 'Active delivery'); bar.replaceChildren(...activeBarContent(order)); }
 }
 function renderDock() {
-  staffDock?.setActive(tab);
+  const dialog = $('rider-dialog');
+  staffDock?.setActive(dialog.open && dialog.dataset.dockSection ? dialog.dataset.dockSection : tab);
   const shiftButton = $('partner-staff-dock')?.querySelector('.staff-dock-center');
-  if (shiftButton) { shiftButton.toggleAttribute('data-online', Boolean(state.available)); shiftButton.setAttribute('aria-pressed', String(Boolean(state.available))); }
+  if (shiftButton) {
+    shiftButton.toggleAttribute('data-online', Boolean(state.available));
+    shiftButton.setAttribute('aria-pressed', String(Boolean(state.available)));
+    shiftButton.setAttribute('aria-label', state.available ? 'Go offline, currently online' : 'Go online, currently offline');
+  }
   staffDock?.setLabel('shift',state.available ? 'Online' : 'Go online');
   const nav = $('rider-nav');
   if (!nav.childElementCount) {
@@ -917,8 +922,9 @@ function updateBell() {
   if (unread) bell.dataset.count = String(Math.min(9, unread)); else delete bell.dataset.count;
   bell.setAttribute('aria-label', unread ? `Notifications, ${unread} new` : 'Notifications');
 }
-function showDialog(title, populate) {
+function showDialog(title, populate, dockSection = '') {
   const dialog = $('rider-dialog');
+  dialog.dataset.dockSection = dockSection;
   $('rider-dialog-title').textContent = title;
   const body = $('rider-dialog-body');
   body.replaceChildren();
@@ -926,13 +932,14 @@ function showDialog(title, populate) {
   dialog.classList.toggle('account-sheet', title === 'Partner account');
   populate(body);
   if (!dialog.open) dialog.showModal();
+  renderDock();
 }
 function openNotifications() {
   unread = 0; updateBell();
   showDialog('Notifications', body => {
     for (const {message, at} of notices) body.append(h('div', {class: 'note-item'}, h('span', {class: 'hexdot', 'aria-hidden': 'true'}), h('span', {}, message, h('br'), h('small', {class: 'muted'}, new Date(at).toLocaleTimeString('en-IN', {hour: 'numeric', minute: '2-digit'})))));
     if (!notices.length) body.append(emptyState(EMPTY_COMB, 'All caught up', 'New offers and payouts appear here.'));
-  });
+  }, 'inbox');
 }
 
 // Command palette (Ctrl/Cmd+K)
@@ -995,6 +1002,10 @@ async function init() {
     {id:'Profile',label:'Profile',icon:'profile',select:open('Profile')},
   ]);
   dock.hidden = false;
+  $('rider-dialog').addEventListener('close', () => {
+    delete $('rider-dialog').dataset.dockSection;
+    renderDock();
+  });
   $('rider-search').replaceChildren(icon('search', 22));
   $('rider-notifications').replaceChildren(icon('bell', 22));
   $('rider-search').onclick = openPalette;
