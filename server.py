@@ -39,7 +39,36 @@ from order_rules import LIMIT, TRANSITIONS, advance_order, quote_items
 ROOT = Path(__file__).resolve().parent
 DATA = Path(os.environ.get("PRINTBEE_DATA_DIR") or (Path(os.environ.get("LOCALAPPDATA", ROOT.parent)) / "PrintBeeLocal"))
 DATA.mkdir(parents=True, exist_ok=True)
-DOCUMENT_READERS = BoundedSemaphore(2)
+DOCUMENT_READERS = BoundedSemaphore(3)
+
+# The public page counter (no sign-in) is limited per visitor address: one file at a time, and a fair number
+# per 10 minutes. The number is generous because a whole campus can share one address.
+PAGE_COUNT_PER_WINDOW, PAGE_COUNT_WINDOW = 120, 600
+PAGE_COUNT_BUSY, PAGE_COUNT_LOG = set(), {}
+PAGE_COUNT_LOCK = threading.Lock()
+
+
+def claim_page_counter(ip, now=None):
+    """None when this address may count pages now, else a (status, body) refusal. Release with release_page_counter."""
+    now = now if now is not None else time.time()
+    with PAGE_COUNT_LOCK:
+        if len(PAGE_COUNT_LOG) > 5000:                      # forget addresses that have gone quiet
+            for key in [k for k, times in PAGE_COUNT_LOG.items() if not times or times[-1] < now - PAGE_COUNT_WINDOW]:
+                PAGE_COUNT_LOG.pop(key, None)
+        recent = [t for t in PAGE_COUNT_LOG.get(ip, ()) if t > now - PAGE_COUNT_WINDOW]
+        if len(recent) >= PAGE_COUNT_PER_WINDOW:
+            PAGE_COUNT_LOG[ip] = recent
+            return 429, {"error": "Too many files checked from this connection. Please try again in a few minutes."}
+        if ip in PAGE_COUNT_BUSY:
+            return 503, {"error": "Page counting is busy. Try again."}
+        PAGE_COUNT_BUSY.add(ip)
+        PAGE_COUNT_LOG[ip] = recent + [now]
+        return None
+
+
+def release_page_counter(ip):
+    with PAGE_COUNT_LOCK:
+        PAGE_COUNT_BUSY.discard(ip)
 
 
 def connect():
@@ -1121,6 +1150,17 @@ class PrintBee(SimpleHTTPRequestHandler):
         self.json_response(200, bill)
 
     def inspect_document(self):
+        ip = self.client_ip()
+        refusal = claim_page_counter(ip)
+        if refusal:
+            self.close_connection = True
+            return self.json_response(*refusal)
+        try:
+            return self.count_uploaded_pages()
+        finally:
+            release_page_counter(ip)
+
+    def count_uploaded_pages(self):
         length = int(self.headers.get("Content-Length", "0"))
         if not 0 < length <= LIMIT:
             raise ValueError("Invalid file size.")
