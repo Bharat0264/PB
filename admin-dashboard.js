@@ -37,8 +37,6 @@ const partners = live ? source.partners : [{name:'Ananya Roy', email:'ananya.rid
 const warehouses = live ? source.warehouses : [{name:'Main campus print room', location:'SRM Main Campus', address:'SRM Institute of Science and Technology, Kattankulathur', email:'warehouse@example.com'}];
 const orderWindowDays = 30;
 const state = { period:'Daily', query:'', filter:'', sort:'date', direction:-1, page:0};
-const getStored = key => { try { return localStorage.getItem(key); } catch { return null; } };
-const store = (key, value) => { try { localStorage.setItem(key, value); } catch {} };
 
 function day(offset) {
   const date = new Date(today);

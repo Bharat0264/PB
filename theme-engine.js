@@ -22,7 +22,6 @@
   const DEFAULT_ID = 'printbee';
   const root = document.documentElement;
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
-  const system = matchMedia('(prefers-color-scheme: dark)');
 
   // Every non-default theme must provide all of these (without the --pb- prefix) for each mode it supports.
   const REQUIRED_TOKENS = [

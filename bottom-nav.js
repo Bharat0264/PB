@@ -7,7 +7,6 @@ export const tabs = [
   {key:'cart', label:'Cart', path:'/cart', page:'/cart.html', icon:'<path d="M3 4h3l2.4 11h10.8l2-8H7"/><circle cx="9.5" cy="19.5" r="1.3"/><circle cx="17.5" cy="19.5" r="1.3"/>'},
   {key:'address', label:'Address', path:'/address', page:'/address.html', icon:'<path d="M20 10c0 5-8 10-8 10s-8-5-8-10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/>'},
 ];
-const uploadIndex = tabs.findIndex(tab => tab.key === 'upload');
 const svgNS = 'http://www.w3.org/2000/svg';
 const motion = matchMedia('(prefers-reduced-motion: reduce)');
 const easing = 'cubic-bezier(.215,.61,.355,1)';

@@ -35,7 +35,6 @@ const glyphs = {
   sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l2 2m10 10 2 2M5 19l2-2M17 7l2-2"/>',
   moon:'<path d="M20.5 15A9 9 0 0 1 9 3.5 9 9 0 1 0 20.5 15Z"/>',
   package:'<path d="m3 7 9-5 9 5v10l-9 5-9-5V7zm0 0 9 5 9-5m-9 5v10M7.5 4.5l9 5"/>',
-  check:'<path d="m5 12 4 4L19 6"/>',
   bell:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8M10 20a2 2 0 0 0 4 0"/>',
   expand:'<path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4"/>',
   forward:'<path d="m4 5 8 7-8 7zM13 5l8 7-8 7z"/>',
@@ -68,7 +67,7 @@ const money = new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR'}).f
 let orders = [], known, newBadges = new Set(), connected = true;
 let view = 'Home', tab = 'To print', active, sheet = false, restoreFocus;
 let printAction, printPending = false, previewUrl, previewRequest = 0, arrivalOrder;
-let staffDock, floorFilter, arrivalTimer, historyPreset='';
+let staffDock, arrivalTimer, historyPreset='';
 let lastStages=new Map(), newlyReady=new Set(), renderedOrderSnapshot;
 let polling, liveFeed, busyRefresh = false, refreshVersion = 0, toastTimer, audio;
 let serviceOpen, savingAvailability = false;
@@ -223,7 +222,6 @@ function makeSamples() {
 function go(section, selectedTab, keepSearch=false) {
   const sectionChanged=view!==section;
   view=section;
-  floorFilter=null;
   if (!keepSearch) byId('warehouse-search').value='';
   tab=selectedTab==='Ready' ? 'Ready' : 'To print';
   if (['Settings','Inventory','History','Support'].includes(section)) {
@@ -648,12 +646,6 @@ function renderHistory(filterOpen) {
   wrapper.append(table);
   board.append(wrapper);
 }
-function printerIllustration() {
-  const drawing=node('div',null,'wh-device');
-  drawing.setAttribute('aria-hidden','true');
-  drawing.append(node('span',null,'wh-device-paper'),node('span',null,'wh-device-case'),node('span',null,'wh-device-output'));
-  return drawing;
-}
 function settingRow(key,label,description,glyph) {
   const row=node('label',null,'wh-setting'), input=node('input');
   input.type='checkbox';
@@ -856,7 +848,6 @@ function fileRow(order,item,index) {
   const title=node('h3',item.name);
   thumb.append(node('small',item.pages+' p'));
   info.append(title,chip(jobLabel(state),statusStyle(jobLabel(state))));
-  const job=order.jobs.find(entry=>entry.position===index);
   const specs=node('div',null,'wh-chips');
   [
     colour(item),item.duplex?'Duplex':'Single-sided',paper(item),item.orientation,
@@ -1057,18 +1048,6 @@ async function markPrinted(order,selected) {
   await refreshAfterAction(selected.length===1?'File marked as printed.':'Files marked as printed.');
 }
 function addEvent(order,action) {order.timeline.push({action,created:Math.floor(Date.now()/1000)});}
-function updateMockJobs(order,selected,state) {
-  order.jobs.filter(job=>selected.includes(job.position)).forEach(job=>{job.state=state;});
-  if (state==='done') {
-    addEvent(order,'print_done');
-    if (order.items.every((_,index)=>jobState(order,index)==='done')) {
-      order.status='packed';
-      addEvent(order,'packed');
-      announce(labelOrder(order)+' is ready for pickup.',true);
-    }
-  }
-  void refresh(true);
-}
 async function refreshAfterAction(message) {
   announce(message,true);
   try {await refresh(true);}
