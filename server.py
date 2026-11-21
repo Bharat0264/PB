@@ -120,7 +120,7 @@ CSP_REPORT_ONLY = "; ".join((
     "frame-ancestors 'self'",
 ))
 
-PUBLIC_TERMS = ("paperRates", "bindingRates", "slots", "campuses")          # what the public checkout config needs
+PUBLIC_TERMS = ("paperRates", "bindingRates", "slots", "campuses", "serviceArea")          # what the public checkout config needs
 WAREHOUSE_ORDER_FIELDS = ("address", "bill", "campusId", "coupon", "customer", "deliveryType", "items", "notes", "phone",
                           "pickupWarehouse", "priority", "slot", "subtotal")   # no delivery partner payout
 

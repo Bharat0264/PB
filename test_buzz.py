@@ -532,13 +532,13 @@ class BuzzOverHttp(unittest.TestCase):
         self.assertEqual(status, 200)
 
     def test_buzz_mobile_code_revalidates_after_a_deployment(self):
-        for path in ('/buzz-chat.js?v=23', '/staff-dock.css?v=polished-motion'):
+        for path in ('/buzz-chat.js?v=24', '/staff-dock.css?v=polished-motion'):
             status, _, headers = self.server.request('GET', path)
             self.assertEqual(status, 200)
             self.assertEqual(dict(headers)['Cache-Control'], 'no-cache, must-revalidate')
         status, html, _ = self.server.request('GET', '/home')
         self.assertEqual(status, 200)
-        self.assertIn(b'/buzz-chat.js?v=23', html)
+        self.assertIn(b'/buzz-chat.js?v=24', html)
 
 
 class AnimatedBee(unittest.TestCase):

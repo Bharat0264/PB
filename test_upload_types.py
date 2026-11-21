@@ -10,6 +10,7 @@ from test_e2e_workflow import Customer, Server, make_pdf
 PNG = b"\x89PNG\r\n\x1a\n" + b"\0" * 40
 JPG = b"\xff\xd8\xff\xe0" + b"\0" * 40
 EXE = b"MZ\x90\x00\x03\x00\x00\x00" + b"\0" * 200
+ADDRESS = "North Hostel, SRM campus\nDelivery pin: 12.8240, 80.0450"
 DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
 
@@ -81,7 +82,7 @@ class UploadEndpointTests(unittest.TestCase):
 
     def place(self, name, size):
         item = {"name": name, "pages": 1, "copies": 1, "size": size, "colour": False, "duplex": False, "orientation": "Portrait"}
-        status, bill, _ = self.customer.post("/api/checkout/quote", {"items": [item], "coupon": ""})
+        status, bill, _ = self.customer.post("/api/checkout/quote", {"items": [item], "coupon": "", "address": ADDRESS})
         if status != 200:
             return status, None, None
         order_id, key = uuid.uuid4().hex, secrets.token_hex(32)

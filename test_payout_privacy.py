@@ -32,7 +32,7 @@ class PayoutPrivacyTests(unittest.TestCase):
 
     def test_public_checkout_config_lists_only_customer_fields(self):
         config = self.get("/api/checkout")
-        self.assertEqual(set(config["terms"]), {"paperRates", "bindingRates", "slots", "campuses"})
+        self.assertEqual(set(config["terms"]), {"paperRates", "bindingRates", "slots", "campuses", "serviceArea"})
         self.assertFalse(mentions_payout(config))
         self.assertNotIn("coupons", json.dumps(config))
 
