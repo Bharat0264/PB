@@ -125,6 +125,7 @@ window.createStaffDock = function createStaffDock(nav, tabs) {
 
   const motion = matchMedia('(prefers-reduced-motion: reduce)');
   let width = 0;
+  let knobDiameter = 48;
   let centers = [];
   let x = 0;
   let rotation = 0;
@@ -134,33 +135,35 @@ window.createStaffDock = function createStaffDock(nav, tabs) {
   let displayedIcon;
 
   function drawSurface(center) {
-    // Near the ends, narrow the shoulder into the rounded top corner.
-    const nearEdge = distance => Math.min(30, Math.max(9, distance - 24));
-    const leftCorner = nearEdge(center);
-    const rightCorner = nearEdge(width - center);
-    const leftShoulder = Math.min(52, Math.max(0, center - leftCorner));
-    const rightShoulder = Math.min(52, Math.max(0, width - center - rightCorner));
+    // Keep both end caps fixed. Ease the crest down near an end instead of
+    // squeezing the corner into a sharp shoulder as the indicator passes it.
+    const corner = 30;
+    const leftShoulder = Math.min(54, Math.max(0, center - corner));
+    const rightShoulder = Math.min(54, Math.max(0, width - center - corner));
+    const room = Math.min(leftShoulder, rightShoulder);
+    const t = Math.min(1, room / 38);
+    const crest = 14 - 12 * t * t * (3 - 2 * t);
     const round = value => Number(value.toFixed(2));
     path.setAttribute('d', [
-      'M' + round(leftCorner) + ' 14 H' + round(center - leftShoulder),
-      'C' + round(center - leftShoulder * 34/52) + ' 14 ' + round(center - leftShoulder/2) + ' 0 ' + round(center) + ' 0',
-      'C' + round(center + rightShoulder/2) + ' 0 ' + round(center + rightShoulder * 34/52) + ' 14 ' + round(center + rightShoulder) + ' 14',
-      'H' + round(width - rightCorner) + ' A' + round(rightCorner) + ' ' + round(rightCorner) + ' 0 0 1 ' + width + ' ' + round(14 + rightCorner),
+      'M30 14 H' + round(center - leftShoulder),
+      'C' + round(center - leftShoulder * .5) + ' 14 ' + round(center - leftShoulder * .5) + ' ' + round(crest) + ' ' + round(center) + ' ' + round(crest),
+      'C' + round(center + rightShoulder * .5) + ' ' + round(crest) + ' ' + round(center + rightShoulder * .5) + ' 14 ' + round(center + rightShoulder) + ' 14',
+      'H' + round(width - corner) + ' A30 30 0 0 1 ' + width + ' 44',
       'V60 A30 30 0 0 1 ' + (width - 30) + ' 90 H30 A30 30 0 0 1 0 60',
-      'V' + round(14 + leftCorner) + ' A' + round(leftCorner) + ' ' + round(leftCorner) + ' 0 0 1 ' + round(leftCorner) + ' 14 Z',
+      'V44 A30 30 0 0 1 30 14 Z',
     ].join(' '));
   }
 
   function placeKnob(next, speed = 0, roll = true) {
-    const position = Math.max(23, Math.min(width - 23, next));
-    if (roll) rotation += (position - x) / (Math.PI * 62) * 360;
+    const position = Math.max(knobDiameter / 2, Math.min(width - knobDiameter / 2, next));
+    if (roll) rotation += (position - x) / (Math.PI * knobDiameter) * 360;
     x = position;
-    const stretch = motion.matches ? 0 : Math.min(1, Math.abs(speed) / 930);
+    const stretch = motion.matches ? 0 : Math.min(1, Math.abs(speed) / 1400);
     knob.style.setProperty('--knob-x',x + 'px');
     knob.style.setProperty('--wheel-angle',rotation + 'deg');
     knob.style.setProperty('--wheel-counter-angle',-rotation + 'deg');
-    knob.style.setProperty('--wheel-sx',1 + stretch * .10);
-    knob.style.setProperty('--wheel-sy',1 - stretch * .08);
+    knob.style.setProperty('--wheel-sx',1 + stretch * .04);
+    knob.style.setProperty('--wheel-sy',1 - stretch * .035);
     drawSurface(x);
   }
 
@@ -182,6 +185,7 @@ window.createStaffDock = function createStaffDock(nav, tabs) {
     const rect = nav.getBoundingClientRect();
     if (!rect.width) return;
     width = rect.width;
+    knobDiameter = parseFloat(getComputedStyle(nav).getPropertyValue('--dock-knob-size')) || 48;
     surface.setAttribute('viewBox', '0 0 ' + width + ' 90');
     centers = buttons.map(({button}) => {
       const bounds = button.getBoundingClientRect();
@@ -228,7 +232,7 @@ window.createStaffDock = function createStaffDock(nav, tabs) {
         next = x;
         while (dt > 0) {
           const tick = Math.min(dt, 1 / 120);
-          velocity += ((target - next) * 300 - velocity * 26) * tick;
+          velocity += ((target - next) * 340 - velocity * 34) * tick;
           next += velocity * tick;
           dt -= tick;
         }
