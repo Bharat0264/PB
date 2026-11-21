@@ -187,7 +187,6 @@ main.address-layout .address-book > h1:last-of-type { margin-bottom:0; }
   box-shadow:6px 8px 16px #6e502830,-4px -4px 10px #fffdf6c0,inset -3px -4px 8px #a7742026,inset 3px 4px 8px #ffffffa0; animation:address-bob 3.4s ease-in-out infinite; }
 .address-empty-icon svg { display:block; width:46px; height:46px; }
 .address-empty h3 { margin:12px 0 0; font-size:19px; letter-spacing:-.01em; }
-.address-empty::after { content:"Tap “+ Add address” and it will be ready at checkout."; color:var(--hv-muted); font-size:14px; }
 [data-theme="dark"] .address-empty { background:var(--hv-surface-2); box-shadow:var(--hv-sh-1); }
 [data-theme="dark"] .address-empty-icon { background:var(--hv-surface-3); box-shadow:none; }
 @keyframes address-bob { 50% { transform:translateY(-4px); } }
