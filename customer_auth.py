@@ -20,11 +20,14 @@ EXPIRED_FLAG = "printbee_expired"
 SESSION_AGE = int(os.environ.get("PRINTBEE_SESSION_DAYS", "7")) * 86400
 RENEW_AFTER = 300
 LINK_AGE = 15 * 60
+# Sign-in link limits inside one LINK_AGE window. Per email and per visitor address, so one person cannot use up
+# everybody's turns. The site-wide number is only an emergency brake, far above normal traffic.
+PER_EMAIL, PER_IP, SITE_WIDE = 5, 10, 2000
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS login_links (
     digest TEXT PRIMARY KEY, email TEXT NOT NULL, created INTEGER NOT NULL,
-    used INTEGER NOT NULL DEFAULT 0
+    used INTEGER NOT NULL DEFAULT 0, ip TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS login_links_email_time ON login_links(email, created);
 CREATE TABLE IF NOT EXISTS customer_sessions (
@@ -122,7 +125,13 @@ def send_link(email, token):
         smtp.send_message(message)
 
 
-def request_link(db, email, deliver=send_link):
+def add_ip_column(db):
+    """Older databases have no `ip` column on login_links yet."""
+    if "ip" not in {column[1] for column in db.execute("PRAGMA table_info(login_links)")}:
+        db.execute("ALTER TABLE login_links ADD COLUMN ip TEXT NOT NULL DEFAULT ''")
+
+
+def request_link(db, email, ip="", deliver=send_link):
     email = email.strip().lower()
     if len(email) > 254 or not re.fullmatch(r"[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9.-]+\.[a-z0-9-]+", email):
         return 400, {"error": "Enter a valid email address."}
@@ -134,9 +143,10 @@ def request_link(db, email, deliver=send_link):
         db.execute("DELETE FROM customer_sessions WHERE expires<=?", (now,))
         recent = db.execute("SELECT MAX(created), COUNT(*) FROM login_links WHERE email=?", (email,)).fetchone()
         count = db.execute("SELECT COUNT(*) FROM login_links").fetchone()[0]
-        if recent[1] >= 5 or (recent[0] and recent[0] > now - 60) or count >= 50:
+        from_ip = db.execute("SELECT COUNT(*) FROM login_links WHERE ip=?", (ip,)).fetchone()[0] if ip else 0
+        if (recent[1] >= PER_EMAIL or (recent[0] and recent[0] > now - 60) or from_ip >= PER_IP or count >= SITE_WIDE):
             return 429, {"error": "Too many sign-in requests. Please try again later."}
-        db.execute("INSERT INTO login_links(digest,email,created) VALUES (?,?,?)", (digest(token), email, now))
+        db.execute("INSERT INTO login_links(digest,email,created,ip) VALUES (?,?,?,?)", (digest(token), email, now, ip))
     try:
         deliver(email, token)
     except (OSError, smtplib.SMTPException, ValueError, KeyError):

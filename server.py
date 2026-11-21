@@ -1,6 +1,8 @@
 import argparse
 import hashlib
 import buzz
+import select
+import socket
 import support
 import hmac
 import json
@@ -37,7 +39,36 @@ from order_rules import LIMIT, TRANSITIONS, advance_order, quote_items
 ROOT = Path(__file__).resolve().parent
 DATA = Path(os.environ.get("PRINTBEE_DATA_DIR") or (Path(os.environ.get("LOCALAPPDATA", ROOT.parent)) / "PrintBeeLocal"))
 DATA.mkdir(parents=True, exist_ok=True)
-DOCUMENT_READERS = BoundedSemaphore(2)
+DOCUMENT_READERS = BoundedSemaphore(3)
+
+# The public page counter (no sign-in) is limited per visitor address: one file at a time, and a fair number
+# per 10 minutes. The number is generous because a whole campus can share one address.
+PAGE_COUNT_PER_WINDOW, PAGE_COUNT_WINDOW = 120, 600
+PAGE_COUNT_BUSY, PAGE_COUNT_LOG = set(), {}
+PAGE_COUNT_LOCK = threading.Lock()
+
+
+def claim_page_counter(ip, now=None):
+    """None when this address may count pages now, else a (status, body) refusal. Release with release_page_counter."""
+    now = now if now is not None else time.time()
+    with PAGE_COUNT_LOCK:
+        if len(PAGE_COUNT_LOG) > 5000:                      # forget addresses that have gone quiet
+            for key in [k for k, times in PAGE_COUNT_LOG.items() if not times or times[-1] < now - PAGE_COUNT_WINDOW]:
+                PAGE_COUNT_LOG.pop(key, None)
+        recent = [t for t in PAGE_COUNT_LOG.get(ip, ()) if t > now - PAGE_COUNT_WINDOW]
+        if len(recent) >= PAGE_COUNT_PER_WINDOW:
+            PAGE_COUNT_LOG[ip] = recent
+            return 429, {"error": "Too many files checked from this connection. Please try again in a few minutes."}
+        if ip in PAGE_COUNT_BUSY:
+            return 503, {"error": "Page counting is busy. Try again."}
+        PAGE_COUNT_BUSY.add(ip)
+        PAGE_COUNT_LOG[ip] = recent + [now]
+        return None
+
+
+def release_page_counter(ip):
+    with PAGE_COUNT_LOCK:
+        PAGE_COUNT_BUSY.discard(ip)
 
 
 def connect():
@@ -56,6 +87,7 @@ def staff_keys():
     if updated != keys:
         temporary = path.with_suffix(".tmp")
         temporary.write_text(json.dumps(updated), encoding="utf-8")
+        temporary.chmod(0o600)          # only the server's own user may read the keys
         temporary.replace(path)
     return updated
 
@@ -104,7 +136,11 @@ def active_checkout_terms(db, default):
 
 
 # What each audience may see. Allowlists, so a field added to the stored settings later stays private until it is listed here.
-# A strict policy, sent in REPORT-ONLY mode: browsers log what it would block but nothing is blocked yet.
+# ENFORCED now: the parts of a Content-Security-Policy that need no page changes (no plugins, no <base> tricks,
+# forms and framing only for ourselves).
+CSP_ENFORCED = "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
+
+# The strict script/style/image/... policy is still sent in REPORT-ONLY mode: browsers log what it would block but nothing is blocked yet.
 CSP_REPORT_ONLY = "; ".join((
     "default-src 'self'",
     "script-src 'self' https://checkout.razorpay.com https://maps.googleapis.com",
@@ -112,13 +148,35 @@ CSP_REPORT_ONLY = "; ".join((
     "img-src 'self' data: blob: https://maps.gstatic.com https://maps.googleapis.com",
     "font-src 'self'",
     "connect-src 'self' blob: https://maps.googleapis.com https://lumberjack.razorpay.com",
-    "frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com",
+    "frame-src 'self' blob: https://api.razorpay.com https://checkout.razorpay.com",     # blob: = the PDF preview
     "worker-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
     "frame-ancestors 'self'",
 ))
+
+# Live-update streams hold a thread each, so one person may keep only a few open (the page falls back to polling).
+STREAMS_PER_PERSON, STREAMS_TOTAL = 3, 400
+OPEN_STREAMS = {}
+STREAM_LOCK = threading.Lock()
+
+
+def take_stream_slot(person):
+    with STREAM_LOCK:
+        if OPEN_STREAMS.get(person, 0) >= STREAMS_PER_PERSON or sum(OPEN_STREAMS.values()) >= STREAMS_TOTAL:
+            return False
+        OPEN_STREAMS[person] = OPEN_STREAMS.get(person, 0) + 1
+        return True
+
+
+def release_stream_slot(person):
+    with STREAM_LOCK:
+        if OPEN_STREAMS.get(person, 0) <= 1:
+            OPEN_STREAMS.pop(person, None)
+        else:
+            OPEN_STREAMS[person] -= 1
+
 
 PUBLIC_TERMS = ("paperRates", "bindingRates", "slots", "campuses", "serviceArea")          # what the public checkout config needs
 WAREHOUSE_ORDER_FIELDS = ("address", "bill", "campusId", "coupon", "customer", "deliveryType", "items", "notes", "phone",
@@ -132,6 +190,9 @@ def customer_print_specs(items):
 
 
 class PrintBee(SimpleHTTPRequestHandler):
+    server_version, sys_version = "PrintBee", ""     # the Server header no longer names the Python version
+    timeout = int(os.environ.get("PRINTBEE_CONNECTION_TIMEOUT", "30"))   # seconds a connection may sit silent before it is dropped
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(ROOT), **kwargs)
 
@@ -212,8 +273,13 @@ class PrintBee(SimpleHTTPRequestHandler):
             current = current or "partner"
         return customer, holders, current
 
+    def staff_key(self):
+        """The X-Staff-Key header, honoured only when the owner switched staff API keys on (PRINTBEE_ALLOW_STAFF_KEYS=1).
+        Otherwise it is treated as not sent: staff sign in with Google, which names the person and can be revoked."""
+        return self.headers.get("X-Staff-Key", "") if getattr(self.server, "staff_keys_enabled", False) else ""
+
     def get_role(self):
-        key = self.headers.get("X-Staff-Key", "").encode()
+        key = self.staff_key().encode()
         if key:
             return next((role for role, secret in self.server.keys.items()
                          if role != "delivery-code" and hmac.compare_digest(key, secret.encode())), None)
@@ -243,7 +309,7 @@ class PrintBee(SimpleHTTPRequestHandler):
         return self.headers.get("Origin") == origin
 
     def get_partner(self):
-        key = self.headers.get("X-Staff-Key", "").encode()
+        key = self.staff_key().encode()
         partner = next((name for name, secret in self.server.partners.items()
                         if hmac.compare_digest(key, secret.encode())), None)
         if partner:
@@ -386,11 +452,17 @@ class PrintBee(SimpleHTTPRequestHandler):
             "X-Content-Type-Options": "nosniff",
             "Referrer-Policy": "strict-origin-when-cross-origin",
             "X-Frame-Options": "SAMEORIGIN",          # navigation.html and the phone tabs frame our own pages
+            # Browser features PrintBee never uses are switched off; location stays on (address pin, delivery tracking).
+            # `payment` is left alone on purpose: Razorpay's checkout window needs it.
+            "Permissions-Policy": "camera=(), microphone=(), geolocation=(self), usb=(), display-capture=()",
+            "Content-Security-Policy": CSP_ENFORCED,
             "Content-Security-Policy-Report-Only": CSP_REPORT_ONLY,
         }
         secure = auth.public_origin().startswith("https://") or self.headers.get("X-Forwarded-Proto", "").lower() == "https"
         if secure:
-            wanted["Strict-Transport-Security"] = "max-age=31536000"
+            # includeSubDomains only when the owner confirms every subdomain of the site is https (PRINTBEE_HSTS_SUBDOMAINS=1).
+            wanted["Strict-Transport-Security"] = "max-age=31536000" + (
+                "; includeSubDomains" if os.environ.get("PRINTBEE_HSTS_SUBDOMAINS") == "1" else "")
         for name, value in wanted.items():
             if name.lower() not in self.headers_sent:
                 self.send_header(name, value)
@@ -595,7 +667,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                 owner = row and row["email"] and row["email"] == auth.session_email(db, self.headers)
                 shared = row and row["status"] != "pending" and hmac.compare_digest(
                     self.tracking_key(match[1]).encode(), share.encode()
-                )
+                ) and self.tracking_link_open(db, match[1], row["status"])
                 if shared:
                     return self.json_response(200, {"status": row["status"], "number": row["order_number"],
                                                     "paymentStarted": bool(row["provider_id"])})
@@ -629,6 +701,21 @@ class PrintBee(SimpleHTTPRequestHandler):
 
     def do_HEAD(self):
         self.send_error(405, "Use GET.")
+
+    TRACKING_LINK_DAYS = 30             # a shared tracking link stops working this long after the order was placed...
+    TRACKING_AFTER_FINISH = 24 * 3600   # ...or a day after the order was delivered, cancelled or refunded
+
+    def tracking_link_open(self, db, order_id, status, now=None):
+        """A shared tracking link is a permanent secret by construction, so the server ends its life instead."""
+        now = now if now is not None else time.time()
+        placed = db.execute("SELECT min(created) FROM audit WHERE order_id=? AND action='order_created'", (order_id,)).fetchone()[0]
+        if placed is None or placed < now - self.TRACKING_LINK_DAYS * 86400:
+            return False
+        if order_status.STATUSES.get(status, {}).get("terminal"):
+            finished = db.execute("SELECT max(created) FROM order_events WHERE order_id=? AND to_status=?", (order_id, status)).fetchone()[0]
+            if finished is not None and finished < now - self.TRACKING_AFTER_FINISH:
+                return False
+        return True
 
     def tracking_key(self, order_id):
         secret = self.server.keys["delivery-code"].encode()
@@ -667,10 +754,19 @@ class PrintBee(SimpleHTTPRequestHandler):
             )
             return self.json_response(200, {"updates": [dict(row) for row in rows]})
 
+    def client_gone(self):
+        """True once the browser has closed a live stream, so its thread and slot are freed at once."""
+        try:
+            if select.select([self.connection], [], [], 0)[0]:
+                return self.connection.recv(1, socket.MSG_PEEK) == b""
+        except OSError:
+            return True
+        return False
+
     def event_audience(self, wanted):
         """(audience, identity) for the signed-in role the client asked to follow, else None."""
         if wanted in ("admin", "warehouse"):
-            key = self.headers.get("X-Staff-Key", "").encode()
+            key = self.staff_key().encode()
             if key:
                 role = next((name for name, secret in self.server.keys.items()
                              if name != "delivery-code" and hmac.compare_digest(key, secret.encode())), None)
@@ -705,6 +801,7 @@ class PrintBee(SimpleHTTPRequestHandler):
         except ValueError:
             return self.json_response(400, {"error": "Invalid event cursor."})
         db = connect()
+        person = None
         try:
             newest = event_feed.latest(db)
             if last is None or last > newest:
@@ -712,6 +809,10 @@ class PrintBee(SimpleHTTPRequestHandler):
             if "poll" in query:
                 events = event_feed.fetch(db, kind, identity, last)
                 return self.json_response(200, {"events": events, "latest": events[-1]["id"] if events else last})
+            person = ("events", kind, identity)
+            if not take_stream_slot(person):
+                person = None
+                return self.json_response(429, {"error": "Too many live connections. Updates will refresh automatically."})
             self.send_response(200)
             self.send_header("Content-Type", "text/event-stream")
             self.send_header("Cache-Control", "no-store")
@@ -721,7 +822,7 @@ class PrintBee(SimpleHTTPRequestHandler):
             self.wfile.flush()
             quiet = time.time()
             deadline = time.time() + 300      # clients reconnect and catch up from Last-Event-ID
-            while time.time() < deadline:
+            while time.time() < deadline and not self.client_gone():
                 events = event_feed.fetch(db, kind, identity, last)
                 for event in events:
                     self.wfile.write(f"id: {event['id']}\ndata: {json.dumps(event)}\n\n".encode())
@@ -737,6 +838,8 @@ class PrintBee(SimpleHTTPRequestHandler):
             pass
         finally:
             db.close()
+            if person:
+                release_stream_slot(person)
 
     def order_events(self, order_id):
         def snapshot(db):
@@ -752,6 +855,9 @@ class PrintBee(SimpleHTTPRequestHandler):
             current = snapshot(db)
         if current is None:
             return self.json_response(404, {"error": "Order unavailable."})
+        person = ("order", order_id)
+        if not take_stream_slot(person):
+            return self.json_response(429, {"error": "Too many live connections."})
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-store")
@@ -774,6 +880,8 @@ class PrintBee(SimpleHTTPRequestHandler):
                     current = snapshot(db)
         except (OSError, ConnectionError):
             pass
+        finally:
+            release_stream_slot(person)
 
     def send_download(self, body, content_type, disposition="attachment"):
         self.send_response(200)
@@ -849,7 +957,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                         return self.json_response(200, {"path": destination})
                     cookie = auth.portal_session(db, self.headers, holders[target], target)
                 return self.json_response(200, {"path": destination}, cookie)
-            if path.startswith(("/api/staff/", "/api/admin/")) and not self.headers.get("X-Staff-Key"):
+            if path.startswith(("/api/staff/", "/api/admin/")) and not self.staff_key():
                 if not self.same_origin():
                     return self.json_response(403, {"error": "Open PrintBee directly and try again."})
             if path == "/api/staff/availability":
@@ -933,9 +1041,11 @@ class PrintBee(SimpleHTTPRequestHandler):
         data = json.loads(self.rfile.read(length))
         with closing(connect()) as db:
             if path == "/api/auth/request":
-                if isinstance(data, dict) and self.staff_role(str(data.get("email", "")).strip().lower()):
-                    return self.json_response(403, {"error": "This email is a staff account. Use its portal to sign in."})
-                return self.json_response(*auth.request_link(db, data["email"]))
+                # A staff email gets exactly the same answer (and the same limits) as any other, but no email is sent:
+                # staff sign in through their portal, and this form must not reveal who is staff.
+                staff = isinstance(data, dict) and self.staff_role(str(data.get("email", "")).strip().lower())
+                deliver = (lambda email, token: None) if staff else auth.send_link
+                return self.json_response(*auth.request_link(db, data["email"], self.client_ip(), deliver))
             if path == "/api/auth/verify":
                 result = auth.redeem(db, data["token"], auth.session_token(self.headers))
                 if result:
@@ -1025,6 +1135,9 @@ class PrintBee(SimpleHTTPRequestHandler):
                 bill = bill_for(total, binding_total, coupon, terms, pickup=pickup, address=details["address"])
                 if type(data.get("expectedTotal")) is not int or data["expectedTotal"] != bill["total"]:
                     return self.json_response(409, {"error": "Prices changed. Review your updated total.", "pricingChanged": True})
+                # One customer keeps only a few unpaid orders (and bytes): the oldest unpaid ones make room.
+                if file_retention.make_room(db, email, sum(item["size"] for item in documents), bool(self.server.files)):
+                    self.server.file_cleanup.wake()
                 encoded = json.dumps({
                     **details, "bill": bill, "partnerPayout": terms.get("partnerPayout", 0),
                     "pickupWarehouse": pickup,
@@ -1058,6 +1171,17 @@ class PrintBee(SimpleHTTPRequestHandler):
         self.json_response(200, bill)
 
     def inspect_document(self):
+        ip = self.client_ip()
+        refusal = claim_page_counter(ip)
+        if refusal:
+            self.close_connection = True
+            return self.json_response(*refusal)
+        try:
+            return self.count_uploaded_pages()
+        finally:
+            release_page_counter(ip)
+
+    def count_uploaded_pages(self):
         length = int(self.headers.get("Content-Length", "0"))
         if not 0 < length <= LIMIT:
             raise ValueError("Invalid file size.")
@@ -1244,13 +1368,13 @@ class PrintBee(SimpleHTTPRequestHandler):
             if area == "admin":
                 if self.get_role() != "admin":
                     return self.json_response(403, {"error": "Admin access is required."})
-                actor = "admin" if self.headers.get("X-Staff-Key") else auth.portal_google_email(db, self.headers, "admin") or "admin"
+                actor = "admin" if self.staff_key() else auth.portal_google_email(db, self.headers, "admin") or "admin"
                 email = None
             elif area == "staff":
                 role = self.get_role()
                 if role not in ("warehouse", "admin"):
                     return self.json_response(403, {"error": "Warehouse access is required."})
-                actor = role if self.headers.get("X-Staff-Key") else auth.portal_google_email(db, self.headers, "warehouse") or role
+                actor = role if self.staff_key() else auth.portal_google_email(db, self.headers, "warehouse") or role
                 email = None
             else:
                 email = auth.session_email(db, self.headers)
@@ -1567,16 +1691,10 @@ class PrintBee(SimpleHTTPRequestHandler):
         if not re.fullmatch(r"\+[1-9][0-9]{7,14}", phone):
             return self.json_response(400, {"error": "Enter a phone number with its country code."})
         now = int(time.time())
-        scope = action + ":" + auth.digest(phone)
         with closing(connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
-            db.execute("DELETE FROM partner_auth_limits WHERE created<=?", (now - 600,))
-            count, last = db.execute("SELECT count(*), max(created) FROM partner_auth_limits WHERE scope=?",
-                                     (scope,)).fetchone()
-            total = db.execute("SELECT count(*) FROM partner_auth_limits").fetchone()[0]
-            if total >= 150 or count >= 5 or (action == "send" and last and last > now - 60):
+            if not partner_auth.allow_attempt(db, action, auth.digest(phone), auth.digest(self.client_ip()), now):
                 return self.json_response(429, {"error": "Try again in a few minutes."})
-            db.execute("INSERT INTO partner_auth_limits VALUES (?,?)", (scope, now))
         partner = self.server.partner_phones.get(phone)
         try:
             if action == "send":
@@ -1709,7 +1827,7 @@ class PrintBee(SimpleHTTPRequestHandler):
         area = path.split("/")[2]
         role = {"admin": "admin", "partner": "delivery"}[area]
         partner = self.get_partner() if area == "partner" else None
-        if area == "partner" and not self.headers.get("X-Staff-Key"):
+        if area == "partner" and not self.staff_key():
             origin = auth.public_origin() or f"http://{self.headers.get('Host')}"
             if self.headers.get("Origin") != origin or self.headers.get_content_type() != "application/json":
                 return self.json_response(403, {"error": "Open PrintBee directly and try again."})
@@ -1728,7 +1846,7 @@ class PrintBee(SimpleHTTPRequestHandler):
             if path in ("/api/admin/offline-orders", "/api/admin/warehouses"):
                 if not isinstance(data, dict):
                     raise ValueError("Invalid admin request.")
-                actor = "admin" if self.headers.get("X-Staff-Key") else auth.portal_google_email(
+                actor = "admin" if self.staff_key() else auth.portal_google_email(
                     db, self.headers, "admin"
                 ) or "admin"
                 if path == "/api/admin/offline-orders":
@@ -1946,7 +2064,13 @@ if __name__ == "__main__":
     payment_mode = os.environ.get("PRINTBEE_PAYMENT_MODE", "disabled")
     if payment_mode not in ("disabled", "test", "razorpay"):
         raise SystemExit("Set PRINTBEE_PAYMENT_MODE to disabled, test or razorpay.")
-    if payment_mode == "test" and urlsplit(auth.public_origin()).hostname not in (None, "localhost", "127.0.0.1"):
+    # Cookies are only marked Secure, and the same-origin (CSRF) check only means something, when PRINTBEE_ORIGIN is the
+    # real https address. So a server reachable from outside refuses to start without it.
+    local_only = args.host in ("127.0.0.1", "localhost", "::1")
+    if not local_only and not auth.public_origin().startswith("https://"):
+        raise SystemExit("Set PRINTBEE_ORIGIN to your https:// site address when the server listens on a public address.")
+    origin_host = urlsplit(auth.public_origin()).hostname
+    if payment_mode == "test" and origin_host not in ("localhost", "127.0.0.1") and not (origin_host is None and local_only):
         raise SystemExit("Test payments require a local origin.")
     gateway = razorpay_checkout.Razorpay.from_environment() if payment_mode == "razorpay" else None
     checkout_terms = configured_terms()
@@ -1996,6 +2120,7 @@ if __name__ == "__main__":
         raise SystemExit()
     with closing(connect()) as db, db:
         db.executescript(auth.SCHEMA)
+        auth.add_ip_column(db)
         if "last_active" not in {column["name"] for column in db.execute("PRAGMA table_info(customer_sessions)")}:
             db.execute("ALTER TABLE customer_sessions ADD COLUMN last_active INTEGER")
         if "portal" not in {column["name"] for column in db.execute("PRAGMA table_info(google_portal_sessions)")}:
@@ -2054,6 +2179,7 @@ if __name__ == "__main__":
         ops.ready_printed_orders(db, "warehouse", eligible_partners=eligible)
     with ThreadingHTTPServer((args.host, args.port), PrintBee) as server:
         server.keys = keys
+        server.staff_keys_enabled = os.environ.get("PRINTBEE_ALLOW_STAFF_KEYS") == "1"
         server.google_access = google_access
         server.partners = {"delivery": keys["delivery"], **partners}
         server.partner_phones = phones

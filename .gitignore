@@ -8,3 +8,5 @@ PrintBeeLocal/
 *.sqlite-*
 staff-keys.json
 .demo-data/
+# Local Claude Code tool settings (can hold private paths and approvals)
+.claude/
