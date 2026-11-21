@@ -151,7 +151,7 @@ function lineChart(id, labels, series, format) {
           return `<circle class="chart-point" tabindex="0" aria-label="${info}" data-tip="${info}" cx="${x}" cy="${y}" r="5" fill="${entry.color}" stroke="var(--surface)" stroke-width="2"/>`;
         }).join('')}`;
     }).join('')}</svg><div class="chart-meta"><span>${escape(labels[0] || '')}</span><span>${format(high)}</span><span>${escape(labels.at(-1) || '')}</span></div>
-    <ul class="legend">${series.map(entry => `<li><span class="swatch" style="background:${entry.color}"></span>${entry.name}</li>`).join('')}</ul></div>`;
+    <ul class="legend">${series.map(entry => `<li><span class="swatch" style="background:${entry.color}"></span>${escape(entry.name)}</li>`).join('')}</ul></div>`;
 }
 
 function revenueChart(items) {
