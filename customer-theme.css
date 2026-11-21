@@ -204,3 +204,16 @@ main.inner-page .cart-page-heading h1 { margin-bottom: 0; }
 .customer-theme select { max-width: 100%; min-width: 0; text-overflow: ellipsis; }
 .customer-theme .price-panel label { display: block; max-width: 100%; }
 .customer-theme .price-panel label select { width: 100%; }
+
+/* Match the Address empty-state surface across the five customer tabs.
+   Keep existing borders, clay shadows, status colours and selection outlines. */
+.customer-theme #main :is(
+  .hero, .how li, .price-panel,
+  .orders-card, .orders-empty,
+  .upload-panel, .upload-drop-hint, .upload-break,
+  .file-review, .print-options, .review-tile-visual, .review-summary,
+  .cart-empty, #queue-list > li.cart-item, .cart-summary,
+  .address-empty, .address-card, .address-composer
+) {
+  background: var(--pb-customer-card);
+}

@@ -14,6 +14,7 @@
   --pb-page: var(--hv-page-bg, #EDE5D3);
   --pb-surface: var(--hv-surface, #FFFFFF);
   --pb-surface-2: var(--hv-surface-2, #FFF6DD);
+  --pb-customer-card: linear-gradient(150deg, #fffdf6, #f7eed8);
   --pb-ink: var(--hv-ink, #2A2112);
   --pb-muted: var(--hv-muted, #6E5E3E);
   --pb-border: var(--hv-border, #F0E3BE);
@@ -34,6 +35,12 @@
   --pb-font-display: Manrope, system-ui, sans-serif;
   --pb-focus: 0 0 0 3px color-mix(in srgb, var(--pb-accent) 60%, transparent);
   --pb-ease: cubic-bezier(.22, 1, .36, 1);
+}
+
+/* Customer card fills share one recipe while following the selected theme. */
+:root[data-theme="dark"],
+:root[data-pb-theme]:not([data-pb-theme="printbee"]) {
+  --pb-customer-card: linear-gradient(150deg, var(--pb-surface), var(--pb-surface-2));
 }
 
 /* ---------- 2. Bridge: only while a non-default theme is active ---------- */
