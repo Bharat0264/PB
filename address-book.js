@@ -64,10 +64,18 @@
     const list = byId('saved-addresses');
     list.replaceChildren();
     if (!entries.length) {
-      const image = element('img');
-      image.src = '/printbee-header-bee.webp'; image.alt = ''; image.width = 82; image.height = 82;
+      const symbol = element('span',null,'address-empty-icon');
+      symbol.setAttribute('aria-hidden','true');
+      const pin = document.createElementNS('http://www.w3.org/2000/svg','svg');
+      for (const [key,value] of Object.entries({viewBox:'0 0 24 24',fill:'none',stroke:'currentColor','stroke-width':'1.7','stroke-linecap':'round','stroke-linejoin':'round'})) pin.setAttribute(key,value);
+      const outline = document.createElementNS(pin.namespaceURI,'path');
+      outline.setAttribute('d','M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z');
+      const center = document.createElementNS(pin.namespaceURI,'circle');
+      center.setAttribute('cx','12'); center.setAttribute('cy','10'); center.setAttribute('r','2.5');
+      pin.append(outline,center);
+      symbol.append(pin);
       const empty = element('div',null,'address-empty');
-      empty.append(image,element('h3','No saved addresses yet'));
+      empty.append(symbol,element('h3','No saved addresses yet'));
       list.append(empty);
     }
     entries.slice(0,showAll?entries.length:5).forEach((entry,index) => {
