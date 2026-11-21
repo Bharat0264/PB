@@ -389,7 +389,6 @@
     try { persist(entries,defaultIndex,selected); } catch { /* Read-only storage still shows saved addresses. */ }
   }
   renderAddresses();
-  if (!entries.length && !narrow.matches) edit(-1);
   window.printbeePricing.refresh().then(config => {
     serviceArea = config?.terms?.serviceArea;
     showPin();
