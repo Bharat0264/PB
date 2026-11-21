@@ -2009,7 +2009,13 @@ if __name__ == "__main__":
     payment_mode = os.environ.get("PRINTBEE_PAYMENT_MODE", "disabled")
     if payment_mode not in ("disabled", "test", "razorpay"):
         raise SystemExit("Set PRINTBEE_PAYMENT_MODE to disabled, test or razorpay.")
-    if payment_mode == "test" and urlsplit(auth.public_origin()).hostname not in (None, "localhost", "127.0.0.1"):
+    # Cookies are only marked Secure, and the same-origin (CSRF) check only means something, when PRINTBEE_ORIGIN is the
+    # real https address. So a server reachable from outside refuses to start without it.
+    local_only = args.host in ("127.0.0.1", "localhost", "::1")
+    if not local_only and not auth.public_origin().startswith("https://"):
+        raise SystemExit("Set PRINTBEE_ORIGIN to your https:// site address when the server listens on a public address.")
+    origin_host = urlsplit(auth.public_origin()).hostname
+    if payment_mode == "test" and origin_host not in ("localhost", "127.0.0.1") and not (origin_host is None and local_only):
         raise SystemExit("Test payments require a local origin.")
     gateway = razorpay_checkout.Razorpay.from_environment() if payment_mode == "razorpay" else None
     checkout_terms = configured_terms()
