@@ -49,6 +49,18 @@ Live and local behaved identically in every comparison, except that live runs re
 - Actual result: performance 63 (home), 63 (upload), 69 (pricing). Total blocking time 2.3 to 2.8 s, time to interactive 6.0 to 7.6 s, page weight about 2.0 MB. The welcome page scores 100.
 - Evidence: Lighthouse JSON for the five pages; the biggest script cost is `buzz-bee3d.js` (about 10 s of scripting on the throttled run, from the three.js engine and the 938 KB `bee_hq.glb`).
 - Likely cause: `buzz-chat.js` loads three.js, the GLB and builds the bee on every customer page at startup.
+- **Status: FIXED for the 3D cost; a different page-speed cost remains (see below)** (commit `fix(BUG-002)`). The bee was already a dynamic import after the page is idle, but it still downloaded for everyone. `buzz-chat.js` now keeps the light still bee (the existing floating WebP, same tip and chat) and never downloads `buzz-bee3d.js`, three.js or `bee_hq.glb` when: the screen is 600 px or narrower, the device is touch-first, "reduce motion" is on, or the connection is 2G or data-saver. Desktop with normal motion still gets the 3D bee, loaded after idle. The bee launcher is the chat button on every customer page, so it stays on all of them; only the 3D engine is conditional.
+- **Lighthouse mobile before and after** (Lighthouse 12.2.1, mobile, simulated slow 4G, performance category, run against my local server, same machine and settings; the local server sends files uncompressed so absolute numbers are lower than the live site, which sits behind Cloudflare compression):
+
+  | Page | Perf before | Perf after | TBT before | TBT after | Script time before | after | Page weight before | after |
+  |---|---|---|---|---|---|---|---|---|
+  | `/index.html` | 27 | 59 | 4,580 ms | 0 ms | 16.1 s | 0.2 s | 4,288 KiB | 1,031 KiB |
+  | `/queue.html` | 26 | 60 | 2,940 ms | 0 ms | 15.8 s | 0.2 s | 4,260 KiB | 1,034 KiB |
+  | `/pricing.html` | 50 | 85 | 6,700 ms | 0 ms | 10.7 s | 0.1 s | 3,633 KiB | 414 KiB |
+
+  For reference, the live site before any fix (earlier run): index 63, queue 63, pricing 69, TBT 2.3 to 2.8 s. A live "after" needs the change deployed; re-run `lighthouse https://printbee.onrender.com/index.html --form-factor=mobile` after deploy.
+- **Goal check:** TBT under 300 ms: met (0 ms). Performance 90+: not met on home and upload (about 60 locally). What is left is not the bee: the largest paint on those two pages is the 280 KB hero picture `printing-clay.webp`, and `index.html` loads `studio.css` three times under different `?v=` names (3 x 63 KB). That is a separate fix (preload or shrink the hero image, load the stylesheet once); I did not change it because the instruction was to change nothing else.
+- **Verified** (Chrome): desktop 1280 px: 3D bee ready, chat opens. Reduce-motion desktop, phone 390 px (touch), 560 px desktop and 820 px touch tablet: still bee shown, 0 requests for the 3D files, chat opens. Phone screenshot checked. Full suite (239 tests) passes.
 - Fix prompt: "The Buzz bee 3D launcher blocks the main thread for 2+ seconds on mobile and loads 1.3 MB of 3D code on every page. Keep the look but load the 3D scene lazily: show the existing still bee pictures first, and only import `buzz-bee3d.js` and `bee_hq.glb` after the page is idle (or when the user first hovers or taps the bee), and skip the 3D entirely on low-power devices. Re-run Lighthouse mobile; goal TBT under 300 ms and performance 90+. Change nothing else."
 
 ### BUG-003: Signed-out visitors get red console errors on every page

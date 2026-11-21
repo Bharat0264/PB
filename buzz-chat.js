@@ -536,9 +536,12 @@
   }
 
   // ---- loading the 3D bee only when the page is idle (and not on a slow or data-saving connection) ----
+  // On phones (narrow or touch-first screens), with "reduce motion" on, or on a slow or data-saving connection, the
+  // light still bee is used and the 3D engine (three.js + the bee model, about 1.4 MB) is never downloaded.
+  const touchFirst = matchMedia('(hover: none) and (pointer: coarse)');
   function loadBee() {
     const link = navigator.connection;
-    if (link && (link.saveData || /(^|-)2g$/.test(link.effectiveType || ''))) { fab.dataset.state = 'fallback'; introTip(); return; }
+    if (REDUCED || phone.matches || touchFirst.matches || (link && (link.saveData || /(^|-)2g$/.test(link.effectiveType || '')))) { fab.dataset.state = 'fallback'; introTip(); return; }
     const giveUp = setTimeout(() => { if (fab.dataset.state === 'loading') { fab.dataset.state = 'fallback'; introTip(); } }, 7000);
     import('/buzz-bee3d.js?v=17')
       .then(module => module.createBee(canvas, {reducedMotion: REDUCED, scale: 0.86, onFrame: lift => fab.style.setProperty('--lift', lift.toFixed(3))}))
