@@ -64,7 +64,7 @@
     const list = byId('saved-addresses');
     list.replaceChildren();
     if (!entries.length) {
-      const symbol = element('span',null,'address-empty-icon');
+      const symbol = element('span',null,'address-empty-icon customer-tab-icon');
       symbol.setAttribute('aria-hidden','true');
       const pin = document.createElementNS('http://www.w3.org/2000/svg','svg');
       for (const [key,value] of Object.entries({viewBox:'0 0 24 24',fill:'none',stroke:'currentColor','stroke-width':'1.7','stroke-linecap':'round','stroke-linejoin':'round'})) pin.setAttribute(key,value);

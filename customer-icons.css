@@ -1,0 +1,17 @@
+/* One badge recipe for the main Upload, Orders, Cart and Address illustrations.
+   Keep checkout controls, the brand artwork and navigation icons at their own scales. */
+.customer-theme #main .customer-tab-icon {
+  display: grid; place-items: center; flex: none; box-sizing: border-box;
+  width: 88px; height: 88px; min-width: 88px; min-height: 88px;
+  margin: 0 0 8px; padding: 0; border: 0; border-radius: 50%;
+  color: var(--pb-accent-ink, #2A2112);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--pb-accent) 50%, var(--pb-surface)), var(--pb-accent));
+  box-shadow: 7px 9px 20px var(--hv-drop), -4px -4px 12px var(--hv-hi),
+    inset 3px 3px 7px var(--hv-hi), inset -4px -5px 10px var(--hv-shade);
+  animation: none; transform: none; transition: none;
+}
+.customer-theme #main .customer-tab-icon > svg {
+  display: block; width: 34px; height: 34px; fill: none;
+  stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round;
+  filter: drop-shadow(0 1px 0 var(--hv-hi));
+}

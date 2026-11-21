@@ -122,7 +122,7 @@
   }
   function emptyOrders() {
     const empty = node('li', '', 'orders-empty track-empty');
-    const symbol = node('span', '', 'track-empty-icon');
+    const symbol = node('span', '', 'track-empty-icon customer-tab-icon');
     symbol.setAttribute('aria-hidden', 'true');
     const picture = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     for (const [key,value] of Object.entries({viewBox:'0 0 24 24',fill:'none',stroke:'currentColor','stroke-width':'1.7','stroke-linecap':'round','stroke-linejoin':'round'})) picture.setAttribute(key,value);
