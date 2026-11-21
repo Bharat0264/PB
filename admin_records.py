@@ -4,7 +4,7 @@ import time
 from datetime import datetime, timedelta, timezone
 
 import fulfillment as ops
-from finance import LIVE as PAID_STATUSES
+from finance import LIVE as PAID_STATUSES, REAL_ORDERS
 
 
 SCHEMA = """
@@ -155,7 +155,7 @@ def warehouse_directory(db):
         json_extract(details,'$.pickupWarehouse.address') AS address,
         count(*) AS orders, COALESCE(sum(CAST(COALESCE(json_extract(details,'$.bill.total'),
             json_extract(details,'$.subtotal'),0) AS INTEGER)),0) AS revenue
-        FROM orders WHERE status IN (""" + marks + """) GROUP BY warehouse_id, name, address""", PAID_STATUSES)
+        FROM orders WHERE """ + REAL_ORDERS + " AND status IN (" + marks + ") GROUP BY warehouse_id, name, address", PAID_STATUSES)
     for row in totals:
         if row["warehouse_id"] is not None:
             store = by_id.get(row["warehouse_id"])
@@ -324,7 +324,7 @@ def today_totals(db, now=None):
         FROM orders JOIN (
             SELECT DISTINCT order_id FROM audit WHERE action='paid' AND created>=? AND created<?
         ) AS payments ON orders.id=payments.order_id
-    """, day).fetchone()
+        WHERE """ + REAL_ORDERS, day).fetchone()
     offline_count, offline_revenue = db.execute(
         "SELECT count(*), COALESCE(sum(total),0) FROM offline_sales WHERE created>=? AND created<?", day
     ).fetchone()

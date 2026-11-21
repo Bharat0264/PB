@@ -36,6 +36,10 @@ def fetch(db, audience, identity, since, limit=100):
         sql += "AND o.email=? "
         params.append(identity)
     elif audience == "partner":
+        sql += ("AND EXISTS (SELECT 1 FROM orders t WHERE t.id=e.order_id AND "
+                "(COALESCE(json_extract(t.details,'$.testDelivery'),0)=0 "
+                "OR json_extract(t.details,'$.testPartner')=?)) ")
+        params.append(identity)
         sql += ("AND EXISTS (SELECT 1 FROM order_events p WHERE p.order_id=e.order_id AND p.to_status='packed') "
                 "AND (e.event IN (" + ",".join("?" for _ in PARTNER_POOL_EVENTS) + ") "
                 "OR EXISTS (SELECT 1 FROM deliveries d WHERE d.order_id=e.order_id AND d.partner=?)) ")

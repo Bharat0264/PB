@@ -8,9 +8,10 @@ All amounts are integer paise. Definitions (also in docs/connected-workflow):
 Order bills are the snapshot saved at checkout, so later price changes never rewrite history.
 """
 LIVE = ("paid", "printing", "packed", "out_for_delivery", "undeliverable", "delivered")
+REAL_ORDERS = "COALESCE(json_extract(details,'$.testDelivery'),0)=0"
 _BILLS = ("SELECT status, "
           "CAST(COALESCE(json_extract(details,'$.bill.total'), json_extract(details,'$.subtotal'), 0) AS INTEGER) AS total, "
-          "CAST(COALESCE(json_extract(details,'$.bill.tax'), 0) AS INTEGER) AS tax FROM orders")
+          "CAST(COALESCE(json_extract(details,'$.bill.tax'), 0) AS INTEGER) AS tax FROM orders WHERE " + REAL_ORDERS)
 
 
 def summary(db):

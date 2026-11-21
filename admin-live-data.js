@@ -81,6 +81,7 @@ export async function load() {
   payouts.splice(0, payouts.length, ...data.payouts);
   Object.assign(info, {terms: data.terms, paymentMode: data.paymentMode, pricingVersion: data.pricingVersion,
     ordering: data.ordering,
+    testDeliveries: data.testDeliveries || [],
     finance: data.finance, counts: data.counts, attention: data.attention || [], captured: data.captured, today: data.today});
   return data;
 }

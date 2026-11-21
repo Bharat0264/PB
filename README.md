@@ -279,6 +279,24 @@ and uses a stable receipt reference. Configure the HTTPS Razorpay webhook to
 also receive `refund.processed` and `refund.failed`. A pending request can be
 reconciled from the dashboard if the initial API response is lost.
 
+### Practice a delivery on the live site
+
+In **Admin → Orders → Create test delivery**, select the partner account that will test the flow.
+The new `PB-TEST-…` order is ready for pickup and visible only to that partner. It uses the normal
+acceptance, pickup and delivery-code checks. Stay at the pickup location: this is a practice handover
+with no real customer, parcel, printing, payment or travel. GPS sharing is disabled for practice orders.
+
+The partner goes online, accepts the test order, confirms arrival and pickup, then completes the
+handover steps. In the admin's **Test delivery orders** list, open the same order and press
+**Refresh status / OTP** after pickup to get the code. Use **Renew test OTP** if it expires or locks.
+After delivery, the order stays in the test list and another test can be created. Repeated creation
+returns the existing unfinished test for that partner. Test orders do not enter sales, warehouse
+revenue, normal order counts, customer history, financial ledgers or partner earnings.
+
+This feature creates synthetic practice data; it never copies customer files or contact details.
+The admin-only endpoints are `POST /api/admin/test-deliveries` with `{"partner":"registered-partner-id"}`
+and `GET /api/admin/test-deliveries/{id}`. The latter exposes an OTP only for practice orders after pickup.
+
 ### Buzz, the support chatbot (backend)
 
 Buzz answers FAQs, prices, upload help and order questions, and drafts support tickets. It uses the existing

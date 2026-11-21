@@ -440,3 +440,18 @@ dialog::backdrop { background: color-mix(in srgb, #8A5E0B 22%, rgba(23,18,10,.45
   .tb-pill :is(.icon-button, .avatar, .search-clay) { width: 38px; height: 38px; min-height: 38px; }
   .tb-pill .hv-switch { width: 58px; --switch-width: 58px; --switch-thumb: 28px; }
 }
+#test-delivery-dialog {
+  width: min(540px, calc(100% - 32px)); max-height: calc(100dvh - 40px);
+  box-sizing: border-box; padding: clamp(20px, 4vw, 32px); overflow: auto;
+  border: 1px solid var(--hv-border); border-radius: 28px;
+  background: var(--hv-surface); color: var(--hv-ink); box-shadow: var(--hv-sh-3);
+}
+#test-delivery-dialog::backdrop { background: #201a1480; backdrop-filter: blur(5px); }
+#test-delivery-dialog h2 { margin-top: 0; overflow-wrap: anywhere; }
+#test-delivery-dialog p { line-height: 1.6; }
+#test-delivery-dialog label { display: grid; gap: 8px; margin-block: 16px; }
+#test-delivery-dialog select { min-width: 0; width: 100%; min-height: 48px; font: inherit; }
+#test-delivery-dialog .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 20px; }
+#test-delivery-code { display: block; overflow-wrap: anywhere; font-size: 14px; font-weight: 500; line-height: 1.6; }
+#test-delivery-code[data-has-code="true"] { font-size: 24px; font-weight: 800; }
+#test-deliveries-list button { white-space: normal; text-align: left; overflow-wrap: anywhere; }

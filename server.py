@@ -25,6 +25,7 @@ import admin_records
 import event_feed
 import finance
 import file_retention
+import practice_deliveries
 import order_status
 import customer_auth as auth
 import fulfillment as ops
@@ -557,7 +558,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                        "/footer-wave.css", "/footer-wave.js",
                        "/hive-theme.css", "/hive-theme.js", "/customer-theme.css", "/theme-registry.js", "/theme-engine.js", "/theme-engine.css", "/theme-adapter.css", "/themes.html", "/themes.js", "/themes.css", "/admin-hive.css", "/admin-mobile.css", "/warehouse-hive.css", "/staff-dock.css", "/staff-dock.js",
                        "/partner.html", "/partner.css", "/partner.js", "/partner-sw.js", "/admin.html", "/admin-preview.html", "/admin-dashboard.css", "/admin-tokens.css",
-                       "/customer-pricing.js", "/customer-price-table.js", "/pricing-preview.js", "/customer-icons.css", "/admin-dashboard.js", "/admin-records.js", "/admin-ledger.js", "/admin-ledger.css", "/admin-pricing.js", "/admin-pricing.css", "/admin-data.js", "/admin-live-data.js", "/partner.webmanifest", "/portal-login.js", "/portal-loader.js",
+                       "/customer-pricing.js", "/customer-price-table.js", "/pricing-preview.js", "/customer-icons.css", "/admin-test-deliveries.js", "/admin-dashboard.js", "/admin-records.js", "/admin-ledger.js", "/admin-ledger.css", "/admin-pricing.js", "/admin-pricing.css", "/admin-data.js", "/admin-live-data.js", "/partner.webmanifest", "/portal-login.js", "/portal-loader.js",
                        "/pricing.html", "/terms.html", "/terms.css", "/terms.js", "/queue.html", "/cart.html", "/orders.html", "/profile.html", "/profile.js", "/address.html", "/address-book.js", "/address-book.css", "/customer-login.js", "/account-home.js", "/session-sync.js",
                        "/preloader.js", "/preloader.css", "/gsap-3.13.0.min.js", "/live.js", "/status-model.js", "/status-model.css", "/portal-switch.js", "/demo-login.js", "/backend-check.js",
                        "/navigation.html", "/navigation.css", "/bottom-nav.js", "/nav-tokens.js", "/embedded-tab.js",
@@ -579,6 +580,11 @@ class PrintBee(SimpleHTTPRequestHandler):
         with closing(connect()) as db:
             if path == "/api/admin":
                 return self.admin_snapshot(db)
+            if match := re.fullmatch(r"/api/admin/test-deliveries/([a-f0-9]{32})", path):
+                if self.get_role() != "admin":
+                    return self.json_response(403, {"error": "Admin access is required."})
+                result = practice_deliveries.view(db, match[1], self.server.keys["delivery-code"].encode())
+                return self.json_response(200 if result else 404, result or {"error": "Test delivery not found."})
             if path == "/api/admin/ledger":
                 return self.admin_ledger(db)
             if path == "/api/partner/orders":
@@ -633,6 +639,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                     "(SELECT id FROM orders WHERE status='delivered' ORDER BY rowid DESC LIMIT 100) "
                     "ORDER BY orders.rowid DESC"
                 ).fetchall()
+                rows = [row for row in rows if not json.loads(row["details"]).get("testDelivery")]
                 jobs = {}
                 timeline = {}
                 order_ids = [row["id"] for row in rows]
@@ -1648,14 +1655,20 @@ class PrintBee(SimpleHTTPRequestHandler):
         rows = db.execute(
             "SELECT orders.id, orders.status, orders.details, order_number, partner FROM orders "
             "LEFT JOIN order_owners ON orders.id=order_owners.order_id LEFT JOIN deliveries "
-            "ON orders.id=deliveries.order_id WHERE (orders.status='packed' AND partner IS NULL) "
-            "OR (partner=? AND orders.status IN ('packed','out_for_delivery','delivered')) "
-            "ORDER BY orders.rowid DESC LIMIT 100", (partner,)
+            "ON orders.id=deliveries.order_id WHERE ((orders.status='packed' AND partner IS NULL) "
+            "OR (partner=? AND orders.status IN ('packed','out_for_delivery','delivered'))) "
+            "AND (" + finance.REAL_ORDERS + " OR json_extract(details,'$.testPartner')=?) "
+            "ORDER BY orders.rowid DESC LIMIT 100", (partner, partner)
         )
         orders = []
         for row in rows:
             record = {key: row[key] for key in ("id", "status", "order_number", "partner")}
             details = json.loads(row["details"])
+            if details.get("testDelivery") and details.get("testPartner") != partner:
+                continue
+            record["testDelivery"] = bool(details.get("testDelivery"))
+            if record["testDelivery"]:
+                record.update(notes=details["notes"], to="Practice handover at pickup (no travel)")
             record["payout"] = details.get("partnerPayout", 0)
             if row["status"] == "packed" and details.get("pickupWarehouse"):
                 record["pickupWarehouse"] = details["pickupWarehouse"]
@@ -1766,7 +1779,8 @@ class PrintBee(SimpleHTTPRequestHandler):
             "CAST(COALESCE(json_extract(details,'$.partnerPayout'),0) AS INTEGER) AS payout "
             "FROM orders LEFT JOIN order_owners ON orders.id=order_owners.order_id "
             "LEFT JOIN razorpay_orders ON orders.id=razorpay_orders.order_id "
-            "LEFT JOIN deliveries ON orders.id=deliveries.order_id ORDER BY orders.rowid DESC LIMIT 500"
+            "LEFT JOIN deliveries ON orders.id=deliveries.order_id WHERE " + finance.REAL_ORDERS +
+            " ORDER BY orders.rowid DESC LIMIT 500"
         )]
         orders = [self.describe_order(row) for row in orders]
         offline = [dict(row) for row in db.execute(
@@ -1775,7 +1789,7 @@ class PrintBee(SimpleHTTPRequestHandler):
         )]
         orders = sorted(orders + offline, key=lambda row: row["created"] or 0, reverse=True)[:500]
         counts = {row["status"]: row["count"] for row in db.execute(
-            "SELECT status, count(*) AS count FROM orders GROUP BY status"
+            "SELECT status, count(*) AS count FROM orders WHERE " + finance.REAL_ORDERS + " GROUP BY status"
         )}
         counts["offline"] = db.execute("SELECT count(*) FROM offline_sales").fetchone()[0]
         captured = db.execute("SELECT COALESCE(sum(amount),0) FROM razorpay_orders WHERE payment_id IS NOT NULL").fetchone()[0]
@@ -1810,6 +1824,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                                         "partners": partners,
                                         "warehouses": admin_records.warehouse_directory(db),
                                         "ordering": admin_records.ordering_availability(db),
+                                        "testDeliveries": practice_deliveries.listing(db),
                                         "pricingVersion": db.execute("SELECT COALESCE(max(id),0) FROM pricing_versions").fetchone()[0]})
 
     @staticmethod
@@ -1846,7 +1861,13 @@ class PrintBee(SimpleHTTPRequestHandler):
         verified_delivery = False
         with closing(connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
-            if path == "/api/admin/ordering":
+            if path == "/api/admin/test-deliveries":
+                actor = auth.portal_google_email(db, self.headers, "admin") or role
+                eligible = (set(self.server.partners) | set(self.server.partner_phones.values()) |
+                            set(self.server.google_access["partner"].values())) - {"delivery"}
+                ident = practice_deliveries.create(db, data, actor, eligible)
+                result = practice_deliveries.view(db, ident, self.server.keys["delivery-code"].encode())
+            elif path == "/api/admin/ordering":
                 actor = auth.portal_google_email(db, self.headers, "admin") or role
                 result = admin_records.set_ordering_availability(db, data, actor)
             elif path in ("/api/admin/offline-orders", "/api/admin/warehouses"):
@@ -1939,6 +1960,11 @@ class PrintBee(SimpleHTTPRequestHandler):
                 if not match:
                     return self.json_response(404, {"error": "Unknown operation."})
                 order_id, action = match.groups()
+                practice = db.execute("SELECT details FROM orders WHERE id=?", (order_id,)).fetchone()
+                if practice:
+                    details = json.loads(practice["details"])
+                    if details.get("testDelivery") and details.get("testPartner") != partner:
+                        return self.json_response(403, {"error": "This test belongs to another delivery partner."})
                 result = {"saved": True}
                 if action == "problem":
                     # A Bee Runner reports a problem on their own delivery. It becomes an admin ticket with a Runner source.

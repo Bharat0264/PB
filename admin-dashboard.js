@@ -4,6 +4,7 @@ const source = await import(live ? './admin-live-data.js' : './admin-data.js');
 const {orders, products, activity, traffic, targets, today} = source;
 
 import {addOfflineOrderFields, pickupMapUrl} from './admin-records.js';
+import {setupTestDeliveries} from './admin-test-deliveries.js';
 
 import {buildLedger} from './admin-ledger.js?v=mobile-layout';
 import {mountSupport, supportBadge, supportNotifications} from './admin-support.js?v=2';
@@ -490,6 +491,8 @@ function previewLedger(page, filter) {
 }
 
 let supportCleanup = null;
+const renderTestDeliveries = live ? setupTestDeliveries(source, refresh) : () => {};
+
 function render(animate = false) {
   supportCleanup?.();
   supportCleanup = null;
@@ -504,7 +507,7 @@ function render(animate = false) {
   switch (route) {
     case 'ledger': widgets = card('Transactions', '<div id="preview-ledger" class="ledger-panel"></div>', 'full'); break;
     case 'pricing': widgets = card('Checkout rates', '<div id="pricing-form"></div>', 'full'); break;
-    case 'orders': widgets = orderTable(); break;
+    case 'orders': widgets = orderTable() + (live ? card('Test delivery orders', '<ul id="test-deliveries-list" class="activity"></ul>', 'full') : ''); break;
     case 'support': widgets = '<section class="card full sp-shell"><div id="support-host"></div></section>'; break;
     case 'customers': widgets = growth(items) + bars('Top 5 customers',customersRank,money) + bars('Delivery regions',regionRank); break;
     case 'inventory': widgets = live ? productList() : productList() + stock(); break;
@@ -532,6 +535,7 @@ function render(animate = false) {
     else link.removeAttribute('aria-current');
   });
   root.innerHTML = `<div class="grid${animate ? ' arrive' : ''}">${widgets}</div>`;
+  if (live && route === 'orders') renderTestDeliveries();
   if (live && route === 'support') supportCleanup = mountSupport($('support-host'), subRoute);
   if (route === 'ledger') {
     if (live) buildLedger($('preview-ledger'), (page, kind) => source.api('/api/admin/ledger?' + new URLSearchParams({page, kind})))();

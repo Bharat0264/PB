@@ -132,7 +132,7 @@ async function run(action, control) {
 function orderNo(order) { return order.order_number || 'PB-' + order.id.slice(0, 8).toUpperCase(); }
 function active() { return state.orders.find(o => o.partner && ['packed', 'out_for_delivery'].includes(o.status)); }
 function offers() { return state.orders.filter(o => !o.partner && o.status === 'packed'); }
-function delivered() { return state.orders.filter(o => o.status === 'delivered'); }
+function delivered() { return state.orders.filter(o => o.status === 'delivered' && !o.testDelivery); }
 function persist() { if (demo && !scene) save('printbee-partner-hive', JSON.stringify(state)); }
 function changed() { persist(); render(); }
 async function request(path, data, extraHeaders = {}) {
@@ -167,7 +167,7 @@ async function refresh() {
       stopLocation();
       if (!completed) notify('This delivery is no longer assigned to you. Contact PrintBee.');
     }
-    if (state.available && active()?.status === 'out_for_delivery') startLocation();
+    if (state.available && active()?.status === 'out_for_delivery' && !active()?.testDelivery) startLocation();
     else stopLocation();
     $('network').hidden = true;
     if (updated || !content.dataset.ready) render();
@@ -360,7 +360,7 @@ function otpKeys(order) {
   const cooldown = h('p', {class: 'otp-note'});
   function lockTick() {
     const seconds = demo ? Math.max(0, Math.ceil((state.unlock - Date.now()) / 1000)) : 0;
-    cooldown.textContent = seconds ? `Too many attempts. Try again in ${seconds}s.` : demo ? 'Demo code: 4816' : 'Ask the customer for the code shown in their PrintBee app.';
+    cooldown.textContent = seconds ? `Too many attempts. Try again in ${seconds}s.` : demo ? 'Demo code: 4816' : order.testDelivery ? 'Ask the admin to open this test order and refresh its OTP.' : 'Ask the customer for the code shown in their PrintBee app.';
     inputs.forEach(i => { i.disabled = Boolean(seconds); });
     if (seconds) setTimeout(() => { if (keys.isConnected) lockTick(); }, 1000);
   }
@@ -390,7 +390,7 @@ function otpKeys(order) {
         const r = keys.getBoundingClientRect();
         burstHexes(r.left + r.width / 2, r.top + r.height / 2);
         buzzVibrate([20, 40, 20]);
-        $('hive-live').textContent = 'Delivered! ' + money(order.payout) + ' earned.';
+        $('hive-live').textContent = order.testDelivery ? 'Practice delivery completed. No payout created.' : 'Delivered! ' + money(order.payout) + ' earned.';
         dripNext = true;
         render();
       } catch (err) {
@@ -563,6 +563,7 @@ function offerCard(order) {
   const pay = h('span', {class: 'offer-pay num'}, money(order.payout));
   return h('article', {class: 'offer', 'aria-label': `${orderNo(order)}, ${money(order.payout)}`},
     h('div', {class: 'offer-top'}, h('div', {}, h('div', {class: 'offer-id'}, orderNo(order)), pay)),
+    order.testDelivery ? h('p', {class: 'tag'}, 'Practice only · No parcel, payment or travel required') : null,
     h('div', {class: 'offer-route'}, h('i'), h('span', {}, order.pickupWarehouse?.name || 'Print room, PrintBee hive'), h('i', {class: 'to'}), h('span', {}, order.to || order.address || 'Customer')),
     h('div', {class: 'offer-meta'}, ...(order.summary || '').split(' · ').filter(Boolean).slice(1).map(t => h('span', {class: 'tag'}, t))),
     slideToAct({label: 'Slide to accept', ariaLabel: `Accept ${orderNo(order)} for ${money(order.payout)}. Drag, or press Enter.`,
@@ -586,6 +587,7 @@ function activeCell(order) {
   const advance = next => { if (demo) state.step = next; else localStep = next; changed(); };
   const title = ['Fly to the hive', 'Collect the packets', 'Deliver to ' + (order.to || 'customer'), 'Verify the delivery code'][step];
   const body = [];
+  if (order.testDelivery) body.push(h('p', {class: 'tag'}, 'TEST DELIVERY · Stay at pickup. No parcel, payment or travel required.'));
   if (step <= 1) {
     const pickup = order.pickupWarehouse;
     body.push(
@@ -660,7 +662,7 @@ function reportProblem(order) {
 function deliveredCell() {
   return h('section', {class: 'cell delivered'},
     h('div', {class: 'delivered-hex', 'aria-hidden': 'true'}, '✓'),
-    h('h3', {}, 'Delivered!'), h('p', {class: 'muted'}, orderNo(completed) + ' · ' + money(completed.payout) + ' added to your jar'),
+    h('h3', {}, completed.testDelivery ? 'Test completed!' : 'Delivered!'), h('p', {class: 'muted'}, orderNo(completed) + (completed.testDelivery ? ' · Practice only. No payout created.' : ' · ' + money(completed.payout) + ' added to your jar')),
     h('button', {class: 'hive-btn hive-btn-primary', type: 'button', onclick: () => { completed = null; render(); }}, 'Find the next order'));
 }
 function deliveriesCell() {

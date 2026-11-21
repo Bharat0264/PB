@@ -191,8 +191,9 @@ def deliver(db, order_id, partner, secret, code, remote_storage=False):
     db.execute("UPDATE orders SET status='delivered' WHERE id=?", (order_id,))
     db.execute("UPDATE deliveries SET nonce=NULL, expires=NULL WHERE order_id=?", (order_id,))
     details = json.loads(db.execute("SELECT details FROM orders WHERE id=?", (order_id,)).fetchone()["details"])
-    db.execute("INSERT INTO partner_earnings(order_id, partner, amount, earned) VALUES (?,?,?,?)",
-               (order_id, partner, details.get("partnerPayout", 0), int(time.time())))
+    if not details.get('testDelivery'):
+        db.execute("INSERT INTO partner_earnings(order_id, partner, amount, earned) VALUES (?,?,?,?)",
+                   (order_id, partner, details.get("partnerPayout", 0), int(time.time())))
     audit(db, partner, "delivery_completed", order_id)
     delete_delivered_files(db, order_id, remote_storage)
     return None
