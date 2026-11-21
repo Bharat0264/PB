@@ -82,9 +82,32 @@ The application checks order ownership before returning a file or creating a
 one-minute signed link. Without S3, the local app stores files in SQLite.
 Existing SQLite files remain readable with either configuration.
 
+After the assigned partner successfully verifies the delivery OTP, the same database
+transaction removes that order's uploaded print files. Wrong, expired, locked or
+unauthorized OTP attempts do not delete anything. Order history, file names/print
+settings, receipts and partner earnings remain available. Delivered files return
+HTTP 410 and cannot be downloaded or reordered; a new print order needs a new upload.
+The browser also removes legacy cached order-file copies when it sees the delivered
+status. This does not delete originals or copies already saved on a customer's device.
+
+For S3, a durable deletion job commits with the delivery. A background worker removes
+the entire order prefix (including replaced uploads, object versions and delete
+markers), wakes immediately after OTP verification, and retries storage outages every
+30 seconds and after restarts. SQLite uses secure deletion for its active database
+pages. The worker also cleans older delivered uploads when a successful
+`delivery_completed` audit exists. Support-ticket attachments use their separate
+retention policy and are not removed by delivery cleanup.
+
+Storage credentials need `s3:ListBucket`, `s3:ListBucketVersions`, `s3:DeleteObject`
+and `s3:DeleteObjectVersion` for the order prefix, in addition to upload/download
+permissions. Configure independent database/object-store backups and any Object Lock
+retention consistently: application deletion cannot erase external backups or
+override a provider retention lock. Failed cloud deletions remain in `file_deletions`
+with an attempt count and an error type (no secret values), rather than being marked complete.
+
 Placed orders show delivery stages and refresh while open. Customers can
-download an order PDF or copy its files and print settings into the cart to
-review them at current prices. The PDF is an order receipt or local test
+download an order PDF or, before verified delivery, copy available files and print
+settings into the cart to review them at current prices. The PDF is an order receipt or local test
 summary. Merchant tax registration details are needed for GST invoices.
 
 Payments default to disabled. For a local demo, export

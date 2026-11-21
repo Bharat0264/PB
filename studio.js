@@ -825,6 +825,7 @@ async function showOrders() {
   const tracker = window.PrintBeeTracking;
   const filters = document.querySelector('#order-filters');
   const orders = [...accountOrders, ...legacyOrders];
+  await removeDeliveredLocalFiles(orders.filter(order => order.status === 'delivered').map(order => order.id)).catch(() => {});
   orders.sort((left, right) => Number(tracker.isActive(right.status)) - Number(tracker.isActive(left.status)));
   orderHistory.replaceChildren();
   filters.hidden = !orders.length;
@@ -884,7 +885,11 @@ async function showOrders() {
         reorder.disabled = false;
       }
     });
-    if (!active) actions.append(reorder);
+    if (order.status === 'delivered') {
+      const removed = document.createElement('small');
+      removed.textContent = 'Files deleted after delivery verification.';
+      actions.append(removed);
+    } else if (!active) actions.append(reorder);
     orderHistory.append(row);
   }
   errorPanel.hidden = !accountUnavailable;
@@ -945,6 +950,25 @@ async function getLegacyOrders(accountIds) {
     }
   }));
   return placedOrders.filter(Boolean);
+}
+
+async function removeDeliveredLocalFiles(ids) {
+  if (!ids.length) return;
+  const db = await database;
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction('orders', 'readwrite');
+    const store = transaction.objectStore('orders');
+    for (const id of ids) {
+      const request = store.get(id);
+      request.onsuccess = () => {
+        const order = request.result;
+        if (!order?.items?.some(item => item.file)) return;
+        store.put({...order, status:'delivered', items:order.items.map(({file,...item}) => ({...item,name:item.name || file?.name}))});
+      };
+    }
+    transaction.oncomplete = resolve;
+    transaction.onabort = () => reject(transaction.error);
+  });
 }
 
 const orderStates = {

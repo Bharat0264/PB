@@ -4,6 +4,7 @@ import hmac
 import json
 import secrets
 import time
+from file_retention import SCHEMA as FILE_RETENTION_SCHEMA, delete_delivered_files
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS print_jobs (
@@ -41,7 +42,7 @@ CREATE TABLE IF NOT EXISTS partner_earnings (
 CREATE TABLE IF NOT EXISTS notification_reads (
     email TEXT PRIMARY KEY, last_seen INTEGER NOT NULL
 );
-"""
+""" + FILE_RETENTION_SCHEMA
 
 
 class Conflict(ValueError):
@@ -176,7 +177,7 @@ def delivery_code(secret, nonce):
     return f"{int.from_bytes(digest[:8], 'big') % 10000:04d}"
 
 
-def deliver(db, order_id, partner, secret, code):
+def deliver(db, order_id, partner, secret, code, remote_storage=False):
     row = db.execute(
         "SELECT nonce, expires, attempts FROM deliveries JOIN orders ON orders.id=deliveries.order_id "
         "WHERE order_id=? AND partner=? AND status='out_for_delivery'", (order_id, partner)
@@ -193,6 +194,7 @@ def deliver(db, order_id, partner, secret, code):
     db.execute("INSERT INTO partner_earnings(order_id, partner, amount, earned) VALUES (?,?,?,?)",
                (order_id, partner, details.get("partnerPayout", 0), int(time.time())))
     audit(db, partner, "delivery_completed", order_id)
+    delete_delivered_files(db, order_id, remote_storage)
     return None
 
 

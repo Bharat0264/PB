@@ -2,6 +2,7 @@
 
 import hashlib
 import os
+import re
 from contextlib import closing
 from io import BytesIO
 
@@ -37,6 +38,37 @@ class PrivateFiles:
     def read(self, key):
         with closing(self.client.get_object(Bucket=self.bucket, Key=key)["Body"]) as body:
             return body.read()
+
+    def delete_order(self, order_id):
+        """Erase the entire order prefix, including replaced uploads and S3 versions."""
+        if not re.fullmatch(r'[a-f0-9]{32}', order_id):
+            raise ValueError('Invalid print order ID.')
+        prefix = f'printbee/orders/{order_id}/'
+
+        def remove(objects):
+            if not objects:
+                return
+            if any(not item['Key'].startswith(prefix) for item in objects):
+                raise ValueError('Refusing deletion outside this print order.')
+            result = self.client.delete_objects(Bucket=self.bucket, Delete={'Objects': objects, 'Quiet': True})
+            if result.get('Errors'):
+                raise OSError('Print-file deletion is incomplete.')
+
+        try:
+            for page in self.client.get_paginator('list_object_versions').paginate(Bucket=self.bucket, Prefix=prefix):
+                objects = [{'Key': item['Key'], 'VersionId': item['VersionId']}
+                           for item in page.get('Versions', []) + page.get('DeleteMarkers', [])]
+                for start in range(0, len(objects), 1000):
+                    remove(objects[start:start+1000])
+        except self.errors as error:
+            # Some S3-compatible stores do not implement version listing.
+            code = str(getattr(error, 'response', {}).get('Error', {}).get('Code', ''))
+            if code not in ('NotImplemented', 'NotImplementedException', '501', '405', 'MethodNotAllowed'):
+                raise
+        else:
+            return
+        for page in self.client.get_paginator('list_objects_v2').paginate(Bucket=self.bucket, Prefix=prefix):
+            remove([{'Key': item['Key']} for item in page.get('Contents', [])])
 
 
 def _logo_reader():

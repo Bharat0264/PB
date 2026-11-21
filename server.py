@@ -22,6 +22,7 @@ import admin_ledger
 import admin_records
 import event_feed
 import finance
+import file_retention
 import order_status
 import customer_auth as auth
 import fulfillment as ops
@@ -41,6 +42,7 @@ DOCUMENT_READERS = BoundedSemaphore(2)
 def connect():
     db = sqlite3.connect(DATA / "orders.sqlite", timeout=30)
     db.row_factory = sqlite3.Row
+    db.execute("PRAGMA secure_delete=ON")
     return db
 
 
@@ -757,7 +759,7 @@ class PrintBee(SimpleHTTPRequestHandler):
 
     def order_download(self, db, order_id, position):
         row = db.execute(
-            "SELECT details, order_number, provider_id FROM order_owners JOIN orders "
+            "SELECT details, order_number, provider_id, status FROM order_owners JOIN orders "
             "ON orders.id=order_owners.order_id LEFT JOIN razorpay_orders "
             "ON orders.id=razorpay_orders.order_id WHERE orders.id=? AND email=? AND status!='pending'",
             (order_id, auth.session_email(db, self.headers)),
@@ -766,6 +768,8 @@ class PrintBee(SimpleHTTPRequestHandler):
             number = row["order_number"] or "PB-" + order_id[:8].upper()
             body = invoice_pdf(number, json.loads(row["details"]), "razorpay" if row["provider_id"] else "test")
             return self.send_download(body, "application/pdf", f'attachment; filename="{number}.pdf"')
+        if row and row['status'] == 'delivered':
+            return self.json_response(410, {"error": "Print files were deleted after delivery OTP verification."})
         if row:
             file = db.execute("SELECT content, object_key FROM files WHERE order_id=? AND position=?",
                               (order_id, int(position))).fetchone()
@@ -1667,6 +1671,7 @@ class PrintBee(SimpleHTTPRequestHandler):
         refund = re.fullmatch(r"/api/admin/orders/([a-f0-9]{32})/refund", path)
         if refund:
             return self.refund_order(refund[1])
+        verified_delivery = False
         with closing(connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
             if path in ("/api/admin/offline-orders", "/api/admin/warehouses"):
@@ -1795,9 +1800,12 @@ class PrintBee(SimpleHTTPRequestHandler):
                     code = data["code"]
                     if not re.fullmatch(r"[0-9]{4}", code):
                         raise ValueError()
-                    error = ops.deliver(db, order_id, partner, self.server.keys["delivery-code"].encode(), code)
+                    error = ops.deliver(db, order_id, partner, self.server.keys["delivery-code"].encode(), code,
+                                        remote_storage=bool(self.server.files))
                     if error:
                         result = {"error": error}
+                    else:
+                        verified_delivery = True
                 else:
                     lat, lng = data["lat"], data["lng"]
                     if type(lat) not in (int, float) or type(lng) not in (int, float) or not (
@@ -1808,6 +1816,8 @@ class PrintBee(SimpleHTTPRequestHandler):
                                "AND (located_at IS NULL OR located_at<=?) "
                                "AND EXISTS(SELECT 1 FROM orders WHERE id=? AND status='out_for_delivery')",
                                (lat, lng, int(time.time()), order_id, partner, int(time.time()) - 5, order_id))
+        if verified_delivery:
+            self.server.file_cleanup.wake()
         self.json_response(409 if "error" in result else 200, result)
 
     def refund_order(self, order_id):
@@ -2005,5 +2015,10 @@ if __name__ == "__main__":
         maps_id = os.environ.get("PRINTBEE_MAPS_MAP_ID")
         server.maps = {"key": maps_key, "id": maps_id} if maps_key and maps_id else None
         server.files = PrivateFiles(bucket) if bucket else None
+        server.file_cleanup = file_retention.CleanupWorker(connect, server.files)
+        server.file_cleanup.start()
         print(f"PrintBee at http://{args.host}:{args.port}/ (payments: {payment_mode})", flush=True)
-        server.serve_forever()
+        try:
+            server.serve_forever()
+        finally:
+            server.file_cleanup.stop()

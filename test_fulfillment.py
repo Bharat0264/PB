@@ -12,9 +12,9 @@ class FulfillmentTest(unittest.TestCase):
         self.db.row_factory = sqlite3.Row
         self.db.executescript(ops.SCHEMA + """
             CREATE TABLE orders (id TEXT PRIMARY KEY, status TEXT, details TEXT);
-            CREATE TABLE files (order_id TEXT, position INTEGER);
+            CREATE TABLE files (order_id TEXT, position INTEGER, object_key TEXT);
             INSERT INTO orders VALUES ('sample','paid','{"partnerPayout":250}');
-            INSERT INTO files VALUES ('sample',0);
+            INSERT INTO files VALUES ('sample',0,NULL);
         """)
 
     def test_dispatch_selects_an_enrolled_available_partner(self):
