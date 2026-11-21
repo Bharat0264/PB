@@ -1,3 +1,5 @@
 pypdf==6.21.4
 reportlab==4.5.1
 boto3==1.44.3
+# Pillow arrives through reportlab. 13.0.0 fixes dozens of known issues; it needs Python 3.11+ (the Docker image uses 3.12).
+pillow>=13.0.0; python_version >= "3.11"
