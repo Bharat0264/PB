@@ -1670,16 +1670,10 @@ class PrintBee(SimpleHTTPRequestHandler):
         if not re.fullmatch(r"\+[1-9][0-9]{7,14}", phone):
             return self.json_response(400, {"error": "Enter a phone number with its country code."})
         now = int(time.time())
-        scope = action + ":" + auth.digest(phone)
         with closing(connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
-            db.execute("DELETE FROM partner_auth_limits WHERE created<=?", (now - 600,))
-            count, last = db.execute("SELECT count(*), max(created) FROM partner_auth_limits WHERE scope=?",
-                                     (scope,)).fetchone()
-            total = db.execute("SELECT count(*) FROM partner_auth_limits").fetchone()[0]
-            if total >= 150 or count >= 5 or (action == "send" and last and last > now - 60):
+            if not partner_auth.allow_attempt(db, action, auth.digest(phone), auth.digest(self.client_ip()), now):
                 return self.json_response(429, {"error": "Try again in a few minutes."})
-            db.execute("INSERT INTO partner_auth_limits VALUES (?,?)", (scope, now))
         partner = self.server.partner_phones.get(phone)
         try:
             if action == "send":

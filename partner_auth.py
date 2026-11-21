@@ -19,6 +19,23 @@ CREATE INDEX IF NOT EXISTS partner_auth_time ON partner_auth_limits(created);
 """
 
 
+PER_PHONE, PER_IP, SITE_WIDE, WINDOW = 5, 20, 1000, 600     # per 10 minutes; the site-wide number is only an emergency brake
+
+
+def allow_attempt(db, action, phone_digest, ip_digest, now):
+    """Run inside BEGIN IMMEDIATE. True (and the attempt is counted) unless this phone or this visitor address
+    has tried too often, or the site as a whole is flooded. One caller can no longer lock every partner out."""
+    db.execute("DELETE FROM partner_auth_limits WHERE created<=?", (now - WINDOW,))
+    scope, visitor = action + ":" + phone_digest, "ip:" + ip_digest
+    count, last = db.execute("SELECT count(*), max(created) FROM partner_auth_limits WHERE scope=?", (scope,)).fetchone()
+    from_ip = db.execute("SELECT count(*) FROM partner_auth_limits WHERE scope=?", (visitor,)).fetchone()[0]
+    total = db.execute("SELECT count(*) FROM partner_auth_limits").fetchone()[0]
+    if total >= SITE_WIDE or count >= PER_PHONE or from_ip >= PER_IP or (action == "send" and last and last > now - 60):
+        return False
+    db.executemany("INSERT INTO partner_auth_limits VALUES (?,?)", [(scope, now), (visitor, now)])
+    return True
+
+
 class Verify:
     def __init__(self, service, account, secret):
         self.url = "https://verify.twilio.com/v2/Services/" + service + "/"
