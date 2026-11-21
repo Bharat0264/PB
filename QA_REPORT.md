@@ -106,6 +106,8 @@ Live and local behaved identically in every comparison, except that live runs re
 - Actual result: continuous polling from every open tab; the page never reaches "network idle".
 - Evidence: request log: `/api/checkout` at about 5 s and 10 s after load on live and local.
 - Likely cause: `pricing`/checkout config subscription (`customer-pricing.js`).
+- **Status: FIXED** (commit `fix(BUG-007)`). `customer-pricing.js` now fetches `/api/checkout` once per page load and keeps the answer in `sessionStorage` for 60 seconds, so moving to another page does not refetch. After that it refreshes only while the tab is visible, at most once a minute (a 60 s timer), or when the tab regains focus (if the copy is older than 15 s). A hidden tab makes no requests. Placing an order still calls `refresh()` directly, so the bill is always checked against fresh prices. A price change shows within a minute.
+- **Verified** (Chrome, signed-out `/home`, request log): before, `/api/checkout` every 5 s (3 requests in the first 12 s, about 27 in 135 s); after, requests at 0 s, 60 s and 120 s (3 in 135 s). Opening `/pricing.html` straight after: 0 requests (cache). Tab hidden for 70 s: 0 requests. Tab visible again: exactly 1 request. Checkout and price display still work: customer order placement through the UI passes, and the full suite (239 tests) passes.
 - Fix prompt: "`customer-pricing.js` polls `/api/checkout` every 5 seconds on every customer page. Poll only while the tab is visible, back off to 60 s, stop when hidden, and refresh immediately when the tab becomes visible. Keep price changes appearing within a minute."
 
 ### BUG-008: Public pricing page does not show Bond paper prices
