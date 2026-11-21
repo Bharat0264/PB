@@ -24,9 +24,15 @@ class SecurityHeaderTests(unittest.TestCase):
             self.assertEqual(found.get("referrer-policy"), "strict-origin-when-cross-origin", path)
             self.assertIn("frame-ancestors 'self'", found.get("content-security-policy-report-only", ""), path)
 
-    def test_csp_is_report_only_so_nothing_is_blocked_yet(self):
-        _, found = self.headers("/")
-        self.assertNotIn("content-security-policy", found)
+    def test_the_safe_csp_parts_are_enforced_and_the_rest_stays_report_only(self):
+        for path in ("/", "/api/checkout", "/pricing.html"):
+            _, found = self.headers(path)
+            enforced = found.get("content-security-policy", "")
+            for directive in ("object-src 'none'", "base-uri 'self'", "form-action 'self'", "frame-ancestors 'self'"):
+                self.assertIn(directive, enforced, path)
+            self.assertNotIn("script-src", enforced)          # scripts and styles are not enforced yet
+            self.assertNotIn("style-src", enforced)
+            self.assertIn("script-src", found.get("content-security-policy-report-only", ""))
 
     def test_hsts_only_on_https(self):
         _, plain = self.headers("/")

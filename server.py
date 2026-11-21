@@ -106,7 +106,11 @@ def active_checkout_terms(db, default):
 
 
 # What each audience may see. Allowlists, so a field added to the stored settings later stays private until it is listed here.
-# A strict policy, sent in REPORT-ONLY mode: browsers log what it would block but nothing is blocked yet.
+# ENFORCED now: the parts of a Content-Security-Policy that need no page changes (no plugins, no <base> tricks,
+# forms and framing only for ourselves).
+CSP_ENFORCED = "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
+
+# The strict script/style/image/... policy is still sent in REPORT-ONLY mode: browsers log what it would block but nothing is blocked yet.
 CSP_REPORT_ONLY = "; ".join((
     "default-src 'self'",
     "script-src 'self' https://checkout.razorpay.com https://maps.googleapis.com",
@@ -114,7 +118,7 @@ CSP_REPORT_ONLY = "; ".join((
     "img-src 'self' data: blob: https://maps.gstatic.com https://maps.googleapis.com",
     "font-src 'self'",
     "connect-src 'self' blob: https://maps.googleapis.com https://lumberjack.razorpay.com",
-    "frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com",
+    "frame-src 'self' blob: https://api.razorpay.com https://checkout.razorpay.com",     # blob: = the PDF preview
     "worker-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",
@@ -412,6 +416,7 @@ class PrintBee(SimpleHTTPRequestHandler):
             "X-Content-Type-Options": "nosniff",
             "Referrer-Policy": "strict-origin-when-cross-origin",
             "X-Frame-Options": "SAMEORIGIN",          # navigation.html and the phone tabs frame our own pages
+            "Content-Security-Policy": CSP_ENFORCED,
             "Content-Security-Policy-Report-Only": CSP_REPORT_ONLY,
         }
         secure = auth.public_origin().startswith("https://") or self.headers.get("X-Forwarded-Proto", "").lower() == "https"
