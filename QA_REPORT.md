@@ -35,7 +35,7 @@ Six bugs were fixed (BUG-008 after your decision), one commit each (`fix(BUG-001
 | BUG-005 headers | **PASS** (fixed) | nosniff, Referrer-Policy, X-Frame-Options and HSTS (HTTPS only) on every response; CSP is report-only |
 | BUG-003 console errors | **PASS** (fixed) | 26 errors across 11 signed-out pages before, 0 after; signed-in bell, orders and Help unchanged |
 | BUG-007 polling | **PASS** (fixed) | `/api/checkout` every 5 s before, now at 0, 60 and 120 s; none while the tab is hidden; one refresh on regaining focus |
-| BUG-002 3D bee | **PARTIAL** | TBT 2.9 to 6.7 s down to 0 ms and script time 10 to 16 s down to 0.2 s on mobile; performance 27/26/50 up to 59/60/85 locally, but 90+ is not reached on home and upload (hero image and a duplicated stylesheet, not the bee) |
+| BUG-002 3D bee | **PASS** (fixed) | Live Lighthouse mobile: home 63 to 90, upload 63 to 91, pricing 69 to 99; TBT to 0 ms |
 | BUG-008 Bond paper on pricing | **PASS** (fixed) | Pricing page shows a Bond paper card with the same prices as checkout |
 
 Checks run after the last commit, all on a freshly reset demo server: full unit suite (239 tests: all pass); customer order through the UI, warehouse "Mark printed", partner accept and pickup, wrong delivery code throttling, admin snapshot (8 of 8 pass); sessions and sign-out (9 of 9 pass); warehouse, partner and admin portals at 1440 and 390 px (no console errors, no failed requests); 12 customer pages at 5 widths (60 loads); payout scan (only partner and admin show payout, as intended); upload checks (7 of 8 pass; the 8th, "a mixed pick keeps the good file", fails only because my test script cut the page text too short: checked by hand, the page keeps `ok.pdf` and refuses `virus.exe` with the right message).
@@ -43,9 +43,8 @@ Checks run after the last commit, all on a freshly reset demo server: full unit 
 **Still open:**
 - BUG-006, sign-in email throttle (Medium): not on your list, not touched.
 - BUG-009 to BUG-018 (Low): not touched, as you asked.
-- Page speed: home and upload stay near 60 in the local Lighthouse run because of the 280 KB hero picture `printing-clay.webp` and `studio.css` loading three times on `index.html`. A separate, small fix.
 - The security CSP is report-only and has no reporting endpoint; enforcing it needs the inline styles and the one inline admin script handled first (see BUG-005). The Razorpay window and live Google Map were not exercised.
-- Not tested: Firefox and Safari (WebKit) could not be installed here; live Lighthouse "after" and live header checks need a deploy.
+- Not tested: Firefox and Safari (WebKit) could not be installed here. Live headers, the payout fix, the Bond card and Lighthouse were checked on the live site after deploy.
 
 ## Bugs
 
@@ -72,7 +71,7 @@ Checks run after the last commit, all on a freshly reset demo server: full unit 
 - Actual result: performance 63 (home), 63 (upload), 69 (pricing). Total blocking time 2.3 to 2.8 s, time to interactive 6.0 to 7.6 s, page weight about 2.0 MB. The welcome page scores 100.
 - Evidence: Lighthouse JSON for the five pages; the biggest script cost is `buzz-bee3d.js` (about 10 s of scripting on the throttled run, from the three.js engine and the 938 KB `bee_hq.glb`).
 - Likely cause: `buzz-chat.js` loads three.js, the GLB and builds the bee on every customer page at startup.
-- **Status: FIXED for the 3D cost; a different page-speed cost remains (see below)** (commit `fix(BUG-002)`). The bee was already a dynamic import after the page is idle, but it still downloaded for everyone. `buzz-chat.js` now keeps the light still bee (the existing floating WebP, same tip and chat) and never downloads `buzz-bee3d.js`, three.js or `bee_hq.glb` when: the screen is 600 px or narrower, the device is touch-first, "reduce motion" is on, or the connection is 2G or data-saver. Desktop with normal motion still gets the 3D bee, loaded after idle. The bee launcher is the chat button on every customer page, so it stays on all of them; only the 3D engine is conditional.
+- **Status: FIXED, confirmed on the live site after deploy** (commit `fix(BUG-002)`). The bee was already a dynamic import after the page is idle, but it still downloaded for everyone. `buzz-chat.js` now keeps the light still bee (the existing floating WebP, same tip and chat) and never downloads `buzz-bee3d.js`, three.js or `bee_hq.glb` when: the screen is 600 px or narrower, the device is touch-first, "reduce motion" is on, or the connection is 2G or data-saver. Desktop with normal motion still gets the 3D bee, loaded after idle. The bee launcher is the chat button on every customer page, so it stays on all of them; only the 3D engine is conditional.
 - **Lighthouse mobile before and after** (Lighthouse 12.2.1, mobile, simulated slow 4G, performance category, run against my local server, same machine and settings; the local server sends files uncompressed so absolute numbers are lower than the live site, which sits behind Cloudflare compression):
 
   | Page | Perf before | Perf after | TBT before | TBT after | Script time before | after | Page weight before | after |
@@ -82,7 +81,8 @@ Checks run after the last commit, all on a freshly reset demo server: full unit 
   | `/pricing.html` | 50 | 85 | 6,700 ms | 0 ms | 10.7 s | 0.1 s | 3,633 KiB | 414 KiB |
 
   For reference, the live site before any fix (earlier run): index 63, queue 63, pricing 69, TBT 2.3 to 2.8 s. A live "after" needs the change deployed; re-run `lighthouse https://printbee.onrender.com/index.html --form-factor=mobile` after deploy.
-- **Goal check:** TBT under 300 ms: met (0 ms). Performance 90+: not met on home and upload (about 60 locally). What is left is not the bee: the largest paint on those two pages is the 280 KB hero picture `printing-clay.webp`, and `index.html` loads `studio.css` three times under different `?v=` names (3 x 63 KB). That is a separate fix (preload or shrink the hero image, load the stylesheet once); I did not change it because the instruction was to change nothing else.
+- **Live site, after deploy** (Lighthouse 12.2.1, mobile, simulated slow 4G, `printbee.onrender.com`, 2026-11-21): `/index.html` 63 to **90**, `/queue.html` 63 to **91**, `/pricing.html` 69 to **99**. Blocking time 2.3 to 2.8 s to **0 ms**; script time 0.2 s or less; page weight about 630 KiB (home, upload) and 235 KiB (pricing).
+- **Goal check (live):** TBT under 300 ms: met (0 ms). Performance 90+: met on all three pages. The slower local numbers above come from the local server not compressing files; the largest paint there is the 280 KB hero picture `printing-clay.webp`, which is fine on the live site. `index.html` still loads `studio.css` under three `?v=` names; a small optional cleanup, not needed for the goal.
 - **Verified** (Chrome): desktop 1280 px: 3D bee ready, chat opens. Reduce-motion desktop, phone 390 px (touch), 560 px desktop and 820 px touch tablet: still bee shown, 0 requests for the 3D files, chat opens. Phone screenshot checked. Full suite (239 tests) passes.
 - Fix prompt: "The Buzz bee 3D launcher blocks the main thread for 2+ seconds on mobile and loads 1.3 MB of 3D code on every page. Keep the look but load the 3D scene lazily: show the existing still bee pictures first, and only import `buzz-bee3d.js` and `bee_hq.glb` after the page is idle (or when the user first hovers or taps the bee), and skip the 3D entirely on low-power devices. Re-run Lighthouse mobile; goal TBT under 300 ms and performance 90+. Change nothing else."
 
