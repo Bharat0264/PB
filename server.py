@@ -34,6 +34,7 @@ from document_pages import count_pages
 from upload_types import validate_upload
 from order_documents import PrivateFiles, invoice_pdf, packing_label_pdf
 from order_rules import LIMIT, TRANSITIONS, advance_order, quote_items
+from security_headers import response_headers
 from request_limits import (
     DOCUMENT_READERS, claim_page_counter, release_page_counter, release_stream_slot, take_stream_slot,
 )
@@ -106,26 +107,6 @@ def active_checkout_terms(db, default):
 
 
 # What each audience may see. Allowlists, so a field added to the stored settings later stays private until it is listed here.
-# ENFORCED now: the parts of a Content-Security-Policy that need no page changes (no plugins, no <base> tricks,
-# forms and framing only for ourselves).
-CSP_ENFORCED = "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
-
-# The strict script/style/image/... policy is still sent in REPORT-ONLY mode: browsers log what it would block but nothing is blocked yet.
-CSP_REPORT_ONLY = "; ".join((
-    "default-src 'self'",
-    "script-src 'self' https://checkout.razorpay.com https://maps.googleapis.com",
-    "style-src 'self'",
-    "img-src 'self' data: blob: https://maps.gstatic.com https://maps.googleapis.com",
-    "font-src 'self'",
-    "connect-src 'self' blob: https://maps.googleapis.com https://lumberjack.razorpay.com",
-    "frame-src 'self' blob: https://api.razorpay.com https://checkout.razorpay.com",     # blob: = the PDF preview
-    "worker-src 'self' blob:",
-    "object-src 'none'",
-    "base-uri 'self'",
-    "form-action 'self'",
-    "frame-ancestors 'self'",
-))
-
 PUBLIC_TERMS = ("paperRates", "bindingRates", "slots", "campuses", "serviceArea")          # what the public checkout config needs
 WAREHOUSE_ORDER_FIELDS = ("address", "bill", "campusId", "coupon", "customer", "deliveryType", "items", "notes", "phone",
                           "pickupWarehouse", "priority", "slot", "subtotal")   # no delivery partner payout
@@ -400,22 +381,8 @@ class PrintBee(SimpleHTTPRequestHandler):
 
     def security_headers(self):
         """Headers that go on every response. Anything a route already set itself is left alone."""
-        wanted = {
-            "X-Content-Type-Options": "nosniff",
-            "Referrer-Policy": "strict-origin-when-cross-origin",
-            "X-Frame-Options": "SAMEORIGIN",          # navigation.html and the phone tabs frame our own pages
-            # Browser features PrintBee never uses are switched off; location stays on (address pin, delivery tracking).
-            # `payment` is left alone on purpose: Razorpay's checkout window needs it.
-            "Permissions-Policy": "camera=(), microphone=(), geolocation=(self), usb=(), display-capture=()",
-            "Content-Security-Policy": CSP_ENFORCED,
-            "Content-Security-Policy-Report-Only": CSP_REPORT_ONLY,
-        }
         secure = auth.public_origin().startswith("https://") or self.headers.get("X-Forwarded-Proto", "").lower() == "https"
-        if secure:
-            # includeSubDomains only when the owner confirms every subdomain of the site is https (PRINTBEE_HSTS_SUBDOMAINS=1).
-            wanted["Strict-Transport-Security"] = "max-age=31536000" + (
-                "; includeSubDomains" if os.environ.get("PRINTBEE_HSTS_SUBDOMAINS") == "1" else "")
-        for name, value in wanted.items():
+        for name, value in response_headers(secure).items():
             if name.lower() not in self.headers_sent:
                 self.send_header(name, value)
 
