@@ -667,7 +667,7 @@ class PrintBee(SimpleHTTPRequestHandler):
                 owner = row and row["email"] and row["email"] == auth.session_email(db, self.headers)
                 shared = row and row["status"] != "pending" and hmac.compare_digest(
                     self.tracking_key(match[1]).encode(), share.encode()
-                )
+                ) and self.tracking_link_open(db, match[1], row["status"])
                 if shared:
                     return self.json_response(200, {"status": row["status"], "number": row["order_number"],
                                                     "paymentStarted": bool(row["provider_id"])})
@@ -701,6 +701,21 @@ class PrintBee(SimpleHTTPRequestHandler):
 
     def do_HEAD(self):
         self.send_error(405, "Use GET.")
+
+    TRACKING_LINK_DAYS = 30             # a shared tracking link stops working this long after the order was placed...
+    TRACKING_AFTER_FINISH = 24 * 3600   # ...or a day after the order was delivered, cancelled or refunded
+
+    def tracking_link_open(self, db, order_id, status, now=None):
+        """A shared tracking link is a permanent secret by construction, so the server ends its life instead."""
+        now = now if now is not None else time.time()
+        placed = db.execute("SELECT min(created) FROM audit WHERE order_id=? AND action='order_created'", (order_id,)).fetchone()[0]
+        if placed is None or placed < now - self.TRACKING_LINK_DAYS * 86400:
+            return False
+        if order_status.STATUSES.get(status, {}).get("terminal"):
+            finished = db.execute("SELECT max(created) FROM order_events WHERE order_id=? AND to_status=?", (order_id, status)).fetchone()[0]
+            if finished is not None and finished < now - self.TRACKING_AFTER_FINISH:
+                return False
+        return True
 
     def tracking_key(self, order_id):
         secret = self.server.keys["delivery-code"].encode()
