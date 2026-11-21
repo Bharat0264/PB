@@ -25,9 +25,9 @@ Fixed on 2026-11-21 on the local branch `security-fixes` (**not pushed, not depl
 | Round | Findings and commits |
 | --- | --- |
 | Top 5 | F-01 `397ad9f`, F-03 `9b6258f`, F-04 `f7419be`, F-06 `8d9d01e`, F-05 `d671bdd` |
-| Remaining | F-02 `cc270f8`, F-07 `a3a4dc2`, F-08 `dbc0c57`, F-09 `51435d6`, F-10 `f58c65c`, F-11 `cf850a9`, F-12 `b116331`, F-13 `a1e554c`, F-17 `a5b9207` |
+| Remaining | F-02 `cc270f8`, F-07 `a3a4dc2`, F-08 `dbc0c57`, F-09 `51435d6`, F-10 `f58c65c`, F-11 `cf850a9`, F-12 `b116331`, F-13 `a1e554c`, F-15 `d475d33`, F-17 `a5b9207` |
 
-Not fixed: **F-14** (needs Docker, see manual steps), **F-15** (one-line chart legend escape, not requested), **F-16** (Google Cloud setting, manual). The test suite grew from 255 to 298 tests and passes; the customer, warehouse, partner and admin order flow, all portals, the signed-in and signed-out customer pages and a Chrome CSP scan were re-checked after the last change. Risk after these fixes: about 1 out of 10.
+Not fixed: **F-14** (needs Docker, see manual steps) and **F-16** (Google Cloud setting, manual). The test suite grew from 255 to 300 tests and passes; the customer, warehouse, partner and admin order flow, all portals, the signed-in and signed-out customer pages and a Chrome CSP scan were re-checked after the last change. Risk after these fixes: about 1 out of 10.
 
 ### Manual steps (things only you can do, or that need real keys, Docker or the live site)
 
@@ -70,7 +70,7 @@ Routes: 3 public pages families (welcome, customer app, pricing/terms), 3 staff 
 | F-12 | Missing Permissions-Policy and a weak HSTS setting | Low (**FIXED** `b116331`) | `server.py:383-398` |
 | F-13 | Order tracking link can never be revoked | Low (**FIXED** `a1e554c`) | `server.py:633-635,596-601` |
 | F-14 | Docker image and dependencies are not pinned to exact versions | Low (**NOT FIXED: manual**) | `Dockerfile:1`, `requirements.txt` |
-| F-15 | Chart legend inserts text into the page without escaping | Info | `admin-dashboard.js:154` |
+| F-15 | Chart legend inserts text into the page without escaping | Info (**FIXED** `d475d33`) | `admin-dashboard.js:154` |
 | F-16 | Google Maps key is public by design; check it is restricted | Info | `server.py:2065-2067` |
 | F-17 | `.claude/` folder is not in `.gitignore` | Info (**FIXED** `a5b9207`) | `.gitignore` |
 
@@ -391,7 +391,7 @@ FROM python:3.12-slim
 **Fix.** Pin the base image by digest, keep a full lock file (`pip-compile --generate-hashes`), and run `pip-audit` before each deploy.
 
 ### F-15: Chart legend inserts text without escaping (Info)
-**Status: not changed** (not in the requested list; a one-line fix).
+**Status: FIXED** in commit `d475d33` (branch `security-fixes`, not pushed). The legend now escapes the series name. Checked in Chrome by feeding the chart a name containing an HTML image tag with a script handler: before, an element was created and the script ran; after, the legend shows the text literally and nothing runs. The admin script's version string was bumped so browsers fetch the new file, and `test_admin_chart_escaping.py` guards the line.
 
 **The problem.** `entry.name` is placed into HTML unescaped. Today it is fixed text from the code, so there is no attack, but if a name ever comes from user data it would become cross-site scripting.
 
